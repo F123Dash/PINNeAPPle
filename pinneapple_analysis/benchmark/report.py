@@ -444,13 +444,13 @@ def figures(plan, col, tables, fig_dir: Path, banners) -> list[str]:
                 lines.append([prob.title + (f", {label}" if label else ""), prob.method_title(plan.M[mid]),
                               (f"{f(c['mean'])} (n={c['n']})" if c else "-"), (f"{f(o['mean'])} (n={o['n']})" if o else "-"),
                               fmt_s(r["time_per_instance_s"]), _badge(r["status"])])
-    h = 0.27 * (len(lines) + 1) + 1.2 + 0.25 * len(banners)
+    h = 0.27 * (len(lines) + 1) + 1.4 + 0.25 * len(banners)
     fig = plt.figure(figsize=(12, h))
-    ax = fig.add_axes([0.02, 0.45 / h, 0.96, 1 - (1.0 + 0.25 * len(banners)) / h])
+    ax = fig.add_axes([0.02, 0.62 / h, 0.96, 1 - (1.2 + 0.25 * len(banners)) / h])
     ax.axis("off")
     tab = ax.table(cellText=lines or [["-"] * 6], colLabels=["Problem", "Method", "Error, in distribution",
-                                                              "Error, OOD", "Time per new instance", "Checks"],
-                   cellLoc="left", colLoc="left", bbox=[0, 0, 1, 1], colWidths=[0.26, 0.2, 0.15, 0.15, 0.11, 0.13])
+                                                              "Error, OOD", "Time / new instance", "Checks"],
+                   cellLoc="left", colLoc="left", bbox=[0, 0, 1, 1], colWidths=[0.27, 0.22, 0.13, 0.13, 0.12, 0.13])
     tab.auto_set_font_size(False)
     tab.set_fontsize(8.5)
     for (i, _j), cl in tab.get_celld().items():
@@ -461,8 +461,18 @@ def figures(plan, col, tables, fig_dir: Path, banners) -> list[str]:
              va="top")
     for k, b in enumerate(banners):
         fig.text(0.02, 1 - (0.42 + 0.25 * k) / h, b, fontsize=8.5, color="#e34948", va="top", weight="bold")
+    hw = {}
+    try:
+        hw = json.loads((plan.ws.root / "hardware.json").read_text())
+    except (OSError, ValueError):
+        pass
+    budgets = ", ".join(f"{plan.P[p].title.split(' (')[0]} {_budget_str(plan.cfg.budget_for(p))}" for p in pids)
+    fig.text(0.02, 0.30 / h, f"Budget per training run: {budgets}; {plan.cfg.threads_per_run} thread(s) per run on "
+                             f"{hw.get('cpu', 'the recorded CPU')}, GPU: {hw.get('gpu') or 'none'}.", fontsize=7,
+             color=INK2)
     fig.text(0.02, 0.12 / h, "Errors: each problem's main metric (relative unless stated); n = instances; mean over "
-                              "seeds. Per-instance methods' time = their training.", fontsize=7, color=INK2)
+                              f"{plan.cfg.seeds} seeds. Per-instance methods' time = their training.", fontsize=7,
+             color=INK2)
     fig.savefig(fig_dir / "summary_table.png", dpi=200)
     plt.close(fig)
     files.append("summary_table.png")
