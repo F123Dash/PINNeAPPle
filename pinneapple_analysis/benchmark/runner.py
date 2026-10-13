@@ -33,7 +33,7 @@ from pinneapple_analysis.cost.equal_budget import (
 from .config import BenchmarkConfig
 from .registry import Check, get_method, get_problem
 
-__all__ = ["Workspace", "ConfigMismatch", "PreparationError", "prepare", "execute_jobs", "run_job"]
+__all__ = ["Workspace", "ConfigMismatch", "PreparationError", "prepare_problem", "execute_jobs", "run_job"]
 
 
 class ConfigMismatch(RuntimeError):
@@ -106,10 +106,14 @@ def _problem_hash(problem) -> str:
     return hashlib.sha256(json.dumps(key, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
-def prepare_problem(ws: Workspace, problem, *, n_workers: int = 1, force: bool = False,
+def prepare_problem(ws: Workspace, problem, *, n_workers: int = 1, force: bool = False, adopt: bool = False,
                     log: Callable[[str], None] = print) -> dict[str, Any]:
     """Create (or reuse) the problem's artifacts, then verify the solver, check the data and run the validation
-    stack on them. Returns the manifest (status ok / failed)."""
+    stack on them. Returns the manifest (status ok / failed).
+
+    ``adopt``: artifacts already placed in ``prepared/<problem>/`` (your own data, or data generated elsewhere with
+    this configuration) are hashed and used instead of being generated; the manifest records them as adopted, and
+    they go through exactly the same checks."""
     out = ws.prepared(problem.id)
     out.mkdir(parents=True, exist_ok=True)
     problem.bind(out)
@@ -120,6 +124,16 @@ def prepare_problem(ws: Workspace, problem, *, n_workers: int = 1, force: bool =
         (out / f).exists() and _sha_file(out / f) == s for f, s in man.get("hashes", {}).items())
     if man is not None and man.get("config_hash") != h and not force:
         raise ConfigMismatch(f"{out} was prepared with another configuration of {problem.id}; prepare with force")
+    files = problem.artifact_files(out) if adopt else None
+    if not fresh and adopt and files and all((out / f).exists() for f in files):
+        log(f"prepare {problem.id}: adopting {len(files)} existing artifacts")
+        cost = json.loads((out / "cost.json").read_text()) if (out / "cost.json").exists() else None
+        man = {"problem": problem.id, "config_hash": h, "solver_config": problem.solver_config(), "generated": True,
+               "adopted": True, "files": files, "cost": cost, "hashes": {f: _sha_file(out / f) for f in files}}
+        if hasattr(problem, "complete_adopted"):
+            problem.complete_adopted(out)
+        (out / "solver_config.json").write_text(json.dumps(problem.solver_config(), indent=1, default=str))
+        fresh = True
     if not fresh:
         log(f"prepare {problem.id}: generating data")
         t0 = time.time()
@@ -145,13 +159,7 @@ def prepare_problem(ws: Workspace, problem, *, n_workers: int = 1, force: bool =
     return man
 
 
-def prepare(config: BenchmarkConfig, out_dir, *, force: bool = False, log=print) -> dict[str, dict]:
-    ws = Workspace(out_dir, config)
-    out = {}
-    for p in config.problems:
-        prob = get_problem(p).configure(config.problem_options.get(config._id(p)), config.smoke)
-        out[prob.id] = prepare_problem(ws, prob, n_workers=config.n_workers, force=force, log=log)
-    return out
+
 
 
 def require_prepared(ws: Workspace, problem, allow_failed: bool) -> dict:

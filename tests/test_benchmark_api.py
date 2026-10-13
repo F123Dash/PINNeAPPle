@@ -161,3 +161,22 @@ def test_config_round_trip_and_budget(tmp_path):
     with pytest.raises(ValueError):
         B.BenchmarkConfig.from_dict({"nope": 1})
     _ = torch
+
+
+def test_tampered_artifacts_are_refused_and_own_artifacts_can_be_adopted(tmp_path):
+    out = tmp_path / "b"
+    B.prepare(problems=[_problem()], out_dir=out, log=lambda *a: None)
+    data = out / "prepared" / "smooth" / "data.npz"
+    z = dict(np.load(data))
+    z["test_y"] = z["test_y"] + 1.0
+    np.savez_compressed(data, **z)                                   # changed after validation
+    with pytest.raises(B.PreparationError):
+        B.run(problems=[_problem()], methods=["fno"], out_dir=out, prepare_missing=False, stages=(), **FAST)
+    other = tmp_path / "c" / "prepared" / "smooth"
+    other.mkdir(parents=True)
+    tr, va, te = _arrays(48, 0), _arrays(8, 1), _arrays(8, 2)
+    np.savez_compressed(other / "data.npz", train_x=tr[0], train_y=tr[1], val_x=va[0], val_y=va[1], test_x=te[0],
+                        test_y=te[1], ood_x=_arrays(4, 3, 3.0)[0], ood_y=_arrays(4, 3, 3.0)[1])
+    (other / "cost.json").write_text(json.dumps({"train_set_core_s": 5.0}))
+    man = B.prepare(problems=[_problem()], out_dir=tmp_path / "c", adopt=True, log=lambda *a: None)["smooth"]
+    assert man["adopted"] and man["status"] == "ok" and set(man["hashes"]) == {"data.npz", "cost.json"}

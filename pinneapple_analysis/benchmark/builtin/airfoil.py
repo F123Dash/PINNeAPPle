@@ -148,6 +148,16 @@ class AirfoilProblem(Problem):
         if not (case / "system" / "controlDict").exists():
             write_case(str(case), REFERENCE["NACA 2412"], 4.0, reynolds=RE)
 
+    def artifact_files(self, out):
+        out = Path(out)
+        runs = [str(p.relative_to(out)) for p in sorted((out / "runs").glob("*.json"))]
+        ood = [str(p.relative_to(out)) for p in sorted((out / "ood" / "runs").glob("*.json"))] if self.options["ood"] else []
+        return ["cost.json"] + runs + ood if runs else ["cost.json", "runs"]
+
+    def complete_adopted(self, out):
+        """Adopted campaign: write the geometry artifacts (shapes, a representative OpenFOAM case) it lacks."""
+        self._geometry(Path(out))
+
     def data_cost_s(self, out):
         p = Path(out) / "cost.json"
         return json.loads(p.read_text())["train_set_core_s"] if p.exists() else None

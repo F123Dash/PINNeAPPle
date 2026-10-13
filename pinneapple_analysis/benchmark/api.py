@@ -68,13 +68,16 @@ def _orig(lst, key):
     return key
 
 
-def prepare(config=None, out_dir: str | Path = "benchmark_out", *, force: bool = False, log=print, **kwargs) -> dict:
+def prepare(config=None, out_dir: str | Path = "benchmark_out", *, force: bool = False, adopt: bool = False, log=print,
+            **kwargs) -> dict:
     """Create and validate the artifacts (solver config, geometry, data, cost, hashes) in ``out_dir/prepared/``,
-    for the user to inspect before any training. Returns {problem: manifest}."""
+    for the user to inspect before any training. ``adopt``: use artifacts you placed there yourself (they are hashed
+    and checked the same way). Returns {problem: manifest}."""
     cfg = _config(config, **kwargs)
     ws = Workspace(out_dir, cfg)
     P, _, _ = _objects(cfg)
-    return {pid: prepare_problem(ws, prob, n_workers=cfg.n_workers, force=force, log=log) for pid, prob in P.items()}
+    return {pid: prepare_problem(ws, prob, n_workers=cfg.n_workers, force=force, adopt=adopt, log=log)
+            for pid, prob in P.items()}
 
 
 def run(config=None, out_dir: str | Path = "benchmark_out", *, force: bool = False, prepare_missing: bool = True,

@@ -45,6 +45,9 @@ class InverseHeatProblem(Problem):
         (out / "reference.json").write_text(json.dumps(ref, indent=1))
         return {"files": ["inverse_heat.npz", "cost.json", "reference.json"], "cost": cost}
 
+    def artifact_files(self, out):
+        return ["inverse_heat.npz", "cost.json", "reference.json"]
+
     def data_cost_s(self, out):
         p = Path(out) / "cost.json"
         return json.loads(p.read_text())["train_set_core_s"] if p.exists() else None

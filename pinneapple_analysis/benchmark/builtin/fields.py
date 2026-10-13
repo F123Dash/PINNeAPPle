@@ -98,6 +98,9 @@ class FieldOperatorProblem(Problem):
         (out / "cost.json").write_text(json.dumps(cost_doc, indent=1))
         return {"files": ["data.npz", "cost.json"], "cost": cost_doc}
 
+    def artifact_files(self, out: Path) -> list[str]:
+        return ["data.npz", "cost.json"]
+
     def data_cost_s(self, out: Path) -> float | None:
         p = Path(out) / "cost.json"
         return json.loads(p.read_text())["train_set_core_s"] if p.exists() else None

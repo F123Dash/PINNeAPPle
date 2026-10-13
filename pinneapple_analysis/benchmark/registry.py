@@ -101,6 +101,10 @@ class Problem:
         """Generate the data into ``out`` (and geometry, if any); return a manifest with the files and their cost."""
         raise NotImplementedError
 
+    def artifact_files(self, out: Path) -> list[str]:
+        """The files ``prepare`` writes (relative to ``out``); used to adopt existing artifacts."""
+        return ["cost.json"]
+
     def verify_solver(self) -> list[Check]:
         """Verification of the reference solver on this configuration (exact or manufactured solutions)."""
         return [Check("reference solver verification", "problem", self.id, None,
