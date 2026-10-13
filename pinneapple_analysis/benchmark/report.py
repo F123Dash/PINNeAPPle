@@ -263,6 +263,10 @@ def markdown(plan, tables, checks, validation, trust, diagnoses, banners, studie
         if t["solver_time_per_instance_s"]:
             L.append(f"| Reference solver | - | - | - | {fmt_s(t['solver_time_per_instance_s'])} | - |")
         L.append("")
+        try:
+            L += prob.report_sections(plan)
+        except Exception as e:                                    # evidence that cannot be built is reported, not hidden
+            L += [f"_{prob.title}: extra sections failed ({e!r})_", ""]
         ef = t.get("equal_flops")
         if ef:
             n_full = next((r["full"]["n"] for r in ef["rows"].values() if r.get("full") and r["full"].get("n")), None)

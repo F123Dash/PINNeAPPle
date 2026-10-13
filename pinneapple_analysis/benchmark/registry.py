@@ -138,6 +138,10 @@ class Problem:
         inst = self.study_instances()
         return inst[0] if inst else None
 
+    def report_sections(self, plan) -> list[str]:
+        """Extra Markdown lines for this problem's section of the report (problem-specific evidence)."""
+        return []
+
     def run_metrics(self, method_id: str, suffix: str, result: dict) -> dict[str, float]:
         """One run's metrics, flat ({"set/metric": mean}), from ``extract`` (budget study and ablation tables)."""
         out = {}
