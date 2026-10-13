@@ -77,6 +77,7 @@ def job_checks(rec: dict) -> list[Check]:
                        value=f"{L[0]:.3g} -> {L[-1]:.3g}", detail=spec["id"]))
     else:                       # a short run of the error-versus-budget curve is expected to learn less
         C.append(Check("learned (final loss < half the initial)", "training", subj, None, value=spec["id"],
+                       severity="warning",
                        detail="n/a: a search run or a level below the full budget (expected to learn less)"))
     b = spec["budget"]
     wall = tr.get("wall_s", 0.0)
@@ -120,7 +121,7 @@ def training_gates(ws, plan) -> tuple[list[Check], dict[str, list[Check]]]:
             applicable = [c for c in group if c.passed is not None]
             agg.append(Check(name, "training", subj, None if not applicable else not fails,
                              value=f"{len(applicable) - len(fails)}/{len(applicable)} jobs",
-                             severity=group[0].severity,
+                             severity=(applicable or group)[0].severity,
                              detail="; ".join(f"{c.detail} ({c.value})" for c in fails[:3])))
     agg.append(Check("identical accounting across methods (hardware, threads, timer, FLOP counter)", "training",
                      "all", len(hw) <= 1, value=[list(x) for x in hw]))

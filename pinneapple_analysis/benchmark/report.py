@@ -139,6 +139,17 @@ def build_tables(plan, col, row_status: dict) -> dict:
     return tables
 
 
+def _budget_str(b) -> str:
+    parts = []
+    if b.wall_s:
+        parts.append(f"{b.wall_s:g} s wall clock")
+    if b.flops:
+        parts.append(f"{b.flops:.3g} FLOPs")
+    if b.steps:
+        parts.append(f"{b.steps} steps")
+    return ", ".join(parts) or "unlimited"
+
+
 def _badge(status: str) -> str:
     return {"pass": "✓ pass", "pass (warnings)": "✓ pass (warn)", "INVALID": "✗ INVALID",
             "did not converge": "⚠ did not converge", "checks skipped": "⚠ checks skipped"}.get(status, status)
@@ -159,7 +170,7 @@ def markdown(plan, tables, checks, validation, trust, diagnoses, banners) -> str
     for pid, t in tables.items():
         prob = plan.P[pid]
         b = cfg.budget_for(pid)
-        L += [f"## {prob.title} (budget per run: {b.to_dict()})", ""]
+        L += [f"## {prob.title} (budget per run: {_budget_str(b)})", ""]
         cols = prob.columns()
         for kind, head in (("field", "Fields"), ("integral", "Integral quantities")):
             cs = [c for c in cols if c.kind == kind]
@@ -170,7 +181,8 @@ def markdown(plan, tables, checks, validation, trust, diagnoses, banners) -> str
             for mid, r in t["rows"].items():
                 meth = plan.M[mid]
                 outs = prob.method_outputs(meth)
-                if (kind == "field" and outs == "integrals") or (kind == "integral" and outs == "fields"):
+                derived = any(r["cells"].get(c.key) for c in cs)   # e.g. an integral computed from the predicted field
+                if not derived and ((kind == "field" and outs == "integrals") or (kind == "integral" and outs == "fields")):
                     vals = ["integrals only" if kind == "field" else "fields only"] * len(cs)
                 else:
                     vals = []
