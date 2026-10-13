@@ -94,7 +94,7 @@ The gates run by default, are recorded with their measured values, and are never
   one that learns but more slowly is a warning). A pair that fails an error-level gate is not trained and is INVALID
   in the table.
 * **Training (from every run)**: loss finite and decreasing, divergence, "did not learn" (judged on the full-budget
-  runs; the short runs of the error-versus-budget curve are expected to learn less), the budget enforced, identical
+  final runs; the search runs and the short runs of the error-versus-budget curve are expected to learn less), the budget enforced, identical
   accounting across methods (hardware, threads, timer, FLOP counter), evaluation off the clock, the search touching
   validation data only, the seed spread (veriphysics tolerance), and a determinism spot-check (same seed, same steps,
   same loss).
