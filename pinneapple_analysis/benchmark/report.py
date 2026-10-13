@@ -64,7 +64,61 @@ def collect(plan) -> dict:
                     t = prob.time_per_instance(mid, res, meth.per_instance) if hasattr(prob, "time_per_instance") \
                         else _time_per_instance(res, meth.per_instance)
                     cost[(pid, mid)]["infer"].append(t)
-    return {"extracted": {k: dict(v) for k, v in out.items()}, "cost": {k: dict(v) for k, v in cost.items()}}
+    flops = defaultdict(dict)
+    for pid, mid, prob, meth in plan.pairs():
+        if not plan.cfg.equal_flops_for(pid):
+            continue
+        for s in range(plan.cfg.seeds):
+            rec = plan.ws.result(f"flops__{pid}__{mid}__s{s}")
+            if not rec or not rec.get("ok"):
+                continue
+            r, sp = rec["result"], rec["spec"]
+            key = f"{sp.get('split', r.get('split', ''))}{sp.get('instance', r.get('instance', ''))}" \
+                if meth.per_instance else ""
+            flops[(pid, mid)][s] = {"extracted": prob.extract(mid, {key: r}), "flops": r["train"].get("flops"),
+                                    "wall_s": r["train"].get("wall_s"), "stopped_by": r["train"].get("stopped_by"),
+                                    "target": sp["budget"].get("flops")}
+    return {"extracted": {k: dict(v) for k, v in out.items()}, "cost": {k: dict(v) for k, v in cost.items()},
+            "flops": {k: dict(v) for k, v in flops.items()}}
+
+
+def _restrict(seeds: dict, set_: str, metric: str, ids: set) -> dict:
+    """The same seeds with ``set_/metric`` restricted to the instance ids every method has."""
+    out = {}
+    for s, d in seeds.items():
+        e = d.get(set_, {}).get(metric)
+        if not e:
+            continue
+        keep = [v for v, i in zip(e["values"], e.get("ids") or range(len(e["values"])), strict=False) if i in ids]
+        out[s] = {set_: {metric: {"values": keep, "ids": sorted(ids)}}}
+    return out
+
+
+def equal_flops_table(plan, col, pid) -> dict | None:
+    """Rows of the equal-FLOPs arm: the main metric on the instances common to all methods, and on the full set."""
+    prob = plan.P[pid]
+    fl = {mid: v for (p, mid), v in col.get("flops", {}).items() if p == pid and v}
+    if not fl or not hasattr(prob, "main_metric"):
+        return None
+    set_, metric = prob.main_metric()
+    id_sets = []
+    for v in fl.values():
+        for d in v.values():
+            e = d["extracted"].get(set_, {}).get(metric)
+            if e:
+                id_sets.append(set(e.get("ids") or range(len(e["values"]))))
+    ids = set.intersection(*id_sets) if id_sets else set()
+    full = set_.replace("pinn_", "") if set_.startswith("pinn_") else None
+    rows = {}
+    for mid, v in fl.items():
+        ex = {s: d["extracted"] for s, d in v.items()}
+        rows[mid] = {"common": cell(_restrict(ex, set_, metric, ids), set_, metric) if ids else None,
+                     "full": cell(ex, full, metric) if full else None,
+                     "flops": float(np.nanmean([d["flops"] or np.nan for d in v.values()])),
+                     "wall_s": float(np.nanmean([d["wall_s"] or np.nan for d in v.values()])),
+                     "stopped_by": sorted({str(d["stopped_by"]) for d in v.values()})}
+    target = next(iter(next(iter(fl.values())).values()))["target"]
+    return {"target": target, "set": set_, "metric": metric, "ids": sorted(ids), "full_set": full, "rows": rows}
 
 
 def _time_per_instance(res: dict, per_instance: bool) -> float:
@@ -135,7 +189,7 @@ def build_tables(plan, col, row_status: dict) -> dict:
             seeds = dict(enumerate(ref["seeds"]))
             ref = {"title": ref["title"], "cells": {c.key: cell(seeds, c.set, c.metric) for c in prob.columns()}}
         tables[pid] = {"rows": rows, "solver_time_per_instance_s": prob.solver_time_per_instance_s(plan.ws.prepared(pid)),
-                       "data_core_s": data_s, "reference": ref}
+                       "data_core_s": data_s, "reference": ref, "equal_flops": equal_flops_table(plan, col, pid)}
     return tables
 
 
@@ -209,6 +263,19 @@ def markdown(plan, tables, checks, validation, trust, diagnoses, banners) -> str
         if t["solver_time_per_instance_s"]:
             L.append(f"| Reference solver | - | - | - | {fmt_s(t['solver_time_per_instance_s'])} | - |")
         L.append("")
+        ef = t.get("equal_flops")
+        if ef:
+            n_full = next((r["full"]["n"] for r in ef["rows"].values() if r.get("full") and r["full"].get("n")), None)
+            L += [f"### Equal FLOPs ({ef['target']:.3g} training FLOPs per run: the fewest any method used in its "
+                  "full wall-clock budget; wall clock capped at 3x the budget)", "",
+                  f"| Method | {_metric_label(ef['metric'])}, {ef['set'].replace('pinn_', '')} instance(s) "
+                  f"{', '.join(map(str, ef['ids']))} (n = {len(ef['ids'])}) | "
+                  f"{_metric_label(ef['metric'])}, {ef['full_set']}, all (n = {n_full if n_full is not None else '-'}) | "
+                  "FLOPs used | Wall time | Stopped by |", "|---|---|---|---|---|---|"]
+            for mid, r in ef["rows"].items():
+                L.append(f"| {prob.method_title(plan.M[mid])} | {_fmt(r['common'], False)} | {_fmt(r['full'], False)} | "
+                         f"{r['flops']:.3g} | {fmt_s(r['wall_s'])} | {', '.join(r['stopped_by'])} |")
+            L.append("")
     L += ["## Diagnostics and suggestions", ""]
     if diagnoses:
         L += [f"- {d.line()}" for d in sorted(diagnoses, key=lambda d: ("error", "warning", "info").index(d.severity))]
@@ -233,6 +300,10 @@ def markdown(plan, tables, checks, validation, trust, diagnoses, banners) -> str
         L.append(f"| {d['stage']} | {d['subject']} | {d['name']} | {_status(d)} | {_short(d.get('value'))} | "
                  f"{_short(d.get('threshold'))} |")
     return "\n".join(L) + "\n"
+
+
+def _metric_label(m: str) -> str:
+    return {"rel_l2": "Rel. L2", "qoi_rel_err": "Integral rel. err"}.get(m, m)
 
 
 def _n_in_label(label: str):
@@ -267,6 +338,13 @@ def write_csv(path: Path, plan, tables) -> None:
                 for k in ("train_s", "flops", "data_core_s", "time_per_instance_s", "break_even"):
                     if r.get(k) is not None:
                         w.writerow([pid, mid, k, "cost", "", k, "", r[k], "", "", r["status"]])
+            ef = t.get("equal_flops")
+            for mid, r in (ef or {}).get("rows", {}).items():
+                for which, set_ in (("common", ef["set"]), ("full", ef["full_set"])):
+                    v = r.get(which)
+                    if v:
+                        w.writerow([pid, mid, f"equal FLOPs: {ef['metric']}, {set_}", "equal_flops", set_, ef["metric"],
+                                    v.get("n"), v["mean"], v["std"], v["n_seeds"], t["rows"].get(mid, {}).get("status")])
 
 
 def _style(ax):

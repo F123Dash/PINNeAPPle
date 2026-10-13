@@ -108,7 +108,9 @@ skipped" banner on the table and the summary figure.
 
 `table.md` has one section per problem with **n in every column header**, integral quantities and fields in separate
 tables (a method that predicts only integrals shows "integrals only" in the field columns), the simulation-data cost,
-the time per new instance, the break-even number of queries against a per-instance method, and a checks badge per row.
+the time per new instance, the break-even number of queries against a per-instance method, a checks badge per row,
+and, with `equal_flops`, an **Equal FLOPs** table (every method trained to the same FLOP count, with the error on
+the instances all methods share, the FLOPs and wall time used, and what stopped each run).
 
 **Diagnostics and suggestions** lists what in the setup is likely to hurt the result, each with a severity, the
 measured evidence, the suggested change and, where possible, the exact configuration edit

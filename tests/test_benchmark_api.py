@@ -194,3 +194,12 @@ def test_overfit_gate_separates_a_broken_setup_from_a_slow_one():
     assert slow.passed is False and slow.severity == "warning"             # learns, but not to 10 % in 200 steps
     u = torch.zeros(1, requires_grad=True)
     assert _overfit_check("x/ok", lambda: (u - 1.0) ** 2, [u], steps=300, lr=5e-2).passed
+
+
+def test_equal_flops_arm_is_reported(tmp_path):
+    out = tmp_path / "b"
+    B.run(problems=[_problem()], methods=["fno", "deeponet"], out_dir=out, equal_flops=True, **FAST)
+    assert len(list((out / "runs").glob("flops__smooth__*.json"))) == 4
+    md = (out / "table.md").read_text()
+    assert "### Equal FLOPs" in md and "| Stopped by |" in md
+    assert "equal_flops" in (out / "table.csv").read_text()
