@@ -128,6 +128,15 @@ def test_conditions_postprocessing_and_calibration():
     assert s["n_members"] == 10 and len(s["p_clear"]) == 24
     assert all(0 <= p <= 1 for p in s["p_clear"])
     assert all(a <= b <= c for a, b, c in zip(s["cloud_q10"], s["cloud_q50"], s["cloud_q90"], strict=True))
+    # missing values (a variable absent for some hours, as the live API returns) become None, never NaN
+    for m in range(10):
+        suf = "" if m == 0 else f"_member{m:02d}"
+        hourly["wind_speed_250hPa" + suf] = [None] * 12 + hourly["wind_speed_250hPa" + suf][12:]
+        hourly["cloud_cover" + suf][5] = None
+    import json
+    s = summarize({"hourly": hourly})
+    json.dumps(s, allow_nan=False)
+    assert s["jet_wind_kmh"][0] is None and s["seeing_proxy"][0] == "unknown" and s["p_clear"][5] is None
     p = rng.uniform(0, 1, 2000)
     o = (rng.uniform(0, 1, 2000) < p).astype(float)               # perfectly reliable forecasts
     cal = calibrate(p, o)

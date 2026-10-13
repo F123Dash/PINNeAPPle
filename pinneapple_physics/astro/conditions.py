@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import urllib.parse
 import urllib.request
+import warnings
 
 import numpy as np
 
@@ -36,19 +37,31 @@ def members(resp: dict, var: str) -> np.ndarray:
     return np.array([[np.nan if v is None else v for v in h[k]] for k in sorted(cols)], dtype=float)
 
 
+def _json(a: np.ndarray) -> list:
+    """Hours where the ensemble has no value (missing members or variables) become None, not NaN (invalid JSON)."""
+    return [None if not np.isfinite(v) else float(v) for v in np.asarray(a, float)]
+
+
 def summarize(resp: dict, clear_threshold: float = 30.0) -> dict:
     cc = members(resp, "cloud_cover")
     rh = members(resp, "relative_humidity_2m")
     jet = members(resp, "wind_speed_250hPa")
-    p_clear = np.nanmean(cc < clear_threshold, axis=0)
+    p_clear = np.where(np.isnan(cc), np.nan, cc < clear_threshold)
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)          # all-NaN hours are reported as None
+        return _summarize(resp, cc, rh, jet, np.nanmean(p_clear, axis=0))
+
+
+def _summarize(resp, cc, rh, jet, p_clear):
     q10, q50, q90 = np.nanpercentile(cc, [10, 50, 90], axis=0)
     rh50 = np.nanmedian(rh, axis=0) if rh.size else np.full(cc.shape[1], np.nan)
     jet50 = np.nanmedian(jet, axis=0) if jet.size else np.full(cc.shape[1], np.nan)
     transparency = np.clip(1 - 0.6 * q50 / 100 - 0.4 * np.clip((rh50 - 50) / 50, 0, 1), 0, 1)
-    seeing = np.where(jet50 < 90, "good", np.where(jet50 < 160, "average", "poor"))   # km/h at 250 hPa
-    return {"time": resp["hourly"]["time"], "n_members": int(cc.shape[0]), "p_clear": p_clear.tolist(),
-            "cloud_q10": q10.tolist(), "cloud_q50": q50.tolist(), "cloud_q90": q90.tolist(),
-            "humidity_median": rh50.tolist(), "jet_wind_kmh": jet50.tolist(), "transparency": transparency.tolist(),
+    seeing = np.where(np.isnan(jet50), "unknown",
+                      np.where(jet50 < 90, "good", np.where(jet50 < 160, "average", "poor")))   # km/h at 250 hPa
+    return {"time": resp["hourly"]["time"], "n_members": int(cc.shape[0]), "p_clear": _json(p_clear),
+            "cloud_q10": _json(q10), "cloud_q50": _json(q50), "cloud_q90": _json(q90),
+            "humidity_median": _json(rh50), "jet_wind_kmh": _json(jet50), "transparency": _json(transparency),
             "seeing_proxy": seeing.tolist(), "source": "Open-Meteo ensemble API (CC BY 4.0)",
             "calibrated": False}
 
