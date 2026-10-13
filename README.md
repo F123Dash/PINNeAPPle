@@ -37,7 +37,7 @@ Physics-informed neural networks are one tool among several. PINNeAPPle covers t
 | Surrogates | neural operators (FNO, DeepONet), graph networks (MeshGraphNet), MLPs and reduced-order models trained on those campaigns |
 | Physics-informed models | PINNs from symbolic equations (`PINNFactory`), inverse problems, hard constraints |
 | Optimisation | design search on top of a surrogate, verified back in the solver |
-| Verification | grid convergence, physics audit, applicability domains, evidence records, equal-budget comparisons (`pinneapple_analysis.cost`) |
+| Verification | grid convergence, physics audit, applicability domains, evidence records, equal-budget benchmarks (`pp.benchmark`, `pinneapple benchmark run`) |
 
 Which learned method fits which problem is a question of evidence, not of taste: see
 [Choosing a method](docs/guides/choosing_a_method.md) and the equal-budget benchmark behind it.
