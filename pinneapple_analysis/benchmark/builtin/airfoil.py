@@ -215,6 +215,11 @@ class AirfoilProblem(Problem):
 
         from ..report import fmt_s
         A.set_data_dir(plan.ws.prepared(self.id))
+        note = ["_Reading the airfoil tables: the MLP predicts the integrals only (Cl, Cd, Cm from the shape parameters "
+                "and the angle), so its field columns read \"integrals only\". A scalar regressor trained directly on "
+                "the scalars is expected to beat a field model (MeshGraphNet, POD + MLP, the PINNs) on them; compare "
+                "field models with each other on the field columns, and every method on the integral columns knowing "
+                "this._", ""]
         S = A.splits()
         runs = {r["id"]: r for k in ("val", "test", "naca", "ood") for r in S.get(k, [])}
         rows = []
@@ -227,7 +232,7 @@ class AirfoilProblem(Problem):
             r = runs[case]
             rows.append((p.stem, case, sp["budget"].get("wall_s"), res["cl_kutta_joukowski"],
                          panel_solve(np.array(r["shape"]), r["alpha"]).cl_kutta_joukowski, r["Cl"]))
-        L = []
+        L = list(note)
         if rows:
             d = np.array([abs(a - b) for _, _, _, a, b, _ in rows])
             L += [f"### {self.title}: the potential-flow PINN against the panel method (its own equations)", "",
