@@ -84,7 +84,7 @@ export async function renderConditions(el, ctx) {
       how: "P(clear) = fraction of members with total cloud &lt; 30 %; transparency from cloud and humidity; seeing ranked from the 250 hPa wind.",
       trust: "Probabilities are the raw ensemble spread (uncalibrated); typical NWP cloud forecasts are over-confident beyond 24 h." });
   PChart.mount(el.querySelector("#cChart"), { x, height: 180, yLabel: "%", yMin: 0, yMax: 100, series: [
-    { name: "P(clear) %", y: r.p_clear.map((p) => p * 100), color: "#3ccf8e", width: 2 },
+    { name: "P(clear) %", y: r.p_clear.map((p) => (p === null ? null : p * 100)), color: "#3ccf8e", width: 2 },
     { name: "cloud cover (median, 10–90 %)", y: r.cloud_q50, lo: r.cloud_q10, hi: r.cloud_q90, color: "#8d9bb3" }] });
 }
 
