@@ -24,6 +24,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `navier_stokes`, `airfoil`, `inverse_heat`; methods: `pinn`, `fno`, `deeponet`, `mgn`, `mlp`, `mlp_fields`,
   `pinn_rans`; `ArrayProblem` and `register_problem` / `register_method` for your own. Docs: "Running a benchmark";
   example: `examples/benchmark/`.
+- `pp.benchmark`: `budget_study` (the best configuration again at longer budgets, a table per instance and
+  `figures/budget_study.png`) and `ablations` (a setup audit: changes to the best configuration at the full budget,
+  next to the unchanged run). The airfoil RANS PINN gets two options, off by default: an exact far field and
+  collocation points even in log r (`airfoil_impl.RANS_FAR`, `RANS_MIX`).
 - Equal-budget method comparison (#299), `pinneapple_analysis.cost.equal_budget`: `ComputeBudget` (wall clock,
   FLOPs, steps), `train_within_budget` (stops at the budget, budget-aware schedules, evaluation off the clock),
   `count_flops` (PyTorch's operator formulas plus FFTs, and unlike `FlopCounterMode` it runs around

@@ -313,6 +313,47 @@ class Plan:
                         jobs.append({"id": f"{tag}__{suffix}", **base, "instance": ref})
         return jobs
 
+    def study_jobs(self) -> list[dict]:
+        """``budget_study``: the best configuration, seed 0, on the study instances, at each listed wall clock."""
+        jobs = []
+        for pid, per in (self.cfg.budget_study or {}).items():
+            if pid not in self.P:
+                continue
+            prob, base = self.P[pid], self.cfg.budget_for(pid).wall_s
+            for mid, budgets in per.items():
+                meth = self.M.get(mid)
+                if meth is None or not meth.supports(prob):
+                    continue
+                cfg = self.best(pid, mid).best_config
+                inst = prob.study_instances() if meth.per_instance else [("", None)]
+                for B in budgets:
+                    B = float(B)
+                    for suffix, ref in inst:
+                        jid = f"study__{pid}__{mid}__B{int(B)}" + (f"__{suffix}" if suffix else "")
+                        jobs.append({"id": jid, **self._base(pid, mid, cfg, 0, {"wall_s": B}, "study",
+                                                             level=B / base if base else None, instance=ref)})
+        return jobs
+
+    def ablation_jobs(self) -> list[dict]:
+        """``ablations``: the best configuration with each listed change, seed 0, full budget, the audit instance."""
+        jobs = []
+        for pid, per in (self.cfg.ablations or {}).items():
+            if pid not in self.P:
+                continue
+            prob = self.P[pid]
+            b = {k: v for k, v in self.cfg.budget_for(pid).to_dict().items() if v is not None}
+            for mid, variants in per.items():
+                meth = self.M.get(mid)
+                if meth is None or not meth.supports(prob):
+                    continue
+                best = self.best(pid, mid).best_config
+                suffix, ref = (prob.audit_instance() or ("", None)) if meth.per_instance else ("", None)
+                for name, change in variants.items():
+                    jid = f"diag__{pid}__{mid}__{name}" + (f"__{suffix}" if suffix else "")
+                    jobs.append({"id": jid, **self._base(pid, mid, {**best, **change}, 0, b, "diag", variant=name,
+                                                         instance=ref)})
+        return jobs
+
     def flops_target(self, pid) -> tuple[float | None, dict]:
         used = {}
         for mid, meth in self.M.items():

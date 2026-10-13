@@ -312,6 +312,15 @@ class AirfoilProblem(Problem):
                 "full_only": [(x, {"case": x}) for x in c["test"][1:] + [c["naca"]]],
                 "seed0_only": [(x, {"case": x}) for x in c["ood"]]}
 
+    def study_instances(self):
+        """Budget study: one held-out test run and NACA 2412 at 4 deg (the setup audit's case)."""
+        c = self._cases()
+        return [(c["test"][0], {"case": c["test"][0]}), (c["naca"], {"case": c["naca"]})]
+
+    def audit_instance(self):
+        c = self._cases()
+        return c["naca"], {"case": c["naca"]}
+
     def extract(self, method_id, results):
         c = self._cases()
         out = {}

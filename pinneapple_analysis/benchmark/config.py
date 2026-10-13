@@ -18,6 +18,9 @@ _RESULT_FIELDS = ("problems", "methods", "budget", "problem_budgets", "budget_le
                   "search_fraction", "equal_flops", "threads_per_run", "smoke", "problem_options", "method_options")
 
 
+_OPTIONAL_RESULT_FIELDS = ("budget_study", "ablations")
+
+
 def _budget_dict(b) -> dict[str, Any]:
     if b is None:
         return {}
@@ -40,6 +43,10 @@ class BenchmarkConfig:
     every problem, False, or a list of problem ids. ``threads_per_run`` threads per training process, ``n_workers``
     processes at a time. ``smoke``: tiny data and budgets, a pipeline check in minutes. ``skip_checks`` /
     ``allow_failed_validation``: run anyway; the report then says so on every page.
+    ``budget_study``: ``{problem: {method: [wall-clock seconds, ...]}}``, extra runs of the best configuration (seed 0,
+    the problem's study instances) at budgets beyond the full one: is a method budget-limited? ``ablations``:
+    ``{problem: {method: {name: {hyper-parameter: value}}}}``, the best configuration with these changes at the full
+    budget on the problem's audit instance, compared with the unchanged run (a setup audit).
     """
     problems: list[Any] = field(default_factory=lambda: ["burgers"])
     methods: list[Any] = field(default_factory=lambda: ["pinn", "fno", "deeponet"])
@@ -57,6 +64,8 @@ class BenchmarkConfig:
     allow_failed_validation: bool = False
     problem_options: dict[str, dict[str, Any]] = field(default_factory=dict)
     method_options: dict[str, dict[str, Any]] = field(default_factory=dict)
+    budget_study: dict[str, dict[str, list[float]]] = field(default_factory=dict)
+    ablations: dict[str, dict[str, dict[str, dict[str, Any]]]] = field(default_factory=dict)
 
     def __post_init__(self):
         self.budget = _budget_dict(self.budget)
@@ -107,6 +116,7 @@ class BenchmarkConfig:
     def result_hash(self) -> str:
         d = self.to_dict()
         key = {k: d[k] for k in _RESULT_FIELDS}
+        key.update({k: d[k] for k in _OPTIONAL_RESULT_FIELDS if d.get(k)})   # empty: same hash as before they existed
         return hashlib.sha256(json.dumps(key, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
     def to_yaml(self, path: str | Path) -> None:

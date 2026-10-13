@@ -22,6 +22,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 __all__ = ["Check", "Column", "Problem", "Method", "register_problem", "register_method", "get_problem",
            "get_method", "problems", "methods"]
 
@@ -125,6 +127,26 @@ class Problem:
         """For per-instance methods (PINNs), lists of (job-id suffix, keyword arguments of the trainer):
         "val" (the search instance), "final" (every budget level), "full_only" (full budget only), "seed0_only"."""
         return {"val": [], "final": [], "full_only": [], "seed0_only": []}
+
+    def study_instances(self) -> list[tuple[str, Any]]:
+        """Instances of the budget study and of the ablations for per-instance methods (default: the first "final"
+        instance)."""
+        return list(self.instances().get("final", []))[:1]
+
+    def audit_instance(self) -> tuple[str, Any] | None:
+        """The instance of the ablations (setup audit) for per-instance methods (default: the first study instance)."""
+        inst = self.study_instances()
+        return inst[0] if inst else None
+
+    def run_metrics(self, method_id: str, suffix: str, result: dict) -> dict[str, float]:
+        """One run's metrics, flat ({"set/metric": mean}), from ``extract`` (budget study and ablation tables)."""
+        out = {}
+        for set_, ms in self.extract(method_id, {suffix: result}).items():
+            for m, e in ms.items():
+                v = [float(x) for x in e.get("values", []) if x is not None]
+                if v:
+                    out[f"{set_}/{m}"] = float(np.mean(v))
+        return out
 
     def extract(self, method_id: str, results: dict[str, dict]) -> dict[str, dict[str, Any]]:
         """Map raw results to {set: {metric: {"values": [...], "ids": [...]}}}; ``results`` maps the instance suffix

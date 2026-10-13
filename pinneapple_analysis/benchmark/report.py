@@ -209,7 +209,7 @@ def _badge(status: str) -> str:
             "did not converge": "⚠ did not converge", "checks skipped": "⚠ checks skipped"}.get(status, status)
 
 
-def markdown(plan, tables, checks, validation, trust, diagnoses, banners) -> str:
+def markdown(plan, tables, checks, validation, trust, diagnoses, banners, studies=None) -> str:
     cfg = plan.cfg
     L = ["# Benchmark results", ""]
     for b in banners:
@@ -276,6 +276,7 @@ def markdown(plan, tables, checks, validation, trust, diagnoses, banners) -> str
                 L.append(f"| {prob.method_title(plan.M[mid])} | {_fmt(r['common'], False)} | {_fmt(r['full'], False)} | "
                          f"{r['flops']:.3g} | {fmt_s(r['wall_s'])} | {', '.join(r['stopped_by'])} |")
             L.append("")
+    L += studies_markdown(plan, studies or {})
     L += ["## Diagnostics and suggestions", ""]
     if diagnoses:
         L += [f"- {d.line()}" for d in sorted(diagnoses, key=lambda d: ("error", "warning", "info").index(d.severity))]
@@ -500,3 +501,132 @@ def to_dataframe(plan, tables):
             d.update({k: r.get(k) for k in ("train_s", "flops", "data_core_s", "time_per_instance_s", "break_even")})
             rows.append(d)
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------------------------- studies
+def collect_studies(plan) -> dict:
+    """Budget study and ablations (setup audit), from the run files.
+
+    {pid: {"study": {mid: {suffix: [{"budget_s", "metrics", "source"}, ...]}},
+           "ablation": {mid: {"case", "baseline": metrics, "variants": {name: metrics}}}}}"""
+    from .runner import lvl
+    out = {}
+    cfg = plan.cfg
+    for pid, per in (cfg.budget_study or {}).items():
+        if pid not in plan.P:
+            continue
+        prob, base = plan.P[pid], cfg.budget_for(pid).wall_s
+        st = out.setdefault(pid, {}).setdefault("study", {})
+        for mid, budgets in per.items():
+            meth = plan.M.get(mid)
+            if meth is None or not meth.supports(prob):
+                continue
+            insts = prob.study_instances() if meth.per_instance else [("", None)]
+            for suffix, _ in insts:
+                pts = []
+                for lv in cfg.budget_levels:                                  # the curve's lower part: seed-0 finals
+                    tag = f"final__{pid}__{mid}__{lvl(lv)}__s0" + (f"__{suffix}" if suffix else "")
+                    r = plan.ws.result(tag)
+                    if r and r.get("ok") and base:
+                        pts.append({"budget_s": lv * base, "metrics": prob.run_metrics(mid, suffix, r["result"]),
+                                    "source": tag})
+                for B in budgets:
+                    tag = f"study__{pid}__{mid}__B{int(float(B))}" + (f"__{suffix}" if suffix else "")
+                    r = plan.ws.result(tag)
+                    if r and r.get("ok"):
+                        pts.append({"budget_s": float(B), "metrics": prob.run_metrics(mid, suffix, r["result"]),
+                                    "source": tag})
+                if pts:
+                    st.setdefault(mid, {})[suffix or "all"] = sorted(pts, key=lambda d: d["budget_s"])
+    for pid, per in (cfg.ablations or {}).items():
+        if pid not in plan.P:
+            continue
+        prob = plan.P[pid]
+        ab = out.setdefault(pid, {}).setdefault("ablation", {})
+        for mid, variants in per.items():
+            meth = plan.M.get(mid)
+            if meth is None or not meth.supports(prob):
+                continue
+            suffix = ((prob.audit_instance() or ("", None))[0]) if meth.per_instance else ""
+            sfx = f"__{suffix}" if suffix else ""
+            r0 = plan.ws.result(f"final__{pid}__{mid}__L1.000__s0{sfx}")
+            row = {"case": suffix, "baseline": prob.run_metrics(mid, suffix, r0["result"]) if r0 and r0.get("ok") else {},
+                   "variants": {}}
+            for name, change in variants.items():
+                r = plan.ws.result(f"diag__{pid}__{mid}__{name}{sfx}")
+                if r and r.get("ok"):
+                    row["variants"][name] = {"change": change, "metrics": prob.run_metrics(mid, suffix, r["result"])}
+                elif r:
+                    row["variants"][name] = {"change": change, "metrics": {}, "error": (r.get("error") or "")[-200:]}
+            ab[mid] = row
+    return out
+
+
+def _metric_cols(rows: list[dict]) -> list[str]:
+    keys = []
+    for m in rows:
+        for k in m:
+            if k not in keys:
+                keys.append(k)
+    return keys
+
+
+def studies_markdown(plan, studies: dict) -> list[str]:
+    L = []
+    for pid, d in studies.items():
+        prob = plan.P[pid]
+        for mid, per in d.get("study", {}).items():
+            L += [f"### Budget study: {prob.method_title(plan.M[mid])} on {prob.title} (seed 0)", ""]
+            for suffix, pts in per.items():
+                cols = _metric_cols([p["metrics"] for p in pts])
+                L += [f"Instance `{suffix}`:", "", "| Budget | " + " | ".join(cols) + " | Run |",
+                      "|---|" + "---|" * (len(cols) + 1)]
+                for p in pts:
+                    L.append(f"| {fmt_s(p['budget_s'])} | " + " | ".join(
+                        f"{p['metrics'][c]:.3g}" if c in p["metrics"] else "-" for c in cols) + f" | `{p['source']}` |")
+                L.append("")
+        for mid, row in d.get("ablation", {}).items():
+            cols = _metric_cols([row["baseline"]] + [v["metrics"] for v in row["variants"].values()])
+            L += [f"### Setup audit: {prob.method_title(plan.M[mid])} on {prob.title}"
+                  + (f", instance `{row['case']}`" if row["case"] else "") + " (seed 0, full budget)", "",
+                  "| Variant | Change | " + " | ".join(cols) + " |", "|---|---|" + "---|" * len(cols)]
+            L.append("| best configuration (baseline) | - | " + " | ".join(
+                f"{row['baseline'][c]:.3g}" if c in row["baseline"] else "-" for c in cols) + " |")
+            for name, v in row["variants"].items():
+                vals = " | ".join(f"{v['metrics'][c]:.3g}" if c in v["metrics"] else "-" for c in cols)
+                ch = ", ".join(f"{k} = {x}" for k, x in v["change"].items())
+                L.append(f"| {name} | {ch} | {vals if v['metrics'] else 'FAILED: ' + _short(v.get('error'), 80)} |")
+            L.append("")
+    return (["## Budget study and setup audit", ""] + L) if L else []
+
+
+def studies_figure(plan, studies: dict, fig_dir: Path) -> list[str]:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    panels = [(pid, mid, per) for pid, d in studies.items() for mid, per in d.get("study", {}).items()]
+    if not panels:
+        return []
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.6 * len(panels), 3.6), squeeze=False)
+    for ax, (pid, mid, per) in zip(axes[0], panels, strict=False):
+        prob = plan.P[pid]
+        main = prob.main_metric() if hasattr(prob, "main_metric") else None
+        for i, (suffix, pts) in enumerate(per.items()):
+            keys = _metric_cols([p["metrics"] for p in pts])
+            key = next((k for k in keys if main and k.endswith("/" + main[1])), keys[0] if keys else None)
+            if key is None:
+                continue
+            xs = [p["budget_s"] for p in pts if key in p["metrics"]]
+            ys = [p["metrics"][key] for p in pts if key in p["metrics"]]
+            ax.plot(xs, ys, marker=MARKERS[i % len(MARKERS)], color=COLORS[i % len(COLORS)], lw=1.4,
+                    label=f"{suffix} ({key})")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("training budget (s, one core)", fontsize=8, color=INK2)
+        ax.set_title(f"{prob.method_title(plan.M[mid])}, {prob.title}", fontsize=9, color=INK)
+        _style(ax)
+        ax.legend(fontsize=7, frameon=False)
+    fig.tight_layout()
+    fig.savefig(fig_dir / "budget_study.png", dpi=170)
+    plt.close(fig)
+    return ["budget_study.png"]
