@@ -121,6 +121,21 @@ out of distribution or has a single case, leakage, normalisation from all data, 
 a DeepONet basis smaller than the field's rank, a learning rate that spikes or makes no progress early, and solver or
 mesh problems (GCI, y+, unconverged runs, CFL).
 
+### Budget study and setup audit
+
+Two optional parts answer "would this method do better with more compute, or with another setting?":
+
+```python
+pp.benchmark.run(...,
+    budget_study={"airfoil": {"pinn_rans": [3600, 14400], "pinn": [3600]}},       # wall-clock seconds, seed 0
+    ablations={"airfoil": {"pinn": {"lr1e-3": {"lr": 1e-3}, "lbfgs": {"lbfgs": 0.3}}}})   # changes to the best config
+```
+
+`budget_study` trains the best configuration again at each listed budget (seed 0, on the problem's study instances)
+and adds those points to the seed-0 runs of `budget_levels`: a table per instance and `figures/budget_study.png`.
+`ablations` trains the best configuration with each change at the full budget on the problem's audit instance and
+puts it next to the unchanged run (the **Setup audit** table). Leaving both empty keeps an existing `out_dir` valid.
+
 <!-- EXP09 -->
 
 ## Your own problem or method

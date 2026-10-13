@@ -17,7 +17,17 @@ from .advisor import Diagnosis, apply_suggestions, diagnose
 from .checks import architecture_gates, determinism_check, row_status, seed_spread, training_gates
 from .config import BenchmarkConfig
 from .registry import Check, get_method, get_problem
-from .report import build_tables, cell, collect, figures, markdown, to_dataframe, write_csv
+from .report import (
+    build_tables,
+    cell,
+    collect,
+    collect_studies,
+    figures,
+    markdown,
+    studies_figure,
+    to_dataframe,
+    write_csv,
+)
 from .runner import Plan, Workspace, _jdump, execute_jobs, prepare_problem, require_prepared
 from .validation import trust_card
 
@@ -81,7 +91,7 @@ def prepare(config=None, out_dir: str | Path = "benchmark_out", *, force: bool =
 
 
 def run(config=None, out_dir: str | Path = "benchmark_out", *, force: bool = False, prepare_missing: bool = True,
-        stages=("search", "final", "flops"), log=print, **kwargs) -> BenchmarkResult:
+        stages=("search", "final", "flops", "study"), log=print, **kwargs) -> BenchmarkResult:
     """Run the benchmark (see the module docstring). Re-running with the same ``out_dir`` resumes from the cache;
     a different configuration is refused unless ``force``. Missing artifacts are prepared first
     (``prepare_missing``); stale or failed ones stop the run unless ``allow_failed_validation``."""
@@ -119,6 +129,9 @@ def run(config=None, out_dir: str | Path = "benchmark_out", *, force: bool = Fal
         execute_jobs(ws, run_pairs.final_jobs(), n_workers=cfg.n_workers, objects=custom or None, log=log)
     if "flops" in stages and any(cfg.equal_flops_for(p) for p in P):
         execute_jobs(ws, run_pairs.flops_jobs(), n_workers=cfg.n_workers, objects=custom or None, log=log)
+    if "study" in stages and (cfg.budget_study or cfg.ablations):
+        execute_jobs(ws, run_pairs.study_jobs() + run_pairs.ablation_jobs(), n_workers=cfg.n_workers,
+                     objects=custom or None, log=log)
     res = BenchmarkResult(ws, cfg, plan, arch, banners, blocked)
     if not cfg.skip_checks:
         res.spot_check_determinism(log)
@@ -226,7 +239,7 @@ class BenchmarkResult:
                 trust[pid] = {"error": {"title": "trust card", "question": "", "status": "failed",
                                         "evidence": [repr(e)]}}
         self._built = {"col": col, "tables": tables, "checks": all_checks, "validation": validation,
-                       "diagnoses": diags, "trust": trust, "per_pair": per_pair}
+                       "diagnoses": diags, "trust": trust, "per_pair": per_pair, "studies": collect_studies(self.plan)}
         return self._built
 
     # ------------------------------------------------------------------ outputs
@@ -243,7 +256,8 @@ class BenchmarkResult:
 
     def to_markdown(self) -> str:
         b = self._build()
-        return markdown(self.plan, b["tables"], b["checks"], b["validation"], b["trust"], b["diagnoses"], self.banners)
+        return markdown(self.plan, b["tables"], b["checks"], b["validation"], b["trust"], b["diagnoses"], self.banners,
+                        b["studies"])
 
     def to_csv(self, path: str | Path | None = None) -> Path:
         path = Path(path or self.ws.root / "table.csv")
@@ -255,11 +269,13 @@ class BenchmarkResult:
         (self.ws.root / "table.md").write_text(self.to_markdown())
         self.to_csv()
         figs = figures(self.plan, b["col"], b["tables"], self.ws.root / "figures", self.banners)
+        figs += studies_figure(self.plan, b["studies"], self.ws.root / "figures")
         summary = {"config": self.config.to_dict(), "banners": self.banners,
                    "tables": {pid: {**t, "rows": {m: {k: v for k, v in r.items()} for m, r in t["rows"].items()}}
                               for pid, t in b["tables"].items()},
                    "checks": [c.to_dict() for c in b["checks"]], "validation": b["validation"],
-                   "trust_card": b["trust"], "diagnostics": [d.to_dict() for d in b["diagnoses"]], "figures": figs}
+                   "trust_card": b["trust"], "diagnostics": [d.to_dict() for d in b["diagnoses"]], "studies": b["studies"],
+                   "figures": figs}
         _jdump(self.ws.root / "summary.json", summary)
         return summary
 

@@ -203,3 +203,20 @@ def test_equal_flops_arm_is_reported(tmp_path):
     md = (out / "table.md").read_text()
     assert "### Equal FLOPs" in md and "| Stopped by |" in md
     assert "equal_flops" in (out / "table.csv").read_text()
+
+
+def test_budget_study_and_ablations(tmp_path):
+    out = tmp_path / "b"
+    kw = dict(budget_study={"smooth": {"fno": [2.0]}}, ablations={"smooth": {"fno": {"low_lr": {"lr": 1e-5}}}})
+    res = B.run(problems=[_problem()], methods=["fno"], out_dir=out, **FAST, **kw)
+    assert (out / "runs" / "study__smooth__fno__B2.json").exists()
+    assert (out / "runs" / "diag__smooth__fno__low_lr.json").exists()
+    md = (out / "table.md").read_text()
+    assert "### Budget study: FNO" in md and "### Setup audit: FNO" in md and "lr = 1e-05" in md
+    assert (out / "figures" / "budget_study.png").exists()
+    st = res._build()["studies"]["smooth"]
+    assert [p["budget_s"] for p in st["study"]["fno"]["all"]] == [1.0, 2.0]       # the full run, then the study run
+    assert st["ablation"]["fno"]["baseline"] and st["ablation"]["fno"]["variants"]["low_lr"]["metrics"]
+    # an empty study leaves the configuration hash (the cache guard) as it was before these fields existed
+    assert B.BenchmarkConfig().result_hash() == B.BenchmarkConfig(budget_study={}, ablations={}).result_hash()
+    assert B.BenchmarkConfig().result_hash() != B.BenchmarkConfig(**kw).result_hash()

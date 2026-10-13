@@ -169,6 +169,90 @@ class AirfoilProblem(Problem):
         p = Path(out) / "cost.json"
         return json.loads(p.read_text())["solver_s_per_run"] if p.exists() else None
 
+    def reference_row(self, out):
+        """The inviscid panel method (no data, milliseconds per design) on every evaluation run: Cl from
+        Kutta-Joukowski, Cd = 0 (d'Alembert: 100 % error by construction), velocity and Bernoulli pressure on the graph
+        nodes. Cached in ``panel_reference.json``."""
+        cache = Path(out) / "panel_reference.json"
+        if cache.exists():
+            return json.loads(cache.read_text())
+        from pinneapple_design.aero.panel import panel_solve
+        from pinneapple_design.aero.surrogate import Layout
+        A.set_data_dir(out)
+        S, c, lay = A.splits(), self._cases(), Layout()
+        runs = {r["id"]: r for k in ("test", "naca", "ood") for r in S.get(k, [])}
+        sets = {"test4": c["test"], "test": [r["id"] for r in S["test"]], "naca": [r["id"] for r in S["naca"]],
+                "ood4": c["ood"], "ood": [r["id"] for r in S.get("ood", [])]}
+        ext, times = {}, []
+        for set_, ids in sets.items():
+            vals = {"cl": [], "cd": [], "u": [], "p": []}
+            for i in ids:
+                r = runs[i]
+                shape = np.array(r["shape"])
+                t0 = time.perf_counter()
+                sol = panel_solve(shape, r["alpha"])
+                times.append(time.perf_counter() - t0)
+                pos = lay.positions(shape)
+                u, v = sol.velocity(pos[:, 0], pos[:, 1])
+                z = np.load(r["npz"])
+                t = np.stack([z["p"], z["Ux"], z["Uy"]], 1)[lay.cell_index]
+                pr = np.stack([0.5 * (1 - u ** 2 - v ** 2), u, v], 1)
+                vals["cl"].append(abs(sol.cl_kutta_joukowski - r["Cl"]))
+                vals["cd"].append(1.0)
+                vals["u"].append(float(np.linalg.norm(pr[:, 1:] - t[:, 1:]) / np.linalg.norm(t[:, 1:])))
+                vals["p"].append(float(np.linalg.norm(pr[:, 0] - t[:, 0]) / np.linalg.norm(t[:, 0])))
+            if ids:
+                ext[set_] = {k: {"values": [float(x) for x in v], "ids": list(ids)} for k, v in vals.items()}
+        ref = {"title": "Panel method (inviscid, no data; reference)", "seeds": [ext],
+               "time_per_instance_s": float(np.median(times)) if times else None}
+        cache.write_text(json.dumps(ref))
+        return ref
+
+    def report_sections(self, plan) -> list[str]:
+        """Airfoil-specific evidence: did the potential-flow PINN solve its own equations (its Kutta-Joukowski Cl
+        against the panel method's), and where its collocation points are."""
+        from pinneapple_design.aero.panel import airfoil_nodes, panel_solve
+
+        from ..report import fmt_s
+        A.set_data_dir(plan.ws.prepared(self.id))
+        note = ["_Reading the airfoil tables: the MLP predicts the integrals only (Cl, Cd, Cm from the shape parameters "
+                "and the angle), so its field columns read \"integrals only\". A scalar regressor trained directly on "
+                "the scalars is expected to beat a field model (MeshGraphNet, POD + MLP, the PINNs) on them; compare "
+                "field models with each other on the field columns, and every method on the integral columns knowing "
+                "this._", ""]
+        S = A.splits()
+        runs = {r["id"]: r for k in ("val", "test", "naca", "ood") for r in S.get(k, [])}
+        rows = []
+        for p in sorted(plan.ws.runs.glob(f"*__{self.id}__pinn__*.json")):
+            rec = json.loads(p.read_text())
+            sp, res = rec.get("spec", {}), rec.get("result") or {}
+            case = (sp.get("instance") or {}).get("case") or sp.get("case")
+            if not rec.get("ok") or case not in runs or "cl_kutta_joukowski" not in res:
+                continue
+            r = runs[case]
+            rows.append((p.stem, case, sp["budget"].get("wall_s"), res["cl_kutta_joukowski"],
+                         panel_solve(np.array(r["shape"]), r["alpha"]).cl_kutta_joukowski, r["Cl"]))
+        L = list(note)
+        if rows:
+            d = np.array([abs(a - b) for _, _, _, a, b, _ in rows])
+            L += [f"### {self.title}: the potential-flow PINN against the panel method (its own equations)", "",
+                  f"Over {len(rows)} runs, |Cl(PINN) - Cl(panel)| = {d.mean():.3g} ± {d.std(ddof=1) if len(d) > 1 else 0:.2g} "
+                  "(both inviscid; OpenFOAM's Cl is the viscous truth).", "",
+                  "| Run | Case | Budget | Cl PINN | Cl panel | Cl OpenFOAM |", "|---|---|---|---|---|---|"]
+            L += [f"| `{j}` | {c} | {fmt_s(b)} | {a:.3f} | {pc:.3f} | {o:.3f} |" for j, c, b, a, pc, o in rows]
+            L.append("")
+        from pinneapple_design.aero.geometry import REFERENCE
+        shape = REFERENCE["NACA 2412"]
+        wall = airfoil_nodes(shape, 200)
+        L += ["### Airfoil PINN collocation (NACA 2412)", "", "| PINN | Points | Within 0.01 c of the wall | Within 0.05 c "
+              "of the leading edge | Closest to the wall |", "|---|---|---|---|---|"]
+        for kind, dmin in (("potential", 1e-3), ("RANS", 0.0)):
+            pts = A.collocation_pool(shape, dmin).numpy()
+            dd = np.min(np.hypot(pts[:, None, 0] - wall[None, :, 0], pts[:, None, 1] - wall[None, :, 1]), axis=1)
+            L.append(f"| {kind} | {len(pts)} | {100 * (dd < 0.01).mean():.1f} % | "
+                     f"{100 * (np.hypot(pts[:, 0], pts[:, 1]) < 0.05).mean():.1f} % | {dd.min():.1e} c |")
+        return L + [""]
+
     # ------------------------------------------------------------------ checks
     def verify_solver(self):
         from pinneapple_design.aero.geometry import REFERENCE
@@ -311,6 +395,15 @@ class AirfoilProblem(Problem):
         return {"val": [("", {"case": c["val"]})], "final": [(c["test"][0], {"case": c["test"][0]})],
                 "full_only": [(x, {"case": x}) for x in c["test"][1:] + [c["naca"]]],
                 "seed0_only": [(x, {"case": x}) for x in c["ood"]]}
+
+    def study_instances(self):
+        """Budget study: one held-out test run and NACA 2412 at 4 deg (the setup audit's case)."""
+        c = self._cases()
+        return [(c["test"][0], {"case": c["test"][0]}), (c["naca"], {"case": c["naca"]})]
+
+    def audit_instance(self):
+        c = self._cases()
+        return c["naca"], {"case": c["naca"]}
 
     def extract(self, method_id, results):
         c = self._cases()
