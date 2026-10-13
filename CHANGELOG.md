@@ -14,6 +14,21 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Equal-budget method comparison (#299), `pinneapple_analysis.cost.equal_budget`: `ComputeBudget` (wall clock,
+  FLOPs, steps), `train_within_budget` (stops at the budget, budget-aware schedules, evaluation off the clock),
+  `count_flops` (PyTorch's operator formulas plus FFTs, and unlike `FlopCounterMode` it runs around
+  `torch.autograd.grad`, so PINN residuals are counted), `equal_budget_search` (the same number of trials for every
+  method), `AmortizedCost` (data, training and inference cost per query, break-even), `relative_l2`,
+  `time_per_query`, `hardware_record`.
+- `pinneapple_simulation.numerical_solvers.operator_benchmarks`: the reference solvers of the standard
+  operator-learning benchmarks (Li et al. 2021) written from the equations and checked on exact solutions: batched
+  pseudo-spectral Burgers and 2-D vorticity Navier-Stokes (ETDRK4), finite-volume Darcy, periodic Gaussian random
+  fields, and `FourierInterpolant` (a differentiable periodic interpolant for hard initial conditions in PINNs).
+- `run_plate` (Inverse Heat Lab) takes an optional `budget=ComputeBudget(...)` and the network and collocation
+  sizes; without them it behaves as before.
+- Docs page "Choosing a method" (`docs/guides/choosing_a_method.md`): a decision table backed by the equal-budget
+  benchmark (PINNeAPPle-Benchmark experiment 09), linking every row to the library entry points.
+
 - Realistic planetary rover simulation, as library features (`pp.terramechanics`, `pp.multibody`, `pp.vehicle`):
   - `pinneapple_simulation.terramechanics`: a soil database where every parameter records its source and how far
     it was checked (GRC-1, JSC-1A, the soils of three published single-wheel test series); the Wong-Reece wheel
@@ -479,6 +494,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   as a placeholder that fails loudly), and `fingerprint()` gives a stable hash for provenance. The three existing classes are
   adapters, unchanged: `from_pde_spec`/`to_pde_spec` round-trip all 65 presets exactly, and `from_physics_case`/
   `to_physics_case` and `from_problem_design`/`to_problem_design` cover the other two (#27).
+
+### Changed
+- **Behavior:** `pinneapple_analysis.cost.measure` now counts FLOPs of code that calls `torch.autograd.grad` with
+  the hook-free counter (`flops_source == "dispatch_counter"`) instead of the profiler's matmul-only lower bound.
 
 ### Fixed
 
