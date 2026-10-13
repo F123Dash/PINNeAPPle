@@ -535,7 +535,8 @@ def collect_studies(plan) -> dict:
                         pts.append({"budget_s": lv * base, "metrics": prob.run_metrics(mid, suffix, r["result"]),
                                     "source": tag})
                 for B in budgets:
-                    tag = f"study__{pid}__{mid}__B{int(float(B))}" + (f"__{suffix}" if suffix else "")
+                    B = min(float(B), 6.0) if cfg.smoke else float(B)
+                    tag = f"study__{pid}__{mid}__B{int(B)}" + (f"__{suffix}" if suffix else "")
                     r = plan.ws.result(tag)
                     if r and r.get("ok"):
                         pts.append({"budget_s": float(B), "metrics": prob.run_metrics(mid, suffix, r["result"]),

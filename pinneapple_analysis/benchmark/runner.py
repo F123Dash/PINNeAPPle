@@ -327,7 +327,7 @@ class Plan:
                 cfg = self.best(pid, mid).best_config
                 inst = prob.study_instances() if meth.per_instance else [("", None)]
                 for B in budgets:
-                    B = float(B)
+                    B = min(float(B), 6.0) if self.cfg.smoke else float(B)      # smoke: a pipeline check only
                     for suffix, ref in inst:
                         jid = f"study__{pid}__{mid}__B{int(B)}" + (f"__{suffix}" if suffix else "")
                         jobs.append({"id": jid, **self._base(pid, mid, cfg, 0, {"wall_s": B}, "study",
