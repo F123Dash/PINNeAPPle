@@ -51,6 +51,7 @@
 * Guides
     * [Choosing a method: PINN, operator, graph network or solver](guides/choosing_a_method.md)
     * [Recreate a 3D wear twin](guides/recreate_a_wear_twin.md)
+    * [Pre-trained models and datasets (pp.zoo)](guides/model_zoo.md)
 * [API Reference](api/index.md)
   * [pinneapple](api/pinneapple/index.md)
   * [pinneapple_physics](api/pinneapple_physics/index.md)
