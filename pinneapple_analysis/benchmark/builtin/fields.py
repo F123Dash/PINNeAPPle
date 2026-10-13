@@ -214,6 +214,12 @@ class FieldOperatorProblem(Problem):
     def main_metric(self) -> tuple[str, str]:
         return "pinn_test", "rel_l2"
 
+    def ood_metric(self) -> tuple[str, str]:
+        return "pinn_ood", "rel_l2"
+
+    def summary_metrics(self):
+        return [("rel. L2", "field", ("pinn_test", "rel_l2"), ("pinn_ood", "rel_l2"), False)]
+
     # ------------------------------------------------------------------ PINN hooks (subclasses)
     def pinn_setup(self, x_in: np.ndarray, cfg: dict):
         """Return (model, spec, sample(m, g), evaluate(model), exact) for one instance; ``exact`` is a torch module

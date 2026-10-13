@@ -338,21 +338,29 @@ def figures(plan, col, tables, fig_dir: Path, banners) -> list[str]:
     lines = []
     for pid in pids:
         prob = plan.P[pid]
-        main = prob.main_metric() if hasattr(prob, "main_metric") else None
-        ood = prob.ood_metric() if hasattr(prob, "ood_metric") else None
-        for mid, r in tables[pid]["rows"].items():
-            lv = col["extracted"][(pid, mid)].get(1.0, {})
-            c, o = (cell(lv, *main) if main else None), (cell(lv, *ood) if ood else None)
-            lines.append([prob.title, prob.method_title(plan.M[mid]),
-                          (f"{c['mean']:.3g} (n={c['n']})" if c else "-"), (f"{o['mean']:.3g} (n={o['n']})" if o else "-"),
-                          fmt_s(r["time_per_instance_s"]), _badge(r["status"])])
+        for label, kind, main, ood, pct in summary_metrics(prob):
+            for mid, r in tables[pid]["rows"].items():
+                outs = prob.method_outputs(plan.M[mid])
+                if (kind == "field" and outs == "integrals") or (kind == "integral" and outs == "fields"):
+                    continue
+                lv = col["extracted"][(pid, mid)].get(1.0, {})
+                c = cell(lv, *main) if main else None
+                o = None
+                for cand in ([ood] if ood and isinstance(ood[0], str) else (ood or [])):   # first set this method has
+                    o = cell(lv, *cand)
+                    if o:
+                        break
+                f = (lambda v: f"{100 * v:.3g}%") if pct else (lambda v: f"{v:.3g}")
+                lines.append([prob.title + (f", {label}" if label else ""), prob.method_title(plan.M[mid]),
+                              (f"{f(c['mean'])} (n={c['n']})" if c else "-"), (f"{f(o['mean'])} (n={o['n']})" if o else "-"),
+                              fmt_s(r["time_per_instance_s"]), _badge(r["status"])])
     h = 0.27 * (len(lines) + 1) + 1.2 + 0.25 * len(banners)
-    fig = plt.figure(figsize=(11, h))
+    fig = plt.figure(figsize=(12, h))
     ax = fig.add_axes([0.02, 0.45 / h, 0.96, 1 - (1.0 + 0.25 * len(banners)) / h])
     ax.axis("off")
     tab = ax.table(cellText=lines or [["-"] * 6], colLabels=["Problem", "Method", "Error, in distribution",
                                                               "Error, OOD", "Time per new instance", "Checks"],
-                   cellLoc="left", colLoc="left", bbox=[0, 0, 1, 1], colWidths=[0.2, 0.18, 0.18, 0.16, 0.13, 0.15])
+                   cellLoc="left", colLoc="left", bbox=[0, 0, 1, 1], colWidths=[0.26, 0.2, 0.15, 0.15, 0.11, 0.13])
     tab.auto_set_font_size(False)
     tab.set_fontsize(8.5)
     for (i, _j), cl in tab.get_celld().items():
@@ -369,6 +377,15 @@ def figures(plan, col, tables, fig_dir: Path, banners) -> list[str]:
     plt.close(fig)
     files.append("summary_table.png")
     return files
+
+
+def summary_metrics(prob):
+    """(label, kind, (set, metric), (ood set, metric) or None, pct) lines of the summary figure for a problem."""
+    if hasattr(prob, "summary_metrics"):
+        return prob.summary_metrics()
+    main = prob.main_metric() if hasattr(prob, "main_metric") else None
+    ood = prob.ood_metric() if hasattr(prob, "ood_metric") else None
+    return [("", "field", main, ood, False)]
 
 
 def to_dataframe(plan, tables):

@@ -291,7 +291,11 @@ class AirfoilProblem(Problem):
         return "test4", "cd"
 
     def ood_metric(self):
-        return "ood4", "cd"
+        return "ood", "cd"
+
+    def summary_metrics(self):
+        return [("Cd (integral)", "integral", ("test4", "cd"), [("ood", "cd"), ("ood4", "cd")], True),
+                ("velocity (field)", "field", ("test4", "u"), [("ood", "u"), ("ood4", "u")], False)]
 
     def _cases(self):
         A.set_data_dir(self._prepared)

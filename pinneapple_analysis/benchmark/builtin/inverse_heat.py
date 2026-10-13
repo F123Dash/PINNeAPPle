@@ -124,6 +124,9 @@ class InverseHeatProblem(Problem):
     def ood_metric(self):
         return "ood", "h"
 
+    def summary_metrics(self):
+        return [("h (integral)", "integral", ("id", "h"), ("ood", "h"), True)]
+
     def instances(self):
         fin = [(f"{k}{i}", {"kind": k, "case": i}) for k, lst in H.CASES.items() for i in range(len(lst))]
         return {"val": [("", {"kind": "val", "case": 0})], "final": fin}
