@@ -42,6 +42,32 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   sizes; without them it behaves as before.
 - Docs page "Choosing a method" (`docs/guides/choosing_a_method.md`): a decision table backed by the equal-budget
   benchmark (PINNeAPPle-Benchmark experiment 09), linking every row to the library entry points.
+- `PhysicsEnsemble.run_delayed(queries, references, available_at, issue_times=None)`: prequential evaluation where
+  each label is used only once it exists (pending updates replayed in order of availability), returning an
+  `EnsembleRun` like `run`; `PhysicsEnsemble.last_state()` and `update(..., state=...)` score a stored prediction
+  when its label arrives later. `hstack_gifs` in `pinneapple_tools.visualization.dashboard.static` stitches
+  animations side by side (replaces the `stitch` helper of the physics-ensemble examples).
+- Surrogate monitoring and sensor design: `pinneapple_analysis.uncertainty.assess_drift` (nRMSE, bias, interval
+  coverage, per-feature KS input shift, out-of-range fraction, Mann-Kendall residual trend and an ok / review /
+  retrain decision), `uncertainty.propagate` (Monte-Carlo tolerance propagation with Wilson intervals on the
+  probability of meeting limits) and `pinneapple_analysis.data_assimilation.sensor_placement` (NumPy Gaussian process
+  with an anisotropic Matern kernel, closed-form leave-one-out, marginal-likelihood fit, and greedy sensor placement
+  by integrated-variance reduction after Krause, Singh & Guestrin 2008).
+- Library homes for helpers that lived in examples: `pinneapple_neural.utils.as_tensor` (model output ->
+  prediction Tensor); `pinneapple_data.datasets.deepmind_mgn` (DeepMind meshgraphnets partial download over HTTP
+  Range, TFRecord reader, `cylinder_flow` conversion) and `train_dynamics` / `eval_rollout` in
+  `graphnn.mgn_dynamics`; `pinneapple_systems.excitation` (step, ramp, sinusoid, PRBS, chirp, ... actuator signals and
+  rate limit); `NASAPowerClient` and `OpenMeteoClient` in `pinneapple_data.datasets.external_sources`;
+  `pinneapple_physics.solid.axisymmetric` (strains, stresses, equilibrium residual and von Mises in (r, z) with
+  optional torsion, tested against the Lame cylinder); `burgers_periodic_solve` / `burgers_periodic_pairs` in
+  `pinneapple_data.datasets.physics` (pseudo-spectral, checked against Cole-Hopf). The examples import them.
+  `best_device(allow_mps=False)` skips Apple MPS.
+- Helpers that lived inside the apps are now library API, and the apps call them: `pinneapple_core.jsonable.to_jsonable`
+  (one JSON sanitiser instead of six private copies), `pinneapple_data.cae.dataset.preview` / `field_scalar`,
+  `cae.report.worst_cells`, `cae.compare.tolerance_verdicts`, `Lineage.report` / `flags` / `Artifact.verified`,
+  `pinneapple_data.preflight.attach_snippets` / `drop_results` / `is_result_file`, `formfill.compile_documents` /
+  `check_overrides` / `output_filename` / `FormSpec.describe`, and `unified.before_after_series`. The heat-sink and PCB
+  apps import the library modules directly (their alias modules stay for old imports).
 - Zoo models as ONNX, with per-query trust checks:
   - `pp.zoo.export_onnx` / `onnx_parity` (`pinneapple_hub.zoo.export`): one graph from the card's physical inputs
     to its physical outputs, with pre- and post-processing included. The export is refused above 1e-5 difference
@@ -312,6 +338,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   2-D airfoil, OpenFOAM simpleFoam k-omega SST, CST geometry, the 436-run campaign, baseline against XFOIL, a
   surrogate optimum checked in CFD) and `free_surface_trough` (water jet into an open trough, interFoam VOF via
   `pp.cfd.FreeSurfaceFlow`, two meshes with mass balance, impingement, splash, floor shear and mean k).
+- Aero optimizer logic in the library: `pinneapple_design.aero.train` (load OpenFOAM runs, split by shape, metrics,
+  MLP-ensemble and MeshGraphNet training/prediction, `train_surrogates` -> the `Engine` bundle),
+  `pinneapple_design.aero.dataset` (run plan, `run_job`, `steady_values`, the one averaging rule for unsteady runs),
+  `pinneapple_design.aero.verify` (Pareto picks checked in OpenFOAM), `pinneapple_design.aero.case.case_zip` (a
+  ready OpenFOAM case with a stand-alone `COEF_SCRIPT`), `pinneapple_design.aero.optimize.infeasibility_reasons`
+  and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
 - **Behavior:** `pinneapple_analysis.cost.measure` now counts FLOPs of code that calls `torch.autograd.grad` with
@@ -319,6 +351,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 - `compressible_fv.sod_exact` delegates to `astrophysics.sod_exact_solution` (same output to round-off; covers every wave pattern);
   `internal_flow.colebrook` delegates to `closed_form.pipe_flow.colebrook`; the LBM shedding benchmark, the
   cylinder / car / ROM lab experiments, the SSQN benchmarks and the missile example use the library functions above.
+- Examples, benchmarks, scripts and a notebook use the library helpers instead of local copies: autograd
+  `grad`/`laplacian`/`divergence`, `pinneapple_physics.metrics`, `pinneapple_lab.uq.gci`, `latin_hypercube`,
+  `use_cfd_style(dark=True)`, `compressible_fv.sod_exact`, the `pinneapple_data.cae.foam` readers, `set_seed`,
+  `best_device` and `load_leaderboard` (20 lines fewer in `scripts/app_helpers_baseline.txt`).
+  `heat_fv_reference.footprint_area` is public (`_footprint_area` kept as an alias) and `interp_grid`/`convergence`
+  are in its `__all__`; the `fin_convection_inverse/fv_reference.py` shim is removed.
+  `examples/architectures/04_pinns.py` uses the real `PINNFactory` instead of stubs that ignored the PDE residuals.
 - **Behavior:** the zoo gate of `rover_contact_grc1_viper` checks that dFx/ds has the sign of the recorded Wong-Reece
   reference (with slip-sinkage the pull need not grow with slip at a fixed sinkage) instead of dFx/ds >= 0.
 - **Behavior:** GRC-1 and JSC-1A carry n1 = 0.8 (estimate from the five single-wheel calibrations; was 0), so their
@@ -326,6 +365,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   exponent lags the wheel's slip over `sink_length` (0.15 m) of rim travel.
 - **Behavior:** `vehicle.dashboard.render_frames` and `vehicle_dashboard` default to the geometry-only view (no
   stress colour map, no colour bar); pass `field=` / `field_label=` for the overlay.
+- `apps/aero_optimizer`: `tools/train_surrogate.py`, `tools/generate_dataset.py` and `tools/verify.py` are thin CLIs
+  over the library; the API uses the library picks, reasons and case zip (same responses);
+  `tools/render_airliner.py` uses the studio `colorbar` (tick labels now follow the viewer's format) and
+  `aero.render_blender` the studio `jet`.
 
 ### Fixed
 - Geometry library: `build()` snaps vertices to a 0.1 um grid, so the files rebuilt on another machine (the Hub
