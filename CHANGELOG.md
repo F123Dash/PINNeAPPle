@@ -14,6 +14,16 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- `pp.benchmark` (`pinneapple_analysis.benchmark`) and the `pinneapple benchmark prepare|run|report` command: equal-budget
+  benchmarks in one call (problems x methods under one `ComputeBudget`, equal hyper-parameter search, seeds, budget
+  levels, an equal-FLOPs arm, an `out_dir` cache that resumes and refuses mixed configurations). A prepare stage saves
+  and hashes the solver configuration, geometry, data and its cost; validation runs PINNeAPPle's own stack on them
+  (solver verification, GCI, preflight, mesh quality, y+, physics audit, applicability envelope, trust card);
+  correctness gates (architecture, training, determinism) run by default and mark rows INVALID or "did not converge";
+  an advisor lists diagnostics with evidence and configuration edits. Built-in problems: `burgers`, `darcy`,
+  `navier_stokes`, `airfoil`, `inverse_heat`; methods: `pinn`, `fno`, `deeponet`, `mgn`, `mlp`, `mlp_fields`,
+  `pinn_rans`; `ArrayProblem` and `register_problem` / `register_method` for your own. Docs: "Running a benchmark";
+  example: `examples/benchmark/`.
 - Equal-budget method comparison (#299), `pinneapple_analysis.cost.equal_budget`: `ComputeBudget` (wall clock,
   FLOPs, steps), `train_within_budget` (stops at the budget, budget-aware schedules, evaluation off the clock),
   `count_flops` (PyTorch's operator formulas plus FFTs, and unlike `FlopCounterMode` it runs around
