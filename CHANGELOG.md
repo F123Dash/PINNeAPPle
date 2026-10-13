@@ -28,7 +28,21 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   sizes; without them it behaves as before.
 - Docs page "Choosing a method" (`docs/guides/choosing_a_method.md`): a decision table backed by the equal-budget
   benchmark (PINNeAPPle-Benchmark experiment 09), linking every row to the library entry points.
-
+- Animation-centred dashboards for any simulation (`pinneapple_tools.visualization.dashboard`, `pp.viz.Dashboard`):
+  an animation in the middle, charts synced to its time cursor (time series with a cursor, or fixed curves with
+  markers that move with the frames), KPI tiles, a parameter panel and a colour bar.
+  - Exports: one self-contained interactive HTML file, where scrubbing a chart moves the animation; a static PNG;
+    a dashboard GIF/MP4.
+  - The HTML embeds VP9 WebM and H.264 sources, reuses the studio viewer's `studio-core.js`, and has an optional
+    live three.js view (the studio's vendored three.js, lunar lighting preset).
+  - `pinneapple_simulation.vehicle.dashboard` builds it for vehicle runs: drawbar pull, torque and sinkage versus
+    slip with live wheel operating points; per-wheel sinkage and load along the traverse; speed, slip, and the
+    PINN against Wong-Reece with its error.
+  - Example: `examples/studio/07_lunar_rover_dashboard.py`, which writes `docs/assets/studio/rover-*`. Docs:
+    `docs/core_concepts/dashboard.md`.
+  - Planetary renders: the vehicle's shadow now continues onto the far-field terrain beyond the detailed patch
+    (`studio.shadows.cast_shadow(..., supersample=n)` gives a smooth shadow fraction on coarse grids, and
+    `shade_terrain` accepts it); `vehicle.viz.frame_view(trail=...)` shifts the detailed window back along the path.
 - Realistic planetary rover simulation, as library features (`pp.terramechanics`, `pp.multibody`, `pp.vehicle`):
   - `pinneapple_simulation.terramechanics`: a soil database where every parameter records its source and how far
     it was checked (GRC-1, JSC-1A, the soils of three published single-wheel test series); the Wong-Reece wheel
@@ -558,6 +572,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 - `pp.compare` now accepts precomputed `Solution` objects in `methods`, reusing their predictions and training time
   instead of solving again. It validates coordinate and field compatibility and gives duplicate method names unique
   row labels.
+
+### Documentation
+- JOSS paper draft (`paper/paper.md`, `paper/paper.bib`) and a workflow that builds its PDF (`draft-pdf.yml`).
+  `CITATION.cff` lists both authors and points to this repository; the Code of Conduct is now the full Contributor
+  Covenant 2.1; `CONTRIBUTING.md` explains how to report bugs and get help; the README has a statement of need.
 
 ### Known issues
 - The classical reference path for `burgers_1d` (`fdm` solver) overflows and returns a grid over `x` only, without the time
