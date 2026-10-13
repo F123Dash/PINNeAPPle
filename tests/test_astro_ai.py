@@ -136,10 +136,23 @@ def test_conditions_postprocessing_and_calibration():
                                                                 cal["bin_edges"][1:], strict=True))
 
 
-def test_thin_disc_fields():
-    from pinneapple_physics.astro.lensing import thin_disc
-    grid, rho, T, vel = thin_disc()
-    rf = grid["r_faces"]
-    r = np.sqrt(rf[:-1] * rf[1:])
-    assert rho[r < 6.0].max() < 1e-10                             # nothing inside the ISCO
-    assert np.all(vel[2] <= 0.75) and np.all(vel[2] > 0)
+def test_thin_disc_geodesics_match_schwarzschild():
+    """The disc tracer against closed-form Schwarzschild results: the shadow edge sits at the critical impact
+    parameter 3 sqrt(3) GM/c^2, and face-on the disc's frequency shift is purely gravitational and transverse,
+    g = sqrt(1 - 3/r) / sqrt(1 - 2/r_cam)."""
+    from pinneapple_physics.astro.lensing import B_CRIT, disc_image, trace_thin_disc
+    tr = trace_thin_disc(160, 90, inclination_deg=0.5, r_cam=60.0, fov_deg=30.0)
+    b, cap = tr["b"], tr["captured"]
+    assert cap[b < B_CRIT * 0.99].all() and not cap[b > B_CRIT * 1.01].any()
+    r = tr["hit_r"][:, 0]
+    seen = np.isfinite(r) & (r > 7) & (r < 30)
+    assert seen.sum() > 1000
+    assert np.allclose(tr["lz_photon"][seen], 0, atol=0.05 * B_CRIT)
+    edge = trace_thin_disc(240, 135, inclination_deg=86.0)
+    rgb, cover = disc_image(edge)
+    H, W = edge["shape"]
+    left, right = rgb[:, : W // 2].sum(), rgb[:, W // 2:].sum()
+    assert max(left, right) > 1.5 * min(left, right)               # Doppler beaming: one side is brighter
+    assert np.isfinite(edge["hit_r"][:, 1]).sum() > 500            # the far side's image wraps over the shadow
+
+

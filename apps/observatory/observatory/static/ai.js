@@ -165,15 +165,15 @@ export async function renderStarsML(el, ctx) {
 // ------------------------------------------------------------------------------------------- black hole
 export async function renderBlackHole(el, ctx) {
   el.innerHTML = `<div class="row"><label class="small"><input type="checkbox" id="bhDop" checked> Doppler beaming (physical)</label>
-    <label class="small">inclination <input id="bhInc" type="range" min="60" max="89" value="80"></label>
+    <label class="small">inclination <input id="bhInc" type="range" min="60" max="89" value="86"></label>
     <button class="primary" id="bhRun">Render where I look</button></div><div id="bhOut"></div><div id="bhZoo"></div>`;
   el.querySelector("#bhRun").onclick = () => {
     const [ra, dec] = ctx.viewRaDec();
     const out = el.querySelector("#bhOut");
-    out.innerHTML = `<p class="muted">Tracing null geodesics through the disc (first render ~1 min, then a few seconds for any direction)…</p>`;
+    out.innerHTML = `<p class="muted">Tracing null geodesics through the disc (first render ~20 s, then about a second for any direction)…</p>`;
     const img = new Image(); img.className = "lens";
     img.src = `/api/analysis/accretion.png?ra=${ra.toFixed(3)}&dec=${dec.toFixed(3)}&doppler=${el.querySelector("#bhDop").checked}&incl=${el.querySelector("#bhInc").value}`;
-    img.onload = () => { out.innerHTML = ""; out.appendChild(img); out.insertAdjacentHTML("beforeend", `<p class="small muted">A Schwarzschild black hole with a thin accretion disc (inner edge at the ISCO, 6 GM/c²; Keplerian rotation; Doppler beaming and gravitational redshift) in front of the real stars and Milky Way around RA ${ra.toFixed(1)}°, Dec ${dec.toFixed(1)}°. The disc's far side appears above and below the shadow because its light is bent around the hole.</p>`); };
+    img.onload = () => { out.innerHTML = ""; out.appendChild(img); out.insertAdjacentHTML("beforeend", `<p class="small muted">A Schwarzschild black hole with a thin accretion disc (exact null geodesics; inner edge at the ISCO, 6 GM/c²; Keplerian gas; Doppler beaming and gravitational redshift, g⁴ intensity) in front of the real stars and Milky Way around RA ${ra.toFixed(1)}°, Dec ${dec.toFixed(1)}°. The disc's far side appears above and below the shadow because its light is bent around the hole.</p>`); };
     img.onerror = () => { out.textContent = "Render failed (server busy?)."; };
   };
   const z = await api("/api/blackhole/status").catch(() => ({ available: false, note: "status unavailable" }));

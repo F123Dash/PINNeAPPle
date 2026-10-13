@@ -64,7 +64,9 @@ def load_body(key: str) -> SmallBody:
 
 
 def available_bodies():
-    return sorted(f[:-5] for f in os.listdir(DATA) if f.endswith(".json"))
+    """Keys of the bundled objects, the near-Earth asteroids first."""
+    order = {"apophis": 0, "phaethon": 1}
+    return sorted((f[:-5] for f in os.listdir(DATA) if f.endswith(".json")), key=lambda k: (order.get(k, 9), k))
 
 
 def _accel(t_jd, r, v, eph, gr=True):

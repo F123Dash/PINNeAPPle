@@ -40,14 +40,17 @@ computed, how much to trust it". The numbers are in [the astronomy page](../core
   compared with a Runge-Kutta integration and with SGP4's own drag model.
 - **Analyses → Asteroids and close approaches**: Apophis, Phaethon, Ceres and 67P from JPL SBDB elements, propagated
   in the field of the Sun, planets and Moon; the Apophis flyby of 13 April 2029 is reproduced within JPL's 3σ range.
-  A learned propagator (one network for many near-Earth asteroids) is shown with its errors on unseen bodies.
+  A PINN can be trained for the selected body (Kepler orbit plus a network for the planetary perturbations, about a
+  minute) and is checked against the integrator. A learned propagator (one network for many near-Earth asteroids)
+  is shown with its errors on unseen bodies and is rejected by its own gate.
 - **Analyses → Space weather and aurora**: Kp now and 3 h / 24 h ahead with calibrated 80 % intervals, and the chance
   of seeing the aurora overhead or low on the horizon at your geomagnetic latitude.
 - **Analyses → Observing conditions**: P(clear sky), cloud quantiles, transparency and a seeing proxy from the
   Open-Meteo ensemble (marked not verified until it is calibrated against observations).
 - **Analyses → Stellar ML**: the HR diagram clustered without labels, and the luminosity / spectral classes predicted
   from colour and absolute magnitude, cross-validated against the catalogue.
-- **Analyses → Black hole**: a thin accretion disc around a Schwarzschild black hole, lensed in front of the part of
-  the sky you are looking at (Doppler beaming on or off).
+- **Analyses → Black hole**: a thin accretion disc around a Schwarzschild black hole, traced along exact null
+  geodesics and lensed in front of the part of the sky you are looking at (Doppler beaming on or off). The far side
+  of the disc appears above and below the shadow, with the photon ring inside.
 
 ![Black hole with an accretion disc in front of the Milky Way](../assets/apps/14-observatory-blackhole.jpg)

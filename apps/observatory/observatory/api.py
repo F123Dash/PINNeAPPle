@@ -821,7 +821,7 @@ def blackhole_status():
 
 @app.get("/api/analysis/accretion.png")
 def accretion_png(ra: float = Query(266.4, ge=0, le=360), dec: float = Query(-29.0, ge=-90, le=90),
-                  doppler: bool = True, incl: float = Query(80.0, ge=10, le=89.5)):
+                  doppler: bool = True, incl: float = Query(86.0, ge=10, le=89.5)):
     from PIL import Image
 
     from pinneapple_physics.astro.lensing import accretion_view
@@ -829,7 +829,7 @@ def accretion_png(ra: float = Query(266.4, ge=0, le=360), dec: float = Query(-29
         if "sky_disc" not in _SKY:
             from pinneapple_physics.astro.lensing import catalog_sky
             _SKY["sky_disc"] = catalog_sky(2048, 1024, milky_way=0.10)
-        r = accretion_view(ra, dec, 400, 225, inclination_deg=incl, doppler=doppler, sky=_SKY["sky_disc"])
+        r = accretion_view(ra, dec, 640, 360, inclination_deg=incl, doppler=doppler, sky=_SKY["sky_disc"])
     buf = io.BytesIO()
     Image.fromarray((np.clip(r["image"], 0, 1) * 255).astype("uint8")).save(buf, "PNG")
     return Response(buf.getvalue(), media_type="image/png", headers={"Cache-Control": "max-age=3600"})

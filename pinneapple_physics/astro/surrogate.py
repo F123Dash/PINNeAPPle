@@ -15,6 +15,7 @@ numbers with fixed, published thresholds.
 from __future__ import annotations
 
 import math
+import threading
 import time
 
 import numpy as np
@@ -70,9 +71,20 @@ def _kepler_track(r0, v0, mu, t):
     return p, a
 
 
-def train_orbit_pinn(body: str = "mars", jd_tdb: float = 2461327.0, days: float = 365.0, *, n_anchor: int = 8,
-                     n_colloc: int = 400, iters: int = 1500, width: int = 48, depth: int = 3, seed: int = 0,
-                     alpha: float = 0.1, eph=None) -> dict:
+# torch.func's forward-mode AD keeps its dual levels in global state: two trainings in different threads (a web
+# server's worker pool) corrupt each other's levels, so trainings run one at a time.
+_TRAIN_LOCK = threading.Lock()
+
+
+def train_orbit_pinn(body: str = "mars", jd_tdb: float = 2461327.0, days: float = 365.0, **kwargs) -> dict:
+    """Train the PINN orbit surrogate (thread-safe; see ``_train_orbit_pinn``)."""
+    with _TRAIN_LOCK:
+        return _train_orbit_pinn(body, jd_tdb, days, **kwargs)
+
+
+def _train_orbit_pinn(body: str = "mars", jd_tdb: float = 2461327.0, days: float = 365.0, *, n_anchor: int = 8,
+                      n_colloc: int = 400, iters: int = 1500, width: int = 48, depth: int = 3, seed: int = 0,
+                      alpha: float = 0.1, eph=None) -> dict:
     """Train the PINN orbit surrogate and return its evaluation report (JSON-serialisable).
 
     Ansatz: r(t) = r_Kepler(t) + s tau^2 g_theta(tau), tau = t / T. The Kepler term is the exact two-body solution
