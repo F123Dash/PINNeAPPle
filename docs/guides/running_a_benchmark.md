@@ -90,8 +90,11 @@ The gates run by default, are recorded with their measured values, and are never
   output invariant to the input resolution, DeepONet branch and trunk shapes (and its basis against the POD rank of the
   outputs), MeshGraphNet permutation equivariance, PINN derivatives against finite differences and **the PDE residual of
   an exact solution through the same compiled residual** (a wrong equation or a sign error fails here), and every
-  method overfitting a tiny batch. A pair that fails is not trained and is INVALID in the table.
-* **Training (from every run)**: loss finite and decreasing, divergence, "did not learn", the budget enforced, identical
+  method overfitting a tiny batch (to 10 % of its initial loss; a model that cannot even halve it is a broken setup,
+  one that learns but more slowly is a warning). A pair that fails an error-level gate is not trained and is INVALID
+  in the table.
+* **Training (from every run)**: loss finite and decreasing, divergence, "did not learn" (judged on the full-budget
+  runs; the short runs of the error-versus-budget curve are expected to learn less), the budget enforced, identical
   accounting across methods (hardware, threads, timer, FLOP counter), evaluation off the clock, the search touching
   validation data only, the seed spread (veriphysics tolerance), and a determinism spot-check (same seed, same steps,
   same loss).

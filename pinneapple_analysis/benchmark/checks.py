@@ -69,9 +69,14 @@ def job_checks(rec: dict) -> list[Check]:
     div = (not fin) or (_finite(L[-1]) and L[-1] > 10 * max(min(L), 1e-30))
     C.append(Check("no divergence", "training", subj, not div, value=f"final {L[-1]:.3g}, min {min(L):.3g}",
                    detail=spec["id"]))
-    learned = fin and L[-1] < 0.5 * L[0]
-    C.append(Check("learned (final loss < half the initial)", "training", subj, learned, severity="warning",
-                   value=f"{L[0]:.3g} -> {L[-1]:.3g}", detail=spec["id"]))
+    full = spec.get("level", 1.0) is None or float(spec.get("level", 1.0)) >= 1.0 - 1e-9
+    if full:
+        learned = fin and L[-1] < 0.5 * L[0]
+        C.append(Check("learned (final loss < half the initial)", "training", subj, learned, severity="warning",
+                       value=f"{L[0]:.3g} -> {L[-1]:.3g}", detail=spec["id"]))
+    else:                       # a short run of the error-versus-budget curve is expected to learn less
+        C.append(Check("learned (final loss < half the initial)", "training", subj, None, value=spec["id"],
+                       detail=f"n/a below the full budget (level {float(spec['level']):.3g})"))
     b = spec["budget"]
     wall = tr.get("wall_s", 0.0)
     if b.get("wall_s"):

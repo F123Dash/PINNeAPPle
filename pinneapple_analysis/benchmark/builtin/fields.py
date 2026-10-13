@@ -364,6 +364,7 @@ def _overfit_check(subject, make_loss, params, steps=300, lr=1e-3, factor=0.1) -
     """A model that cannot overfit a tiny batch has a broken setup."""
     import torch
     opt = torch.optim.Adam(params, lr=lr)
+    steps_max = steps
     first = None
     done = 0
     for done in range(1, steps + 1):  # noqa: B007 (used after the loop)
@@ -378,9 +379,13 @@ def _overfit_check(subject, make_loss, params, steps=300, lr=1e-3, factor=0.1) -
     last = float(make_loss().detach())
     steps = done
     ratio = last / max(first, 1e-30)
-    return Check("overfits a tiny batch", "architecture", subject, bool(np.isfinite(ratio) and ratio < factor),
-                 value=round(ratio, 5), threshold=factor,
-                 detail=f"loss {first:.3g} -> {last:.3g} in {steps} Adam steps (at most 1000, stops once below)")
+    # below `factor`: fits. Between `factor` and 0.5: learns but slowly (a warning: the optimiser, not the wiring).
+    # At or above 0.5, or not finite: cannot reduce the loss on 3 samples, a broken setup (an error: not trained).
+    ok = bool(np.isfinite(ratio) and ratio < factor)
+    broken = not np.isfinite(ratio) or ratio >= 0.5
+    return Check("overfits a tiny batch", "architecture", subject, ok, value=round(ratio, 5),
+                 threshold=f"< {factor} (error at >= 0.5)", severity="error" if broken else "warning",
+                 detail=f"loss {first:.3g} -> {last:.3g} in {steps} Adam steps (at most {steps_max}, stops once below)")
 
 
 class _OperatorMethod(Method):

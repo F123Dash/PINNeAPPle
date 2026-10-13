@@ -88,9 +88,12 @@ def diagnose(cfg: BenchmarkConfig, plan, extracted: dict, checks: list[Check], a
             if mid not in plan.M:
                 continue
             hint = _pinn_hint(pid, mid, loss_terms or {})
-            D.append(Diagnosis("error" if plan.M[mid].per_instance else "warning", "pinn" if plan.M[mid].per_instance
-                               else "method", c.subject, "Did not learn: the loss did not fall below half its initial value.",
-                               f"{c.value}; {c.detail[:160]}", hint or "Check the learning rate and the loss scaling."))
+            # a loss that falls by less than half is a warning; a row whose error is no better than a trivial
+            # prediction is the error item ("did not converge", below)
+            D.append(Diagnosis("warning", "pinn" if plan.M[mid].per_instance else "method", c.subject,
+                               "The loss fell by less than half in full-budget runs: the optimisation is slow or "
+                               "stalled.", f"{c.value}; {c.detail[:160]}",
+                               hint or "Check the learning rate and the loss scaling."))
     for (pid, mid), lv in extracted.items():
         prob = plan.P[pid]
         main = prob.main_metric() if hasattr(prob, "main_metric") else None

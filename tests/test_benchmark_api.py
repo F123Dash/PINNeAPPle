@@ -180,3 +180,17 @@ def test_tampered_artifacts_are_refused_and_own_artifacts_can_be_adopted(tmp_pat
     (other / "cost.json").write_text(json.dumps({"train_set_core_s": 5.0}))
     man = B.prepare(problems=[_problem()], out_dir=tmp_path / "c", adopt=True, log=lambda *a: None)["smooth"]
     assert man["adopted"] and man["status"] == "ok" and set(man["hashes"]) == {"data.npz", "cost.json"}
+
+
+def test_overfit_gate_separates_a_broken_setup_from_a_slow_one():
+    import torch
+
+    from pinneapple_analysis.benchmark.builtin.fields import _overfit_check
+    w = torch.zeros(1, requires_grad=True)
+    frozen = _overfit_check("x/frozen", lambda: (w.detach() - 1.0) ** 2 + 0 * w, [w], steps=50)
+    assert frozen.passed is False and frozen.severity == "error"          # gradient cut: cannot learn
+    v = torch.zeros(1, requires_grad=True)
+    slow = _overfit_check("x/slow", lambda: (v - 1.0) ** 2, [v], steps=200, lr=2e-3)
+    assert slow.passed is False and slow.severity == "warning"             # learns, but not to 10 % in 200 steps
+    u = torch.zeros(1, requires_grad=True)
+    assert _overfit_check("x/ok", lambda: (u - 1.0) ** 2, [u], steps=300, lr=5e-2).passed
