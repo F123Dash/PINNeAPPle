@@ -425,8 +425,40 @@ class AirfoilProblem(Problem):
                 _overfit_check(subj, lambda: ((m(x) - t) ** 2).mean(), list(m.parameters()), steps=1000, lr=cfg["lr"])]
 
     def checks_mlp_fields(self, prepared, cfg):
-        return [Check("architecture checks", "architecture", f"{self.id}/mlp_fields", None,
-                      detail="POD + MLP: the POD energy kept is reported by every run (pod_energy_kept)")]
+        """POD + MLP: the basis is orthonormal and reconstructs the training fields as its energy says; the MLP maps
+        the 8 shape/angle inputs to K coefficients and can overfit a tiny batch."""
+        import torch
+        from torch import nn
+
+        from .fields import _overfit_check
+        subj = f"{self.id}/mlp_fields"
+        self._set(prepared)
+        S = A.splits()
+        lay = A.Layout()
+        recs = S["train"][:40]
+        Y = np.stack([np.stack([np.load(r["npz"])[k] for k in ("p", "Ux", "Uy")], 1)[lay.cell_index]
+                      for r in recs]).astype(np.float64)
+        Z = ((Y - Y.mean(0)) / Y.reshape(-1, 3).std(0)).reshape(len(Y), -1)
+        _, sv, Vt = np.linalg.svd(Z, full_matrices=False)
+        K = min(cfg["modes"], len(Z))
+        B = Vt[:K]
+        ortho = float(np.abs(B @ B.T - np.eye(K)).max())
+        energy = float((sv[:K] ** 2).sum() / (sv ** 2).sum())
+        rec = float(np.linalg.norm(Z - (Z @ B.T) @ B) / np.linalg.norm(Z))
+        torch.manual_seed(0)
+        w = cfg["width"]
+        net = nn.Sequential(nn.Linear(8, w), nn.SiLU(), nn.Linear(w, w), nn.SiLU(), nn.Linear(w, w), nn.SiLU(),
+                            nn.Linear(w, K))
+        x, t = torch.rand(6, 8), torch.rand(6, K)
+        return [Check("POD basis orthonormal", "architecture", subj, ortho < 1e-8, value=f"{ortho:.1e}", threshold=1e-8),
+                Check("POD reconstruction error = sqrt(1 - energy kept)", "architecture", subj,
+                      abs(rec - (1 - energy) ** 0.5) < 1e-6, value=f"{rec:.4f} vs {(1 - energy) ** 0.5:.4f}",
+                      detail=f"{K} modes of {len(recs)} training fields"),
+                Check("forward shape", "architecture", subj, tuple(net(x).shape) == (6, K), value=tuple(net(x).shape)),
+                Check("parameter count", "architecture", subj, True,
+                      value=int(sum(p.numel() for p in net.parameters())), severity="warning"),
+                _overfit_check(subj, lambda: ((net(x) - t) ** 2).mean(), list(net.parameters()), steps=1000,
+                               lr=cfg["lr"])]
 
     def _pinn_exact_check(self, kind, cfg):
         """The residual code on an exact solution: uniform flow (psi = y cos a - x sin a; u = cos a, v = sin a, p = 0)
