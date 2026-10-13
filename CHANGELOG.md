@@ -42,6 +42,18 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   sizes; without them it behaves as before.
 - Docs page "Choosing a method" (`docs/guides/choosing_a_method.md`): a decision table backed by the equal-budget
   benchmark (PINNeAPPle-Benchmark experiment 09), linking every row to the library entry points.
+
+### Changed
+- **Behavior:** `pinneapple_analysis.cost.measure` now counts FLOPs of code that calls `torch.autograd.grad` with
+  the hook-free counter (`flops_source == "dispatch_counter"`) instead of the profiler's matmul-only lower bound.
+
+## [0.7.0] - 2026-10-13
+
+### Added
+- Two engineering hand-off case packages in `examples/handoff_cases/` (each also as a zip): `airfoil_ld` (max L/D of a
+  2-D airfoil, OpenFOAM simpleFoam k-omega SST, CST geometry, the 436-run campaign, baseline against XFOIL, a
+  surrogate optimum checked in CFD) and `free_surface_trough` (water jet into an open trough, interFoam VOF via
+  `pp.cfd.FreeSurfaceFlow`, two meshes with mass balance, impingement, splash, floor shear and mean k).
 - Animation-centred dashboards for any simulation (`pinneapple_tools.visualization.dashboard`, `pp.viz.Dashboard`):
   an animation in the middle, charts synced to its time cursor (time series with a cursor, or fixed curves with
   markers that move with the frames), KPI tiles, a parameter panel and a colour bar.
@@ -523,10 +535,6 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   adapters, unchanged: `from_pde_spec`/`to_pde_spec` round-trip all 65 presets exactly, and `from_physics_case`/
   `to_physics_case` and `from_problem_design`/`to_problem_design` cover the other two (#27).
 
-### Changed
-- **Behavior:** `pinneapple_analysis.cost.measure` now counts FLOPs of code that calls `torch.autograd.grad` with
-  the hook-free counter (`flops_source == "dispatch_counter"`) instead of the profiler's matmul-only lower bound.
-
 ### Fixed
 
 - `om_runner._read_om_result` dropped `time` (dataset 0 of the OpenModelica result file).
@@ -842,7 +850,8 @@ Development before the first PyPI release is not itemized. In short: the initial
 PINN Arena and benchmark suite, the refactor into the current mega-modules (2026-05-06), the rename from `pinneaple` to
 `pinneapple` (2026-05-18), and the Physics Synthetic Data Factory and the 9-stage pipeline (2026-06-04).
 
-[Unreleased]: https://github.com/PINNeAPPle-Labs/PINNeAPPle/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/PINNeAPPle-Labs/PINNeAPPle/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/PINNeAPPle-Labs/PINNeAPPle/compare/v0.6.3...v0.7.0
 [0.6.3]: https://github.com/PINNeAPPle-Labs/PINNeAPPle/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/PINNeAPPle-Labs/PINNeAPPle/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/PINNeAPPle-Labs/PINNeAPPle/compare/v0.6.0...v0.6.1

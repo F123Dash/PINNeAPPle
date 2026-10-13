@@ -49,9 +49,9 @@
   * [Reduced-order models](core_concepts/reduced_order_models.md)
 * [Validation status](validation_status.md)
 * Guides
-  * [Choosing a method: PINN, operator, graph network or solver](guides/choosing_a_method.md)
-  * [Running a benchmark](guides/running_a_benchmark.md)
-  * [Recreate a 3D wear twin](guides/recreate_a_wear_twin.md)
+    * [Choosing a method: PINN, operator, graph network or solver](guides/choosing_a_method.md)
+    * [Running a benchmark](guides/running_a_benchmark.md)
+    * [Recreate a 3D wear twin](guides/recreate_a_wear_twin.md)
 * [API Reference](api/index.md)
   * [pinneapple](api/pinneapple/index.md)
   * [pinneapple_physics](api/pinneapple_physics/index.md)
