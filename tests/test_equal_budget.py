@@ -172,3 +172,21 @@ def test_time_per_query_and_hardware_record():
     assert g["median_s"] > 0
     hw = hardware_record()
     assert hw["logical_cpus"] and "torch" in hw and "numpy" in hw
+
+
+def test_train_within_budget_checkpoint_and_resume_continue_the_same_budget():
+    saved = []
+    n = {"i": 0}
+
+    def step(progress):
+        n["i"] += 1
+        return float(n["i"])
+
+    budget = ComputeBudget(steps=50)
+    first = train_within_budget(step, budget, flops_per_step=2.0, checkpoint=saved.append, checkpoint_every_s=0.0)
+    assert first.steps == 50 and saved and saved[-1]["steps"] == 50
+    mid = next(s for s in saved if s["steps"] == 20)
+    n["i"] = 0
+    rest = train_within_budget(step, budget, resume=mid)
+    assert n["i"] == 30 and rest.steps == 50 and rest.flops == 100.0 and rest.flops_per_step == 2.0
+    assert any(h.get("resumed") for h in rest.history)

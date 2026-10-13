@@ -192,7 +192,10 @@ def train_within_budget(step: Callable[[float], float | None], budget: ComputeBu
                         flops_per_step: float | None = None, count_first_step: bool = True,
                         evaluate: Callable[[], Any] | None = None,
                         eval_at: Sequence[float] = (),
-                        log_every_s: float = 5.0) -> BudgetRun:
+                        log_every_s: float = 5.0,
+                        checkpoint: Callable[[dict[str, Any]], None] | None = None,
+                        checkpoint_every_s: float = 300.0,
+                        resume: dict[str, Any] | None = None) -> BudgetRun:
     """Call ``step(progress)`` (one optimiser step; may return the loss) until ``budget`` is spent.
 
     ``progress`` is the fraction of the budget used before the step, so a schedule such as ``cosine_lr`` reaches its
@@ -204,18 +207,28 @@ def train_within_budget(step: Callable[[float], float | None], budget: ComputeBu
 
     ``evaluate`` is called when progress first reaches each fraction in ``eval_at`` and at the end; the clock is
     paused while it runs, so evaluation is never charged to the method. Its results go into ``history``.
+
+    Long runs: every ``checkpoint_every_s`` seconds of training, ``checkpoint(state)`` is called with the loop's
+    accounting (steps, wall clock, FLOPs, history); save it with the model and optimiser. Passing that ``state`` back
+    as ``resume`` continues the same budget where it stopped (the time spent saving is not charged).
     """
     history: list[dict[str, Any]] = []
     steps, flops, wall, eval_wall = 0, 0.0, 0.0, 0.0
     fps = float(flops_per_step) if flops_per_step is not None else 0.0
-    if flops_per_step is None and count_first_step:
+    if resume is not None:
+        steps, flops, wall = int(resume["steps"]), float(resume["flops"]), float(resume["wall_s"])
+        fps, eval_wall = float(resume["flops_per_step"]), float(resume.get("eval_wall_s", 0.0))
+        history = list(resume.get("history", []))
+        history.append({"step": steps, "progress": budget.fraction(wall, flops, steps), "wall_s": wall,
+                        "flops": flops, "loss": None, "resumed": True})
+    elif flops_per_step is None and count_first_step:
         n, _, loss = count_flops(lambda: step(0.0))
         fps = float(n)
         steps, flops = 1, fps
         history.append({"step": 1, "progress": budget.fraction(0.0, flops, 1), "wall_s": 0.0, "flops": flops,
                         "loss": _as_float(loss)})
-    pending = sorted(float(f) for f in eval_at if 0 < f < 1)
-    last_log = 0.0
+    pending = sorted(float(f) for f in eval_at if budget.fraction(wall, flops, steps) < f < 1)
+    last_log, last_ckpt = wall, wall
     stopped_by = "budget"
     loss = None
     while True:
@@ -247,6 +260,10 @@ def train_within_budget(step: Callable[[float], float | None], budget: ComputeBu
             last_log = wall
             history.append({"step": steps, "progress": budget.fraction(wall, flops, steps), "wall_s": wall,
                             "flops": flops, "loss": _as_float(loss)})
+        if checkpoint is not None and wall - last_ckpt >= checkpoint_every_s:
+            last_ckpt = wall
+            checkpoint({"steps": steps, "wall_s": wall, "flops": flops, "flops_per_step": fps,
+                        "eval_wall_s": eval_wall, "history": list(history), "budget": budget.to_dict()})
     final = {"step": steps, "progress": budget.fraction(wall, flops, steps), "wall_s": wall, "flops": flops,
              "loss": _as_float(loss), "final": True}
     if evaluate is not None:

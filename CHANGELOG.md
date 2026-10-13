@@ -24,6 +24,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   operator-learning benchmarks (Li et al. 2021) written from the equations and checked on exact solutions: batched
   pseudo-spectral Burgers and 2-D vorticity Navier-Stokes (ETDRK4), finite-volume Darcy, periodic Gaussian random
   fields, and `FourierInterpolant` (a differentiable periodic interpolant for hard initial conditions in PINNs).
+- `train_within_budget(checkpoint=..., resume=...)`: long budgeted runs save their accounting and continue the same
+  budget after an interruption.
+- `pinneapple_design.aero.panel`: a Hess-Smith panel method (inviscid reference for airfoils: Cl, Cp, Cm, velocity
+  anywhere), checked against thin-airfoil theory.
 - `run_plate` (Inverse Heat Lab) takes an optional `budget=ComputeBudget(...)` and the network and collocation
   sizes; without them it behaves as before.
 - Docs page "Choosing a method" (`docs/guides/choosing_a_method.md`): a decision table backed by the equal-budget
