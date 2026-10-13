@@ -48,6 +48,8 @@ dependencies = [
 [project.scripts]
 # Drop-in CalculiX executable backed by a PINN/surrogate (falls back to ccx outside its envelope)
 pinneapple-ccx = "pinneapple_simulation.external_solvers.calculix.virtual_ccx:main"
+# Equal-budget benchmarks: pinneapple benchmark prepare|run|report
+pinneapple = "pinneapple_analysis.benchmark.cli:main"
 
 [project.optional-dependencies]
 # Ed25519 signatures and AES-GCM encryption in pinneapple_security (the rest of the module needs only NumPy)
