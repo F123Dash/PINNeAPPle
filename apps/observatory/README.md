@@ -44,6 +44,18 @@ JPL DE421 (public domain) ──► SPK reader ──► light time, solar defle
   judged against the classical integrator: error, split-conformal band, energy / angular-momentum checks, residual, a
   verdict. Next to it, leapfrog / Yoshida-4 / RK4 conservation, and the validation table of every method.
 
+## PINNeAPPle models (each with a trust card)
+
+| Where | Model | Checked against | Verdict |
+|---|---|---|---|
+| Satellites | orbit-decay PINN, NRLMSIS 2.0 drag, Monte-Carlo envelope over solar flux / Ap / drag area | RK integration; SGP4's own drag model from the TLE | trustworthy (metres vs RK; decay rate within 6 % of SGP4 for an ISS TLE) |
+| Analyses › Asteroids | small-body propagator (DE421 Sun, planets, Moon + solar relativity) | JPL Horizons (Ceres: 3.9 km after 4 yr), JPL close approaches (Apophis 2029: within JPL's 3σ, 11 s) | trustworthy |
+| Analyses › Asteroids | learned propagator for many NEOs (one network) | the integrator on unseen bodies | shown with its measured errors |
+| Analyses › Space weather | Kp forecast (quantile network on persistence, conformal intervals) + aurora probability | observed Kp, held-out months; persistence | 3 h trustworthy (persistence median), 24 h use with caution (misses storm onsets) |
+| Analyses › Stellar ML | HR-diagram clustering, luminosity / spectral class | BSC5 MK types, cross-validation | trustworthy (70 % / 79 % vs 40 % / 25 % baselines) |
+| Analyses › Conditions | Open-Meteo ensemble: P(clear), cloud quantiles, transparency, seeing proxy | none yet | not verified (uncalibrated ensemble spread) |
+| Analyses › Black hole | thin accretion disc lensed in front of your sky; zoo forecaster when it passes its gate | — | placeholder until the zoo model exists |
+
 ## Accuracy
 
 Computed by `pinneapple_physics.astro.validation` (also `tests/test_astro_accuracy.py` and the Engine tab):

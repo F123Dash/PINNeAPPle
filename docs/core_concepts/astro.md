@@ -63,3 +63,18 @@ integration) plus a few anchor states. It is then scored on held-out integrator 
 coverage (`pinneapple_analysis.uncertainty.conformal`), the error in two-body energy and angular momentum relative to
 their perturbation-driven variation, the equation-of-motion residual and the gain over Kepler. Mars passes every check
 (0.09″ over a year); the Earth fails them, because of the Moon, and the verdict says so.
+
+## PINNs and machine learning in the observatory
+
+Each model is shown with a trust card in the app (verdict, checks against an independent reference, "how this was
+computed, how much to trust it") and tested in `tests/test_astro_ai.py`.
+
+| Module | Model | Independent reference | Result |
+|---|---|---|---|
+| `decay` | PINN for drag decay of a LEO orbit, NRLMSIS 2.0 density (`pymsis`), Monte-Carlo input envelope | RK integration; SGP4's own drag model from a TLE | PINN within metres of the integrator over weeks; decay rate within 6 % of SGP4 for an ISS TLE (B = 0.005 m²/kg, F10.7 = 70) |
+| `smallbodies` | test-particle propagator (DE421 Sun + planets + Moon, solar 1PN term) from JPL SBDB elements | JPL Horizons (Ceres), JPL close-approach table (Apophis 2029) | Ceres 3.9 km after 4.2 yr; Apophis 2029-04-13: 38,356 km vs JPL 37,725 ± 697 km (3σ), 11 s |
+| `neural_propagator` | one network for many NEOs: elements + time → deviation from Kepler (R/T/N frame) | the full integrator on unseen bodies | see the shipped `heldout.json` and the app's card |
+| `spaceweather` | Kp quantile network (residual on persistence), conformal intervals; aurora probability from the IGRF dipole and the NOAA oval rule | observed Kp (GFZ) on held-out months; persistence | 24 h: MAE 1.15 vs persistence 1.18, 84 % coverage of the 80 % interval; storm onsets mostly missed (verdict: use with caution) |
+| `stars_ml` | Gaussian-mixture clustering of the HR diagram; k-NN luminosity and spectral class | BSC5 MK spectral types, 5-fold CV | luminosity class 70 % (baseline 40 %), spectral class from B−V 79 % (baseline 25 %), cluster purity 71 % |
+| `conditions` | Open-Meteo ensemble → P(clear), cloud quantiles, transparency, seeing proxy; reliability calibration | none yet (needs a forecast/observation history) | labelled *not verified* |
+| `lensing.accretion_view` | thin disc (ISCO, Keplerian, Doppler beaming) lensed in front of the real sky | geodesics of `pinneapple_physics.blackhole.raytrace` | — |

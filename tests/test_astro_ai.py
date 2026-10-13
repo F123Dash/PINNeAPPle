@@ -1,0 +1,123 @@
+"""PINNeAPPle models in the observatory, each checked against an independent reference:
+orbit-decay PINN (RK integration, SGP4), small-body propagator (JPL Horizons, JPL close approaches), learned NEO
+propagator (full integrator on unseen bodies), Kp forecaster (observed Kp, persistence), stellar ML (BSC5 MK types),
+observing-conditions post-processing, thin-disc black-hole fields."""
+import numpy as np
+import pytest
+
+pytest.importorskip("skyfield_data")
+torch = pytest.importorskip("torch")
+
+ISS_2018 = ("1 25544U 98067A   18184.80969102  .00001614  00000-0  31745-4 0  9993",
+            "2 25544  51.6414 295.8524 0003435 262.6267 204.2868 15.54005638121106")
+
+
+def test_decay_pinn_matches_integrator():
+    from pinneapple_physics.astro.decay import train_decay_pinn
+    r = train_decay_pinn(415.0, 0.005, 30.0, f107=150, ap=15, iters=700, with_envelope=False)
+    assert r["verdict"]["status"] == "trustworthy", r["checks"]
+    assert r["checks"][0]["value"] < 50.0            # metres
+    assert 20 < r["decay_rate_m_per_day_t0"] < 400   # ISS-like decay at moderate-high solar activity
+
+
+def test_decay_vs_sgp4_independent_drag_model():
+    pytest.importorskip("sgp4")
+    from pinneapple_physics.astro.decay import compare_with_sgp4
+    c = compare_with_sgp4(*ISS_2018, days=30, f107=70, ap=6)
+    assert 0.5 < c["ratio"] < 2.0, c["ratio"]
+    assert c["rate_sgp4_m_day"] > 0
+
+
+def test_exponential_atmosphere_table():
+    from pinneapple_physics.astro.decay import exponential_density
+    assert abs(exponential_density(400.0) / 3.725e-12 - 1) < 1e-9
+    assert exponential_density(500.0) < exponential_density(400.0)
+
+
+def test_ceres_against_horizons():
+    from pinneapple_physics.astro.ephemeris import AU_KM
+    from pinneapple_physics.astro.smallbodies import ECL_TO_ICRF, horizons_vectors, load_body, propagate
+    jd, P, _ = horizons_vectors()
+    r, _ = propagate(load_body("ceres"), jd)
+    err = np.linalg.norm(r - (ECL_TO_ICRF @ P.T).T * AU_KM, axis=1)
+    assert err.max() < 100.0, err
+
+
+def test_apophis_2029_against_jpl_close_approach():
+    from pinneapple_physics.astro.ephemeris import AU_KM
+    from pinneapple_physics.astro.smallbodies import cad_reference, close_approaches, load_body
+    ap = load_body("apophis")
+    ref = cad_reference(ap, 2029)
+    ca = close_approaches(ap, ref["jd_tdb"] - 2, ref["jd_tdb"] + 2, step_days=0.25)[0]
+    assert abs(ca["dist_km"] - ref["dist_au"] * AU_KM) <= (ref["dist_max_au"] - ref["dist_min_au"]) / 2 * AU_KM
+    assert abs(ca["jd_tdb"] - ref["jd_tdb"]) * 86400 < 120
+    assert abs(ca["v_rel_km_s"] - ref["v_rel_km_s"]) < 0.1
+
+
+def test_learned_propagator_beats_kepler_on_unseen_bodies():
+    from pinneapple_physics.astro import neural_propagator as npg
+    model = npg.NeuralPropagator.load()
+    bodies = [npg._body(el) for el in npg.sample_population(6, seed=12345)]
+    rows = npg.evaluate(model, bodies, n_t=30)
+    nn = np.median([r["max_err_km"] for r in rows])
+    kep = np.median([r["kepler_max_err_km"] for r in rows])
+    assert nn < kep, (nn, kep)
+
+
+def test_stellar_ml_beats_baselines():
+    from pinneapple_physics.astro.stars_ml import analyse, luminosity_group, spectral_class
+    assert luminosity_group("K0IIIbCN-0.5") == 2 and luminosity_group("A1Vm") == 0
+    assert luminosity_group("M1-2Ia-Iab") == 3 and spectral_class("gG8III") == 4
+    r = analyse()
+    assert r["lum_cv"]["accuracy"] > r["lum_cv"]["baseline"] + 0.1
+    assert r["spec_cv"]["accuracy"] > r["spec_cv"]["baseline"] + 0.3
+    assert r["cluster_purity"] > 0.6
+
+
+def test_kp_forecaster_against_observed_kp():
+    from pinneapple_physics.astro import spaceweather as sw
+    model, rep = sw.train_forecaster(8)
+    assert rep["mae_model"] <= rep["mae_persistence"] + 1e-9
+    assert rep["coverage_80"] >= 0.75
+    h = sw.load_history()["kp"]
+    lo, med, hi = sw.forecast(model, h[: 300 * 8], 150.0)
+    assert 0 <= lo <= med <= hi <= 9
+
+
+def test_aurora_geometry():
+    from pinneapple_physics.astro import spaceweather as sw
+    lat, plat, plon = sw.geomagnetic_latitude(80.65, -72.68)
+    assert abs(plat - 80.65) < 0.1 and abs(plon + 72.68) < 0.1 and lat > 89.9
+    assert abs(sw.oval_boundary(0) - 66.5) < 1e-9 and abs(sw.oval_boundary(9) - 48.1) < 0.1
+    p = sw.aurora_probability(2, 4, 6, 60.0)
+    assert 0 <= p["p_overhead"] <= p["p_horizon"] <= 1
+
+
+def test_conditions_postprocessing_and_calibration():
+    from pinneapple_physics.astro.conditions import calibrate, summarize
+    rng = np.random.default_rng(0)
+    hourly = {"time": [f"2026-10-14T{h:02d}:00" for h in range(24)]}
+    for m in range(10):
+        suf = "" if m == 0 else f"_member{m:02d}"
+        hourly["cloud_cover" + suf] = list(rng.uniform(0, 100, 24))
+        hourly["relative_humidity_2m" + suf] = list(rng.uniform(40, 95, 24))
+        hourly["wind_speed_250hPa" + suf] = list(rng.uniform(30, 200, 24))
+    s = summarize({"hourly": hourly})
+    assert s["n_members"] == 10 and len(s["p_clear"]) == 24
+    assert all(0 <= p <= 1 for p in s["p_clear"])
+    assert all(a <= b <= c for a, b, c in zip(s["cloud_q10"], s["cloud_q50"], s["cloud_q90"], strict=True))
+    p = rng.uniform(0, 1, 2000)
+    o = (rng.uniform(0, 1, 2000) < p).astype(float)               # perfectly reliable forecasts
+    cal = calibrate(p, o)
+    assert cal["brier"] < 0.2
+    assert all(abs(f - (a + b) / 2) < 0.08 for f, a, b in zip(cal["observed_freq"], cal["bin_edges"][:-1],
+                                                                cal["bin_edges"][1:], strict=True))
+
+
+def test_thin_disc_fields():
+    from pinneapple_physics.astro.lensing import thin_disc
+    grid, rho, T, vel = thin_disc()
+    rf = grid["r_faces"]
+    r = np.sqrt(rf[:-1] * rf[1:])
+    assert rho[r < 6.0].max() < 1e-10                             # nothing inside the ISCO
+    assert np.all(vel[2] <= 0.75) and np.all(vel[2] > 0)

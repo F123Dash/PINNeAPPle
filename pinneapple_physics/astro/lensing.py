@@ -139,3 +139,66 @@ def lensed_sky(ra_deg: float, dec_deg: float, fov_deg: float = 30.0, width: int 
         cap = cap.reshape(height, supersample, width, supersample).mean((1, 3)) > 0.5
     alpha = math.degrees(math.asin(min(1.0, math.sqrt(27) * math.sqrt(1 - 2 / r_cam) / r_cam)))
     return {"image": img, "captured": cap, "shadow_radius_deg": alpha, "fov_deg": fov_deg}
+
+
+# ------------------------------------------------------------------------------------------- accretion disc view
+def thin_disc(r_in: float = 6.0, r_out: float = 32.0, aspect: float = 0.03, n: int = 128):
+    """A geometrically thin, optically thin emitting disc on a spherical (r, theta) grid (G = M = c = 1):
+    inner edge at the innermost stable circular orbit (6 GM/c^2), emissivity profile with the zero-torque factor
+    (1 - sqrt(r_in / r)) of the Shakura-Sunyaev / Novikov-Thorne disc, temperature ~ r^-3/4, Keplerian rotation in
+    the Paczynski-Wiita potential (v_phi = sqrt(r) / (r - 2), relativistic beaming follows), Gaussian vertical
+    profile of half-thickness ``aspect`` * r."""
+    rf = np.geomspace(3.0, 120.0, n + 1)
+    thf = np.linspace(0.0, math.pi, n + 1)
+    r = np.sqrt(rf[:-1] * rf[1:])[:, None]
+    th = (0.5 * (thf[:-1] + thf[1:]))[None, :]
+    z = np.cos(th)
+    zero_torque = np.clip(1 - np.sqrt(r_in / r), 0, None) * (r >= r_in) * (r <= r_out)
+    taper = np.exp(-((r / r_out) ** 6))
+    rho = zero_torque * taper * r ** -1.5 * np.exp(-0.5 * (z / aspect) ** 2) + 1e-12
+    T = (r / r_in) ** -0.75 * np.ones_like(th)
+    vphi = np.minimum(np.sqrt(r) / (r - 2.0), 0.75) * np.ones_like(th)
+    vel = np.stack([np.zeros_like(rho), np.zeros_like(rho), vphi])
+    return {"r_faces": rf, "theta_faces": thf}, rho, T, vel
+
+
+_DISC_CACHE: dict = {}
+
+
+def accretion_view(ra_deg: float, dec_deg: float, width: int = 400, height: int = 225, inclination_deg: float = 80.0,
+                   r_cam: float = 80.0, fov_deg: float = 34.0, doppler: bool = True, sky: np.ndarray | None = None):
+    """A Schwarzschild black hole with a thin accretion disc placed in front of the real sky around (ra, dec):
+    null geodesics through the disc (``pinneapple_physics.blackhole.raytrace``), Doppler beaming and gravitational
+    redshift, the lensed background from the bright-star catalogue and the Milky Way, then bloom.
+
+    The disc is optically thin and static, so its image depends only on the camera: it is traced and rendered once
+    (~1 min) and cached; each new direction only re-samples the lensed sky along the stored escape directions."""
+    from ..blackhole.raytrace import Camera, bloom, render
+    key = (width, height, round(inclination_deg, 2), round(r_cam, 2), round(fov_deg, 2), bool(doppler))
+    if key not in _DISC_CACHE:
+        if len(_DISC_CACHE) > 4:
+            _DISC_CACHE.pop(next(iter(_DISC_CACHE)))
+        grid, rho, T, vel = thin_disc()
+        cam = Camera(width=width, height=height, r_cam=r_cam, inclination_deg=inclination_deg, fov_deg=fov_deg,
+                     ds_in=0.8, ds_out=6.0)
+        paths = cam.trace(grid, r_max=40.0)
+        disc = render(paths, rho, T, vel, doppler=doppler, sky=None, t_color=3800, gamma=0.75, exposure=2.6,
+                      emissivity_power=1)
+        _DISC_CACHE[key] = (cam, paths, disc)
+    cam, paths, disc = _DISC_CACHE[key]
+    _, fwd, right, up = cam.basis()
+    target = frames.from_radec(ra_deg, dec_deg)
+    north = np.array([0.0, 0.0, 1.0]) - target * target[2]
+    north = north / np.linalg.norm(north) if np.linalg.norm(north) > 1e-9 else np.array([1.0, 0.0, 0.0])
+    east = np.cross(north, target)
+    M = np.stack([target, -east, north]).T @ np.stack([fwd, right, up])          # BH frame -> ICRS
+    d = paths.escape_dir @ M.T
+    d[paths.captured] = target
+    ra, dec, _ = frames.radec(d)
+    sky = catalog_sky(2048, 1024, milky_way=0.10) if sky is None else sky
+    layer = _sample(sky, ra, dec).reshape(height, width, 3) * 0.55
+    layer[paths.captured.reshape(height, width)] = 0.0
+    img = 1 - (1 - np.clip(disc, 0, 1)) * (1 - np.clip(layer, 0, 1))             # screen blend
+    img = bloom(img, 0.6, 5)
+    alpha = math.degrees(math.asin(min(1.0, math.sqrt(27) * math.sqrt(1 - 2 / r_cam) / r_cam)))
+    return {"image": img, "shadow_radius_deg": alpha, "fov_deg": fov_deg, "inclination_deg": inclination_deg}
