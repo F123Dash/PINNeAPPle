@@ -57,14 +57,23 @@ def envelope_checks(subject: str, train: Sequence[Mapping[str, float]], test: Se
 def gci_check(subject: str, quantity: str, values_fine_to_coarse: Sequence[float], sizes_fine_to_coarse: Sequence[float],
               max_gci: float = 0.05) -> Check:
     from pinneapple_design.fitmesh import gci
-    g = gci(values_fine_to_coarse, sizes_fine_to_coarse)
+    v = np.asarray(values_fine_to_coarse, float)
+    spread = float(np.ptp(v) / max(np.abs(v).max(), 1e-300))
+    name = f"grid convergence (GCI) of {quantity}"
+    vals = f"values (fine to coarse) {[f'{x:.8g}' for x in v]}"
+    if spread < 1e-3:                                   # the three grids agree: GCI is noise (and may oscillate)
+        return Check(name, "validation", subject, True, value=f"spread {spread:.1e} across the 3 grids",
+                     threshold="spread < 1e-3 or GCI <= " + f"{max_gci:g}", detail=f"converged; {vals}")
+    g = gci(v, sizes_fine_to_coarse)
     gf = g.get("gci_fine")
-    ok = g["status"] != "fail" and (gf is None or gf <= max_gci)
     p = g.get("p")
-    return Check(f"grid convergence (GCI) of {quantity}", "validation", subject, ok,
+    if g["status"] == "warn":                           # oscillatory convergence with a real spread
+        return Check(name, "validation", subject, False, value=f"oscillatory, spread {spread:.1e}", severity="warning",
+                     detail=f"fitmesh.gci: {g.get('note', '')}; {vals}")
+    ok = g["status"] != "fail" and (gf is None or gf <= max_gci)
+    return Check(name, "validation", subject, ok,
                  value=f"p = {p:.2f}, GCI_fine = {gf:.2e}" if p is not None and gf is not None else g.get("note", g["status"]),
-                 threshold=f"GCI <= {max_gci:g}", severity="warning" if g["status"] == "warn" else "error",
-                 detail=f"fitmesh.gci, values {[f'{v:.6g}' for v in values_fine_to_coarse]}, {g.get('note', '')}")
+                 threshold=f"GCI <= {max_gci:g}", detail=f"fitmesh.gci; {vals}; {g.get('note', '')}")
 
 
 def mesh_quality_check(subject: str, mesh, target: str = "cfd") -> Check:
