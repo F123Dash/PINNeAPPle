@@ -14,6 +14,16 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Rover dashboard with a semi-transparent stress map and the zoo PINN:
+  - `SurfaceView(field_glow=..., far_field=...)`: a field map can sit semi-transparently on the shaded 3-D relief
+    (`field_glow=0` is a pure albedo tint, so rut geometry, grouser marks and Sun shading show through) and continue
+    onto the far grid; `vehicle.viz.frame_view` and `vehicle.dashboard.render_frames` take `field_alpha` and
+    `field_glow`.
+  - `terramechanics.surrogate.ZooContactSurrogate` gives a model-zoo contact model the `ContactSurrogate` interface;
+    `vehicle_dashboard` accepts zoo models directly and lists the model, its held-out error and its error along the
+    run.
+  - `examples/studio/07_lunar_rover_dashboard.py` uses `pp.zoo.load("rover_contact_grc1_viper")` and colours the
+    ruts by normal stress at 0.6 opacity with a kPa colour bar.
 - Colab notebooks in `notebooks/colab/`, each self-contained (the first cell installs `pinneapple>=0.7.0` and picks
   the GPU, a parameter cell sets the sizes): a first PINN with its physics checks, an airfoil surrogate from
   `pp.zoo` validated against stored OpenFOAM runs, an equal-budget benchmark, the lunar rover terramechanics
@@ -167,6 +177,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   exponent lags the wheel's slip over `sink_length` (0.15 m) of rim travel.
 - **Behavior:** `vehicle.dashboard.render_frames` and `vehicle_dashboard` default to the geometry-only view (no
   stress colour map, no colour bar); pass `field=` / `field_label=` for the overlay.
+
+### Fixed
+- Geometry library: `build()` snaps vertices to a 0.1 um grid, so the files rebuilt on another machine (the Hub
+  publishing job) are bit-identical to the manifest; the publishing job pins the NumPy / SciPy / manifold3d
+  versions the manifest was generated with. All files and the manifest were regenerated. The self-intersection
+  check measures distances about each triangle pair's centre with a size-relative tolerance (no false hits on flat
+  caps far from the origin or on nearly parallel neighbours).
 
 ## [0.7.0] - 2026-10-13
 
