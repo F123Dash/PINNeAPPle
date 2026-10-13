@@ -214,3 +214,26 @@ def evaluate(model: NeuralPropagator, bodies, n_t=60):
                      "speedup": float(t_int / max(t_nn, 1e-6)), "t_days": (jd - b.epoch_jd).tolist(),
                      "err_km": en.tolist(), "kepler_err_km": ek.tolist()})
     return rows
+
+
+def trust_report(folder=MODEL_DIR, real: dict | None = None) -> dict:
+    """Verdict of the shipped network from its held-out evaluation: to be useful it must beat Kepler by 5x on the
+    median of the per-body maximum error over unseen bodies (and not be worse than Kepler at the 90th percentile)."""
+    info = json.load(open(os.path.join(folder, "scaling.json")))["info"]
+    kep = info["test_kepler_max_err_km_median"]
+    checks = [
+        {"name": "Unseen synthetic NEOs: median of the max error over 1 yr", "value": info["test_max_err_km_median"],
+         "unit": "km", "threshold": kep / 5, "status": "pass" if info["test_max_err_km_median"] <= kep / 5 else "fail"},
+        {"name": "Unseen synthetic NEOs: 90th percentile of the max error", "value": info["test_max_err_km_p90"],
+         "unit": "km", "threshold": kep, "status": "pass" if info["test_max_err_km_p90"] <= kep else "warn"},
+    ]
+    if real:
+        checks.append({"name": f"{real['name']} (real object)", "value": real["max_err_km"], "unit": "km",
+                       "threshold": real["kepler_max_err_km"],
+                       "status": "pass" if real["max_err_km"] <= real["kepler_max_err_km"] else "warn"})
+    status = "trustworthy" if all(c["status"] == "pass" for c in checks) else \
+        "not_trustworthy" if any(c["status"] == "fail" for c in checks) else "use_with_caution"
+    return {"info": info, "checks": checks, "verdict": {"status": status},
+            "note": "Over a year, deviations from Kepler for near-Earth asteroids are dominated by planetary encounters, "
+                    "which one network trained on ~1,000 orbits does not generalise; the gate rejects it and the app "
+                    "uses the integrator (and per-body PINNs) instead."}

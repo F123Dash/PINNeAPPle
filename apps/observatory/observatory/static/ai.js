@@ -108,32 +108,34 @@ export async function renderSmallBodies(el, ctx) {
   el.querySelector("#sbShow").onclick = () => ctx.showSmallBody(el.querySelector("#sbBody").value);
   const v = await api("/api/smallbodies/validation").catch((e) => ({ error: e.message }));
   if (v.error) { el.querySelector("#sbVal").textContent = v.error; return; }
-  const a = v.apophis_2029, n = v.neural?.info;
-  const checks = [
-    { name: `Ceres after ${num(v.ceres.years, 1)} years vs JPL Horizons`, value: v.ceres.max_err_km, unit: "km", threshold: 100, status: v.ceres.max_err_km <= 100 ? "pass" : "fail" },
-    { name: "Apophis 2029-04-13: distance vs JPL close-approach (3σ range)", value: Math.abs(a.model_dist_km - a.jpl_dist_km), unit: "km", threshold: a.jpl_3sigma_km, status: Math.abs(a.model_dist_km - a.jpl_dist_km) <= a.jpl_3sigma_km ? "pass" : "fail" },
-    { name: "Apophis 2029-04-13: time of closest approach vs JPL", value: Math.abs(a.dt_s), unit: "s", threshold: 120, status: Math.abs(a.dt_s) <= 120 ? "pass" : "fail" },
-  ];
-  let html = trustCard({ title: "Small-body propagator", verdict: checks.every((c) => c.status === "pass") ? "trustworthy" : "use_with_caution", checks,
+  const a = v.apophis_2029;
+  let html = trustCard({ title: "Small-body propagator", verdict: v.verdict, checks: v.checks,
     extra: `<p class="small">Apophis on ${esc(a.jpl_cd)}: ${num(a.model_dist_km, 0)} km from the Earth's centre (JPL: ${num(a.jpl_dist_km, 0)} ± ${num(a.jpl_3sigma_km, 0)} km), ${num(a.model_v_km_s, 2)} km/s (JPL ${num(a.jpl_v_km_s, 2)}).</p>`,
     how: "Test-particle integration (DOP853, rtol 1e-11) in the DE421 field of the Sun, the eight planets and the Moon, plus the Sun's 1PN relativistic term, from the JPL SBDB osculating elements.",
     trust: "No Yarkovsky thermal force and no asteroid perturbers: fine for years, not for impact-probability work decades ahead (Apophis's 2068 geometry depends on Yarkovsky)." });
-  if (n) {
-    const nn = await api("/api/smallbodies/neural?body=apophis").catch(() => null);
-    const nchecks = [
-      { name: "Held-out synthetic NEOs: median of max error (1 yr)", value: n.test_max_err_km_median, unit: "km", threshold: n.test_kepler_max_err_km_median / 5, status: n.test_max_err_km_median <= n.test_kepler_max_err_km_median / 5 ? "pass" : "fail" },
-      { name: "Held-out: 90th percentile of max error", value: n.test_max_err_km_p90, unit: "km", threshold: n.test_kepler_max_err_km_median, status: n.test_max_err_km_p90 <= n.test_kepler_max_err_km_median ? "pass" : "warn" },
-    ];
-    if (nn) nchecks.push({ name: "Apophis (real, out of distribution: the 2029 flyby is outside its year)", value: nn.max_err_km, unit: "km", threshold: nn.kepler_max_err_km, status: nn.max_err_km <= nn.kepler_max_err_km ? "pass" : "warn" });
-    html += trustCard({ title: "Learned NEO propagator (one network, many bodies)", verdict: nchecks.every((c) => c.status === "pass") ? "trustworthy" : nchecks.some((c) => c.status === "fail") ? "not_trustworthy" : "use_with_caution", checks: nchecks,
-      extra: `<p class="small">Trained on ${n.n_train} synthetic NEO orbits, tested on ${n.n_test} unseen ones; Kepler alone errs by ${num(n.test_kepler_max_err_km_median, 0)} km (median). ${nn ? `On Apophis: ${num(nn.max_err_km, 0)} km vs ${num(nn.kepler_max_err_km, 0)} km for Kepler, ${num(nn.speedup, 0)}× faster than the integrator.` : ""}</p><div id="nnChart"></div>`,
-      how: "An MLP maps the osculating elements at the epoch and the time (with the Kepler mean anomaly as a feature) to the deviation of the true position from the Kepler orbit, for one year. Targets come from the full integrator above.",
-      trust: "Within its training domain (a 0.7–2.6 AU, e ≤ 0.65, i ≤ 35°, one year, epoch Oct 2026) it is a fast first guess; close planetary encounters are rare in training and poorly learned: use the integrator for those." });
-    el.querySelector("#sbVal").innerHTML = html;
-    if (nn) PChart.mount(el.querySelector("#nnChart"), { x: nn.t_days.map((t) => Math.round(t)), height: 160, yLog: true, yLabel: "km", series: [
-      { name: "learned propagator − integrator", y: nn.err_km.map((e) => Math.max(e, 1)), color: "#7fb4ff", width: 2 },
-      { name: "Kepler − integrator", y: nn.kepler_err_km.map((e) => Math.max(e, 1)), color: "#ff6b6b", dash: "4 3" }] });
-  } else el.querySelector("#sbVal").innerHTML = html;
+  html += `<div id="sbPinn"><button class="ghost" id="sbPinnGo">Train a PINN for the selected body (1 year, ~1 min)</button></div>`;
+  const nr = v.neural;
+  if (nr) html += trustCard({ title: "Learned propagator for many NEOs (one network)", verdict: nr.verdict, checks: nr.checks,
+    extra: `<p class="small">Trained on ${nr.info.n_train} synthetic NEO orbits, tested on ${nr.info.n_test} unseen ones. ${esc(nr.note)}</p>`,
+    how: "An MLP maps the osculating elements at the epoch and the time to the deviation from the Kepler orbit (radial / along-track / normal), trained on the full integrator; early stopping on held-out bodies.",
+    trust: "Not used for any result in the app: the gate rejects it. Kept to show what the trust checks catch." });
+  el.querySelector("#sbVal").innerHTML = html;
+  el.querySelector("#sbPinnGo").onclick = async () => {
+    const box = el.querySelector("#sbPinn"), b = el.querySelector("#sbBody").value;
+    box.innerHTML = `<p class="muted">Training the PINN for ${esc(b)} on the server…</p>`;
+    try {
+      const r = await api(`/api/smallbodies/pinn?body=${b}&t=${ctx.iso()}&days=365`);
+      box.innerHTML = trustCard({ title: `PINN orbit surrogate: ${esc(r.body)}`, verdict: r.verdict, checks: r.checks,
+        extra: `<p class="small">max error (held-out times) ${num(r.summary.max_error_km_test, 0)} km = ${num(r.summary.max_angle_arcsec_test, 3)}″ from the Sun; Kepler alone ${num(r.summary.kepler_max_error_km, 0)} km; trained in ${num(r.train_seconds, 0)} s.</p><div id="sbPinnChart"></div>`,
+        how: "r(t) = r<sub>Kepler</sub>(t) + τ² g<sub>θ</sub>(τ): the network learns the planetary perturbation only, from the residual of the full N-body equation of motion (planets from DE421) and 8 anchor states; split-conformal band on held-out integrator states.",
+        trust: "Valid for this body over this year; it is a compact, differentiable surrogate of one trajectory, not a general propagator." });
+      const x = r.t_days.map((t) => Math.round(t));
+      PChart.mount(box.querySelector("#sbPinnChart"), { x, height: 160, yLog: true, yLabel: "km", series: [
+        { name: "PINN − integrator", y: r.error_km.map((e) => Math.max(e, 1)), color: "#7fb4ff", width: 2 },
+        { name: "Kepler − integrator", y: r.kepler_error_km.map((e) => Math.max(e, 1)), color: "#ff6b6b", dash: "4 3" },
+        { name: "conformal band", y: r.band_km.map((e) => Math.max(e, 1)), color: "#3ccf8e", dash: "2 2" }] });
+    } catch (e) { box.textContent = e.message; }
+  };
 }
 
 // ---------------------------------------------------------------------------------------------- stellar ML

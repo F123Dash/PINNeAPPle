@@ -686,46 +686,34 @@ def smallbody_approaches(body: str = "apophis", start: str = "2026-01-01T00:00:0
     return _CACHE[key]
 
 
-def _small_body_validation():
-    from pinneapple_physics.astro.smallbodies import (
-        ECL_TO_ICRF,
-        cad_reference,
-        close_approaches,
-        horizons_vectors,
-        load_body,
-        propagate,
-    )
-    c = load_body("ceres")
-    jd, P, _V = horizons_vectors()
-    r, _ = propagate(c, jd, EPH)
-    ceres_err = float(np.max(np.linalg.norm(r - (ECL_TO_ICRF @ P.T).T * AU_KM, axis=1)))
-    ap = load_body("apophis")
-    ref = cad_reference(ap, 2029)
-    ca = close_approaches(ap, ref["jd_tdb"] - 2, ref["jd_tdb"] + 2, step_days=0.25, eph=EPH)[0]
-    return {"ceres": {"max_err_km": ceres_err, "years": (jd[0] - c.epoch_jd) / 365.25,
-                      "reference": "JPL Horizons (DE441 + 16 perturbing asteroids)"},
-            "apophis_2029": {"model_dist_km": ca["dist_km"], "jpl_dist_km": ref["dist_au"] * AU_KM,
-                             "jpl_3sigma_km": (ref["dist_max_au"] - ref["dist_min_au"]) / 2 * AU_KM,
-                             "dt_s": (ca["jd_tdb"] - ref["jd_tdb"]) * 86400, "model_v_km_s": ca["v_rel_km_s"],
-                             "jpl_v_km_s": ref["v_rel_km_s"], "jpl_cd": ref["cd"]}}
-
-
 @app.get("/api/smallbodies/validation")
 def smallbody_validation():
-    import json as _json
-
     from pinneapple_physics.astro import neural_propagator as npg
+    from pinneapple_physics.astro.smallbodies import validation_summary
     if "sbval" not in _CACHE:
         with _HEAVY:
-            val = _small_body_validation()
+            val = validation_summary(EPH)
         try:
-            info = _json.load(open(os.path.join(npg.MODEL_DIR, "scaling.json")))["info"]
-            held = _json.load(open(os.path.join(npg.MODEL_DIR, "heldout.json")))
+            val["neural"] = npg.trust_report()
         except OSError:
-            info, held = None, []
-        val["neural"] = {"info": info, "heldout": held}
+            val["neural"] = None
         _CACHE["sbval"] = val
     return _CACHE["sbval"]
+
+
+@app.get("/api/smallbodies/pinn")
+def smallbody_pinn(body: str = "apophis", t: str | None = None, days: int = Query(365, ge=30, le=730)):
+    """The physics-informed orbit surrogate (Kepler + tau^2 network, N-body residual) trained for one small body,
+    judged against the high-accuracy propagator."""
+    from pinneapple_physics.astro.smallbodies import load_body
+    from pinneapple_physics.astro.surrogate import train_orbit_pinn
+    tt = _time(t)
+    day = math.floor(float(tt.tdb) - 0.5) + 0.5
+    key = ("sbpinn", body, day, days)
+    if key not in _CACHE:
+        with _HEAVY:
+            _CACHE[key] = train_orbit_pinn(load_body(body), day, float(days), iters=800, eph=EPH)
+    return _CACHE[key]
 
 
 @app.get("/api/smallbodies/neural")

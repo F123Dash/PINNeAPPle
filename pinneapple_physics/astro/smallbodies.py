@@ -185,3 +185,34 @@ def cad_reference(body: SmallBody, year: int):
                     "dist_min_au": float(c["dist_min"]), "dist_max_au": float(c["dist_max"]),
                     "v_rel_km_s": float(c["v_rel"]), "sigma_t_min": float(c["sigma_t"])}
     return None
+
+
+def validation_summary(eph=None) -> dict:
+    """The propagator against independent references: Ceres vs JPL Horizons vectors (2022, from 2018 elements) and
+    the Apophis flyby of 2029-04-13 vs the JPL close-approach table (distance with its 3-sigma range, time, speed)."""
+    eph = eph or default_ephemeris()
+    c = load_body("ceres")
+    jd, P, _V = horizons_vectors()
+    r, _ = propagate(c, jd, eph)
+    ceres_err = float(np.max(np.linalg.norm(r - (ECL_TO_ICRF @ P.T).T * AU_KM, axis=1)))
+    ap = load_body("apophis")
+    ref = cad_reference(ap, 2029)
+    ca = close_approaches(ap, ref["jd_tdb"] - 2, ref["jd_tdb"] + 2, step_days=0.25, eph=eph)[0]
+    d_err = abs(ca["dist_km"] - ref["dist_au"] * AU_KM)
+    sig3 = (ref["dist_max_au"] - ref["dist_min_au"]) / 2 * AU_KM
+    dt = (ca["jd_tdb"] - ref["jd_tdb"]) * DAY
+    checks = [
+        {"name": f"Ceres after {(jd[0] - c.epoch_jd) / 365.25:.1f} years vs JPL Horizons", "value": ceres_err,
+         "unit": "km", "threshold": 100.0, "status": "pass" if ceres_err <= 100 else "fail"},
+        {"name": "Apophis 2029-04-13: distance vs JPL close approach (3-sigma range)", "value": d_err, "unit": "km",
+         "threshold": sig3, "status": "pass" if d_err <= sig3 else "fail"},
+        {"name": "Apophis 2029-04-13: time of closest approach vs JPL", "value": abs(dt), "unit": "s",
+         "threshold": 120.0, "status": "pass" if abs(dt) <= 120 else "fail"},
+    ]
+    return {"ceres": {"max_err_km": ceres_err, "years": (jd[0] - c.epoch_jd) / 365.25,
+                      "reference": "JPL Horizons (DE441 + 16 perturbing asteroids)"},
+            "apophis_2029": {"model_dist_km": ca["dist_km"], "jpl_dist_km": ref["dist_au"] * AU_KM,
+                             "jpl_3sigma_km": sig3, "dt_s": dt, "model_v_km_s": ca["v_rel_km_s"],
+                             "jpl_v_km_s": ref["v_rel_km_s"], "jpl_cd": ref["cd"]},
+            "checks": checks,
+            "verdict": {"status": "trustworthy" if all(x["status"] == "pass" for x in checks) else "not_trustworthy"}}

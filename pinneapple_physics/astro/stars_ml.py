@@ -122,8 +122,6 @@ def analyse(seed: int = 0) -> dict:
         purity_hits += int((lum[m] == maj).sum())
     purity = purity_hits / max(int(labelled.sum()), 1)
     lum_cv = cross_validate(X[labelled], lum[labelled].astype(int), seed=seed)
-    sp_ok = np.array([v is not None for v in ds["spec"]])
-    spec = np.array([v if v is not None else -1 for v in ds["spec"]])
     # spectral class from colour alone uses every star with B-V (no parallax needed)
     cat = load_bright_stars()
     allok = ~np.isnan(cat.bv)
