@@ -55,6 +55,7 @@
     * [Running a benchmark](guides/running_a_benchmark.md)
     * [Recreate a 3D wear twin](guides/recreate_a_wear_twin.md)
     * [Pre-trained models and datasets (pp.zoo)](guides/model_zoo.md)
+    * [Zoo catalogue](guides/zoo_catalogue.md)
     * [Geometry library](guides/geometry_library.md)
     * [Colab notebooks](guides/colab_notebooks.md)
     * [PINNeAPPle from coding agents (MCP server)](guides/mcp_server.md)

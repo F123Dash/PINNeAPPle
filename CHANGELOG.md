@@ -50,6 +50,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   sizes; without them it behaves as before.
 - Docs page "Choosing a method" (`docs/guides/choosing_a_method.md`): a decision table backed by the equal-budget
   benchmark (PINNeAPPle-Benchmark experiment 09), linking every row to the library entry points.
+- `CONTRIBUTING.md` explains who reviews pull requests, the best-effort response targets, and how someone becomes a
+  maintainer.
+- `pp.zoo.catalogue()` and the docs page `docs/guides/zoo_catalogue.md` generated from it. The page lists every zoo
+  model and dataset: version, task, held-out metrics, trust decision, size (bundled or Hub-only), licence and
+  Hugging Face link. A test keeps the committed page in sync with the manifest.
 - `pp.` shortcuts for the helpers consolidated from the apps, examples and satellite repositories: `pp.uncertainty`,
   `pp.closed_form`, `pp.excitation`, `pp.reporting` (modules) and `pp.as_tensor`, `pp.to_jsonable`, `pp.dominant_frequency`,
   `pp.assess_drift`, `pp.propagate_tolerances`, `pp.score_against_reference` (resolved on first use).
