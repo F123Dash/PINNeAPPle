@@ -136,7 +136,28 @@ and adds those points to the seed-0 runs of `budget_levels`: a table per instanc
 `ablations` trains the best configuration with each change at the full budget on the problem's audit instance and
 puts it next to the unchanged run (the **Setup audit** table). Leaving both empty keeps an existing `out_dir` valid.
 
-<!-- EXP09 -->
+### Example: what the gates and the advisor said on PINNeAPPle-Benchmark experiment 09
+
+[Experiment 09](https://github.com/PINNeAPPle-Labs/PINNeAPPle-Benchmark/tree/main/experiments/09_equal_budget_pinn_fno_deeponet)
+is five problems and seven methods through `pp.benchmark`. From its report:
+
+- **error** `[airfoil/pinn_rans]` Did not converge: the error is no better than a trivial prediction. Evidence: mean
+  velocity rel. L2 on the held-out runs = 0.96 (>= 0.9). Suggestion: check the nondimensionalisation, the loss weights
+  and the collocation density near walls and leading edges; consider more budget or a formulation with fewer stiff
+  terms. With the training gate "no divergence" failing in 2 of its 29 runs, the row is INVALID. The budget study
+  (`budget_study`: 1 h, 4 h) and the setup audit (`ablations`: learning rate, Adam -> L-BFGS) show neither more compute
+  nor those settings help: the PINN collapsed to the zero-flow solution of its own equations.
+- **warning** `[airfoil/mgn]` Still improving at the full budget: velocity rel. L2 0.368 at 1/3 of the budget, 0.169 at
+  the full one (54 % lower for 3x). Edit: `problem_budgets.airfoil.wall_s: 900 -> 2700`.
+- **warning** `[darcy]` The OOD set is not clearly outside the training data: 9 % of the OOD inputs outside the training
+  distribution (threshold 50 %), 1 of 100 outside the applicability envelope. Suggestion: move the OOD inputs further
+  out. (Its OOD column is read as a second test set.)
+- The setup audit of the potential-flow PINN found that wall and Kutta weights of 1 instead of 10 lower its velocity
+  error from 0.81 to 0.51: a wider search would have helped it.
+
+The gates also caught problems in the benchmark itself before it was published (a preflight that did not know
+`freestreamPressure`, a y+ estimate fed the wrong argument, a convergence metric a potential-flow model fails by
+construction); each was fixed with a test.
 
 ## Your own problem or method
 
