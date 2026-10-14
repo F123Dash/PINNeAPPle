@@ -98,14 +98,15 @@ def preflight_check(subject: str, case_dir: Path) -> Check:
                      if f.get("status") in ("FAIL", "WARNING"))[:400])
 
 
-def yplus_check(subject: str, first_cell: float, reynolds_length: float, velocity: float, nu: float,
+def yplus_check(subject: str, first_cell: float, length: float, velocity: float, nu: float,
                 target: float = 1.0) -> Check:
+    """First-cell y+ from the flat-plate estimate (``length``: the reference length, e.g. the chord)."""
     from pinneapple_analysis.verification.mesh_intelligence import (
         estimate_required_first_cell_height,
     )
-    est = estimate_required_first_cell_height(reynolds_length=reynolds_length, velocity=velocity,
+    est = estimate_required_first_cell_height(reynolds_length=velocity * length / nu, velocity=velocity,
                                               kinematic_viscosity=nu, target_yplus=target)
-    need = float(getattr(est, "first_cell_height", getattr(est, "y1", float("nan"))))
+    need = float(est.required_first_cell_height)
     yplus = target * first_cell / need if need > 0 else math.nan
     return Check("first cell y+ (mesh_intelligence estimate)", "validation", subject, yplus <= 1.5 * target,
                  value=round(yplus, 3), threshold=f"<= {1.5 * target:g}", severity="warning",

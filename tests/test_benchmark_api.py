@@ -220,3 +220,10 @@ def test_budget_study_and_ablations(tmp_path):
     # an empty study leaves the configuration hash (the cache guard) as it was before these fields existed
     assert B.BenchmarkConfig().result_hash() == B.BenchmarkConfig(budget_study={}, ablations={}).result_hash()
     assert B.BenchmarkConfig().result_hash() != B.BenchmarkConfig(**kw).result_hash()
+
+
+def test_yplus_check_uses_the_reynolds_number_of_the_reference_length():
+    from pinneapple_analysis.benchmark.validation import yplus_check
+    c = yplus_check("airfoil", 4e-6, 1.0, 1.0, 1 / 4e6)          # the aero app's O-grid: first cell 4e-6 chords
+    assert c.passed and 0.3 < c.value < 1.0 and "nan" not in c.detail
+    assert yplus_check("airfoil", 4e-5, 1.0, 1.0, 1 / 4e6).passed is False   # 10x coarser: y+ ~ 6
