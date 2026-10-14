@@ -198,7 +198,7 @@ class BenchmarkResult:
         spread = []
         for (pid, mid), lv in col["extracted"].items():
             prob = self.plan.P[pid]
-            main = prob.main_metric() if hasattr(prob, "main_metric") else None
+            main = prob.main_metric_for(mid) if hasattr(prob, "main_metric") else None
             if main and 1.0 in lv:
                 vals = [cell({0: d}, *main)["mean"] for d in lv[1.0].values() if cell({0: d}, *main)]
                 spread.append(seed_spread(vals, f"{pid}/{mid}", f"{main[1]} on {main[0]}"))

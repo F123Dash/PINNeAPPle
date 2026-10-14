@@ -128,6 +128,11 @@ class Problem:
         "val" (the search instance), "final" (every budget level), "full_only" (full budget only), "seed0_only"."""
         return {"val": [], "final": [], "full_only": [], "seed0_only": []}
 
+    def main_metric_for(self, method_id: str) -> tuple[str, str] | None:
+        """The (set, metric) that decides "did not converge", the seed spread and "budget-limited" for one method
+        (default: the problem's ``main_metric``; a problem whose methods predict different things overrides it)."""
+        return self.main_metric() if hasattr(self, "main_metric") else None
+
     def study_instances(self) -> list[tuple[str, Any]]:
         """Instances of the budget study and of the ablations for per-instance methods (default: the first "final"
         instance)."""

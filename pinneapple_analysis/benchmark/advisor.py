@@ -61,7 +61,7 @@ def diagnose(cfg: BenchmarkConfig, plan, extracted: dict, checks: list[Check], a
     # ------------------------------------------------------------------ budget: still improving at the full budget
     for (pid, mid), lv in extracted.items():
         prob = plan.P[pid]
-        main = prob.main_metric() if hasattr(prob, "main_metric") else None
+        main = prob.main_metric_for(mid) if hasattr(prob, "main_metric") else None
         if main is None or len(lv) < 2:
             continue
         s, m = main
@@ -96,7 +96,7 @@ def diagnose(cfg: BenchmarkConfig, plan, extracted: dict, checks: list[Check], a
                                hint or "Check the learning rate and the loss scaling."))
     for (pid, mid), lv in extracted.items():
         prob = plan.P[pid]
-        main = prob.main_metric() if hasattr(prob, "main_metric") else None
+        main = prob.main_metric_for(mid) if hasattr(prob, "main_metric") else None
         if main is None or 1.0 not in lv:
             continue
         s, m = main

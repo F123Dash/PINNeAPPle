@@ -176,7 +176,7 @@ def build_tables(plan, col, row_status: dict) -> dict:
             if ref is not None and not meth.per_instance and r["train_s"] is not None and r["time_per_instance_s"]:
                 r["break_even"] = AmortizedCost(data_s=data_s or 0.0, train_s=r["train_s"],
                                                 infer_s=r["time_per_instance_s"]).break_even(ref)
-            main = prob.main_metric() if hasattr(prob, "main_metric") else None
+            main = prob.main_metric_for(mid) if hasattr(prob, "main_metric") else None
             mc = cell(seeds, *main) if main else None
             r["did_not_converge"] = bool(mc and mc["mean"] >= DID_NOT_CONVERGE)
             r["status"] = row_status.get(f"{pid}/{mid}", "pass")

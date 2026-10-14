@@ -227,3 +227,10 @@ def test_yplus_check_uses_the_reynolds_number_of_the_reference_length():
     c = yplus_check("airfoil", 4e-6, 1.0, 1.0, 1 / 4e6)          # the aero app's O-grid: first cell 4e-6 chords
     assert c.passed and 0.3 < c.value < 1.0 and "nan" not in c.detail
     assert yplus_check("airfoil", 4e-5, 1.0, 1.0, 1 / 4e6).passed is False   # 10x coarser: y+ ~ 6
+
+
+def test_airfoil_convergence_is_judged_on_what_each_method_predicts():
+    prob = B.get_problem("airfoil")
+    assert prob.main_metric_for("mlp") == ("test4", "cd")              # integrals only
+    for m in ("pinn", "pinn_rans", "mgn", "mlp_fields"):                # potential flow: Cd = 0 by construction
+        assert prob.main_metric_for(m) == ("test4", "u")

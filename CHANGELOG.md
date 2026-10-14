@@ -28,6 +28,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `figures/budget_study.png`) and `ablations` (a setup audit: changes to the best configuration at the full budget,
   next to the unchanged run). The airfoil RANS PINN gets two options, off by default: an exact far field and
   collocation points even in log r (`airfoil_impl.RANS_FAR`, `RANS_MIX`).
+- `pp.benchmark` gates: the airfoil PINNs' exact-solution check runs their own training residuals on solutions that
+  exercise every term (a harmonic stream function; Kovasznay flow with an eddy viscosity) and must fail with a flipped
+  sign; `Problem.main_metric_for(method)` judges "did not converge" on what each method predicts (Cd for the
+  integrals-only MLP, the velocity field for the field models: potential flow has zero drag by construction).
 - Equal-budget method comparison (#299), `pinneapple_analysis.cost.equal_budget`: `ComputeBudget` (wall clock,
   FLOPs, steps), `train_within_budget` (stops at the budget, budget-aware schedules, evaluation off the clock),
   `count_flops` (PyTorch's operator formulas plus FFTs, and unlike `FlopCounterMode` it runs around
@@ -388,6 +392,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- `pinneapple_data.preflight`: `freestreamPressure` / `freestream` fix the pressure level; external-aerodynamics cases
+  were reported as having no pressure reference.
 - Geometry library: `build()` snaps vertices to a 0.1 um grid, so the files rebuilt on another machine (the Hub
   publishing job) are bit-identical to the manifest; the publishing job pins the NumPy / SciPy / manifold3d
   versions the manifest was generated with. All files and the manifest were regenerated. The self-intersection

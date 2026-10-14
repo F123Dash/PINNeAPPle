@@ -374,6 +374,14 @@ class AirfoilProblem(Problem):
     def main_metric(self):
         return "test4", "cd"
 
+    def main_metric_for(self, method_id):
+        """Cd for the integrals-only MLP; the velocity field for the field models. Potential flow has zero drag by
+        construction (d'Alembert), so its Cd error is 100 % whatever it learns and cannot judge convergence."""
+        return ("test4", "cd") if self.method_outputs_id(method_id) == "integrals" else ("test4", "u")
+
+    def method_outputs_id(self, method_id):
+        return getattr(self, f"outputs_{method_id}", None) or {"mlp": "integrals"}.get(method_id, "fields")
+
     def ood_metric(self):
         return "ood", "cd"
 
@@ -554,44 +562,58 @@ class AirfoilProblem(Problem):
                                lr=cfg["lr"])]
 
     def _pinn_exact_check(self, kind, cfg):
-        """The residual code on an exact solution: uniform flow (psi = y cos a - x sin a; u = cos a, v = sin a, p = 0)
-        satisfies both the potential and the RANS equations (no shear: nu_t = 0)."""
+        """The PINN's own residuals (``airfoil_impl.POTENTIAL_RESIDUAL``, ``rans_residuals``) on exact solutions that
+        exercise every term. Potential flow: psi = uniform flow + x^2 - y^2 (harmonic). RANS: Kovasznay flow (an exact
+        steady Navier-Stokes solution, Re = 40) with a constant eddy viscosity carrying part of the viscosity
+        (nu + nut = 1/40), so convection, pressure, viscous and eddy-viscosity terms are all non-zero. The same
+        residual with the viscous (or Laplacian) sign flipped must fail: the check can see a sign error."""
         import torch
-        subj = f"{self.id}/{'pinn' if kind == 'potential' else 'pinn_rans'}"
-        a = math.radians(4.0)
 
-        class Uniform(torch.nn.Module):
-            def forward(self, X):
-                x, y = X[:, :1], X[:, 1:2]
-                if kind == "potential":
-                    return y * math.cos(a) - x * math.sin(a)
-                return torch.cat([torch.full_like(x, math.cos(a)), torch.full_like(x, math.sin(a)), 0 * x + 0 * y], 1)
         from pinneapple_physics.pinn_solver.factory.pinn_factory import (
             PINN,
             PINNFactory,
             PINNProblemSpec,
         )
-        if kind == "potential":
-            spec = PINNProblemSpec(pde_residuals=["Derivative(psi(x, y), (x, 2)) + Derivative(psi(x, y), (y, 2))"],
-                                   independent_vars=["x", "y"], dependent_vars=["psi"])
-            exo = {}
-        else:
-            u, v, p = "u(x, y)", "v(x, y)", "p(x, y)"
-            D = lambda f, *w: f"Derivative({f}, {', '.join(w)})"          # noqa: E731
-            lap = lambda f: f"({D(f, '(x, 2)')} + {D(f, '(y, 2)')})"     # noqa: E731
-            spec = PINNProblemSpec(
-                pde_residuals=[f"{D(u, 'x')} + {D(v, 'y')}",
-                               f"{u}*{D(u, 'x')} + {v}*{D(u, 'y')} + {D(p, 'x')} - (nu + nut(x, y))*{lap(u)}",
-                               f"{u}*{D(v, 'x')} + {v}*{D(v, 'y')} + {D(p, 'y')} - (nu + nut(x, y))*{lap(v)}"],
-                independent_vars=["x", "y"], dependent_vars=["u", "v", "p"], constants={"nu": A.NU},
-                exogenous={"nut": lambda x, y: torch.zeros_like(x)})
-        model = PINN(Uniform())
-        x = torch.rand(256, 1, requires_grad=True)
-        y = torch.rand(256, 1, requires_grad=True)
-        res = float(PINNFactory(spec).generate_loss_function()(model, {"collocation": (x, y)})[1]["pde"])
-        _ = exo
-        return Check("PDE residual of an exact solution ~ 0", "architecture", subj, res < 1e-10, value=f"{res:.1e}",
-                     threshold=1e-10, detail="uniform flow")
+        subj = f"{self.id}/{'pinn' if kind == 'potential' else 'pinn_rans'}"
+        a = math.radians(4.0)
+        re_k = 40.0
+        lam = re_k / 2 - math.sqrt(re_k ** 2 / 4 + 4 * math.pi ** 2)
+
+        class Exact(torch.nn.Module):
+            def forward(self, X):
+                x, y = X[:, :1], X[:, 1:2]
+                if kind == "potential":
+                    return y * math.cos(a) - x * math.sin(a) + x ** 2 - y ** 2
+                e = torch.exp(lam * x)
+                u = 1 - e * torch.cos(2 * math.pi * y)
+                v = lam / (2 * math.pi) * e * torch.sin(2 * math.pi * y)
+                return torch.cat([u, v, 0.5 * (1 - torch.exp(2 * lam * x))], 1)
+
+        def residual(res):
+            if kind == "potential":
+                spec = PINNProblemSpec(pde_residuals=res, independent_vars=["x", "y"], dependent_vars=["psi"])
+            else:
+                nut0 = 0.25 / re_k
+                spec = PINNProblemSpec(pde_residuals=res, independent_vars=["x", "y"], dependent_vars=["u", "v", "p"],
+                                       constants={"nu": 1 / re_k - nut0},
+                                       exogenous={"nut": lambda x, y: torch.full_like(x, nut0),
+                                                  "nutx": lambda x, y: torch.zeros_like(x),
+                                                  "nuty": lambda x, y: torch.zeros_like(x)})
+            g = torch.Generator().manual_seed(0)
+            x = (torch.rand(512, 1, generator=g, dtype=torch.float64) - 0.5).requires_grad_(True)
+            y = torch.rand(512, 1, generator=g, dtype=torch.float64).requires_grad_(True)
+            model = PINN(Exact()).double()
+            return float(PINNFactory(spec).generate_loss_function()(model, {"collocation": (x, y)})[1]["pde"])
+
+        good = [A.POTENTIAL_RESIDUAL] if kind == "potential" else A.rans_residuals()
+        flipped = [r.replace(" + Derivative(psi(x, y), (y, 2))", " - Derivative(psi(x, y), (y, 2))")
+                   if kind == "potential" else r.replace("- (nu + nut(x, y))", "+ (nu + nut(x, y))") for r in good]
+        r_good, r_bad = residual(good), residual(flipped)
+        ok = r_good < 1e-12 and r_bad > 1e-3
+        return Check("PDE residual of an exact solution ~ 0", "architecture", subj, ok,
+                     value=f"{r_good:.1e} (sign-flipped: {r_bad:.1e})", threshold="< 1e-12, flipped > 1e-3",
+                     detail=("psi = uniform flow + x^2 - y^2" if kind == "potential" else
+                             "Kovasznay flow, Re 40, nu + nut = 1/40 with nut = 0.25/40") + ", the PINN's own residuals")
 
     def checks_pinn(self, prepared, cfg):
         return [self._pinn_exact_check("potential", cfg)]

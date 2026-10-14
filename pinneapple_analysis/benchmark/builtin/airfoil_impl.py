@@ -417,6 +417,23 @@ class EddyViscosity:
         return self._eval(x, y)[2]
 
 
+POTENTIAL_RESIDUAL = "Derivative(psi(x, y), (x, 2)) + Derivative(psi(x, y), (y, 2))"
+
+
+def rans_residuals() -> list[str]:
+    """Steady incompressible RANS with an eddy viscosity nut(x, y) and its gradient (nutx, nuty): continuity and the
+    x and y momentum equations, div((nu + nut)(grad u + grad u^T)) written out (the PINN's residuals)."""
+    u, v, p = "u(x, y)", "v(x, y)", "p(x, y)"
+    D = lambda f, *w: f"Derivative({f}, {', '.join(w)})"          # noqa: E731
+    ux, uy, vx, vy = D(u, "x"), D(u, "y"), D(v, "x"), D(v, "y")
+    lap = lambda f: f"({D(f, '(x, 2)')} + {D(f, '(y, 2)')})"     # noqa: E731
+    return [f"{ux} + {vy}",
+            f"{u}*{ux} + {v}*{uy} + {D(p, 'x')} - (nu + nut(x, y))*{lap(u)} - 2*nutx(x, y)*{ux}"
+            f" - nuty(x, y)*({uy} + {vx})",
+            f"{u}*{vx} + {v}*{vy} + {D(p, 'y')} - (nu + nut(x, y))*{lap(v)} - nutx(x, y)*({uy} + {vx})"
+            f" - 2*nuty(x, y)*{vy}"]
+
+
 def _velocity(model, x, y, kind="potential"):
     out = model(x, y)
     if kind == "rans":
@@ -449,7 +466,7 @@ def train_pinn(cfg: dict, seed: int, budget: ComputeBudget, *, case: str, kind: 
         tang = np.array([1.0, 0.5 * ((yu[1] - yu[0]) + (yl[1] - yl[0])) / 0.02])
         tang /= np.linalg.norm(tang)
         wake = torch.tensor(te + np.linspace(0.005, 0.1, 8)[:, None] * tang, dtype=torch.float32)
-        spec = PINNProblemSpec(pde_residuals=["Derivative(psi(x, y), (x, 2)) + Derivative(psi(x, y), (y, 2))"],
+        spec = PINNProblemSpec(pde_residuals=[POTENTIAL_RESIDUAL],
                                conditions=[{"name": "wall", "equation": "psi(x, y) - C", "weight": cfg.get("wall_w", 10.0)},
                                            {"name": "kutta_wake", "equation": "psi(x, y) - C",
                                             "weight": cfg.get("kutta_w", KUTTA_W)}],
@@ -468,15 +485,8 @@ def train_pinn(cfg: dict, seed: int, budget: ComputeBudget, *, case: str, kind: 
         model = PINN(RansNet(cfg, alpha, wall))
         nut = EddyViscosity(model, model.net.p0, model.net.e)
         u, v, p = "u(x, y)", "v(x, y)", "p(x, y)"
-        D = lambda f, *w: f"Derivative({f}, {', '.join(w)})"          # noqa: E731
-        ux, uy, vx, vy = D(u, "x"), D(u, "y"), D(v, "x"), D(v, "y")
-        lap = lambda f: f"({D(f, '(x, 2)')} + {D(f, '(y, 2)')})"     # noqa: E731
         spec = PINNProblemSpec(
-            pde_residuals=[f"{ux} + {vy}",
-                           f"{u}*{ux} + {v}*{uy} + {D(p, 'x')} - (nu + nut(x, y))*{lap(u)} - 2*nutx(x, y)*{ux}"
-                           f" - nuty(x, y)*({uy} + {vx})",
-                           f"{u}*{vx} + {v}*{vy} + {D(p, 'y')} - (nu + nut(x, y))*{lap(v)} - nutx(x, y)*({uy} + {vx})"
-                           f" - 2*nuty(x, y)*{vy}"],
+            pde_residuals=rans_residuals(),
             conditions=[{"name": "far_u", "equation": f"{u} - ca"}, {"name": "far_v", "equation": f"{v} - sa"},
                         {"name": "far_p", "equation": f"{p}"}],
             independent_vars=["x", "y"], dependent_vars=["u", "v", "p"],
