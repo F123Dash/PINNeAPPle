@@ -217,9 +217,16 @@ def test_budget_study_and_ablations(tmp_path):
     st = res._build()["studies"]["smooth"]
     assert [p["budget_s"] for p in st["study"]["fno"]["all"]] == [1.0, 2.0]       # the full run, then the study run
     assert st["ablation"]["fno"]["baseline"] and st["ablation"]["fno"]["variants"]["low_lr"]["metrics"]
-    # an empty study leaves the configuration hash (the cache guard) as it was before these fields existed
-    assert B.BenchmarkConfig().result_hash() == B.BenchmarkConfig(budget_study={}, ablations={}).result_hash()
-    assert B.BenchmarkConfig().result_hash() != B.BenchmarkConfig(**kw).result_hash()
+    # studies only add jobs: adding to them reuses the out_dir, changing an existing entry is refused
+    more = dict(budget_study={"smooth": {"fno": [2.0, 3.0]}},
+                ablations={"smooth": {"fno": {"low_lr": {"lr": 1e-5}, "high_lr": {"lr": 1e-2}}}})
+    B.run(problems=[_problem()], methods=["fno"], out_dir=out, stages=(), **FAST, **more)
+    with pytest.raises(B.ConfigMismatch):
+        B.run(problems=[_problem()], methods=["fno"], out_dir=out, stages=(), **FAST,
+              budget_study={"smooth": {"fno": [3.0]}}, ablations=more["ablations"])
+    with pytest.raises(B.ConfigMismatch):
+        B.run(problems=[_problem()], methods=["fno"], out_dir=out, stages=(), **FAST, budget_study=more["budget_study"],
+              ablations={"smooth": {"fno": {"low_lr": {"lr": 1e-4}}}})
 
 
 def test_yplus_check_uses_the_reynolds_number_of_the_reference_length():
