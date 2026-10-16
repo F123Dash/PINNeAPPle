@@ -241,3 +241,11 @@ def test_airfoil_convergence_is_judged_on_what_each_method_predicts():
     assert prob.main_metric_for("mlp") == ("test4", "cd")              # integrals only
     for m in ("pinn", "pinn_rans", "mgn", "mlp_fields"):                # potential flow: Cd = 0 by construction
         assert prob.main_metric_for(m) == ("test4", "u")
+
+
+def test_equal_flops_arm_with_a_per_instance_pinn(tmp_path):
+    """The equal-FLOPs table finds the PINN's run by its instance (the arm trains the first "final" instance)."""
+    res = B.run(problems=["burgers"], methods=["pinn", "fno"], out_dir=tmp_path / "b", smoke=True, equal_flops=True,
+                budget={"wall_s": 2.0}, seeds=1, n_trials=1, n_workers=1, log=lambda *a: None)
+    ef = res._build()["tables"]["burgers"]["equal_flops"]
+    assert ef and ef["rows"]["pinn"]["common"] and ef["rows"]["fno"]["common"]
