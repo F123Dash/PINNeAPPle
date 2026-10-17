@@ -249,7 +249,7 @@ def _cooling_presets() -> list[Preset]:
               _p("T_air", 30.0, -50.0, 500.0, "°C", truth=23.0, log=False)]
     t = list(np.linspace(0, 1800, 31))
     obs = _obs(model, params, {"t_s": t}, 0.3, ["T"] * len(t), 7)
-    tv = list(np.linspace(1900, 3600, 8))
+    tv = list(np.linspace(1900, 3650, 8))
     val = _obs(model, params, {"t_s": tv}, 0.3, ["T"] * len(tv), 8)
     cool = Preset("cooling_h", "Cooling curve: h, start and air temperature",
                   "A 450 J/K aluminium part (0.012 m²) cools in still air; a thermocouple logs it every minute for "
