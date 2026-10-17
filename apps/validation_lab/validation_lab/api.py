@@ -9,13 +9,18 @@ Environment (all optional):
   VAL_USER / VAL_PASSWORD   HTTP Basic login on everything except /health
   VAL_MAX_MB                largest upload in MB (default 200)
   VAL_MAX_HEAVY             validations running at the same time per worker (default 2; the excess gets HTTP 429)
+  VAL_DATA_DIR              where the 3-D views of recent validations are kept (default: the shared app data dir)
+  VAL_VIEW_MAX_FACES        triangles of a 3-D view before it is decimated (default 250,000)
+  VAL_VIEWS_KEPT            3-D views kept on disk, newest first (default 300)
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Annotated
 
@@ -26,7 +31,9 @@ from fastapi.staticfiles import StaticFiles
 
 from pinneapple_check import ConfigError
 from pinneapple_check.rules import RULES
+from pinneapple_core.service import data_dir
 from pinneapple_data.cae.upload import expand
+from pinneapple_veriphysics.mesh_views import mesh_views
 from pinneapple_veriphysics.validation_lab import (
     CATEGORIES,
     CONFIG_NAME,
@@ -50,13 +57,19 @@ APP_EXAMPLES = HERE.parent / "examples"
 ROOT = HERE.parents[2]
 CHECK_EXAMPLES = ROOT / "examples" / "physics_check"
 MAX_MB = float(os.environ.get("VAL_MAX_MB") or "200")
+VIEW_MAX_FACES = int(os.environ.get("VAL_VIEW_MAX_FACES") or "250000")
+VIEWS_KEPT = int(os.environ.get("VAL_VIEWS_KEPT") or "300")
+VIEWS = data_dir("validate", "VAL") / "views"
+VIEWS.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Physics Validation Lab", version=VERSION,
               description="Upload predictions or simulation results (OpenFOAM case zip, VTU/VTK, NPZ, HDF5, CSV, "
                           "Parquet, JSON tables) with a `pinneapple check` configuration, or describe the equations, "
                           "boundary conditions, units and reference in a form, or name a zoo model. POST /api/validate "
                           "returns the report: every check grouped into numerical verification, validation against "
-                          "data and physical consistency, with an evidence record (inputs SHA-256, outputs, time).")
+                          "data and physical consistency, with an evidence record (inputs SHA-256, outputs, time). "
+                          "3-D results with a reference also get `views3d`: prediction, reference and pointwise error on "
+                          "the mesh with the regions of largest error (glTF at /api/views/{id}.glb).")
 app.add_middleware(GZipMiddleware, minimum_size=2000)
 install(app, prefix="VAL")
 _HEAVY = BusyLimiter("VAL_MAX_HEAVY")
@@ -77,6 +90,16 @@ EXAMPLES = {
               "spec": {"results": [{"path": "heat_plate.npz", "physics": "heat",
                                     "parameters": {"k": "10 W/(m*K)", "q": "1000 W/m3"}, "units": {"T": "K"},
                                     "bounds": {"T": [250, 400]}, "bc": {"x=max": {"T": "300 + 25*(1 - y**2)"}}}]}},
+    "cantilever3d": {"title": "A reduced model at its worst design, against the FEM, in 3-D",
+                     "note": "Chosen to fail: the ROM Lab's POD + GPR model (4.4 % mean error over its 20 held-out "
+                             "designs) at the one held-out design where it is worst, near the edge of its training box "
+                             "(H 0.289 m, W 0.173 m, load 4.8° from vertical), against a fresh FEM solve. The clamp "
+                             "holds; the reference check fails (21 % displacement, 28 % stress). This is not the ROM's "
+                             "typical quality; the 3-D view shows where it breaks down.",
+                     "files": [APP_EXAMPLES / "cantilever_rom.vtu", APP_EXAMPLES / "cantilever_fem.vtu"],
+                     "spec": {"results": [{"path": "cantilever_rom.vtu", "units": {"D": "m", "von_mises": "MPa"},
+                                           "bounds": {"von_mises": [0, 500]}, "bc": {"x=min": {"D": [0, 0, 0]}},
+                                           "reference": {"path": "cantilever_fem.vtu", "rel-l2": 0.05}}]}},
     "zoo": {"title": "Zoo heat-sink model at three operating points",
             "note": "heatsink_forced_mlp (a ModelRef to the PINNeAPPle zoo) queried at three designs; the third uses "
                     "20 m/s air, outside the 0.5–6 m/s the model was trained and validated on.",
@@ -139,6 +162,7 @@ def _run(files: dict[str, bytes], config: str, spec: dict | None, allow_code: bo
             (Path(d) / CONFIG_NAME).write_text(config, encoding="utf-8")
             with _HEAVY:
                 lab = run_validation(d, allow_code=allow_code).to_dict()
+                lab["views3d"] = _views(d, lab)
         except HTTPException:
             raise
         except CodeNotAllowed as e:
@@ -147,6 +171,35 @@ def _run(files: dict[str, bytes], config: str, spec: dict | None, allow_code: bo
             raise HTTPException(422, str(e.args[0] if e.args else e)) from e
     lab["scope"] = SCOPE
     return lab
+
+
+def _views(workdir: str, lab: dict) -> list[dict]:
+    """3-D views of the 3-D results that have a reference (prediction, reference, error on the mesh). They are not
+    part of the hashed report: the glTF files are kept on disk for a while, newest first."""
+    try:
+        views = mesh_views(workdir, report=lab, max_faces=VIEW_MAX_FACES)
+    except Exception as e:                                   # a view must never cost the validation itself
+        lab["notes"] = [*lab.get("notes", []), f"no 3-D view: {e}"]
+        return []
+    out = []
+    for v in views:
+        vid = uuid.uuid4().hex
+        (VIEWS / f"{vid}.glb").write_bytes(v["view"].glb())
+        out.append({"id": vid, "target": v["target"], "reference": v["reference"], "meta": v["view"].meta,
+                    "errors": v["errors"], "notes": v["notes"], "glb": f"/api/views/{vid}.glb"})
+    old = sorted(VIEWS.glob("*.glb"), key=lambda p: p.stat().st_mtime, reverse=True)[VIEWS_KEPT:]
+    for p in old:
+        p.unlink(missing_ok=True)
+    return out
+
+
+@app.get("/api/views/{vid}.glb")
+def api_view(vid: str):
+    """The glTF of a 3-D view returned with a report (``views3d[].glb``)."""
+    p = VIEWS / f"{vid}.glb"
+    if not re.fullmatch(r"[0-9a-f]{32}", vid) or not p.is_file():
+        raise HTTPException(404, "This view is no longer kept; run the validation again.")
+    return FileResponse(p, media_type="model/gltf-binary")
 
 
 @app.get("/health")
@@ -211,6 +264,7 @@ def api_report_html(report: Annotated[dict, Body()]):
     """The self-contained HTML of a report returned by /api/validate."""
     if report.get("schema") != "pinneapple-validation-lab/v1":
         raise HTTPException(422, "Not a Validation Lab report.")
+    report = {k: v for k, v in report.items() if k != "views3d"}
     return HTMLResponse(render_html(report), headers={"Content-Disposition": 'attachment; filename="validation.html"'})
 
 
