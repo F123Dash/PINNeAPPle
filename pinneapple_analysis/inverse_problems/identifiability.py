@@ -199,9 +199,13 @@ def _crossing(d: np.ndarray, zs: np.ndarray, pin: np.ndarray, pairs) -> tuple:
 
 def profile_likelihood(model: ForwardModel, params: ParameterSet, obs: Observations, z_best: np.ndarray,
                        chi2_min: float, std_z: np.ndarray, *, n_points: int = 15, max_nfev: int = 60,
-                       time_budget: float = 60.0) -> dict[str, dict[str, Any]]:
+                       time_budget: float = 60.0, fisher: np.ndarray | None = None) -> dict[str, dict[str, Any]]:
     """Profile of every free parameter around ``z_best`` (see the module docstring). Returns, per parameter, the
-    grid (physical units), ``delta_chi2``, the 95 % interval (``None`` on an open side) and the verdict."""
+    grid (physical units), ``delta_chi2``, the 95 % interval (``None`` on an open side) and the verdict.
+
+    Each re-fit starts from the better of two points: the previous grid point's optimum, and that optimum moved
+    along the ridge the Fisher information predicts (``dz_others = -F_oo^+ F_oi dz_i``), so a strongly correlated
+    partner follows the profiled parameter instead of stalling where the model saturates."""
     out: dict[str, dict[str, Any]] = {}
     lo_all, hi_all = params.bounds()
     t0 = time.time()
@@ -217,6 +221,10 @@ def profile_likelihood(model: ForwardModel, params: ParameterSet, obs: Observati
         left = np.linspace(z_best[i], lo, n_points // 2 + 1)[1:]
         right = np.linspace(z_best[i], hi, n_points // 2 + 1)[1:]
         others = [j for j in range(p) if j != i]
+        ridge = np.zeros(p)
+        if fisher is not None and others:
+            Foo = fisher[np.ix_(others, others)]
+            ridge[others] = -np.linalg.pinv(Foo, rcond=1e-10, hermitian=True) @ fisher[others, i]
         pts = {float(z_best[i]): chi2_min}
         pinned = {float(z_best[i]): False}             # another parameter on its bound at this grid point
         for side in (left, right):
@@ -224,9 +232,15 @@ def profile_likelihood(model: ForwardModel, params: ParameterSet, obs: Observati
             for zi in side:
                 if time.time() - t0 > time_budget:
                     break
+                step = zi - zw[i]
                 zw[i] = zi
                 if others:
                     r = least_squares_fit(model, params, obs, z0=zw, free=others, max_nfev=max_nfev)
+                    if np.any(ridge):
+                        zp = params.clip(zw + ridge * step)
+                        zp[i] = zi
+                        r2 = least_squares_fit(model, params, obs, z0=zp, free=others, max_nfev=max_nfev)
+                        r = r2 if r2.chi2 < r.chi2 else r
                     zw, c = r.z.copy(), r.chi2
                     pinned[float(zi)] = bool(r.at_bound)
                 else:
@@ -373,7 +387,7 @@ def analyze_identifiability(model: ForwardModel, obs: Observations,
     if run_profile:
         chi2_min = float(np.sum(((pred - data.values) / data.sigma) ** 2))
         profiles = profile_likelihood(model, params, data, z, chi2_min, std_z, n_points=n_profile,
-                                      time_budget=max(5.0, time_budget - (time.time() - t0)) * 0.6)
+                                      time_budget=max(5.0, time_budget - (time.time() - t0)) * 0.6, fisher=F)
     elif profile == "auto":
         notes.append("Profile likelihood skipped (expensive model or more than 6 parameters).")
 
