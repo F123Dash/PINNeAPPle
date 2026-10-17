@@ -198,6 +198,23 @@ def test_declined_confirmation_ends_the_run(tmp_path):
         Runner(_wf(), tmp_path / "r", toolchain=Toolchain()).decline("a")
 
 
+def test_an_interrupted_run_leaves_a_consistent_record(tmp_path):
+    class Stop(Exception):
+        pass
+
+    def stop_at_b(e):
+        if e["event"] == "step_started" and e["step"] == "b":
+            raise Stop("cancel requested")
+
+    with pytest.raises(Stop):
+        Runner(_wf(), tmp_path / "r", toolchain=Toolchain(), on_event=stop_at_b).run()
+    rec = RunRecord.load(tmp_path / "r")
+    assert rec.state == "failed" and rec.step("a").state == "passed" and rec.step("b").state == "failed"
+    assert "cancel requested" in rec.step("b").error and (tmp_path / "r" / "report.html").is_file()
+    run = Runner(_wf(), tmp_path / "r", toolchain=Toolchain()).run(approve=["c"])     # resumes from b
+    assert run.state == "passed"
+
+
 def test_existing_outputs_count_as_overwrite(tmp_path):
     (tmp_path / "r" / "a").mkdir(parents=True)
     (tmp_path / "r" / "a" / "out.txt").write_text("someone's file")

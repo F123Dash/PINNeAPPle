@@ -181,12 +181,22 @@ class Runner:
                     f"{len(failed)} of {len(rec.criteria)} acceptance criteria not met: "
                     + "; ".join(c.name for c in failed) if failed else
                     f"all {len(rec.criteria)} acceptance criteria met")
+        except BaseException as exc:                 # cancelled by the caller (e.g. from on_event) or interrupted
+            for s in rec.steps:
+                if s.state == "running":
+                    s.state, s.ended = "failed", time.time()
+                    s.error = f"interrupted: {type(exc).__name__}: {exc}"
+            rec.state, rec.message = "failed", f"interrupted: {type(exc).__name__}: {exc}"
+            raise
         finally:
             if display is not None:
                 display.stop()
             if rec.state != "awaiting_confirmation" and rec.state != "paused":
                 rec.finished = time.time()
-            self._emit("run_stopped", state=rec.state, message=rec.message)
+            try:
+                self._emit("run_stopped", state=rec.state, message=rec.message)
+            except Exception:                        # the run has stopped; a failing listener must not hide that
+                self.record.save()
             if self.report:
                 from .report import write_report, write_study_result
                 write_report(rec, self.run_dir / "report.html")
