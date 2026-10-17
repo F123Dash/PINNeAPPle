@@ -14,6 +14,14 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- `pinneapple_analysis.study_contracts`: the shared contracts for uncertainty and sensitivity studies. A
+  `ParameterSpace` becomes study parameters (uniform on the bounds, other distributions from
+  `metadata["distributions"]`; categorical and log-scaled parameters are refused) and back exactly; a `ModelRef`
+  (`zoo:<name>`, ONNX) becomes a `StudyModel` and back; `uncertainty_result` / `sensitivity_result` write a
+  `StudyResult` with the checks that ran. The Engineering Sensitivity Lab runs its studies in the shared job queue
+  with metering (`studies`, `evaluations`, `parameters`) and reads and writes these contracts; so does the Engineering
+  Uncertainty Lab (`studies`, `scenarios`, `propagation_samples`, `hf_runs`; a `ModelRef` and a `ParameterSpace` in, a
+  `StudyResult` out).
 - `train_gnn` (`pinneapple_design.aero.train`) gains `checkpoint_dir` and `checkpoint_every`. Every few epochs it
   saves the full training state (weights, optimiser, epoch, elapsed time, history, shuffling RNG). A later call with
   the same settings resumes from it to the same weights as an uninterrupted run, and a checkpoint written with other
