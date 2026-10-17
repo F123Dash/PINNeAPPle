@@ -124,6 +124,9 @@ clutch buys 57 % more reach (135.9 mm), still far below the 255 mm centre-of-mas
 stud shear capped at 0.3 N; the best bridge fails at 0.5x clutch (0.49 N per stud, load factor 0.80) and stands
 from 0.75x, so its verdict depends on the joint strength.
 
+The three best builds stand in Newton under their goal loads (the bridge with its 1 N dead weight, the tower with
+the 10 mN push): largest displacement 0.00, 0.00 and 0.03 mm in 0.6 s, no tilt.
+
 **Statics against Newton** (searched candidates, every joint intact, dt = 0.25 ms): agreement 90 % on cantilevers,
 100 % on bridges, 75 % on towers; every disagreement is a statics "mechanism" that Newton keeps standing:
 

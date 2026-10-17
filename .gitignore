@@ -72,4 +72,3 @@ dist/geometries/
 # brick experiment: heavy outputs (viewer copies three.js, frames)
 examples/bricks/_out/viewer_*/
 examples/bricks/_out/turntable_frames/
-examples/bricks/_out/instructions_*/step_*.png
