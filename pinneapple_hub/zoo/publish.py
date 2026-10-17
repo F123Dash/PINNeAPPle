@@ -243,12 +243,22 @@ def space_files(app_dir: Path, wheel: Path) -> dict[str, Path | bytes]:
             f"wheels/{wheel.name}": wheel}
 
 
+SPACE_PLAN = ("hosting a Gradio (or Docker) Space, even on free cpu-basic hardware, needs a Team or Enterprise plan "
+              "for the organisation; static Spaces are free. Subscribe the organisation, or run the workflow with "
+              "space=false (every other upload and check still runs).")
+
+
 def publish_space(token: str, app_dir: Path, wheel: Path) -> None:
     """Create or update the demo Space (one commit; older wheels deleted)."""
     from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
     api = HfApi(token=token)
     repo = hub_cards.SPACE_REPO
-    api.create_repo(repo, repo_type="space", space_sdk="gradio", exist_ok=True)
+    try:
+        api.create_repo(repo, repo_type="space", space_sdk="gradio", exist_ok=True)
+    except Exception as exc:
+        if getattr(getattr(exc, "response", None), "status_code", None) == 402:
+            raise SystemExit(f"::error::the Hub refused to create the Gradio Space {repo} (HTTP 402): {SPACE_PLAN}") from exc
+        raise
     files = space_files(app_dir, wheel)
     ops = [CommitOperationAdd(path_in_repo=k, path_or_fileobj=v if isinstance(v, bytes) else str(v))
            for k, v in files.items()]

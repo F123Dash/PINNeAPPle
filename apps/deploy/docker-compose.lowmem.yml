@@ -55,7 +55,7 @@ services:
     mem_limit: 1g       # the job queue limits planning to CAMPAIGN_MAX_JOBS at once
   validate:
     command: ["uvicorn", "validation_lab.api:app", "--host", "0.0.0.0", "--port", "8107", "--workers", "1"]
-    mem_limit: 700m
+    mem_limit: 800m     # the first 3-D view imports pinneapple_tools (about +100 MB, once)
   evidence:
     command: ["uvicorn", "evidence_report.api:app", "--host", "0.0.0.0", "--port", "8113", "--workers", "1"]
     mem_limit: 900m     # torch for the example study (~450 MB while it trains)
@@ -93,3 +93,9 @@ services:
   control:
     command: ["uvicorn", "control_lab.api:app", "--host", "0.0.0.0", "--port", "8112", "--workers", "1"]
     mem_limit: 900m
+  optimize:
+    command: ["uvicorn", "engineering_optimizer.api:app", "--host", "0.0.0.0", "--port", "8100", "--workers", "1"]
+    mem_limit: 800m     # torch + the zoo models; heavy runs are jobs (EDO_MAX_JOBS)
+  design:
+    command: ["uvicorn", "physics_design.api:app", "--host", "0.0.0.0", "--port", "8106", "--workers", "1"]
+    mem_limit: 800m     # torch + the zoo models; heavy runs are jobs (PDO_MAX_JOBS)

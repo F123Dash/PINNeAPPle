@@ -137,3 +137,37 @@ def test_operator_inference_has_no_onnx_graph():
     m = fit_reduced_model(s, split_snapshots(s).train, "opinf", 4)
     with pytest.raises(NotImplementedError, match="npz"):
         m.to_onnx()
+
+
+def test_reconstruction_view_of_a_held_out_design_on_its_body():
+    """The beam example of the ROM Lab: FEM and ROM fields on each design's own mesh, the deformed shape in metres,
+    the clamp and load sets as markers, and error maps whose numbers are the arrays' own."""
+    import os
+
+    from pinneapple_data.snapshots import load_snapshots
+    from pinneapple_neural.architectures.rom.views import reconstruction_view
+    p = os.path.join(os.path.dirname(__file__), "..", "apps", "rom_lab", "examples", "cantilever_designs.npz")
+    s = load_snapshots([("c.npz", open(p, "rb").read())])
+    sp = split_snapshots(s, how="random", test_fraction=0.2, seed=0)
+    m = fit_reduced_model(s, sp.train, "pod_rbf", 8, log_params=["H", "W"])
+    i = int(sp.test[0])
+    fv, info = reconstruction_view(s, m, i, reported={"study mean": 0.1})
+    names = [f["name"] for f in fv.meta["fields"]]
+    assert names == ["displacement:full", "displacement:rom", "displacement:error",
+                     "von_mises:full", "von_mises:rom", "von_mises:error"]
+    np.testing.assert_allclose(fv.meta["bounds"]["max"][1:], s.snapshot_points[i].max(0)[1:], rtol=1e-5)
+    u = s.field_values("displacement")[i] * 1e-3
+    assert fv.meta["deform"]["FEM"]["max"] == pytest.approx(np.linalg.norm(u, axis=1).max(), rel=1e-6)
+    assert fv.meta["deform"]["FEM"]["unit"] == "m"
+    kinds = {mk["name"]: mk["kind"] for mk in fv.meta["markers"]}
+    assert kinds["clamp"] == "bc" and kinds["loaded tip"] == "load" and "hotspot" in kinds.values()
+    vm_t, vm_p = s.field_values("von_mises")[i], m.predict(params=s.params[i:i + 1])[0]
+    vm_p = s.field_values("von_mises", vm_p[None])[0]
+    e = info["errors"]["von_mises"]
+    assert e["rel_l2"] == pytest.approx(np.linalg.norm(vm_p - vm_t) / np.linalg.norm(vm_t))
+    assert e["max"] == pytest.approx(np.abs(vm_p - vm_t).max())
+    assert {r["name"] for r in e["regions"]} == {"clamp zone", "loaded tip zone", "rest of the body"}
+    assert sum(r["share_error"] for r in e["regions"]) == pytest.approx(1.0)
+    assert "study mean: 10.00 %" in e["summary"][0]
+    with pytest.raises(ValueError, match="no mesh"):
+        reconstruction_view(_bump(), fit_reduced_model(_bump(), range(40), "pod_rbf", 4), 45)

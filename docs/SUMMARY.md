@@ -86,6 +86,7 @@
     * [Simulation Campaign Planner: which simulations need to run](guides/campaign_planner.md)
     * [Choose a model by the scale of the question](guides/scale_aware_ensembles.md)
     * [Identifiability, calibration and inverse problems](guides/identifiability_calibration_inversion.md)
+    * [Self-modifying brick builds](guides/interlocking_bricks.md)
 * Apps
     * [Inverse Model Studio (day 21)](apps/inverse_studio.md)
     * [Parameter Identifiability Lab (day 25)](apps/identifiability_lab.md)
@@ -104,6 +105,8 @@
     * [Digital Twin Runtime (day 20)](apps/twin_runtime.md)
     * [Physics Anomaly Detector (day 28)](apps/anomaly_detector.md)
     * [Physics-Based Control Lab (day 29)](apps/control_lab.md)
+    * [Engineering Design Optimizer (day 17)](guides/engineering_design_optimizer.md)
+    * [Physics Design Optimizer (day 23)](guides/physics_design_optimizer.md)
 * [API Reference](api/index.md)
   * [pinneapple](api/pinneapple/index.md)
   * [pinneapple_physics](api/pinneapple_physics/index.md)

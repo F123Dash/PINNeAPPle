@@ -479,3 +479,24 @@ def test_verify_model_checks_what_the_card_promises(model_cards, tmp_path, monke
     local["README.md"].write_text(it["readme"].replace("inference: false", "inference: true"))
     problems = publish.verify_model("airfoil_cst_rans_mlp", tmp_path)
     assert any("example not reproduced" in p for p in problems) and any("front matter" in p for p in problems)
+
+
+def test_publish_space_explains_the_plan_the_hub_requires(tmp_path, monkeypatch):
+    """The Hub answers 402 when an organisation without a Team plan creates a Gradio Space (publish run after #811);
+    the error says why and what to do instead of a bare traceback."""
+    hub = pytest.importorskip("huggingface_hub")
+    from types import SimpleNamespace
+
+    from pinneapple_hub.zoo import publish
+
+    class Refusing(_FakeApi):
+        def create_repo(self, repo, repo_type=None, **kw):
+            err = RuntimeError("402 Payment Required")
+            err.response = SimpleNamespace(status_code=402)
+            raise err
+
+    monkeypatch.setattr(hub, "HfApi", lambda token=None: Refusing())
+    wheel = tmp_path / "pinneapple-0.7.0-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    with pytest.raises(SystemExit, match="Team or Enterprise plan.*space=false"):
+        publish.publish_space("token", ROOT / "apps" / "zoo_space", wheel)

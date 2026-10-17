@@ -14,6 +14,70 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Interlocking bricks (`pinneapple_design.bricks`), a self-modifying design loop on LDraw-compatible geometry:
+  - `parts`: nominal dimensions (8 mm stud pitch, 3.2 mm plate, 9.6 mm brick, stud 4.8 x 1.6 mm), a catalogue of
+    rectangular bricks and plates with LDraw part numbers, published brick masses (StableLego) and a fitted shell
+    model for the others, and `JointModel` (0.98 N clutch per stud, cited, with an assumed uncertainty band; friction;
+    optional stud shear cap; a 0.5 mm contact edge inset so designs do not balance on a knife edge).
+  - `assembly`: grid assemblies, stud-tube connections, validity rules (overlaps, supported placement), ground as a
+    table or baseplate with regions (table edges, river banks).
+  - `ldraw`: .ldr / .mpd export with one STEP per layer and import (sub-models, quarter-turn rotations, off-grid and
+    unknown parts reported); `fetch_parts_library` downloads the LDraw parts library (CC BY 2.0) at run time and
+    `PartsLibrary` triangulates real parts. `mesh`: brick meshes, glTF with per-brick colours, STL, USD.
+  - `statics`: equilibrium of the build as a linear programme (corner compression, stud clutch tension, friction),
+    the most favourable force distribution and peak stud utilisation, `capacity` (largest load factor),
+    `progressive_failure`, tipping explanations (which support polygon the resultant left) and
+    `single_stud_torsion`. `closed_form`: tipping, harmonic stacking, stud cantilever, beam reactions and deflection.
+  - `dynamics`: Newton replays with one compound rigid body per intact cluster, dead weights, table edges and a floor;
+    `harmonic_threshold`, `cross_check` (statics verdicts against Newton) and `friction_creep`. `fea`: Hex8 FEA on the
+    voxelised build. `validation.validate`: every closed-form check in a trust report.
+  - `goals` (cantilever, bridge, tower) and `search`: add / remove / move / swap / rotate / recolour edits and grammar
+    rules (extend, counterweight, brace, widen, mirror), NSGA-II evolution and a GP-surrogate-guided search at equal
+    evaluation budget, `compare` over seeds.
+  - `visuals`: the evolution as a timeline (best build per generation coloured by stud utilisation, rejected
+    candidates replayed by Newton with the joints that let go in red) for the twin3d viewer, GIF and MP4; Blender
+    Cycles renders and turntables; building instructions (step images, part list, LDraw steps). `report`: joint-model
+    sensitivity, comparison chart, Markdown report.
+  - `examples/bricks/self_modifying_bricks.py`, the lab experiment `bricks` and the guide
+    [Self-modifying brick builds](docs/guides/interlocking_bricks.md).
+- `pinneapple_twin3d.Scene.add_visibility` and `set_step_labels`: parts that appear and disappear over time and a
+  caption per time step, shown by the viewer (`&speed=ms` sets the playback interval).
+- Newton backend: `RigidScene.compound` (one rigid body made of several boxes) and `simulate(..., wrenches=...)`
+  (constant external forces and torques).
+- `render_geometry(..., frame=(lo, hi))`: a fixed framing box, so animation frames share one camera.
+- "View result" panel in the Simulation Workflow Runner (day 27): a finished CalculiX or OpenFOAM step opens in 3-D
+  with its mesh, the selected field, the deformed shape (CalculiX, scale factor) and the boundary-condition and load
+  regions the case defines, decimated above 250 k triangles (`RUNNER_VIEW_MAX_FACES`).
+  `pinneapple_tools.visualization.studio.solver_view` builds it, with `pinneapple_data.cae.inp.deck_conditions`
+  (`*BOUNDARY`, `*CLOAD`, `*DLOAD` as node sets) and `pinneapple_data.cae.foam.boundary_conditions` (patch conditions);
+  `WorkflowRunner.step_workdir` gives where a (possibly reused) step's files are.
+- Physics Design Optimizer app (`apps/physics_design`, day 23, `design.pinneapple.org`, port 8106): gradient
+  optimisation through differentiable surrogates, SLSQP, NSGA-II, differential evolution and Bayesian optimisation
+  compared on the same problem, budget and seeds (hypervolume, evaluations to 95 %, convergence, wall time) on a
+  plate-fin heat sink or a CST airfoil; candidates from the best front over all methods with their verification
+  status (FVM engine for the heat sink, "only surrogate" for the airfoil), constraint margins, geometry preview and
+  STL / STEP / CSV exports. Jobs of the shared runtime. Deploy: service `design`.
+- 3-D view in the Physics Validation Lab (day 24): for a 3-D result on a mesh with a reference (OpenFOAM case,
+  VTU/VTK), the prediction, the reference and the pointwise error on the mesh, exactly the values PC701 compared, with
+  the declared boundary conditions and a list of the regions with the largest error
+  (`pinneapple_veriphysics.mesh_views`). New example: a reduced model against the FEM it replaces, on a 3-D cantilever.
+- Engineering Design Optimizer app (`apps/engineering_optimizer`, day 17, `optimize.pinneapple.org`, port 8100):
+  black-box optimisation (NSGA-II, pymoo, SciPy differential evolution, Bayesian optimisation) on the heat-sink
+  example, a table of your evaluated designs (GP surrogate with held-out error) or a zoo model; candidates re-evaluated
+  with the FVM reference or an operator-configured solver, or verified later from uploaded solver results; feasibility
+  report, trade-off and convergence plots, ParameterSpace / ModelRef / StudyResult downloads. Runs as jobs of the
+  shared runtime (metered evaluations, campaigns and reference runs). Deploy: service `optimize`.
+- 3-D view of a held-out snapshot in the Reduced Order Model Lab (day 19): the FEM field, the ROM prediction and
+  |ROM − FEM| on the deformed body, the clamp and load regions, the error hotspots and where the error concentrates
+  against the study's numbers. `pinneapple_neural.architectures.rom.views.reconstruction_view` builds it.
+  `pinneapple_data.snapshots` keeps a mesh with the snapshots (`cells_<type>`, `snapshot_points`, `node_sets`;
+  `SnapshotSet.mesh(i)`), also for VTU/VTK/FRD series; the cantilever example carries its mesh.
+- 3-D field views for the apps: `pp.viz.field_view` (`pinneapple_tools.visualization.studio.fieldview`) turns a
+  mesh with values, errors, nodal displacements and marked regions into a glTF and a description (colour ranges, one
+  scale per group, errors from 0 to their 99th percentile, decimation above 250 k triangles). The shared page module
+  `apps/_shared/static/shared/fieldview3d.js` shows it with the vendored three.js: field switch, colour bar, deformed
+  shape with a scale factor, labelled regions, probe. `pinneapple_analysis.validation.error_map` gives the pointwise
+  error, its hotspots, its share per named region and a short summary; `studio-core.js` gains the error scale `ERR`.
 - Zoo dataset `cylinder_wake_lbm` (Hub-only): 720 vorticity snapshots of a confined cylinder wake at Re 20–100
   (D2Q9 lattice Boltzmann, blockage 0.2), labelled by regime, Strouhal number and wake amplitude. It is split by
   Reynolds number, and every shedding run is saturated. The card carries a channel-flow check and a D = 20/30/40
@@ -125,6 +189,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `model_ref_for_surrogate`, `table_evaluator` (offline solver results as a reference), and a `progress` callback on
   `run`, `compare_methods` and `surrogate_assisted` (an exception from it, e.g. a cancelled job, stops the run).
 - `MethodComparison.union()`: every run's evaluations in one record with the run that produced each row.
+- `pinneapple_design.design_optimizer`: what the design apps show and export after a run, called by the Engineering
+  and Physics Design Optimizers: `verify_front` (candidates along the front, verified when there is a reference),
+  `write_design_files` (evaluations, candidates with their verification status, `candidates_to_run.csv` and the
+  `ParameterSpace`), `chart_points` (a thinned trade-off plot that keeps the front), `verify_uploaded_results`
+  (exported candidates verified against your offline solver results), `MethodComparison.union_result()` and
+  `.fronts()`, `presets.preset_info` (a preset's variables, defaults, objectives, baseline and reference) and
+  `presets.preset_bodies` (its solids for STL / STEP).
 - `pinneapple_design.geometry_library.exporters.stl_bytes`: the binary STL writer for any triangle mesh.
 - Inverse Model Studio app (day 21, `apps/inverse_studio`, inverse-studio.pinneapple.org, port 8104). It is a new app,
   separate from the Inverse Heat Lab, which is unchanged.
@@ -940,6 +1011,19 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Newton backend: a scene with several jointed trees failed to build (Newton needs the joints of an articulation to
+  be contiguous); joints are now created tree by tree.
+- Blender renders of small models (a few centimetres) were cut by the camera's default 0.1 m near clipping plane;
+  the clipping range now follows the camera distance.
+- Workflow OpenFOAM steps (`openfoam` adapter, the runner's cavity template): with a distribution package
+  (blockMesh and icoFoam on PATH, environment not loaded) the step failed with `bash exited with code 1`, because
+  the solvers need the OpenFOAM environment. The step now sources the step's `bashrc`, else `FOAM_BASHRC`, else the
+  first installation found (`/usr/share/openfoam`, `/usr/lib/openfoam/openfoam*`, `/opt/openfoam*`,
+  `/opt/OpenFOAM-*`), and the template reports "needs solver" with the reason when there is none.
+- Zoo publishing: the file, viewer and model checks of the publish workflow run even when the Space or an item
+  failed to upload (the Space's HTTP 402 skipped all of them), and the Space check runs only when the Space was
+  published. `publish_space` turns the Hub's 402 (a Gradio Space needs a Team or Enterprise plan for the
+  organisation) into an error that says so and how to publish without the Space.
 - Zoo publishing (`pinneapple_hub.zoo.publish`): each item gets its own working directory per kind. The model and
   the dataset `rover_contact_grc1_viper` share a name; publishing the model deleted the dataset's Parquet copies before
   they were committed, so the dataset was not published and the workflow failed before its download check.
