@@ -34,9 +34,12 @@ The rule lives in `pinneapple_veriphysics.evidence_package` and `pinneapple_veri
   They count only with a record.
 - **`pinneapple check` in CI:** its JSON is read, but it has no records, so its checks print "not run". Run the checks
   through the Validation Lab, or record them with `pinneapple_veriphysics.ledger`, to make them count.
-- **Shared data contracts:** StudyResult, ModelRef, DatasetSpec and ParameterSpace JSON are recognised by their
-  `type` (or `contract`) key. A StudyResult's `evidence` (a ledger) backs its `tests`. Its `parameters` become
-  conditions and its `metrics` become comparable runs.
+- **Shared data contracts** (`pinneapple_data.contracts`): StudyResult, ModelRef, DatasetSpec and ParameterSpace
+  JSON are recognised by their `kind` and validated against the contract schema (problems are listed next to the
+  artifact; the file is still read). A StudyResult's `checks` are claims: `PASS` without a ledger record prints "not
+  run". Its `evidence` (a ledger) backs them, its `parameters` become conditions, its `metrics` comparable runs and
+  its `limits` limitations. Every report is also exported as a StudyResult (study type `evidence`, one check per
+  test, artifacts by SHA-256): `study_result` in `/api/report`, `study_result.json` in the package.
 - **Your pipeline:** the REST API (`/docs`) offers `POST /api/report`, `/api/report.pdf` and `/api/package`. In
   Python, use `pinneapple_veriphysics.evidence_package` and record tests where they run with `EvidenceLedger.run`.
 
@@ -78,7 +81,11 @@ Environment variables:
 
 - `EVR_USER` / `EVR_PASSWORD`: HTTP Basic login on everything except `/health`;
 - `EVR_MAX_MB`: largest upload, default 200;
-- `EVR_MAX_HEAVY`: reports built at once, default 2; the excess gets HTTP 429.
+- `EVR_MAX_HEAVY`: reports built at once, default 2; the excess gets HTTP 429;
+- `EVR_FREE_REPORTS` / `EVR_FREE_DOWNLOADS`: reports and downloads (PDF or package) per caller and month before
+  HTTP 429, default 30 each (`unlimited` removes the limit); `EVR_ADMIN_TOKEN` manages API keys (`/api/keys`).
+  API keys, usage (`/api/usage`) and the runtime description (`/api/runtime`) come from the shared app runtime
+  (`apps/_shared/README.md`); the example is not metered.
 
 Docker: `docker build -f apps/evidence_report/Dockerfile -t evidence-report .` (one worker, 1 GB). Deployment with
 the other apps is in [`apps/deploy`](../deploy) (service `evidence`).
@@ -90,13 +97,11 @@ the other apps is in [`apps/deploy`](../deploy) (service `evidence`).
   (`pinneapple_security.signing` is the planned path).
 - **Baseline matching is by name.** A run belongs to the baseline when its label is or contains the baseline name,
   and does not also contain the candidate name. Metrics are compared as given, and units are not converted.
-- **Contracts are read from JSON** until `pinneapple_data.contracts` (the shared runtime PR) is on `main`. The app
-  will then import those classes.
 - **The campaign report code of PINNeAPPle-CFD is not in the library.** Only `pinneapple_tools.reporting.paperkit` is
   reused.
 - **Nothing is stored.** Keep the evidence package. Private projects with stored packages are the paid tier.
-- **No asynchronous job queue yet.** A report is built inside the request, which takes seconds. The shared job queue
-  and metering will replace the per-worker limit once they land.
+- **Reports are built inside the request** (seconds), not in the shared job queue; usage is metered per caller
+  and month by the shared runtime.
 
 Monetization: reports (a free monthly allowance, then per report or package), campaigns (one package per run or
 benchmark of a campaign, with a campaign summary), and private projects (stored packages, signed records, team

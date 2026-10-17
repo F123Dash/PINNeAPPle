@@ -116,7 +116,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   turns the outputs of a study into a report (HTML, PDF) with methodology, conditions, baseline comparison,
   tests, limitations and artifact references by SHA-256 and URL, and into an evidence package (zip with a SHA-256
   manifest). A test is printed as passed only when its own evidence record shows it ran; otherwise it reads "not
-  run". The example runs a real FEM-vs-PINN study. Deployed with `apps/deploy` (service `evidence`).
+  run". Contracts are validated against `pinneapple_data.contracts` and every report is exported as a StudyResult
+  (`evidence_package.to_study_result`); API keys and usage metering come from the shared app runtime. The example
+  runs a real FEM-vs-PINN study. Deployed with `apps/deploy` (service `evidence`).
 - Evidence ledger, Validation Lab and evidence package in `pinneapple_veriphysics`:
   - `ledger`: `EvidenceEntry` / `EvidenceLedger`. Each entry records the check, the SHA-256 of its inputs, its
     outputs, start and finish times and the verdict, sealed with the SHA-256 of its content. `status()` is
