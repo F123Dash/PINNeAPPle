@@ -439,6 +439,27 @@ services:
     mem_limit: ${GUIAGENT_MEM_LIMIT:-2g}
     shm_size: 256m
 
+  rom:
+    build:
+      context: ../..
+      dockerfile: apps/rom_lab/Dockerfile
+    image: pinneapple/rom-lab:latest
+    restart: unless-stopped
+    environment:
+      ROM_USER: ${ROM_USER:-}
+      ROM_PASSWORD: ${ROM_PASSWORD:-}
+      ROM_MAX_JOBS: ${ROM_MAX_JOBS:-2}
+      ROM_MAX_MB: ${ROM_MAX_MB:-200}
+      ROM_MAX_BUDGET_S: ${ROM_MAX_BUDGET_S:-30}
+      ROM_ADMIN_TOKEN: ${ROM_ADMIN_TOKEN:-}
+      ROM_FREE_STUDIES: ${ROM_FREE_STUDIES:-}
+      ROM_FREE_EXPORTS: ${ROM_FREE_EXPORTS:-}
+      ROM_FREE_QUERIES: ${ROM_FREE_QUERIES:-}
+    volumes:
+      - rom_data:/data          # jobs, uploads, usage (shared runtime): keep this volume
+    expose: ["8102"]
+    mem_limit: ${ROM_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -470,12 +491,13 @@ services:
       IDENT_DOMAIN: ${IDENT_DOMAIN:-identifiability.localhost}
       INVS_DOMAIN: ${INVS_DOMAIN:-inverse-studio.localhost}
       GUIAGENT_DOMAIN: ${GUIAGENT_DOMAIN:-guiagent.localhost}
+      ROM_DOMAIN: ${ROM_DOMAIN:-rom.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom]
 
 volumes:
   calibration_data:
@@ -485,6 +507,7 @@ volumes:
   guiagent_data:
   lab_data:
   campaign_data:
+  rom_data:
   runner_data:
   obs_cache:
   caddy_data:

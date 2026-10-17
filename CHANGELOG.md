@@ -14,6 +14,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Reduced Order Model Lab app (day 19, `apps/rom_lab`, rom.pinneapple.org, port 8102): upload field snapshots
+  (OpenFOAM times, VTU/VTK/FRD series, NPZ/HDF5, CSV/Parquet or a `DatasetSpec` table), queue a ROM study on the
+  shared runtime, compare POD + RBF / GPR, DMD, Operator Inference and an equal-budget neural surrogate on held-out
+  times or designs (error vs rank vs speed, energy, reconstructions), and export `.rom.npz`, ONNX for the model
+  gateway, `ModelRef` and `StudyResult` contracts; `POST /api/run` runs an exported ROM. Two offline examples from
+  the library's solvers (LBM cylinder wake, solid-FEM cantilever designs). `pinneapple_neural.architectures.rom
+  .contracts` builds the contracts.
 - Engineering GUI Agent app (`apps/guiagent`, guiagent.pinneapple.org, port 8115). It takes a task sentence or a
   workflow and runs it in FreeCAD, CfdOF, OpenFOAM and ParaView inside a separate, optional heavy Docker image. The page
   shows the step timeline with checks and screenshots, asks for approval before the solver, and delivers the HTML

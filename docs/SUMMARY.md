@@ -96,6 +96,7 @@
     * [Uncertainty and sensitivity studies on any model](guides/uncertainty_and_sensitivity.md)
     * [Engineering Sensitivity Lab](guides/sensitivity_lab.md)
     * [Engineering Uncertainty Lab](guides/uncertainty_lab.md)
+    * [Reduced Order Model Lab](apps/rom_lab.md)
 * [API Reference](api/index.md)
   * [pinneapple](api/pinneapple/index.md)
   * [pinneapple_physics](api/pinneapple_physics/index.md)

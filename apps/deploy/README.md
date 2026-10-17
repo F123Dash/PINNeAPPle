@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `rom` | A | `<server IPv4>` |
 | `runner` | A | `<server IPv4>` |
 | `campaign` | A | `<server IPv4>` |
 | `uncertainty` | A | `<server IPv4>` |
@@ -78,7 +79,7 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 |---|---|
 | `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. OBS, CALIB)|
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. OBS, CALIB)|
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
@@ -122,7 +123,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign inverse-studio identifiability calibration
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign rom inverse-studio identifiability calibration
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -377,6 +378,17 @@ guiagent.example.org {
 		}
 	}
 }
+rom.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 220MB
+	}
+	reverse_proxy pinneapple-rom:8102 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -510,6 +522,10 @@ the example took 42 s in the image (2 GB limit, 0.9 GB in use after the run). Ru
 the `guiagent_data` volume (`/data/guiagent`); the oldest runs are deleted beyond `GUIAGENT_KEEP_RUNS`. On a public server, keep `GUIAGENT_MODE=public`: only the committed
 workflows run, with their inputs inside the workflow's bounds, and no uploads are accepted. Building the image
 downloads the FreeCAD AppImage from GitHub (about 800 MB) and CfdOF from GitHub.
+
+## Reduced Order Model Lab (`rom`)
+
+Builds POD + RBF / GPR, DMD, Operator Inference and an equal-budget neural surrogate from uploaded snapshots and scores them on held-out times or parameters. Studies run in the shared job queue: `ROM_MAX_JOBS` at once (default 2; one CPU core each for a few seconds to a minute), `ROM_MAX_BUDGET_S` caps the neural budget a study may ask for, `ROM_MAX_MB` an upload. Jobs, uploads and usage live on the `rom_data` volume; free use per caller and month is set by `ROM_FREE_STUDIES`, `ROM_FREE_EXPORTS`, `ROM_FREE_QUERIES` (30 / 100 / 20,000 by default). 1 GB of memory is enough for snapshots up to ~400,000 values (`ROM_MAX_VALUES`).
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
