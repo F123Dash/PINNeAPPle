@@ -20,6 +20,23 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   plate-fin heat sink or a CST airfoil; candidates from the best front over all methods with their verification
   status (FVM engine for the heat sink, "only surrogate" for the airfoil), constraint margins, geometry preview and
   STL / STEP / CSV exports. Jobs of the shared runtime. Deploy: service `design`.
+- Engineering Design Optimizer app (`apps/engineering_optimizer`, day 17, `optimize.pinneapple.org`, port 8100):
+  black-box optimisation (NSGA-II, pymoo, SciPy differential evolution, Bayesian optimisation) on the heat-sink
+  example, a table of your evaluated designs (GP surrogate with held-out error) or a zoo model; candidates re-evaluated
+  with the FVM reference or an operator-configured solver, or verified later from uploaded solver results; feasibility
+  report, trade-off and convergence plots, ParameterSpace / ModelRef / StudyResult downloads. Runs as jobs of the
+  shared runtime (metered evaluations, campaigns and reference runs). Deploy: service `optimize`.
+- 3-D view of a held-out snapshot in the Reduced Order Model Lab (day 19): the FEM field, the ROM prediction and
+  |ROM − FEM| on the deformed body, the clamp and load regions, the error hotspots and where the error concentrates
+  against the study's numbers. `pinneapple_neural.architectures.rom.views.reconstruction_view` builds it.
+  `pinneapple_data.snapshots` keeps a mesh with the snapshots (`cells_<type>`, `snapshot_points`, `node_sets`;
+  `SnapshotSet.mesh(i)`), also for VTU/VTK/FRD series; the cantilever example carries its mesh.
+- 3-D field views for the apps: `pp.viz.field_view` (`pinneapple_tools.visualization.studio.fieldview`) turns a
+  mesh with values, errors, nodal displacements and marked regions into a glTF and a description (colour ranges, one
+  scale per group, errors from 0 to their 99th percentile, decimation above 250 k triangles). The shared page module
+  `apps/_shared/static/shared/fieldview3d.js` shows it with the vendored three.js: field switch, colour bar, deformed
+  shape with a scale factor, labelled regions, probe. `pinneapple_analysis.validation.error_map` gives the pointwise
+  error, its hotspots, its share per named region and a short summary; `studio-core.js` gains the error scale `ERR`.
 - Zoo dataset `cylinder_wake_lbm` (Hub-only): 720 vorticity snapshots of a confined cylinder wake at Re 20–100
   (D2Q9 lattice Boltzmann, blockage 0.2), labelled by regime, Strouhal number and wake amplitude. It is split by
   Reynolds number, and every shedding run is saturated. The card carries a channel-flow check and a D = 20/30/40
@@ -953,6 +970,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Zoo publishing (`pinneapple_hub.zoo.publish`): each item gets its own working directory per kind. The model and
+  the dataset `rover_contact_grc1_viper` share a name; publishing the model deleted the dataset's Parquet copies before
+  they were committed, so the dataset was not published and the workflow failed before its download check.
 - `pinneapple check`: `FV.patch_sums` (per-patch flux and heat-flow totals of the balance checks PC101/PC103) read
   the boundary arrays with the internal-face offset and returned 0 for every patch; the net balance was right.
 - `pinneapple_analysis.inverse_problems.heat_transfer.__all__` listed an undefined `FinInput`, so
