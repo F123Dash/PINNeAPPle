@@ -14,6 +14,21 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Identifiability, calibration and inverse-problem core in `pinneapple_analysis.inverse_problems` (one core for the
+  Parameter Identifiability Lab, Model Calibration Lab and Inverse Model Studio apps; guide
+  `docs/guides/identifiability_calibration_inversion.md`). It provides forward models (`ExpressionModel`,
+  `CallableModel`, `TabulatedModel` for simulated results, and `PinFinModel`, `RodModel` with zone-wise h(x), exact
+  sensitivities and a one-solve adjoint, `PlateModel`, `LumpedCoolingModel`, `ArrheniusModel`), `Parameter` and
+  `Observations` (read from CSV, Excel, Parquet or JSON tables).
+  - `analyze_identifiability` combines Fisher rank and conditioning, the ambiguous combinations, measurement
+    leverage, profile likelihood, an adaptive-Metropolis posterior, and D-optimal suggestions for extra
+    measurements.
+  - `calibrate` gives Jacobian and bootstrap intervals only for identifiable parameters ("not estimable" otherwise)
+    and validates on held-out or extrapolated rows.
+  - `compare_methods` / `solve_inverse` run least squares, adjoint, autodiff, Bayesian and PINN on the same data.
+  - Ten presets with known answers.
+- `heat_transfer.run_plate` accepts measured `readings` at `sensors_mm` and an air temperature `t_air`, so the plate
+  PINN can be run on given data (the synthetic default is unchanged).
 - Zoo dataset `airfoil_rans_cst_re4e6_fields` (Hub-only, 186 MB in 5 files): the cell fields p, Ux, Uy, nut and
   cell centres of the 436 OpenFOAM runs of `airfoil_rans_cst_re4e6`, with the same splits. The campaign was
   regenerated, and its coefficients reproduce the published table. `write_field_dataset`
@@ -418,6 +433,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- `pinneapple_analysis.inverse_problems.heat_transfer.__all__` listed an undefined `FinInput`, so
+  `from ... import *` failed.
 - `pinneapple_physics.conservation.project_integral(mode="positive")` returned a negative field when the target
   integral was negative, breaking the non-negativity the mode exists for; it now raises a clear `ValueError`, also
   for a field that is <= 0 everywhere. A zero field with a zero target is returned unchanged in the multiplicative
