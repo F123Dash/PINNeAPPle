@@ -14,6 +14,15 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Inverse Model Studio app (day 21, `apps/inverse_studio`, inverse-studio.pinneapple.org, port 8104). It is a new app,
+  separate from the Inverse Heat Lab, which is unchanged.
+  - It formulates an inverse problem once (measurements, model, unknown parameters, boundary conditions or field
+    zones) and solves it with least squares, the adjoint gradient, autodiff, Bayesian regularisation and the
+    Inverse Heat Lab's PINNs on the same data.
+  - It shows the reconstructed fields, the residuals, held-out ranking, the identifiability diagnosis, and truth
+    recovery on the examples.
+  - It exports a `StudyResult` and runs on the shared job queue and usage metering.
+  - Docs page: `docs/apps/inverse_studio.md`.
 - Identifiability, calibration and inverse-problem core in `pinneapple_analysis.inverse_problems` (one core for the
   Parameter Identifiability Lab, Model Calibration Lab and Inverse Model Studio apps; guide
   `docs/guides/identifiability_calibration_inversion.md`). It provides forward models (`ExpressionModel`,
