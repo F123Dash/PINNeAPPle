@@ -3,7 +3,7 @@
 HeatSink Sizer, PCB Hotspot, Engineering Data Health, Engineering Data Standardizer, Simulation Metadata, the Form
 Compiler, Inverse Heat Lab, Simulation Preflight, Mesh Quality, Simulation Comparator, Engineering Model Lineage and the
 Simulation Interoperability Hub, the
-Aircraft Design Optimizer, the PINNeAPPle Observatory, the Parameter Identifiability Lab, the Model Calibration Lab, the Engineering Evidence Report, the Physics Validation Lab and the PINNeAPPle Lab catalogue on a single Linux VM (e.g. Hetzner Cloud), each on its own
+Aircraft Design Optimizer, the PINNeAPPle Observatory, the Inverse Model Studio, the Parameter Identifiability Lab, the Model Calibration Lab, the Engineering Evidence Report, the Physics Validation Lab and the PINNeAPPle Lab catalogue on a single Linux VM (e.g. Hetzner Cloud), each on its own
 subdomain, behind one Caddy that obtains and renews Let's Encrypt certificates automatically.
 
 ```
@@ -52,6 +52,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `evidence` | A | `<server IPv4>` |
 | `calibration` | A | `<server IPv4>` |
 | `identifiability` | A | `<server IPv4>` |
+| `inverse-studio` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -74,13 +75,14 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 
 | Variable | Meaning |
 |---|---|
-| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN` | Public hostnames (must match the DNS records) |
+| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. OBS, CALIB)|
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. OBS, CALIB)|
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
 | `IDENT_MAX_JOBS`, `IDENT_FREE_<UNIT>`, `IDENT_ADMIN_TOKEN`, `IDENT_MEM_LIMIT` | Parameter Identifiability Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `identifiability_data` volume. |
+| `INVS_MAX_JOBS`, `INVS_FREE_<UNIT>`, `INVS_ADMIN_TOKEN`, `INVS_MEM_LIMIT` | Inverse Model Studio, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `inverse-studio_data` volume. |
 | `IHL_MAX_JOBS` | Inverse Heat Lab: trainings running at the same time (default 2, each uses one CPU core). Any excess gets HTTP 429. The app runs one worker because jobs live in its memory. |
 | `UDR_FORM_PDF` | Path inside the `udr` container to your copy of the fillable Form U-DR-1 (put the file in `apps/deploy/forms/`). Optional: users can upload it instead. |
 | `UDR_OLLAMA_MODEL` | Optional. Enables local-LLM extraction in the Form Compiler with this Ollama model (pull it first). Every value it returns is checked against the document text; documents never leave your network. |
@@ -114,7 +116,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign identifiability calibration
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign inverse-studio identifiability calibration
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -350,6 +352,17 @@ identifiability.example.org {
 		}
 	}
 }
+inverse-studio.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy pinneapple-inverse-studio:8104 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -447,6 +460,17 @@ the queue), with usage metered per caller and month (`IDENT_FREE_ANALYSES`, `IDE
 `IDENT_FREE_SCENARIOS`; `unlimited` lifts a limit). Jobs, API keys (`IDENT_ADMIN_TOKEN` to manage them without the
 login) and usage are kept in SQLite on the `identifiability_data` volume. The examples take under 3 s; 1 GB of memory
 is enough.
+
+## Inverse Model Studio (`inverse-studio`)
+
+A separate app from the Inverse Heat Lab (`inverse`, which is unchanged). It formulates an inverse problem once and
+solves it with least squares, adjoint gradient, autodiff, Bayesian regularisation and the Inverse Heat Lab's PINNs on
+the same data, ranked by held-out error, with reconstructed fields and the identifiability diagnosis. Problems run in
+the shared job queue (`INVS_MAX_JOBS` at once over both workers; the rest wait), metered per caller and month
+(`INVS_FREE_PROBLEMS`, `INVS_FREE_METHOD_RUNS`, `INVS_FREE_PINN_RUNS`). Jobs, API keys (`INVS_ADMIN_TOKEN`) and usage
+live in SQLite on the `inverse-studio_data` volume. `INVS_HEAT_LAB_URL` sets the link to the Inverse Heat Lab. The
+classical methods take seconds; a PINN trains for 25 s (fin) to 95 s (plate) on one core, so keep `INVS_MAX_JOBS` at
+or below the cores you can spare. 1 GB of memory is enough.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 

@@ -85,6 +85,7 @@
     * [Choose a model by the scale of the question](guides/scale_aware_ensembles.md)
     * [Identifiability, calibration and inverse problems](guides/identifiability_calibration_inversion.md)
 * Apps
+    * [Inverse Model Studio (day 21)](apps/inverse_studio.md)
     * [Parameter Identifiability Lab (day 25)](apps/identifiability_lab.md)
     * [Model Calibration Lab (day 18)](apps/calibration_lab.md)
     * [PhysicsNeMo trains, PINNeAPPle says when to trust](guides/physicsnemo_trust.md)

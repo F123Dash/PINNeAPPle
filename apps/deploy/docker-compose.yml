@@ -392,6 +392,26 @@ services:
     expose: ["8108"]
     mem_limit: ${IDENT_MEM_LIMIT:-1g}
 
+  inverse-studio:
+    build:
+      context: ../..
+      dockerfile: apps/inverse_studio/Dockerfile
+    image: pinneapple/inverse-studio:latest
+    restart: unless-stopped
+    environment:
+      INVS_USER: ${INVS_USER:-}
+      INVS_PASSWORD: ${INVS_PASSWORD:-}
+      INVS_MAX_JOBS: ${INVS_MAX_JOBS:-2}
+      INVS_ADMIN_TOKEN: ${INVS_ADMIN_TOKEN:-}
+      INVS_HEAT_LAB_URL: ${INVS_HEAT_LAB_URL:-https://inverse.pinneapple.org}
+      INVS_FREE_PROBLEMS: ${INVS_FREE_PROBLEMS:-}
+      INVS_FREE_METHOD_RUNS: ${INVS_FREE_METHOD_RUNS:-}
+      INVS_FREE_PINN_RUNS: ${INVS_FREE_PINN_RUNS:-}
+    volumes:
+      - inverse-studio_data:/data          # jobs, API keys, usage, uploads (SQLite): keep this volume
+    expose: ["8104"]
+    mem_limit: ${INVS_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -421,17 +441,19 @@ services:
       EVR_DOMAIN: ${EVR_DOMAIN:-evidence.localhost}
       CALIB_DOMAIN: ${CALIB_DOMAIN:-calibration.localhost}
       IDENT_DOMAIN: ${IDENT_DOMAIN:-identifiability.localhost}
+      INVS_DOMAIN: ${INVS_DOMAIN:-inverse-studio.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio]
 
 volumes:
   calibration_data:
   evidence_data:
   identifiability_data:
+  inverse-studio_data:
   lab_data:
   campaign_data:
   runner_data:
