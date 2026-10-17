@@ -14,6 +14,17 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Engineering GUI agent (`pinneapple_tools.automation`): runs a task in engineering software and keeps the evidence.
+  A structured workflow (YAML/JSON: inputs with bounds, steps with preconditions, expected files and confirmation
+  categories, acceptance criteria) is executed step by step through adapters for FreeCAD and CfdOF (Python API
+  inside the FreeCAD GUI on Xvfb, observed with xdotool), OpenFOAM (command line), ParaView (`pvpython`), Playwright
+  and the acceptance criteria. The runner stops on the first failure and before expensive, overwriting, destructive
+  or external steps until a person approves them, and records commands, logs, files with SHA-256, screenshots and
+  checks; `write_report` gives a self-contained HTML evidence report and `to_study_result` a StudyResult JSON.
+  `interpret` maps a sentence to a committed workflow and its inputs (Ollama optional). Criteria: `mass_balance`,
+  `inflow`, `pressure_drop` (from `pinneapple_check`'s finite-volume reader), `converged`, `artifact`,
+  `physics_lint`. Example `channel_obstacle`: FreeCAD project, macro, CfdOF case, OpenFOAM v1912, ParaView export;
+  [guide](docs/guides/engineering_gui_agent.md).
 - Zoo dataset `airfoil_rans_cst_re4e6_fields` (Hub-only, 186 MB in 5 files): the cell fields p, Ux, Uy, nut and
   cell centres of the 436 OpenFOAM runs of `airfoil_rans_cst_re4e6`, with the same splits. The campaign was
   regenerated, and its coefficients reproduce the published table. `write_field_dataset`
@@ -418,6 +429,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- `pinneapple check`: `FV.patch_sums` (per-patch flux and heat-flow totals of the balance checks PC101/PC103) read
+  the boundary arrays with the internal-face offset and returned 0 for every patch; the net balance was right.
 - `pinneapple_physics.conservation.project_integral(mode="positive")` returned a negative field when the target
   integral was negative, breaking the non-negativity the mode exists for; it now raises a clear `ValueError`, also
   for a field that is <= 0 everywhere. A zero field with a zero target is returned unchanged in the multiplicative
