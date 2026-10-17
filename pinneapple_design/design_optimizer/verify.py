@@ -231,7 +231,8 @@ def surrogate_assisted(problem: DesignProblem, reference: Evaluator, *, outputs:
         cons = [Constraint(f"{c.name}_safe" if c.name in safe else c.name, c.upper, c.lower, c.unit, c.kind,
                            c.label) for c in problem.constraints]
         sur_problem = problem.with_evaluator(gp, constraints=cons)
-        last = run(sur_problem, method, budget=surrogate_budget, seed=seed + r)
+        step = (lambda used, b, r=r: progress(r + 0.8 * used / b, rounds)) if progress else None
+        last = run(sur_problem, method, budget=surrogate_budget, seed=seed + r, progress=step)
         front = last.pareto()
         chosen = select_candidates(last.evaluations, front, n_verify) if last.evaluations is not None else []
         rep = verify_candidates(sur_problem, last.evaluations, chosen, reference, ref_problem)

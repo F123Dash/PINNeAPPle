@@ -70,7 +70,7 @@ from .refinement import RefinementConfig, PINNRefinement, RefinementResult
 from .pipeline import DesignOptConfig, DesignOptResult, DesignOptLoop
 from .study import (
     Variable, DesignSpace, Objective, Constraint, Evaluator, FunctionEvaluator, DesignProblem, Evaluations,
-    feasibility_report, hypervolume,
+    feasibility_report, hypervolume, constants_of,
 )
 from .methods import METHODS, OptimizationResult, available_methods, run
 from .verify import (
@@ -78,6 +78,10 @@ from .verify import (
 )
 from .compare import MethodComparison, compare_methods
 from .evaluators import ZooEvaluator, TorchModuleEvaluator, CommandEvaluator, from_model_ref
+from .spec import SpecError, problem_from_spec, reference_for_spec, zoo_problem
+from .report import (
+    to_parameter_space, designs_frame, study_result, surrogate_from_table, model_ref_for_surrogate, table_evaluator,
+)
 
 __all__ = [
     # Adjoint shape optimisation (Feature 16)
@@ -99,9 +103,11 @@ __all__ = [
     "DesignOptConfig", "DesignOptResult", "DesignOptLoop",
     # Design studies: one problem description, many methods, high-fidelity verification
     "Variable", "DesignSpace", "Objective", "Constraint", "Evaluator", "FunctionEvaluator", "DesignProblem",
-    "Evaluations", "feasibility_report", "hypervolume",
+    "Evaluations", "feasibility_report", "hypervolume", "constants_of",
     "METHODS", "OptimizationResult", "available_methods", "run",
     "select_candidates", "verify_candidates", "VerificationReport", "GPSurrogate", "surrogate_assisted",
     "ActiveLearningResult", "MethodComparison", "compare_methods",
     "ZooEvaluator", "TorchModuleEvaluator", "CommandEvaluator", "from_model_ref",
+    "to_parameter_space", "designs_frame", "study_result", "surrogate_from_table", "model_ref_for_surrogate",
+    "table_evaluator", "SpecError", "problem_from_spec", "reference_for_spec", "zoo_problem",
 ]

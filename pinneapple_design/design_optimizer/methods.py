@@ -49,6 +49,14 @@ class _Spent(Exception):
     """The evaluation budget is spent."""
 
 
+class _Abort(Exception):
+    """The progress callback raised (e.g. a job was cancelled): stop the run and re-raise the original."""
+
+    def __init__(self, original: BaseException):
+        super().__init__(str(original))
+        self.original = original
+
+
 @dataclass
 class OptimizationResult:
     """Every evaluation of one run of one method, with its cost."""
@@ -131,8 +139,8 @@ def weight_vectors(n_obj: int, n: int, seed: int = 0) -> np.ndarray:
 
 # --------------------------------------------------------------------------- budget bookkeeping
 class _Run:
-    def __init__(self, problem: DesignProblem, budget: int):
-        self.problem, self.budget = problem, int(budget)
+    def __init__(self, problem: DesignProblem, budget: int, progress: Callable[[int, int], None] | None = None):
+        self.problem, self.budget, self.progress = problem, int(budget), progress
         self.ev: Evaluations | None = None
 
     @property
@@ -145,6 +153,11 @@ class _Run:
 
     def add(self, ev: Evaluations) -> Evaluations:
         self.ev = ev if self.ev is None else self.ev.extend(ev)
+        if self.progress is not None:
+            try:
+                self.progress(self.used, self.budget)
+            except Exception as e:  # noqa: BLE001 - re-raised by run() after the method unwinds
+                raise _Abort(e) from e
         return ev
 
     def eval(self, X: np.ndarray, *, relaxed: bool = False, tag: str = "") -> Evaluations:
@@ -440,18 +453,21 @@ def available_methods(problem: DesignProblem | None = None) -> dict[str, dict[st
 
 
 def run(problem: DesignProblem, method: str = "nsga2", *, budget: int = 400, seed: int = 0,
-        initial: np.ndarray | None = None, **options: Any) -> OptimizationResult:
+        initial: np.ndarray | None = None, progress: Callable[[int, int], None] | None = None,
+        **options: Any) -> OptimizationResult:
     """Run one method on ``problem`` with at most ``budget`` evaluations.
 
     ``initial``: designs evaluated first (counted in the budget), e.g. a baseline design to beat. Methods that
     cannot run (missing optional dependency, non-differentiable evaluator) return ``status="skipped"``; a method
-    that raises returns ``status="failed"`` with the message, keeping the evaluations it made.
+    that raises returns ``status="failed"`` with the message, keeping the evaluations it made. ``progress(used,
+    budget)`` is called after every evaluated batch; an exception it raises (a cancelled job) stops the run and is
+    re-raised.
     """
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}; use one of {sorted(METHODS)}")
     if budget < 2:
         raise ValueError("budget must be at least 2 evaluations")
-    r = _Run(problem, budget)
+    r = _Run(problem, budget, progress)
     if method == "gradient":
         import torch.optim  # noqa: F401  (first import takes seconds: not charged to the method)
     t0 = time.perf_counter()
@@ -470,6 +486,8 @@ def run(problem: DesignProblem, method: str = "nsga2", *, budget: int = 400, see
             METHODS[method](r, seed, **options)
     except _Spent:
         pass
+    except _Abort as e:
+        raise e.original from None
     except _NotApplicable as e:
         status, msg = "skipped", str(e)
     except Exception as e:  # noqa: BLE001 - the comparison reports a failed method instead of aborting

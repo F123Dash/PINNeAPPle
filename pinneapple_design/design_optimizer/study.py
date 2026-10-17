@@ -31,7 +31,7 @@ from .pareto import compute_pareto_front
 
 __all__ = [
     "Variable", "DesignSpace", "Objective", "Constraint", "Evaluator", "FunctionEvaluator", "DesignProblem",
-    "Evaluations", "feasibility_report", "hypervolume", "VALID",
+    "Evaluations", "feasibility_report", "hypervolume", "VALID", "constants_of",
 ]
 
 VALID = "_valid"
@@ -123,8 +123,10 @@ class DesignSpace:
 
     @classmethod
     def from_parameter_space(cls, ps: Any) -> DesignSpace:
-        """From a ``ParameterSpace``-like object or dict: ``parameters`` / ``variables`` entries with ``name`` and
-        ``low``/``high`` (or ``lower``/``upper``, or ``bounds``), and optionally ``kind``/``type`` and ``unit``."""
+        """From a ``ParameterSpace``-like object or dict (``pinneapple_data.contracts.ParameterSpace``):
+        ``parameters`` / ``variables`` entries with ``name`` and ``low``/``high`` (or ``lower``/``upper``, or
+        ``bounds``), and optionally ``kind``/``type`` and ``unit``. Constant parameters are not design variables and
+        are skipped (:func:`constants_of` returns them); categorical ones are refused."""
         d = ps.to_dict() if hasattr(ps, "to_dict") else ps
         entries = d.get("parameters", d.get("variables")) if isinstance(d, Mapping) else None
         if entries is None:
@@ -132,6 +134,11 @@ class DesignSpace:
         out = []
         for e in entries:
             e = e if isinstance(e, Mapping) else vars(e)
+            if e.get("kind") == "constant":
+                continue
+            if e.get("kind") == "categorical":
+                raise ValueError(f"parameter {e.get('name')!r} is categorical: optimise each category separately "
+                                 "(fix it as a constant)")
             lo = e.get("low", e.get("lower", (e.get("bounds") or [None, None])[0]))
             hi = e.get("high", e.get("upper", (e.get("bounds") or [None, None])[1]))
             if lo is None or hi is None:
@@ -141,6 +148,17 @@ class DesignSpace:
             out.append(Variable(str(e["name"]), float(lo), float(hi), kind, str(e.get("unit", "") or ""),
                                 str(e.get("description", "") or "")))
         return cls(out)
+
+
+def constants_of(ps: Any) -> dict[str, Any]:
+    """The constant parameters of a ``ParameterSpace``-like object or dict: ``{name: value}``."""
+    d = ps.to_dict() if hasattr(ps, "to_dict") else ps
+    out = {}
+    for e in d.get("parameters", []) if isinstance(d, Mapping) else []:
+        e = e if isinstance(e, Mapping) else vars(e)
+        if e.get("kind") == "constant":
+            out[str(e["name"])] = e.get("value")
+    return out
 
 
 # --------------------------------------------------------------------------- objectives and constraints
