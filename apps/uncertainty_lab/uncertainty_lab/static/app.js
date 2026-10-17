@@ -51,11 +51,30 @@ async function selectModel(name) {
     <dt>Known limits</dt><dd>${(MODEL.metadata.known_limitations || []).map(esc).join(" ") || "–"}</dd></dl></div>`;
 }
 
-function toCsv(rows, cols) { const c = ["name", ...cols]; return [c.join(","), ...rows.map((r) => c.map((k) => r[k] ?? "").join(","))].join("\n"); }
+// CSV with quoted fields (case names can hold commas), separated by commas, semicolons or tabs
+const csvCell = (v) => { const t = String(v ?? ""); return /[",;\t\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+function toCsv(rows, cols) { const c = ["name", ...cols]; return [c.join(","), ...rows.map((r) => c.map((k) => csvCell(r[k])).join(","))].join("\n"); }
+function splitCsv(line) {
+  const out = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === "," || ch === ";" || ch === "\t") { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur); return out.map((s) => s.trim());
+}
 function fromCsv(text) {
   const lines = text.trim().split(/\r?\n/).filter((l) => l.trim()); if (lines.length < 2) return [];
-  const head = lines[0].split(/[,;\t]/).map((s) => s.trim());
-  return lines.slice(1).map((l) => { const v = l.split(/[,;\t]/); const o = {}; head.forEach((h, i) => { const s = (v[i] ?? "").trim(); o[h] = h === "name" ? s : Number(s); }); return o; });
+  const head = splitCsv(lines[0]);
+  return lines.slice(1).map((l, k) => {
+    const v = splitCsv(l), o = {};
+    head.forEach((h, i) => { const s = v[i] ?? ""; o[h] = h === "name" ? s : (s === "" ? NaN : Number(s)); });
+    const bad = head.filter((h) => h !== "name" && !Number.isFinite(o[h]));
+    if (bad.length) throw new Error(`Case ${k + 1}${o.name ? ` (${o.name})` : ""}: no number for ${bad.join(", ")}`);
+    return o;
+  });
 }
 
 function addUnc(u = {}) {
@@ -118,8 +137,21 @@ $("#run").addEventListener("click", (e) => busy(e.currentTarget, async () => {
   if ($("#model").value === "__onnx" && $("#onnx").files[0]) fd.append("model", $("#onnx").files[0]);
   if ($("#reference").files[0]) fd.append("reference", $("#reference").files[0]);
   if ($("#casefile").files[0]) fd.append("cases", $("#casefile").files[0]);
-  show(await api("/api/study", { method: "POST", body: fd }));
+  show(await runJob("/api/study", fd));
 }));
+// Studies run in the shared job queue: submit, then follow /api/jobs/{id} until it is done.
+async function runJob(url, body) {
+  let job = await api(url, { method: "POST", body });
+  const t0 = Date.now();
+  while (!["done", "failed", "cancelled"].includes(job.status)) {
+    $("#status").textContent = `${job.status === "queued" ? "Queued" : "Running"}${job.message ? `: ${job.message}` : ""} (${Math.round((job.progress || 0) * 100)} %, ${Math.round((Date.now() - t0) / 1000)} s)`;
+    await new Promise((r) => setTimeout(r, 700));
+    job = await api(`/api/jobs/${job.id}`);
+  }
+  $("#status").textContent = "";
+  if (job.status !== "done") throw new Error(job.error ? String(job.error).split("\n").filter(Boolean).pop() : `job ${job.status}`);
+  return job.result;
+}
 async function runExample(name, btn) {
   await busy(btn, async () => { await fillFromConfig(await api(`/api/example/${name}/config`)); show(await api(`/api/example/${name}`)); });
 }
@@ -137,7 +169,7 @@ function render() {
   let h = `<div class="panel">
     ${R.example ? `<div class="meta">Example · ${esc(R.example.title)}</div>` : ""}
     <div class="toolbar"><h2 style="margin:0">${esc(R.model.name)} → ${esc(R.output)}</h2>
-      <div class="dl"><button class="ghost" id="dljson">StudyResult JSON</button>${cs ? `<button class="ghost" id="dlcsv">Cases CSV</button>` : ""}</div></div>
+      <div class="dl"><button class="ghost" id="dlsr" title="pinneapple_data.contracts StudyResult">StudyResult</button><button class="ghost" id="dljson">Full results JSON</button>${cs ? `<button class="ghost" id="dlcsv">Cases CSV</button>` : ""}</div></div>
     <div class="banner ${ok ? "ok" : "bad"}">${esc(verdict)}</div>
     <div class="kpis">
       <div class="kpi"><div class="l">Interval</div><div class="v">${pct(c.target_coverage, 0)}</div><div class="s">${esc(width)}</div></div>
@@ -199,6 +231,7 @@ function render() {
              { name: "measured (95 % CI)", y: rel.map((r) => r.coverage), lo: rel.map((r) => r.coverage_ci[0]), hi: rel.map((r) => r.coverage_ci[1]), color: "#0f766e", width: 2.2 }] });
   if (p) hist($("#hist"), p, R.cases ? R.cases.limits : null);
   $("#dljson").onclick = () => download(`uncertainty_${R.model.name}_${R.output}.json`, JSON.stringify(R, null, 1), "application/json");
+  $("#dlsr").onclick = () => download(`uncertainty_${R.model.name}_${R.output}.study.json`, JSON.stringify(R.study_result, null, 1), "application/json");
   if (cs) $("#dlcsv").onclick = () => {
     const ins = Object.keys(cs.rows[0].inputs);
     const cols = ["name", ...ins, "prediction", "lower", "upper", "status", "route", "reasons", "high_fidelity", "hf_in_interval", "verdict"];
@@ -225,10 +258,10 @@ function apiSnippets() {
   const host = location.origin;
   $("#c1").textContent = `# the heat-sink example's configuration, then run it with your own cases
 curl -s ${host}/api/example/heatsink/config > study.json
-curl -s -X POST ${host}/api/study -F "config=<study.json" -F "cases=@my_designs.csv" > result.json
+curl -s -X POST "${host}/api/study?wait=300" -F "config=<study.json" -F "cases=@my_designs.csv" > job.json   # a job; .result when done\ncurl -s ${host}/api/jobs/<job id>                     # status, progress, result (StudyResult in .result.study_result)
 
 # an ONNX model with your reference data (inputs + true output, optional split column cal/test/train)
-curl -s -X POST ${host}/api/study \\
+curl -s -X POST "${host}/api/study?wait=300" \\
   -F 'config={"model": {"source": "onnx", "input_names": ["x1","x2"], "output_names": ["y"]}, "output": "y", "alpha": 0.1}' \\
   -F "model=@surrogate.onnx" -F "reference=@validation_runs.parquet"`;
   $("#c2").textContent = `import pinneapple as pp

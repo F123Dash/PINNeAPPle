@@ -37,6 +37,34 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
     code run), and the Space's build stage. The **Publish zoo** workflow runs them and fails when the viewer of a
     dataset is not valid; Hub-only datasets that are not staged are converted from their copy on the Hub.
   - `pinneapple_hub.zoo.checks.has_query_checks`.
+- Physics AI Model Gateway app (day 31, `apps/model_gateway`, models.pinneapple.org, port 8114):
+  - zoo models, ONNX graphs and Surrogate Studio models (by `ModelRef` or `model.zip`) served behind one `/v1` API;
+  - versions and stages, with an OOD policy per version (warn or refuse) that callers can only tighten;
+  - a run log, latency / count / error metrics and exports;
+  - publishing guarded by the admin token, or an API key for ONNX;
+  - metering of inferences and hosted models on the shared runtime.
+- Physics AI Benchmark Arena app (day 22, `apps/benchmark_arena`, arena.pinneapple.org, port 8105):
+  - rankings of physics-AI methods per data regime (interpolation, few data, extrapolation, geometry change, steep
+    fronts) under one protocol: equal data and compute, the same stopping rule, several seeds;
+  - cost, physics violations, solver baselines and an audit of the splits;
+  - public results from runs stored with their date and hardware (`run_public_benchmarks.py`);
+  - private benchmarks on uploaded data as jobs, with `StudyResult` and Markdown reports.
+- Surrogate Studio app (day 14, `apps/surrogate_studio`, surrogate.pinneapple.org, port 8097). It turns uploaded
+  simulation results (CSV, Parquet, JSON, HDF5, NPZ or a `DatasetSpec`) into a surrogate:
+  - an equal-budget comparison of every applicable method on held-out and distribution-shift splits;
+  - the chosen model hosted at `/v1/models/<name>/predict` (the Model Gateway API) with its OOD gate;
+  - a limitations report and a trust decision;
+  - downloads as contracts (`StudyResult`, `ModelRef`, `DatasetSpec`), a report, ONNX and TorchScript.
+  It runs on the shared job queue, API keys and usage metering. Two offline examples run in about 10 s. Deployed with
+  `docker-compose.yml` (service `surrogate`), the Caddyfile and `.env.example`.
+- `pinneapple_analysis.study_contracts`: the shared contracts for uncertainty and sensitivity studies. A
+  `ParameterSpace` becomes study parameters (uniform on the bounds, other distributions from
+  `metadata["distributions"]`; categorical and log-scaled parameters are refused) and back exactly; a `ModelRef`
+  (`zoo:<name>`, ONNX) becomes a `StudyModel` and back; `uncertainty_result` / `sensitivity_result` write a
+  `StudyResult` with the checks that ran. The Engineering Sensitivity Lab runs its studies in the shared job queue
+  with metering (`studies`, `evaluations`, `parameters`) and reads and writes these contracts; so does the Engineering
+  Uncertainty Lab (`studies`, `scenarios`, `propagation_samples`, `hf_runs`; a `ModelRef` and a `ParameterSpace` in, a
+  `StudyResult` out).
 - `train_gnn` (`pinneapple_design.aero.train`) gains `checkpoint_dir` and `checkpoint_every`. Every few epochs it
   saves the full training state (weights, optimiser, epoch, elapsed time, history, shuffling RNG). A later call with
   the same settings resumes from it to the same weights as an uninterrupted run, and a checkpoint written with other
@@ -198,6 +226,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
   `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
   (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Digital Twin Runtime app (day 20, `apps/twin_runtime`, twin.pinneapple.org, port 8103): a lumped model or a
+  reduced-order surrogate (`ModelRef`) next to live data over MQTT (embedded broker or external), REST or OPC UA
+  (experimental); EnKF state and parameter estimation, forecasts with bands, rule-based alerts, drift monitoring and
+  revalidation, history in SQLite/Postgres, a state endpoint for other systems, replay of recorded tables, and the
+  series flow campaign -> surrogate -> uncertainty -> optimizer -> twin through the data contracts.
 - Operations library (`pinneapple_systems.operations`) for running validated models next to plant data: a
   heated-tank plant with mass and energy balances, sensors and six fault kinds (`plant`); operator inference with
   inputs fitted on whole trajectories with held-out rollout errors, also as CasADi expressions (`rom`); a digital

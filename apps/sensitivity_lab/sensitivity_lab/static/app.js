@@ -137,20 +137,33 @@ $("#run").addEventListener("click", (e) => busy(e.currentTarget, async () => {
   if (MODE === "model") {
     fd.append("config", JSON.stringify(readConfig()));
     if ($("#model").value === "onnx" && $("#onnx").files[0]) fd.append("model", $("#onnx").files[0]);
-    show(await api("/api/study", { method: "POST", body: fd }));
+    show(await runJob("/api/study", fd));
   } else if (MODE === "runs") {
     if (!$("#runsfile").files[0]) throw new Error("Upload the results table first.");
     fd.append("spec", $("#spec").value.trim().replace(/^#\s*pinneapple\.sensitivity\.design\/1\s*/, ""));
     fd.append("runs", $("#runsfile").files[0]);
-    show(await api("/api/runs", { method: "POST", body: fd }));
+    show(await runJob("/api/runs", fd));
   } else {
     if (!$("#datafile").files[0]) throw new Error("Upload a data table first.");
     const ins = $("#datains").value.split(",").map((s) => s.trim()).filter(Boolean);
     fd.append("config", JSON.stringify({ outputs: $("#dataouts").value.split(",").map((s) => s.trim()).filter(Boolean), ...(ins.length ? { inputs: ins } : {}) }));
     fd.append("data", $("#datafile").files[0]);
-    show(await api("/api/given-data", { method: "POST", body: fd }));
+    show(await runJob("/api/given-data", fd));
   }
 }));
+// Studies run in the shared job queue: submit, then follow /api/jobs/{id} until it is done.
+async function runJob(url, body) {
+  let job = await api(url, { method: "POST", body });
+  const t0 = Date.now();
+  while (!["done", "failed", "cancelled"].includes(job.status)) {
+    $("#status").textContent = `${job.status === "queued" ? "Queued" : "Running"}${job.message ? `: ${job.message}` : ""} (${Math.round((job.progress || 0) * 100)} %, ${Math.round((Date.now() - t0) / 1000)} s)`;
+    await new Promise((r) => setTimeout(r, 700));
+    job = await api(`/api/jobs/${job.id}`);
+  }
+  $("#status").textContent = "";
+  if (job.status !== "done") throw new Error(job.error ? String(job.error).split("\n").filter(Boolean).pop() : `job ${job.status}`);
+  return job.result;
+}
 async function downloadDesign(e) {
   await busy(e.currentTarget, async () => {
     const text = await api("/api/design", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(readConfig()) });
@@ -171,7 +184,7 @@ function render() {
   const sumS1 = s.S1[OUT].reduce((a, b) => a + Math.max(0, b), 0);
   let h = `<div class="panel">${R.example ? `<div class="meta">Example · ${esc(R.example.title)}</div>` : ""}
     <div class="toolbar"><h2 style="margin:0">${R.mode === "runs" ? "Runs done elsewhere" : esc(R.model.name)}: ${R.sobol.names.length} parameters, ${outs.length} response${outs.length > 1 ? "s" : ""}</h2>
-      <div class="dl"><button class="ghost" id="dljson">StudyResult JSON</button><button class="ghost" id="dlcsv">Indices CSV</button></div></div>
+      <div class="dl"><button class="ghost" id="dlsr" title="pinneapple_data.contracts StudyResult">StudyResult</button><button class="ghost" id="dljson">Full results JSON</button><button class="ghost" id="dlcsv">Indices CSV</button></div></div>
     ${outs.length > 1 ? `<div class="outsel">${outs.map((x, i) => `<button data-i="${i}" class="${i === OUT ? "on" : ""}">${esc(x)}</button>`).join("")}</div>` : ""}
     <div class="kpis" style="margin-top:10px">
       <div class="kpi"><div class="l">Controls ${esc(o)}</div><div class="v">${esc(tbl[0].name)}</div><div class="s">total index ${fmt(tbl[0].ST)} (${fmt(tbl[0].ST_ci[0])}–${fmt(tbl[0].ST_ci[1])})</div></div>
@@ -220,6 +233,7 @@ function render() {
   if (R.morris) scatter($("#scat"), R.morris, OUT);
   if (R.effects) R.effects.curves.forEach((c, i) => effect($(`#ec${i}`), c, OUT));
   $("#dljson").onclick = () => download(`sensitivity_${R.model ? R.model.name : "runs"}.json`, JSON.stringify(R, null, 1), "application/json");
+  $("#dlsr").onclick = () => download(`sensitivity_${R.model ? R.model.name : "runs"}.study.json`, JSON.stringify(R.study_result, null, 1), "application/json");
   $("#dlcsv").onclick = () => {
     const lines = ["output,parameter,S1,S1_lo,S1_hi,ST,ST_lo,ST_hi,interaction,decision"];
     const dec = Object.fromEntries(R.freeze.rows.map((r) => [r.name, r.decision]));
@@ -275,7 +289,7 @@ function renderGiven() {
   const rows = g.names.map((n, i) => ({ n, s: g.S1[i], lo: g.S1_ci[0][i], hi: g.S1_ci[1][i] })).sort((a, b) => b.s - a.s);
   const warn = Math.abs(mc ? mc.r : 0) > 0.3 || g.sum_S1 > 1.05;
   let h = `<div class="panel">${R.example ? `<div class="meta">Example · ${esc(R.example.title)}</div>` : ""}
-    <div class="toolbar"><h2 style="margin:0">From data: ${esc(R.source)}</h2><div class="dl"><button class="ghost" id="dljson">StudyResult JSON</button></div></div>
+    <div class="toolbar"><h2 style="margin:0">From data: ${esc(R.source)}</h2><div class="dl"><button class="ghost" id="dlsr" title="pinneapple_data.contracts StudyResult">StudyResult</button><button class="ghost" id="dljson">Full results JSON</button></div></div>
     ${outs.length > 1 ? `<div class="outsel">${outs.map((x, i) => `<button data-i="${i}" class="${i === OUT ? "on" : ""}">${esc(x)}</button>`).join("")}</div>` : ""}
     <div class="kpis" style="margin-top:10px">
       <div class="kpi"><div class="l">Rows</div><div class="v">${R.n_rows.toLocaleString()}</div><div class="s">${g.n_bins} bins per input${g.dropped_rows ? ` · ${g.dropped_rows} rows dropped (NaN)` : ""}</div></div>
@@ -291,6 +305,7 @@ function renderGiven() {
   $("#results").innerHTML = h;
   $$(".outsel button").forEach((b) => b.addEventListener("click", () => { OUT = +b.dataset.i; render(); }));
   $("#dljson").onclick = () => download("sensitivity_given_data.json", JSON.stringify(R, null, 1), "application/json");
+  $("#dlsr").onclick = () => download("sensitivity_given_data.study.json", JSON.stringify(R.study_result, null, 1), "application/json");
 }
 
 function download(name, text, type) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
@@ -299,17 +314,21 @@ function apiSnippets() {
   const host = location.origin;
   $("#c1").textContent = `# a model study (the heat-sink example's configuration)
 curl -s ${host}/api/example/heatsink/config > study.json
-curl -s -X POST ${host}/api/study -F "config=<study.json" > result.json
+curl -s -X POST "${host}/api/study?wait=300" -F "config=<study.json" > job.json   # a job; .result when done
+curl -s ${host}/api/jobs/<job id>                                     # status, progress, result (StudyResult in .result.study_result)
 
 # runs elsewhere: get the design, run it in OpenFOAM / CalculiX, upload run_id + responses
 curl -s -X POST ${host}/api/design -H "content-type: application/json" \\
   -d '{"parameters": [{"name": "load", "dist": "normal", "mean": 1000, "std": 50},
                       {"name": "thickness", "dist": "uniform", "low": 4, "high": 6}], "n_sobol": 256}' > design.csv
 head -1 design.csv | cut -c3- | sed 's/^pinneapple.sensitivity.design\\/1 //' > spec.json
-curl -s -X POST ${host}/api/runs -F "spec=<spec.json" -F "runs=@results.csv"
+curl -s -X POST "${host}/api/runs?wait=300" -F "spec=<spec.json" -F "runs=@results.csv"
 
 # a dataset (first-order indices from data)
-curl -s -X POST ${host}/api/given-data -F 'config={"outputs": ["y"]}' -F "data=@experiments.csv"`;
+curl -s -X POST "${host}/api/given-data?wait=300" -F 'config={"outputs": ["y"]}' -F "data=@experiments.csv"
+
+# shared contracts: a ParameterSpace and a ModelRef in, a StudyResult out
+curl -s -X POST "${host}/api/study?wait=300" -F 'config={"model_ref": {"kind": "ModelRef", "name": "hs", "uri": "zoo:heatsink_forced_mlp"}, "parameter_space": <ParameterSpace JSON>}'`;
   $("#c2").textContent = `import pinneapple as pp
 from pinneapple_analysis.study_models import StudyModel
 
