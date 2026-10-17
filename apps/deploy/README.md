@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `meshless` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -104,7 +105,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground meshless
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -258,6 +259,17 @@ playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
 }
+meshless.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy pinneapple-meshless:8109 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -274,6 +286,10 @@ A static site: the zoo models run in the visitor's browser (ONNX), so the contai
 `docker build -f apps/playground/Dockerfile -t pinneapple-playground . && docker run -p 8095:8095 pinneapple-playground`.
 The same build can go to GitHub Pages instead: set the repository variable `PLAYGROUND_PAGES=true` and the docs
 workflow publishes it under `<docs site>/playground/` (see `apps/playground/README.md`).
+
+## Meshless Method Lab (`meshless`)
+
+Refinement studies of Kansa, RBF-FD, embedded finite differences, linear finite elements and a PINN on the same 2-D problem. Studies run in the shared job queue: `MESHLESS_MAX_JOBS` at once (default 2; one CPU core each, seconds to a minute), `MESHLESS_MAX_NODES` caps one refinement level (default 20,000; Kansa stops at 4,000 in the library), `MESHLESS_MAX_PINN_S` the PINN budget. Jobs and usage live on the `meshless_data` volume; free use per caller and month: `MESHLESS_FREE_RUNS` (40), `MESHLESS_FREE_UNKNOWNS` (2,000,000 nodes summed over levels), `MESHLESS_FREE_REPORTS` (100 downloads). 1 GB of memory is enough at the default limits.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
