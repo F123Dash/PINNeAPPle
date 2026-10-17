@@ -45,6 +45,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 - Newton backend: `RigidScene.compound` (one rigid body made of several boxes) and `simulate(..., wrenches=...)`
   (constant external forces and torques).
 - `render_geometry(..., frame=(lo, hi))`: a fixed framing box, so animation frames share one camera.
+- "View result" panel in the Simulation Workflow Runner (day 27): a finished CalculiX or OpenFOAM step opens in 3-D
+  with its mesh, the selected field, the deformed shape (CalculiX, scale factor) and the boundary-condition and load
+  regions the case defines, decimated above 250 k triangles (`RUNNER_VIEW_MAX_FACES`).
+  `pinneapple_tools.visualization.studio.solver_view` builds it, with `pinneapple_data.cae.inp.deck_conditions`
+  (`*BOUNDARY`, `*CLOAD`, `*DLOAD` as node sets) and `pinneapple_data.cae.foam.boundary_conditions` (patch conditions);
+  `WorkflowRunner.step_workdir` gives where a (possibly reused) step's files are.
 - Physics Design Optimizer app (`apps/physics_design`, day 23, `design.pinneapple.org`, port 8106): gradient
   optimisation through differentiable surrogates, SLSQP, NSGA-II, differential evolution and Bayesian optimisation
   compared on the same problem, budget and seeds (hypervolume, evaluations to 95 %, convergence, wall time) on a
@@ -1009,6 +1015,15 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   be contiguous); joints are now created tree by tree.
 - Blender renders of small models (a few centimetres) were cut by the camera's default 0.1 m near clipping plane;
   the clipping range now follows the camera distance.
+- Workflow OpenFOAM steps (`openfoam` adapter, the runner's cavity template): with a distribution package
+  (blockMesh and icoFoam on PATH, environment not loaded) the step failed with `bash exited with code 1`, because
+  the solvers need the OpenFOAM environment. The step now sources the step's `bashrc`, else `FOAM_BASHRC`, else the
+  first installation found (`/usr/share/openfoam`, `/usr/lib/openfoam/openfoam*`, `/opt/openfoam*`,
+  `/opt/OpenFOAM-*`), and the template reports "needs solver" with the reason when there is none.
+- Zoo publishing: the file, viewer and model checks of the publish workflow run even when the Space or an item
+  failed to upload (the Space's HTTP 402 skipped all of them), and the Space check runs only when the Space was
+  published. `publish_space` turns the Hub's 402 (a Gradio Space needs a Team or Enterprise plan for the
+  organisation) into an error that says so and how to publish without the Space.
 - Zoo publishing (`pinneapple_hub.zoo.publish`): each item gets its own working directory per kind. The model and
   the dataset `rover_contact_grc1_viper` share a name; publishing the model deleted the dataset's Parquet copies before
   they were committed, so the dataset was not published and the workflow failed before its download check.
