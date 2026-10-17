@@ -210,6 +210,43 @@ Notes from the same run:
 - Prius IPM: mesh convergence of the peak torque: 480: 343.20 N m, 960: 345.50 N m, 1920: 344.08 N m; difference ratio 1.62
 <!-- machine-verification:end -->
 
+### Drive model: MTPA, flux weakening, efficiency map, WLTC energy
+
+`pinneapple_simulation.electromagnetics.machines.drive` turns a machine into a drive under inverter limits:
+
+* `FluxMap.from_fea(machine, I_max)`: mean torque and dq flux linkages of the FEA on an `(i_d, i_q)` grid (saturation
+  and cross-saturation included, odd/even symmetry in `i_q`), and per grid point the speed-free iron-loss sums and
+  magnet-loss coefficient (`IPMMachine.loss_components`), so the core loss at any speed is
+  `k_h f^alpha S_h + k_c f^2 S_c + k_e f^1.5 S_e + c_m f^2` without new field solutions. `LinearDQ` is the
+  constant-inductance model with closed-form MTPA and flux-weakening torque.
+* `Drive(machine, R, I_max, V_max)`: steady state `v_d = R i_d - w psi_q`, `v_q = R i_q + w psi_d`, current and
+  voltage amplitude limits (`v_max_svpwm(V_dc) = V_dc / sqrt 3`). `max_torque(speed)` searches the outer boundary of
+  the feasible current set (current circle, voltage ellipse, so maximum-torque-per-volt operation is included);
+  `operating_point(T, speed)` returns the currents of least copper + core loss for a torque (MTPA at low speed,
+  flux weakening at high speed); `efficiency_map` evaluates a speed x torque grid.
+* `Vehicle` and `cycle_energy`: road load and inertia over a speed trace, a single gear, regeneration up to the
+  braking envelope (the rest goes to the friction brakes), battery-side energy of the drive.
+  `wltc_class3b()` is the WLTC class 3b trace of UN GTR No. 15, Annex 1 (1800 s, 23.266 km, 131.3 km/h).
+
+`python examples/electrodynamics/11_prius_drive.py --write-docs` (run on 2026-10-17) builds the flux map of the
+Prius model (9 x 9 currents up to 250 A, 480 gap nodes, 12 rotor angles; loss data on 5 x 5 points, 24 angles per
+electrical period) and evaluates the drive with stated assumptions: 250 A peak, 500 V DC link with SVPWM (288.7 V
+phase peak), phase resistance 93.6 mOhm at 100 degC from the winding data (72 series turns, 8.49 mm^2 conductors,
+end turn 0.16 m per side estimated), and an illustrative compact car (1450 kg, C_rr 0.009, C_d A 0.58 m^2, wheel
+0.30 m, gear 4.113, 97 %). Results (`results/11_prius_drive.json`, `11_prius_drive.png`):
+
+* envelope: 343.6 N m up to 2000 rpm, then flux weakening (180.9 N m at 3750 rpm, 104.4 N m at 6000 rpm); peak
+  electromagnetic power 77.7 kW at 2500 rpm under these limits. The Prius's published rating (50 kW, 400 N m,
+  quoted in pyleecan's test suite) comes from its own inverter current and thermal limits, which are not modelled;
+* peak efficiency 96.2 % at 2750 rpm, 80 N m (copper + iron + magnet loss; no inverter or mechanical loss);
+* WLTC class 3b: motoring 11.52 MJ, regenerated 2.97 MJ, drive losses 0.98 MJ, no friction braking needed within
+  the braking envelope, battery-side 102.1 Wh/km for this car.
+
+The optimiser is checked against the closed forms of the linear machine and against energy bookkeeping:
+
+<!-- drive-verification:start -->
+<!-- drive-verification:end -->
+
 ## Verification
 
 Each case compares a solver or reference implementation with an independent result; where the mesh or step is
@@ -277,6 +314,8 @@ Notes from the same run:
   iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
   magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
   M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.
+* Drive: steady state only (no current-controller dynamics, no PWM ripple or harmonics losses), no inverter,
+  mechanical or battery losses; the voltage limit is that of linear space-vector modulation.
 * `JilesAtherton` is the scalar model; its parameters must be fitted to measured loops of the material.
   `illustrative_steel` is a formula, not a measured grade.
 
