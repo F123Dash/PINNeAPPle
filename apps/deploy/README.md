@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `surrogate` | A | `<server IPv4>` |
 | `rom` | A | `<server IPv4>` |
 | `meshless` | A | `<server IPv4>` |
 | `runner` | A | `<server IPv4>` |
@@ -78,15 +79,16 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 
 | Variable | Meaning |
 |---|---|
-| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN` | Public hostnames (must match the DNS records) |
+| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN`, `SUR_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. OBS, CALIB)|
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
 | `IDENT_MAX_JOBS`, `IDENT_FREE_<UNIT>`, `IDENT_ADMIN_TOKEN`, `IDENT_MEM_LIMIT` | Parameter Identifiability Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `identifiability_data` volume. |
 | `INVS_MAX_JOBS`, `INVS_FREE_<UNIT>`, `INVS_ADMIN_TOKEN`, `INVS_MEM_LIMIT` | Inverse Model Studio, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `inverse-studio_data` volume. |
 | `IHL_MAX_JOBS` | Inverse Heat Lab: trainings running at the same time (default 2, each uses one CPU core). Any excess gets HTTP 429. The app runs one worker because jobs live in its memory. |
+| `SUR_MAX_JOBS`, `SUR_MAX_BUDGET_S`, `SUR_MAX_SEEDS`, `SUR_FREE_*`, `SUR_ADMIN_TOKEN`, `SUR_REQUIRE_API_KEY` | Surrogate Studio: trainings at once (queue), largest budget and seed count per study, free use per caller and month, API-key management (see `apps/_shared/README.md`). |
 | `UDR_FORM_PDF` | Path inside the `udr` container to your copy of the fillable Form U-DR-1 (put the file in `apps/deploy/forms/`). Optional: users can upload it instead. |
 | `UDR_OLLAMA_MODEL` | Optional. Enables local-LLM extraction in the Form Compiler with this Ollama model (pull it first). Every value it returns is checked against the document text; documents never leave your network. |
 | `UDR_OLLAMA_URL` | Ollama server: `http://ollama:11434` (the optional `ollama` service, `--profile llm`) or `http://host.docker.internal:11434` (Ollama on the host). |
@@ -124,7 +126,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration surrogate
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -277,6 +279,17 @@ observatory.example.org {
 playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
+}
+surrogate.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy pinneapple-surrogate:8097 {
+		transport http {
+			read_timeout 120s
+		}
+	}
 }
 runner.example.org {
 	encode zstd gzip
@@ -548,6 +561,17 @@ Builds POD + RBF / GPR, DMD, Operator Inference and an equal-budget neural surro
 ## Meshless Method Lab (`meshless`)
 
 Refinement studies of Kansa, RBF-FD, embedded finite differences, linear finite elements and a PINN on the same 2-D problem. Studies run in the shared job queue: `MESHLESS_MAX_JOBS` at once (default 2; one CPU core each, seconds to a minute), `MESHLESS_MAX_NODES` caps one refinement level (default 20,000; Kansa stops at 4,000 in the library), `MESHLESS_MAX_PINN_S` the PINN budget. Jobs and usage live on the `meshless_data` volume; free use per caller and month: `MESHLESS_FREE_RUNS` (40), `MESHLESS_FREE_UNKNOWNS` (2,000,000 nodes summed over levels), `MESHLESS_FREE_REPORTS` (100 downloads). 1 GB of memory is enough at the default limits.
+
+## Surrogate Studio (`surrogate`)
+
+Trains surrogate models from uploaded simulation results (or the two built-in examples) and serves the chosen model
+at `/v1/models/<name>/predict`, the Model Gateway's API. Studies run in the shared job queue (`SUR_MAX_JOBS` at once,
+the rest wait in the queue); `SUR_MAX_BUDGET_S` and `SUR_MAX_SEEDS` cap the compute one study can ask for. Uploads,
+job results, hosted models, API keys and usage live on the `surrogate_data` volume: keep it across rebuilds. One
+uvicorn worker in a 1 GB container (torch ~400 MB idle, a study adds ~300 MB); the examples finish in about 10 s.
+Free use per caller and month: `SUR_FREE_TRAININGS` (30), `SUR_FREE_INFERENCES` (20000 rows), `SUR_FREE_HOSTED_MODELS`
+(10); `unlimited` lifts a limit. Hosted models are visible to everyone who can reach the server: set the login or
+`SUR_REQUIRE_API_KEY=1` for private use.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 

@@ -322,3 +322,15 @@
 		}
 	}
 }
+
+{$SUR_DOMAIN} {
+	import common
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy surrogate:8097 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
