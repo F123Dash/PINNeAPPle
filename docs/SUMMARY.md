@@ -104,6 +104,7 @@
     * [Digital Twin Runtime (day 20)](apps/twin_runtime.md)
     * [Physics Anomaly Detector (day 28)](apps/anomaly_detector.md)
     * [Physics-Based Control Lab (day 29)](apps/control_lab.md)
+    * [Engineering Design Optimizer (day 17)](guides/engineering_design_optimizer.md)
 * [API Reference](api/index.md)
   * [pinneapple](api/pinneapple/index.md)
   * [pinneapple_physics](api/pinneapple_physics/index.md)
