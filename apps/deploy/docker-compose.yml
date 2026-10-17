@@ -335,6 +335,34 @@ services:
     expose: ["8099"]
     mem_limit: ${SEN_MEM_LIMIT:-1g}
 
+  validate:
+    build:
+      context: ../..
+      dockerfile: apps/validation_lab/Dockerfile
+    image: pinneapple/validation-lab:latest
+    restart: unless-stopped
+    environment:
+      VAL_USER: ${VAL_USER:-}
+      VAL_PASSWORD: ${VAL_PASSWORD:-}
+      VAL_MAX_HEAVY: ${VAL_MAX_HEAVY:-2}
+      VAL_MAX_MB: ${VAL_MAX_MB:-200}
+    expose: ["8107"]
+    mem_limit: ${VAL_MEM_LIMIT:-1g}
+
+  evidence:
+    build:
+      context: ../..
+      dockerfile: apps/evidence_report/Dockerfile
+    image: pinneapple/evidence-report:latest
+    restart: unless-stopped
+    environment:
+      EVR_USER: ${EVR_USER:-}
+      EVR_PASSWORD: ${EVR_PASSWORD:-}
+      EVR_MAX_HEAVY: ${EVR_MAX_HEAVY:-2}
+      EVR_MAX_MB: ${EVR_MAX_MB:-200}
+    expose: ["8113"]
+    mem_limit: ${EVR_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -360,12 +388,14 @@ services:
       CAMPAIGN_DOMAIN: ${CAMPAIGN_DOMAIN:-campaign.localhost}
       UQL_DOMAIN: ${UQL_DOMAIN:-uncertainty.localhost}
       SEN_DOMAIN: ${SEN_DOMAIN:-sensitivity.localhost}
+      VAL_DOMAIN: ${VAL_DOMAIN:-validate.localhost}
+      EVR_DOMAIN: ${EVR_DOMAIN:-evidence.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence]
 
 volumes:
   lab_data:
