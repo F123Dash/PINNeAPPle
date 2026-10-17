@@ -175,9 +175,13 @@ def test_runner_stops_for_confirmation_then_resumes(tmp_path):
 
     run = Runner(wf, tmp_path / "r", toolchain=Toolchain()).run(approve=["c"], approver="tester")
     assert run.state == "passed" and run.step("c").confirmation["approved_by"] == "tester"
+    from pinneapple_data.contracts import StudyResult, load, validate
     sr = json.loads((tmp_path / "r" / "study_result.json").read_text())
-    assert sr["schema"] == "pinneapple.study_result/0" and sr["decision"] == "ACCEPTED"
+    assert validate(sr) == [] and sr["kind"] == "StudyResult" and sr["metadata"]["decision"] == "ACCEPTED"
     assert {a["path"] for a in sr["artifacts"]} >= {"a/out.txt", "c/out.txt"}
+    contract = load(tmp_path / "r" / "study_result.json")
+    assert isinstance(contract, StudyResult) and contract.passed and contract.status == "done"
+    assert all(c.status == "PASS" for c in contract.checks) and contract.provenance.run_ids == [run.run_id]
     assert RunRecord.load(tmp_path / "r").to_dict() == run.to_dict()
     with pytest.raises(WorkflowError, match="keeps its inputs"):
         Runner(wf, tmp_path / "r", inputs={"h": 2}, toolchain=Toolchain())
@@ -215,7 +219,8 @@ def test_failures_stop_the_run_and_are_reported(tmp_path):
     assert run.state == "failed" and "the application said no" in run.step("b").error
     html = (tmp_path / "r2" / "report.html").read_text()
     assert "the application said no" in html and "FAILED" in html
-    assert to_study_result(run)["decision"] == "INCOMPLETE"
+    sr = to_study_result(run)
+    assert sr.metadata["decision"] == "INCOMPLETE" and sr.status == "failed" and not sr.passed
 
     wf = _wf(steps=[{"id": "m", "action": "fake.write", "params": {"path": "x"}, "expects": ["not/there.txt"]}])
     run = Runner(wf, tmp_path / "r3", toolchain=Toolchain()).run()
@@ -226,6 +231,30 @@ def test_missing_application_blocks_instead_of_failing(tmp_path):
     wf = _wf(steps=[{"id": "o", "action": "freecad.open", "params": {"document": "x.FCStd"}}])
     run = Runner(wf, tmp_path / "r", toolchain=Toolchain()).run()                # an empty toolchain
     assert run.state == "blocked" and "freecad" in run.step("o").error
+
+
+# ------------------------------------------------------------------------------- Simulation Workflow Runner plugin
+def test_guiagent_is_a_step_kind_of_the_workflow_runner(tmp_path, monkeypatch):
+    import pinneapple_tools.automation.runner_step as rs
+    from pinneapple_core.workflows import Step, WorkflowRunner, get_adapter
+    from pinneapple_core.workflows import Workflow as RunnerWorkflow
+    monkeypatch.setattr(rs, "catalog", lambda: {"demo": _wf()})
+    rs.register(Toolchain())
+    assert get_adapter("guiagent").available(Step(id="x", kind="guiagent", params={"workflow": "demo"})) == (True, "")
+    runner = WorkflowRunner(tmp_path / "runner")
+    ok = runner.run(RunnerWorkflow(name="t", steps=[Step(id="g", kind="guiagent", params={
+        "workflow": "demo", "inputs": {"h": 3}, "approve": ["c"]})]))
+    step = runner.steps(ok["id"])[0]
+    assert ok["status"] == "done" and step["outputs"]["passed"] is True and step["outputs"]["state"] == "passed"
+    assert (runner.step_dir(ok["id"], "g") / "guiagent" / "study_result.json").is_file()
+    assert "approved_by" in json.dumps(RunRecord.load(runner.step_dir(ok["id"], "g") / "guiagent").to_dict())
+    gated = runner.run(RunnerWorkflow(name="t", steps=[Step(id="g", kind="guiagent", params={"workflow": "demo"})]))
+    assert gated["status"] != "done" and "confirmation" in runner.steps(gated["id"])[0]["error"]
+
+    monkeypatch.setattr(rs, "catalog", lambda: catalog())
+    rs.register(Toolchain())                                    # nothing installed: the runner says what is missing
+    ok, why = get_adapter("guiagent").available(Step(id="x", kind="guiagent", params={"workflow": "channel_obstacle"}))
+    assert not ok and "freecad" in why and "openfoam" in why
 
 
 # --------------------------------------------------------------------------------------- criteria on a real result

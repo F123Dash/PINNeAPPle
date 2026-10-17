@@ -3,10 +3,9 @@
 * :func:`write_report`: one self-contained HTML file (images embedded) with the inputs, the tools and versions, a
   timeline of the steps (state, duration, commands, actions, checks, artifacts with SHA-256, logs, screenshots),
   the acceptance criteria and the errors. Print it to PDF from a browser for a PDF.
-* :func:`to_study_result` / :func:`write_study_result`: the same facts as JSON in the StudyResult layout
-  (``schema: pinneapple.study_result/0``) that the Evidence Report app ingests: parameters, metrics, checks,
-  artifacts with hashes, evidence images, provenance and the decision. The layout follows the planned
-  ``pinneapple_data.contracts.StudyResult``; until that contract is released this module is its only writer.
+* :func:`to_study_result` / :func:`write_study_result`: the same facts as a ``pinneapple_data.contracts.StudyResult``
+  (the contract the apps share, read by the Evidence Report app): checks, criteria, metrics, files with SHA-256,
+  limits and provenance; inputs, decision, step states and images in ``metadata``.
 
 Nothing is inferred: a step is shown as passed only if its record says so, and an image's kind (screen, window,
 render, plot) is shown next to it.
@@ -22,9 +21,7 @@ from typing import Any
 
 from .record import RunRecord, StepRecord
 
-__all__ = ["write_report", "to_study_result", "write_study_result", "STUDY_RESULT_SCHEMA"]
-
-STUDY_RESULT_SCHEMA = "pinneapple.study_result/0"
+__all__ = ["write_report", "to_study_result", "write_study_result"]
 _STATE_COLOR = {"passed": "#15803d", "failed": "#b91c1c", "rejected": "#b45309", "awaiting_confirmation": "#4338ca",
                 "blocked": "#6b7280", "declined": "#6b7280", "running": "#0369a1", "pending": "#9ca3af", "skipped": "#9ca3af",
                 "paused": "#6b7280"}
@@ -161,47 +158,76 @@ inputs (run.json lists them) on the same tool versions.</p>
     return path
 
 
-def to_study_result(run: RunRecord) -> dict[str, Any]:
-    """The run as a StudyResult dict (see the module docstring)."""
-    metrics: dict[str, Any] = {}
+_STATUS = {"passed": "done", "rejected": "done", "failed": "failed", "blocked": "failed", "declined": "failed",
+           "awaiting_confirmation": "partial", "paused": "partial", "running": "running", "pending": "planned"}
+
+
+def _scalar(v: Any) -> float | str | None:
+    if v is None or isinstance(v, bool):
+        return None if v is None else str(v)
+    if isinstance(v, (int, float)):
+        return float(v) if v == v and abs(v) != float("inf") else str(v)
+    return json.dumps(v, default=str) if isinstance(v, (list, dict)) else str(v)
+
+
+def to_study_result(run: RunRecord):
+    """The run as a :class:`pinneapple_data.contracts.StudyResult` (``study_type="runs"``, ``app="guiagent"``).
+
+    Checks of every step and the acceptance criteria become ``CheckRecord`` (PASS/FAIL with the measured value, or
+    the step record as evidence); produced files become ``FileRef`` with SHA-256; numeric step outputs and criterion
+    values become metrics; the workflow's limits are carried over. Inputs, decision, step states and the images go in
+    ``metadata``."""
+    from pinneapple_data.contracts import CheckRecord, FileRef, Provenance, StudyResult
+
+    def record(name: str, c: Any, where: str) -> CheckRecord:
+        value = _scalar(c.value)
+        return CheckRecord(name=name, status="PASS" if c.passed else "FAIL", value=value,
+                           threshold=_scalar(c.threshold), evidence=where if value is None else "",
+                           detail=(c.detail + (f" [{c.source}]" if c.source else ""))[:2000])
+
+    metrics: dict[str, float | int | str | None] = {}
     for s in run.steps:
         for k, v in s.outputs.items():
             if isinstance(v, (int, float)) and not isinstance(v, bool):
                 metrics[f"{s.id}.{k}"] = v
     for c in run.criteria:
-        if isinstance(c.value, (int, float)):
+        if isinstance(c.value, (int, float)) and not isinstance(c.value, bool):
             metrics[f"criterion.{c.name}"] = c.value
+    checks = [record(f"{s.id}: {c.name}", c, f"run.json#steps/{s.id}") for s in run.steps for c in s.checks
+              if s.action != "verify.criteria"]
+    checks += [record(f"criterion: {c.name}", c, "run.json#criteria") for c in run.criteria]
+    artifacts = []
+    for s in run.steps:
+        for a in s.artifacts:
+            p = Path(run.folder) / a.path
+            is_case = a.kind == "dir" and (p / "system" / "controlDict").is_file()
+            fmt = "openfoam" if is_case else "other" if a.kind == "dir" else \
+                {".csv": "csv", ".json": "json", ".vtk": "vtk", ".vtu": "vtk"}.get(p.suffix.lower(), "other")
+            artifacts.append(FileRef(path=a.path, format=fmt, sha256=a.sha256, size=a.bytes,
+                                     description=f"{s.id}{' (folder)' if a.kind == 'dir' else ''}"))
+    try:
+        from importlib.metadata import version
+        lib = version("pinneapple")
+    except Exception:
+        lib = ""
     decision = {"passed": "ACCEPTED", "rejected": "REJECTED"}.get(run.state, "INCOMPLETE")
-    return {
-        "schema": STUDY_RESULT_SCHEMA,
-        "study_id": run.run_id,
-        "title": run.workflow.get("title"),
-        "producer": {"app": "guiagent", "library": "pinneapple_tools.automation"},
-        "workflow": {"id": run.workflow.get("id"), "steps": [s["id"] for s in run.workflow.get("steps", [])]},
-        "status": run.state,
-        "decision": decision,
-        "message": run.message,
-        "created": run.created,
-        "finished": run.finished,
-        "parameters": run.inputs,
-        "metrics": metrics,
-        "checks": [{"step": s.id, "name": c.name, "passed": c.passed, "detail": c.detail, "value": c.value,
-                    "threshold": c.threshold, "source": c.source} for s in run.steps for c in s.checks],
-        "criteria": [{"name": c.name, "passed": c.passed, "detail": c.detail, "value": c.value,
-                      "threshold": c.threshold, "source": c.source} for c in run.criteria],
-        "steps": [{"id": s.id, "title": s.title, "action": s.action, "mode": s.mode, "state": s.state,
-                   "duration_s": s.duration_s, "error": s.error, "confirmation": s.confirmation}
-                  for s in run.steps],
-        "artifacts": [{"step": s.id, "path": a.path, "bytes": a.bytes, "sha256": a.sha256, "kind": a.kind}
-                      for s in run.steps for a in s.artifacts],
-        "evidence": [{"step": s.id, "path": e.path, "kind": e.kind, "caption": e.caption, "sha256": e.sha256}
-                     for s in run.steps for e in s.evidence],
-        "provenance": {"tools": run.environment.get("tools"), "host": run.environment.get("host"),
-                       "platform": run.environment.get("platform"), "report": "report.html", "record": "run.json"},
-    }
+    return StudyResult(
+        id=run.run_id, study_type="runs", app="guiagent", title=run.workflow.get("title", ""),
+        status=_STATUS.get(run.state, "partial"), metrics=metrics, checks=checks, artifacts=artifacts,
+        limits=list(run.workflow.get("limits", [])),
+        provenance=Provenance(app="guiagent", study_id=run.run_id, source=f"workflow {run.workflow.get('id')}",
+                              run_ids=[run.run_id], library_version=lib,
+                              notes="pinneapple_tools.automation; report.html and run.json hold the full record"),
+        metadata={"decision": decision, "state": run.state, "message": run.message, "inputs": run.inputs,
+                  "workflow": run.workflow.get("id"), "tools": run.environment.get("tools"),
+                  "steps": [{"id": s.id, "action": s.action, "mode": s.mode, "state": s.state,
+                             "duration_s": s.duration_s, "confirmation": s.confirmation} for s in run.steps],
+                  "evidence": [{"step": s.id, "path": e.path, "kind": e.kind, "caption": e.caption,
+                                "sha256": e.sha256} for s in run.steps for e in s.evidence],
+                  "report": "report.html", "record": "run.json"})
 
 
 def write_study_result(run: RunRecord, path: str | Path) -> Path:
     path = Path(path)
-    path.write_text(json.dumps(to_study_result(run), indent=1, default=str), encoding="utf-8")
+    path.write_text(to_study_result(run).to_json(), encoding="utf-8")
     return path
