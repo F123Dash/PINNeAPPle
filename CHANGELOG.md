@@ -33,6 +33,27 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `inflow`, `pressure_drop` (from `pinneapple_check`'s finite-volume reader), `converged`, `artifact`,
   `physics_lint`. Example `channel_obstacle`: FreeCAD project, macro, CfdOF case, OpenFOAM v1912, ParaView export;
   [guide](docs/guides/engineering_gui_agent.md).
+- Validation gallery (`examples/validation/`, #705): 12 CPU examples covering PINN, FNO / DeepONet, MeshGraphNet,
+  POD / DMD / OpInf, MLP / Gaussian process / least squares, neural ODE vs Hamiltonian network, a diffusion model and
+  external models (ONNX, PhysicsNeMo), on heat, Darcy, reaction-diffusion, elasticity, a cylinder wake, advection,
+  molecular dynamics, magnetostatics and cantilever modes. Each ends in `pp.validate`, a trust card and
+  `pinneapple check` outputs (`validation.gallery.conclude`), and catches one real failure on a broken variant. CI
+  workflow `validation-gallery.yml` runs them at smoke size. Also new: `pp.validate(sampler, {"generative": ...})`
+  (per-sample physics, diversity and memorisation of a generative model), state-vector rollouts (`ndim = 0`) with
+  user invariants, `numerical_solvers.reaction_diffusion` (Allen-Cahn, Fisher-KPP) and
+  `pinneapple_neural.utils.fit_supervised`.
+- Physics checks during training (`pinneapple_neural.callbacks`, #704): `PhysicsMonitor` runs the checks of
+  `pp.validate` on a validation batch every N steps, warns or stops when a physics metric worsens for K checks while
+  the loss improves, and writes the report and trust card at the end; adapters for PyTorch Lightning
+  (`PhysicsValidationCallback`), PhysicsNeMo training loops (`PhysicsNeMoHook`, `LaunchLogger`) and the Hugging Face
+  Trainer (`PhysicsTrainerCallback`), none of them a dependency. `residual_bound.ResidualLoss`: a differentiable
+  physics loss in the reference discretisation. CI workflow `training-callbacks.yml` runs them against the real
+  frameworks.
+- PINN validation (`pinneapple_analysis.validation.pinn`, #703): residual at fresh grid, random and adaptive points;
+  detectors for a near-trivial solution, propagation failure in time, boundary / initial conditions traded off
+  against the residual and spectral bias; exact-solution gates (Burgers by Cole-Hopf, manufactured Poisson,
+  Kovasznay); `PINNMonitor` runs the checks during training and stops on a failure mode. Checks `pinn.*` in
+  `pp.validate` with `problem={"pinn": ...}`.
 - Rollout validation of autoregressive surrogates (`pinneapple_analysis.validation.rollout`, #701): invariant
   drift, high-band energy over the horizon, divergence time (trust horizon) and, for chaotic systems, long-run
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
@@ -674,6 +695,19 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ### Fixed
 - `pinneapple check`: `FV.patch_sums` (per-patch flux and heat-flow totals of the balance checks PC101/PC103) read
   the boundary arrays with the internal-face offset and returned 0 for every patch; the net balance was right.
+- Form Compiler (`pinneapple_data.formfill`): vendor datasheets laid out as one grid now compile. A unit in its own
+  column ("Design pressure | 1.5 | MPa g") is attached to the value; a label naming a pair ("(Int/Ext)", "Max/Min")
+  splits "1.5 / NA" or "60 / 10" into both items and drops the "NA" part; a nozzle schedule printed beside the other
+  data is read as the nozzle table and its header is no longer taken as an answer (it filled Service with "Qty");
+  "label: value" inside one cell, "Shell inside diameter" (longest label wins), notes such as "NB registration is not
+  required" and "Wind loads shall be as per UBC97" are read; a bare yes/no is no longer a text answer. New U-DR-1
+  labels: TL-TL length, temperature (int/ext), corrosion allowance (internal), operating "internal pressure" and
+  "temperature max/min", location, supports; `Field.reject` lists values that are not an answer to an item.
+- `pp.validate` on Darcy audits the training data with the problem's own source `f` (it assumed `f = 1`), and
+  records callables in the provenance by name (a rollout spec with an invariant function could not be saved).
+- Rollout validation: a user invariant named like a built-in (`energy`) is no longer replaced by the built-in or
+  scaled like it; the spectral band ignores shells below 1e-6 of the peak energy (round-off, not content).
+- `pp.validate` runs PhysicsNeMo field models given without a channel axis (PhysicsNeMo raises `ValueError`).
 - MC dropout (`pinneapple_analysis.uncertainty.mc_dropout`): `MCDropoutWrapper` applied dropout after every
   `nn.Linear`, including the output layer, so about `p` of the samples were exactly zero and the reported std was
   `|mean| sqrt(p / (1 - p))` whatever the model. Dropout now acts on the input of every `nn.Linear` but the first
