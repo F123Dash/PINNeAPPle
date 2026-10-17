@@ -248,6 +248,26 @@ services:
     expose: ["8094"]
     mem_limit: ${OBS_MEM_LIMIT:-1500m}
 
+  arena:
+    build:
+      context: ../..
+      dockerfile: apps/benchmark_arena/Dockerfile
+    image: pinneapple/benchmark-arena:latest
+    restart: unless-stopped
+    environment:
+      ARN_USER: ${ARN_USER:-}
+      ARN_PASSWORD: ${ARN_PASSWORD:-}
+      ARN_ADMIN_TOKEN: ${ARN_ADMIN_TOKEN:-}
+      ARN_REQUIRE_API_KEY: ${ARN_REQUIRE_API_KEY:-0}
+      ARN_MAX_JOBS: ${ARN_MAX_JOBS:-1}
+      ARN_MAX_BUDGET_S: ${ARN_MAX_BUDGET_S:-20}
+      ARN_MAX_SEEDS: ${ARN_MAX_SEEDS:-5}
+      ARN_FREE_BENCHMARKS: ${ARN_FREE_BENCHMARKS:-}
+    volumes:
+      - arena_data:/data          # private benchmark jobs, uploads, usage, API keys
+    expose: ["8105"]
+    mem_limit: ${ARN_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -269,15 +289,17 @@ services:
       LAB_DOMAIN: ${LAB_DOMAIN:-lab.localhost}
       OBS_DOMAIN: ${OBS_DOMAIN:-observatory.localhost}
       PLG_DOMAIN: ${PLG_DOMAIN:-playground.localhost}
+      ARN_DOMAIN: ${ARN_DOMAIN:-arena.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, arena]
 
 volumes:
   lab_data:
+  arena_data:
   obs_cache:
   caddy_data:
   caddy_config:

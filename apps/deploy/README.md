@@ -3,7 +3,7 @@
 HeatSink Sizer, PCB Hotspot, Engineering Data Health, Engineering Data Standardizer, Simulation Metadata, the Form
 Compiler, Inverse Heat Lab, Simulation Preflight, Mesh Quality, Simulation Comparator, Engineering Model Lineage and the
 Simulation Interoperability Hub, the
-Aircraft Design Optimizer, the PINNeAPPle Observatory and the PINNeAPPle Lab catalogue on a single Linux VM (e.g. Hetzner Cloud), each on its own
+Aircraft Design Optimizer, the PINNeAPPle Observatory, the Physics AI Benchmark Arena and the PINNeAPPle Lab catalogue on a single Linux VM (e.g. Hetzner Cloud), each on its own
 subdomain, behind one Caddy that obtains and renews Let's Encrypt certificates automatically.
 
 ```
@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `arena` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -66,12 +67,13 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 
 | Variable | Meaning |
 |---|---|
-| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN` | Public hostnames (must match the DNS records) |
+| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `ARN_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, ARN) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `IHL_MAX_JOBS` | Inverse Heat Lab: trainings running at the same time (default 2, each uses one CPU core). Any excess gets HTTP 429. The app runs one worker because jobs live in its memory. |
+| `ARN_MAX_JOBS`, `ARN_MAX_BUDGET_S`, `ARN_MAX_SEEDS`, `ARN_FREE_BENCHMARKS`, `ARN_ADMIN_TOKEN`, `ARN_REQUIRE_API_KEY` | Benchmark Arena: private benchmarks at once (queue), largest budget and seed count, free benchmarks per caller and month, API-key management (see `apps/_shared/README.md`). |
 | `UDR_FORM_PDF` | Path inside the `udr` container to your copy of the fillable Form U-DR-1 (put the file in `apps/deploy/forms/`). Optional: users can upload it instead. |
 | `UDR_OLLAMA_MODEL` | Optional. Enables local-LLM extraction in the Form Compiler with this Ollama model (pull it first). Every value it returns is checked against the document text; documents never leave your network. |
 | `UDR_OLLAMA_URL` | Ollama server: `http://ollama:11434` (the optional `ollama` service, `--profile llm`) or `http://host.docker.internal:11434` (Ollama on the host). |
@@ -104,7 +106,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground arena
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -258,6 +260,17 @@ playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
 }
+arena.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy pinneapple-arena:8105 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -274,6 +287,16 @@ A static site: the zoo models run in the visitor's browser (ONNX), so the contai
 `docker build -f apps/playground/Dockerfile -t pinneapple-playground . && docker run -p 8095:8095 pinneapple-playground`.
 The same build can go to GitHub Pages instead: set the repository variable `PLAYGROUND_PAGES=true` and the docs
 workflow publishes it under `<docs site>/playground/` (see `apps/playground/README.md`).
+
+## Physics AI Benchmark Arena (`arena`)
+
+Shows rankings of physics-AI methods per data regime from benchmark runs stored in `apps/benchmark_arena/results/`
+(written by `run_public_benchmarks.py`, with their date, hardware and dataset hash), and runs private benchmarks on
+uploaded data with the same protocol in the shared job queue (`ARN_MAX_JOBS`, default 1: a benchmark keeps one core
+busy). Refresh the public results on the deployment hardware with
+`docker compose exec arena python run_public_benchmarks.py` followed by a restart (the files live in the image; copy
+them back into the repository to keep them). `ARN_MAX_BUDGET_S` × methods × seeds × training sets bounds one
+benchmark's time. Uploads, private results, keys and usage live on the `arena_data` volume.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
