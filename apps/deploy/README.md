@@ -81,7 +81,7 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 |---|---|
 | `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN`, `SUR_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. OBS, CALIB)|
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
