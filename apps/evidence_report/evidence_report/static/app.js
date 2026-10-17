@@ -42,7 +42,7 @@ async function call(url, opts, btn, label) {
   try {
     const r = await fetch(url, opts);
     const j = await r.json().catch(() => ({ detail: `HTTP ${r.status}` }));
-    if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
+    if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : j.message || JSON.stringify(j.detail || j));
     RES = j; render(); showTab("result"); window.scrollTo(0, 0);
   } catch (e) { $("#status").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
   finally { btn.disabled = false; btn.innerHTML = old; if (btn.id === "run") renderFiles(); }
@@ -55,7 +55,7 @@ async function download(what, btn) {
   try {
     const r = LAST === "example" ? await fetch(`/api/example/${what === "pdf" ? "pdf" : "package"}`)
       : await fetch(what === "pdf" ? "/api/report.pdf" : "/api/package", { method: "POST", body: form() });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.message || j.detail || `HTTP ${r.status}`); }
     save(await r.blob(), what === "pdf" ? "evidence-report.pdf" : "evidence-package.zip");
   } catch (e) { alert(e.message); } finally { btn.disabled = false; btn.innerHTML = old; }
 }
@@ -85,6 +85,7 @@ function render() {
       <button class="secondary" id="dl-zip" type="button">Download evidence package (zip)</button>
       <button class="secondary" id="dl-html" type="button">Download HTML</button>
       <button class="secondary" id="dl-json" type="button">Download report JSON</button>
+      <button class="secondary" id="dl-sr" type="button">Download StudyResult</button>
     </div>
     <p class="hint">Report SHA-256 <code>${esc(r.report_sha256)}</code> · generated ${esc(r.generated_at)}</p>
   </div>
@@ -97,6 +98,7 @@ function render() {
   $("#dl-zip").onclick = (e) => download("zip", e.currentTarget);
   $("#dl-html").onclick = () => save(new Blob([RES.html], { type: "text/html" }), "evidence-report.html");
   $("#dl-json").onclick = () => save(new Blob([JSON.stringify(r, null, 1)], { type: "application/json" }), "evidence-report.json");
+  $("#dl-sr").onclick = () => save(new Blob([JSON.stringify(RES.study_result, null, 1)], { type: "application/json" }), "study_result.json");
 }
 
 (async function init() {

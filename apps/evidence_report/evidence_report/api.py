@@ -7,10 +7,13 @@ otherwise the report prints "not run" (pinneapple_veriphysics.evidence_package).
 
 Run:  uvicorn evidence_report.api:app --port 8113   (from apps/evidence_report)
 
-Environment (all optional):
-  EVR_USER / EVR_PASSWORD   HTTP Basic login on everything except /health
+Environment (all optional; the shared runtime's variables are in apps/_shared/README.md):
+  EVR_USER / EVR_PASSWORD   HTTP Basic login on everything except /health (X-API-Key works alongside it)
   EVR_MAX_MB                largest upload in MB (default 200)
   EVR_MAX_HEAVY             reports built at the same time per worker (default 2; the excess gets HTTP 429)
+  EVR_FREE_REPORTS          reports per caller and month before HTTP 429 (default 30; "unlimited" removes it)
+  EVR_FREE_DOWNLOADS        PDF and package downloads per caller and month (default 30)
+  EVR_ADMIN_TOKEN           admin token for /api/keys and the usage totals
 """
 from __future__ import annotations
 
@@ -24,7 +27,7 @@ import zipfile
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -36,10 +39,11 @@ from pinneapple_veriphysics.evidence_package import (
     make_figures,
     render_html,
     render_pdf,
+    to_study_result,
 )
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
-from appkit import BusyLimiter, install  # noqa: E402
+from appkit import BusyLimiter, install, install_runtime, principal  # noqa: E402
 
 VERSION = "1.0.0"
 HERE = Path(__file__).resolve().parent
@@ -57,6 +61,8 @@ app = FastAPI(title="Engineering Evidence Report", version=VERSION,
                           "record shows it ran.")
 app.add_middleware(GZipMiddleware, minimum_size=2000)
 install(app, prefix="EVR")
+# API keys and usage metering of the shared runtime; reports build in seconds, so they run in the request
+rt = install_runtime(app, prefix="EVR", name="evidence", units={"reports": 30, "downloads": 30})
 _HEAVY = BusyLimiter("EVR_MAX_HEAVY")
 
 PRINCIPLE = ("A test is reported as passed or failed only when an evidence record shows that it ran: the SHA-256 of "
@@ -217,7 +223,8 @@ def _build(meta: dict, files: list[tuple[str, bytes]], urls: dict[str, str], wha
         rep = build_report(meta, srcs)
         figs = make_figures(rep, d)
         if what == "report":
-            return {"report": rep, "html": render_html(rep, figs), "scope": SCOPE}
+            return {"report": rep, "html": render_html(rep, figs), "study_result": to_study_result(rep),
+                    "scope": SCOPE}
         if what == "pdf":
             return render_pdf(rep, figs)
         html = render_html(rep, figs)
@@ -247,7 +254,7 @@ def health():
 
 @app.get("/api/meta")
 def meta():
-    return {"version": VERSION, "max_mb": MAX_MB, "principle": PRINCIPLE, "scope": SCOPE,
+    return {"version": VERSION, "max_mb": MAX_MB, "principle": PRINCIPLE, "scope": SCOPE, "runtime": rt.describe(),
             "kinds": {"validation-lab": "Physics Validation Lab report (with its evidence ledger)",
                       "ledger": "evidence ledger (pinneapple-evidence-ledger/v1)",
                       "pinneapple-check": "pinneapple check --json (no records: its checks read not run)",
@@ -262,26 +269,43 @@ Files = Annotated[list[UploadFile] | None, File()]
 Text = Annotated[str, Form()]
 
 
+def _metered(request: Request, unit: str, build):
+    """Check the caller's free limit for ``unit`` (HTTP 429 past it), build, and count it only if it succeeded."""
+    who = principal(request)
+    rt.meter.check(who, unit, 1)
+    out = build()
+    rt.meter.record(who, unit, 1)
+    return out
+
+
 @app.post("/api/report")
-async def api_report(files: Files = None, meta: Text = "", urls: Text = ""):
+async def api_report(request: Request, files: Files = None, meta: Text = "", urls: Text = ""):
     """files: the study's outputs. meta: JSON {title, project, author, purpose, methodology, conditions {},
-    limitations [], baseline, candidate, references []}. urls: JSON {file name: URL of the original}."""
+    limitations [], baseline, candidate, references []}. urls: JSON {file name: URL of the original}. Returns the
+    report, its HTML and the report as a StudyResult contract. Metered as one report."""
     m, u = _parse(meta, urls)
-    return _build(m, await _read(files), u, "report")
+    fs = await _read(files)
+    return _metered(request, "reports", lambda: _build(m, fs, u, "report"))
 
 
 @app.post("/api/report.pdf")
-async def api_pdf(files: Files = None, meta: Text = "", urls: Text = ""):
+async def api_pdf(request: Request, files: Files = None, meta: Text = "", urls: Text = ""):
+    """The report as PDF. Metered as one download."""
     m, u = _parse(meta, urls)
-    return Response(_build(m, await _read(files), u, "pdf"), media_type="application/pdf",
+    fs = await _read(files)
+    pdf = _metered(request, "downloads", lambda: _build(m, fs, u, "pdf"))
+    return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": 'attachment; filename="evidence-report.pdf"'})
 
 
 @app.post("/api/package")
-async def api_package(files: Files = None, meta: Text = "", urls: Text = ""):
-    """The evidence package: report.json/html/pdf, evidence-ledger.json, figures/, sources/ and MANIFEST.json."""
+async def api_package(request: Request, files: Files = None, meta: Text = "", urls: Text = ""):
+    """The evidence package: report.json/html/pdf, study_result.json, evidence-ledger.json, figures/, sources/ and
+    MANIFEST.json. Metered as one download."""
     m, u = _parse(meta, urls)
-    return Response(_build(m, await _read(files), u, "zip"), media_type="application/zip",
+    fs = await _read(files)
+    z = _metered(request, "downloads", lambda: _build(m, fs, u, "zip"))
+    return Response(z, media_type="application/zip",
                     headers={"Content-Disposition": 'attachment; filename="evidence-package.zip"'})
 
 

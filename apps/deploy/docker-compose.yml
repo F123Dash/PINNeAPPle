@@ -345,6 +345,11 @@ services:
       EVR_PASSWORD: ${EVR_PASSWORD:-}
       EVR_MAX_HEAVY: ${EVR_MAX_HEAVY:-2}
       EVR_MAX_MB: ${EVR_MAX_MB:-200}
+      EVR_FREE_REPORTS: ${EVR_FREE_REPORTS:-}
+      EVR_FREE_DOWNLOADS: ${EVR_FREE_DOWNLOADS:-}
+      EVR_ADMIN_TOKEN: ${EVR_ADMIN_TOKEN:-}
+    volumes:
+      - evidence_data:/data       # API keys and usage of the shared runtime: keep this volume
     expose: ["8113"]
     mem_limit: ${EVR_MEM_LIMIT:-1g}
 
@@ -400,6 +405,7 @@ services:
 
 volumes:
   control_data:
+  evidence_data:
   lab_data:
   runner_data:
   campaign_data:
