@@ -245,3 +245,63 @@ def _fluxmap(quick: bool) -> CaseResult:
         errs.append(abs(float(fm.torque(i_d, i_q)) - op["torque_mean"]) / 300.0)
     return CaseResult("Prius flux map: interpolation vs direct FEA", "torque at 3 off-grid currents (7 x 7 grid)",
                       "FEA at the same currents", max(errs), 0.01, detail="error relative to 300 N m")
+
+
+# ------------------------------------------------------------------------------------------------ thermal
+@case("Thermal network: first-order transient")
+def _rc(quick: bool) -> CaseResult:
+    from .thermal import ThermalNetwork
+
+    C, G, P, Tb = 500.0, 2.0, 100.0, 20.0
+    net = ThermalNetwork.empty(["n"], [C]).to_boundary("n", G, Tb)
+    tau = C / G
+    exact = Tb + P / G * (1 - math.exp(-1.0))
+    errs = []
+    for dt in (tau / 10, tau / 20, tau / 40, tau / 80):
+        _, T = net.transient([P], tau, dt, Tb, method="trapezoidal")
+        errs.append(abs(T[-1, 0] - exact) / (P / G))
+    eul = []
+    for dt in (tau / 20, tau / 40):
+        _, T = net.transient([P], tau, dt, Tb, method="euler")
+        eul.append(abs(T[-1, 0] - exact))
+    return CaseResult("Thermal network: first-order transient", "node temperature at t = tau, dt halved",
+                      "T_b + P/G (1 - e^-1) (closed form)", errs[-1], 1e-4, observed_orders(errs), 2.0,
+                      f"trapezoidal rule; backward Euler order {math.log2(eul[0] / eul[1]):.2f}")
+
+
+@case("Thermal network: cylindrical conduction")
+def _shell(quick: bool) -> CaseResult:
+    from .thermal import cylinder_conductance
+
+    k, r1, r2, L = 28.0, 0.08, 0.13, 0.1
+    G = cylinder_conductance(k, r1, r2, L)
+    errs = []
+    for n in (8, 16, 32, 64):
+        r = np.linspace(r1, r2, n + 1)
+        rm = 0.5 * (r[1:] + r[:-1])
+        errs.append(abs(1.0 / np.sum(np.diff(r) / (2 * math.pi * rm * L * k)) - G) / G)
+    return CaseResult("Thermal network: cylindrical conduction", "series of thin flat shells, n doubled",
+                      "2 pi k L / ln(r2/r1)", errs[-1], 1e-4, observed_orders(errs), 2.0)
+
+
+# ------------------------------------------------------------------------------------------------ skew
+@case("Step skew: multi-slice cogging vs skew factor")
+def _skew(quick: bool) -> CaseResult:
+    from .robustness import skewed_no_load
+
+    m = _machine(576)
+    lam, N = m.cogging_period, 12
+    th = m.positions(N, period=lam)
+    c0 = np.array([m.torque(m.solve(t)) for t in th])
+    F0 = np.fft.rfft(c0) / N
+    worst = 0.0
+    for K, steps in ((2, 6), (3, 4)):
+        s = steps * m.mm.band_step
+        Fs = np.fft.rfft(skewed_no_load(m, th, K, s)["cogging"]) / N
+        x = np.arange(len(F0)) * math.pi * s / lam
+        with np.errstate(all="ignore"):
+            fac = np.where(np.abs(np.sin(x)) < 1e-12, np.cos(K * x) / np.cos(x), np.sin(K * x) / (K * np.sin(x)))
+        worst = max(worst, float(np.abs(Fs - F0 * fac).max() / np.abs(F0[1:]).max()))
+    return CaseResult("Step skew: multi-slice cogging vs skew factor", "cogging harmonics, 2 and 3 steps",
+                      "sin(K h pi s / lam) / (K sin(h pi s / lam)) x straight rotor", worst, 1e-6,
+                      detail="offsets are multiples of the band step (identical band triangles)")
