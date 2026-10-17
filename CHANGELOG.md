@@ -25,6 +25,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `apps/_shared/static/shared/fieldview3d.js` shows it with the vendored three.js: field switch, colour bar, deformed
   shape with a scale factor, labelled regions, probe. `pinneapple_analysis.validation.error_map` gives the pointwise
   error, its hotspots, its share per named region and a short summary; `studio-core.js` gains the error scale `ERR`.
+- Zoo dataset `cylinder_wake_lbm` (Hub-only): 720 vorticity snapshots of a confined cylinder wake at Re 20–100
+  (D2Q9 lattice Boltzmann, blockage 0.2), labelled by regime, Strouhal number and wake amplitude. It is split by
+  Reynolds number, and every shedding run is saturated. The card carries a channel-flow check and a D = 20/30/40
+  resolution study (St within 0.7 %). The recipe is `pinneapple_simulation.numerical_solvers.cylinder_wake`, and the
+  command line is `scripts/zoo/cylinder_data.py`.
 - The zoo on the Hugging Face Hub works with the Hub's own tools:
   - `pinneapple_hub.zoo.parquet`: deterministic Parquet copies of every zoo dataset for the dataset viewer and
     `datasets.load_dataset` (`write_dataset`, `read_parquet`, `read_npz`, `plan_split`, `features_yaml`). Scalar
@@ -237,6 +242,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
   `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
   (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Physics-Based Control Lab app (day 29, `apps/control_lab`, control.pinneapple.org, port 8112): linear and nonlinear
+  MPC (CasADi/IPOPT, SciPy fallback, or a reduced-order surrogate as the model) compared with PID and rule-based
+  baselines in closed loop on the same simulated plant, and a recommendation mode from a twin's estimated state.
+  Simulation / recommendation only: no command path to real equipment.
 - Physics Anomaly Detector app (day 28, `apps/anomaly_detector`, anomaly.pinneapple.org, port 8111): sensor time
   series (CSV / Parquet / JSON) checked with robust statistics, AR + CUSUM, conservation balances written as formulas
   over the columns and physical-model residuals; events with severity, variables and explanations; precision / recall
@@ -904,6 +913,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
+- Lab experiment `cylinder_lbm` v2 runs `cylinder_wake.simulate` and measures the Strouhal number from the
+  Hann-windowed, peak-refined spectrum. v1 took the raw FFT bin, which read 0.25 for every run (bins 0.025 apart).
 - **Behavior:** every zoo item's Hub `revision` is now `v<version>.post1` (same files, republished with the
   Parquet / safetensors / ONNX copies and the new cards). The `v<version>` tags are unchanged, so code pinned to them
   keeps working; the loader falls back to `v<version>` until the new tag exists. The `[hub]` extra now also
