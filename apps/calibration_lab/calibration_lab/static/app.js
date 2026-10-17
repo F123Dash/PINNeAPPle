@@ -184,7 +184,7 @@ function renderComparison(el, c) {
     c.solutions.map((s) => s.status !== "done" ? `<tr><td>${esc(s.label)}</td><td colspan="${names.length + 5}" class="hint">${esc(s.status)}: ${esc(s.reason || "")}</td></tr>` :
       `<tr class="${s.method === c.best ? "best" : ""}"><td><b>${esc(s.label)}</b>${s.method === c.best ? ' <span class="st ok">best held-out</span>' : ""}${s.converged === false ? ' <span class="st warn">not converged</span>' : ""}</td>
       ${s.parameters.map((p) => `<td>${fmt(p.estimate)}<div class="hint">${p.interval95 ? `${fmt(p.interval95[0])} … ${fmt(p.interval95[1])}` : esc(p.note ? "no interval" : "—")}</div></td>`).join("")}
-      <td>${fmt(s.fit.rmse, 3)}</td><td>${s.validation ? fmt(s.validation.rmse, 3) : "—"}</td><td>${s.forward_evaluations}</td><td>${fmt(s.seconds, 2)} s</td>
+      <td>${fmt(s.fit.rmse, 3)}</td><td>${s.validation ? fmt(s.validation.rmse, 3) : "—"}</td><td>${s.method === "pinn" ? "network training" : s.forward_evaluations}</td><td>${fmt(s.seconds, 2)} s</td>
       ${s.truth_recovered !== undefined ? `<td>${s.truth_recovered === null ? "—" : s.truth_recovered ? '<span class="st ok">yes</span>' : '<span class="st bad">no</span>'}</td>` : ""}</tr>`).join("") +
     `</tbody></table><div class="hint">Every method saw the same fitted measurements; held-out RMSE is on the measurements none of them saw. ${c.solutions.some((s) => s.method === "pinn") ? "A single PINN run gives no interval; its h is evaluated in the reference model." : ""}</div>`;
 }
