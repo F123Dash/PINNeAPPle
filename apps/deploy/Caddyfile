@@ -181,3 +181,15 @@
 	import common
 	reverse_proxy playground:8095
 }
+
+{$ROM_DOMAIN} {
+	import common
+	request_body {
+		max_size 220MB
+	}
+	reverse_proxy rom:8102 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}

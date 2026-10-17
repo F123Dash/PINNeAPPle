@@ -14,6 +14,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Reduced Order Model Lab app (day 19, `apps/rom_lab`, rom.pinneapple.org, port 8102): upload field snapshots
+  (OpenFOAM times, VTU/VTK/FRD series, NPZ/HDF5, CSV/Parquet or a `DatasetSpec` table), queue a ROM study on the
+  shared runtime, compare POD + RBF / GPR, DMD, Operator Inference and an equal-budget neural surrogate on held-out
+  times or designs (error vs rank vs speed, energy, reconstructions), and export `.rom.npz`, ONNX for the model
+  gateway, `ModelRef` and `StudyResult` contracts; `POST /api/run` runs an exported ROM. Two offline examples from
+  the library's solvers (LBM cylinder wake, solid-FEM cantilever designs). `pinneapple_neural.architectures.rom
+  .contracts` builds the contracts.
 - ROM study (`pinneapple_neural.architectures.rom.study`): `rom_study(snapshots)` holds out later times,
   interleaved times or unseen parameter points, fits POD + RBF, POD + GPR, the nearest snapshot, DMD, Operator
   Inference and a neural surrogate trained within the same wall-clock budget (`train_within_budget`) at several

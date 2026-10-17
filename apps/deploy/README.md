@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `rom` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -104,7 +105,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground rom
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -258,6 +259,17 @@ playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
 }
+rom.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 220MB
+	}
+	reverse_proxy pinneapple-rom:8102 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -274,6 +286,10 @@ A static site: the zoo models run in the visitor's browser (ONNX), so the contai
 `docker build -f apps/playground/Dockerfile -t pinneapple-playground . && docker run -p 8095:8095 pinneapple-playground`.
 The same build can go to GitHub Pages instead: set the repository variable `PLAYGROUND_PAGES=true` and the docs
 workflow publishes it under `<docs site>/playground/` (see `apps/playground/README.md`).
+
+## Reduced Order Model Lab (`rom`)
+
+Builds POD + RBF / GPR, DMD, Operator Inference and an equal-budget neural surrogate from uploaded snapshots and scores them on held-out times or parameters. Studies run in the shared job queue: `ROM_MAX_JOBS` at once (default 2; one CPU core each for a few seconds to a minute), `ROM_MAX_BUDGET_S` caps the neural budget a study may ask for, `ROM_MAX_MB` an upload. Jobs, uploads and usage live on the `rom_data` volume; free use per caller and month is set by `ROM_FREE_STUDIES`, `ROM_FREE_EXPORTS`, `ROM_FREE_QUERIES`. 1 GB of memory is enough for snapshots up to ~400,000 values (`ROM_MAX_VALUES`).
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
