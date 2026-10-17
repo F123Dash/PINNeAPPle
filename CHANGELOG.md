@@ -226,6 +226,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
   `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
   (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Physics-Based Control Lab app (day 29, `apps/control_lab`, control.pinneapple.org, port 8112): linear and nonlinear
+  MPC (CasADi/IPOPT, SciPy fallback, or a reduced-order surrogate as the model) compared with PID and rule-based
+  baselines in closed loop on the same simulated plant, and a recommendation mode from a twin's estimated state.
+  Simulation / recommendation only: no command path to real equipment.
 - Physics Anomaly Detector app (day 28, `apps/anomaly_detector`, anomaly.pinneapple.org, port 8111): sensor time
   series (CSV / Parquet / JSON) checked with robust statistics, AR + CUSUM, conservation balances written as formulas
   over the columns and physical-model residuals; events with severity, variables and explanations; precision / recall
