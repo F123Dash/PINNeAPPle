@@ -352,10 +352,13 @@ Build and run it alone with
 
 ## Engineering Sensitivity Lab (`sensitivity`)
 
-Day 16. One worker (`--workers 1`, 1 GB): a study runs in the request, in a thread, at most `SEN_MAX_HEAVY` at a time
-(default 2; any excess gets HTTP 429). Study size is capped by `SEN_MAX_EVALS` (model evaluations; the UI shows the
-count before running), `SEN_MAX_PARAMS` (varied parameters) and `SEN_MAX_MB` (uploads). The zoo models and datasets ship
-in the image; no outbound network is needed. Build and run it alone with
+Day 16, on the shared runtime (`apps/_shared/README.md`): studies are jobs in the queue (`SEN_MAX_JOBS` at once,
+default 2; `GET /api/jobs/{id}`), uploads go through `/api/uploads`, and use is metered per caller and month in
+`studies`, `evaluations` and `parameters` (`SEN_FREE_STUDIES`, `SEN_FREE_EVALUATIONS`, `SEN_FREE_PARAMETERS`; 429 past
+the limit). Keys: `SEN_ADMIN_TOKEN` or the app login manage `/api/keys`. Jobs, uploads, keys and usage live in the
+`sensitivity_data` volume. Study size is capped by `SEN_MAX_EVALS` (model evaluations; the UI shows the count before
+running), `SEN_MAX_PARAMS` and `SEN_MAX_MB`; the synchronous "Try with example" runs are capped by `SEN_MAX_HEAVY`.
+The zoo models and datasets ship in the image; no outbound network is needed. Build and run it alone with
 `docker build -f apps/sensitivity_lab/Dockerfile -t sensitivity-lab . && docker run -p 8099:8099 sensitivity-lab`.
 
 ## PINNeAPPle Lab catalogue (`lab`)

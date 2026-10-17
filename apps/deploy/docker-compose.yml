@@ -314,9 +314,16 @@ services:
       SEN_USER: ${SEN_USER:-}
       SEN_PASSWORD: ${SEN_PASSWORD:-}
       SEN_MAX_HEAVY: ${SEN_MAX_HEAVY:-2}
+      SEN_MAX_JOBS: ${SEN_MAX_JOBS:-2}
+      SEN_FREE_STUDIES: ${SEN_FREE_STUDIES:-}
+      SEN_FREE_EVALUATIONS: ${SEN_FREE_EVALUATIONS:-}
+      SEN_FREE_PARAMETERS: ${SEN_FREE_PARAMETERS:-}
+      SEN_ADMIN_TOKEN: ${SEN_ADMIN_TOKEN:-}
       SEN_MAX_EVALS: ${SEN_MAX_EVALS:-400000}
       SEN_MAX_PARAMS: ${SEN_MAX_PARAMS:-30}
       SEN_MAX_MB: ${SEN_MAX_MB:-50}
+    volumes:
+      - sensitivity_data:/data    # jobs, uploads, API keys, usage: keep this volume
     expose: ["8099"]
     mem_limit: ${SEN_MEM_LIMIT:-1g}
 
@@ -354,6 +361,7 @@ services:
 
 volumes:
   lab_data:
+  sensitivity_data:
   runner_data:
   campaign_data:
   obs_cache:
