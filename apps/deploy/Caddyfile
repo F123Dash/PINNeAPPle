@@ -394,3 +394,15 @@
 		}
 	}
 }
+
+{$EDO_DOMAIN} {
+	import common
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy optimize:8100 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+}

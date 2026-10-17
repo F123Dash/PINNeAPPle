@@ -9,7 +9,11 @@
   experiments, a campaign's runs), with its error on a held-out split; and :func:`model_ref_for_surrogate`, its
   ``ModelRef``.
 * :func:`table_evaluator`: a reference evaluator that looks designs up in a table of solver results (for designs you
-  ran offline, e.g. the candidates exported by an optimisation).
+  ran offline, e.g. the candidates exported by an optimisation), and :func:`verify_uploaded_results`, the exported
+  candidates verified against such a table.
+* What an app shows and exports after a run: :func:`verify_front` (candidates along the front, verified when there
+  is a reference), :func:`write_design_files` (the CSV and ``ParameterSpace`` files) and :func:`chart_points` (a
+  thinned list of designs for a trade-off plot).
 """
 from __future__ import annotations
 
@@ -18,10 +22,19 @@ from typing import Any
 
 import numpy as np
 
-from .study import VALID, DesignProblem, DesignSpace, Evaluations, FunctionEvaluator, Variable
+from .study import (
+    VALID,
+    DesignProblem,
+    DesignSpace,
+    Evaluations,
+    FunctionEvaluator,
+    Objective,
+    Variable,
+)
 
 __all__ = ["to_parameter_space", "designs_frame", "study_result", "surrogate_from_table", "model_ref_for_surrogate",
-           "table_evaluator", "SurrogateFit"]
+           "table_evaluator", "SurrogateFit", "verify_front", "write_design_files", "chart_points",
+           "verify_uploaded_results", "DESIGN_FILES"]
 
 
 def to_parameter_space(space: DesignSpace, name: str, description: str = "", budget: int | None = None):
@@ -189,7 +202,6 @@ def surrogate_from_table(df, inputs: Sequence[str], outputs: Sequence[str], *, t
 
 
 def _first_objective(outputs):
-    from .study import Objective
     return Objective(outputs[0])
 
 
@@ -237,3 +249,95 @@ def table_evaluator(space: DesignSpace, df, outputs: Sequence[str], *, tol: floa
 
     return FunctionEvaluator(fn, list(outputs), name=name, fidelity="reference",
                              description="solver results uploaded as a table, matched by design variables")
+
+
+# --------------------------------------------------------------------------- after a run: candidates, files, plots
+DESIGN_FILES = ("evaluations.csv", "candidates.csv", "candidates_to_run.csv", "parameter_space.json")
+
+
+def verify_front(problem: DesignProblem, ev: Evaluations, front: Sequence[int], n: int, reference=None):
+    """``n`` candidates spread along ``front`` (:func:`~.verify.select_candidates`), re-evaluated with ``reference``
+    when there is one (:func:`~.verify.verify_candidates`).
+
+    Returns ``(candidates, report, status)``: the indices into ``ev``, the :class:`~.verify.VerificationReport` (None
+    without a reference or candidates) and the verification status per index (empty without a report)."""
+    from .verify import select_candidates, verify_candidates
+    cand = select_candidates(ev, front, n)
+    if reference is None or not cand:
+        return cand, None, {}
+    rep = verify_candidates(problem, ev, cand, reference)
+    return cand, rep, {r["index"]: r["status"] for r in rep.rows}
+
+
+def write_design_files(folder, problem: DesignProblem, ev: Evaluations, candidates: Sequence[int],
+                       status: Mapping[int, str] | None = None, *, labels: Sequence[str] | None = None) -> list[str]:
+    """Write :data:`DESIGN_FILES` to ``folder``: every evaluation, the candidates with their verification status,
+    the candidates' variables only (to run in your solver) and the design space as a ``ParameterSpace``.
+
+    ``labels`` (one per evaluation, e.g. :meth:`~.compare.MethodComparison.union`'s runs) adds a ``run`` column to
+    the evaluations and a ``found_by`` column to the candidates. Returns the file names written."""
+    from pathlib import Path
+    folder = Path(folder)
+    edf = designs_frame(problem, ev)
+    if labels is not None:
+        edf["run"] = list(labels)
+    edf.to_csv(folder / "evaluations.csv", index=False)
+    cdf = designs_frame(problem, ev, list(candidates), status or {})
+    if labels is not None:
+        cdf["found_by"] = [labels[i] for i in candidates]
+    cdf.to_csv(folder / "candidates.csv", index=False)
+    cdf.reindex(columns=problem.space.names).to_csv(folder / "candidates_to_run.csv", index=False)
+    to_parameter_space(problem.space, problem.name, problem.description).save(folder / "parameter_space.json")
+    return list(DESIGN_FILES)
+
+
+def chart_points(problem: DesignProblem, ev: Evaluations, front: Sequence[int] = (), *, limit: int = 2000,
+                 labels: Sequence[str] | None = None) -> list[dict[str, Any]]:
+    """At most about ``limit`` designs for a trade-off plot, evenly thinned in evaluation order, the ``front`` always
+    kept. Each point: ``i`` (index), ``f`` (feasible), ``p`` (on ``front``), ``r`` (relaxed), the objective and
+    constraint values (None when not finite) and, with ``labels``, ``run`` (the label up to its ``#``)."""
+    keys = list(dict.fromkeys([o.name for o in problem.objectives] + [c.name for c in problem.constraints]))
+    keys = [k for k in keys if k in ev.Y]
+    front = {int(i) for i in front}
+    idx = np.arange(len(ev))
+    if len(idx) > limit:
+        idx = np.unique(np.r_[np.linspace(0, len(ev) - 1, limit).astype(int), sorted(front)]).astype(int)
+    out = []
+    for i in idx:
+        i = int(i)
+        p = {"i": i, "f": bool(ev.feasible[i]), "p": i in front, "r": bool(ev.relaxed[i]),
+             **{k: (float(ev.Y[k][i]) if np.isfinite(ev.Y[k][i]) else None) for k in keys}}
+        if labels is not None:
+            p["run"] = str(labels[i]).split("#")[0]
+        out.append(p)
+    return out
+
+
+def verify_uploaded_results(space: DesignSpace, candidates, results, objectives: Sequence[Any] = (),
+                            constraints: Sequence[Any] = (), *, tol: float = 1e-6):
+    """Verify exported candidates with solver results run offline.
+
+    ``candidates`` is the table :func:`write_design_files` wrote (``candidates.csv``: variables and the search
+    model's outputs), ``results`` your solver's table (the variables and any outputs). Rows are matched by variable
+    values (:func:`table_evaluator`); the objectives and constraints whose output is in the candidates are checked
+    on the uploaded values. Returns the :class:`~.verify.VerificationReport` (status per candidate, errors of the
+    search model against your results). Raises ``ValueError`` when the results share no output with the candidates
+    or miss a variable."""
+    import pandas as pd
+
+    from .verify import verify_candidates
+    shared = [k for k in results.columns if k not in space.names and k in candidates.columns]
+    if not shared:
+        raise ValueError("the results share no output column with the candidates")
+    num = [k for k in candidates.columns if k not in space.names and k not in ("index", "feasible", "relaxed")
+           and pd.api.types.is_numeric_dtype(candidates[k]) and not pd.api.types.is_bool_dtype(candidates[k])]
+    objs = [o for o in objectives if o.name in num] or [Objective(shared[0])]
+    stub = DesignProblem("uploaded", space, objs, [c for c in constraints if c.name in num],
+                         FunctionEvaluator(lambda X: {}, num, fidelity="surrogate"))
+    X = candidates[space.names].to_numpy(dtype=float)
+    ev = stub.record(X, {k: candidates[k].to_numpy(dtype=float) for k in num}, fidelity="surrogate")
+    ref = table_evaluator(space, results, shared, tol=tol)
+    # the reference is checked on what was uploaded: objectives and constraints of the outputs it has
+    ref_objs = [o for o in objs if o.name in shared] or [Objective(shared[0])]
+    ref_problem = DesignProblem("uploaded results", space, ref_objs, [c for c in constraints if c.name in shared], ref)
+    return verify_candidates(stub, ev, list(range(len(ev))), ref, reference_problem=ref_problem)
