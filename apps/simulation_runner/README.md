@@ -46,7 +46,8 @@ step's result on its mesh as a sanity check before its numbers go into the datas
   - CalculiX: `*BOUNDARY` supports and `*CLOAD` / `*DLOAD` loads, from the `.inp` next to the `.frd`; point loads
     are summed per direction.
   - OpenFOAM: every non-empty patch, with its conditions from the first time directory. A patch with a non-zero
-    fixed vector, such as the cavity's moving lid, is marked as the load that drives the flow.
+    fixed vector, such as the cavity's moving lid, is a boundary condition with the role "driving wall". A note
+    gives its value: the colours are cell-centre values, so the lid's 1.84 m/s sits above the largest cell value.
 - **Light.** Above `RUNNER_VIEW_MAX_FACES` triangles (250,000, from the size guide in `docs/core_concepts/studio.md`)
   the surface is decimated, and the panel says so. The glTF is built once per step and cached.
 
@@ -57,7 +58,7 @@ and `/view3d.glb` the glTF.
 
 ![A CalculiX cantilever step: von Mises stress on the deformed beam, the clamped nodes and the tip load from the deck](../../docs/assets/apps/d27-runner-3d-calculix.jpg)
 
-![An OpenFOAM cavity step: velocity magnitude, the moving lid marked as the driving condition, the fixed walls](../../docs/assets/apps/d27-runner-3d-openfoam.jpg)
+![An OpenFOAM cavity step: velocity magnitude, the moving lid marked as the driving wall, the fixed walls](../../docs/assets/apps/d27-runner-3d-openfoam.jpg)
 
 ## Integrations
 

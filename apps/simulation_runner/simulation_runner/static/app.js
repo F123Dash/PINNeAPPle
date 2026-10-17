@@ -213,13 +213,15 @@ async function viewStep(runId, step) {
   let j;
   try { j = await api(`/api/runs/${runId}/steps/${encodeURIComponent(step.step_id)}/view3d`); } catch (e) { el.innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
   const i = j.info, v = j.view;
-  const conds = i.conditions.length ? `<table class="conds"><tr><th>Region</th><th>as</th><th>from the case</th><th class="num">${i.kind === "calculix" ? "nodes" : "faces"}</th></tr>${i.conditions.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td><span class="mk ${c.kind}">${c.kind === "bc" ? "boundary condition" : "load"}</span></td><td>${esc(c.keyword ? `${c.keyword}, line ${c.line}: ${c.detail}` : `${c.type} patch: ${c.detail}`)}</td><td class="num">${c.nodes ?? c.faces}</td></tr>`).join("")}</table>`
+  const conds = i.conditions.length ? `<table class="conds"><tr><th>Region</th><th>as</th><th>from the case</th><th class="num">${i.kind === "calculix" ? "nodes" : "faces"}</th></tr>${i.conditions.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td><span class="mk ${c.kind}">${c.kind === "bc" ? "boundary condition" : "load"}</span>${c.role ? `<div class="muted">${esc(c.role)}</div>` : ""}</td><td>${esc(c.keyword ? `${c.keyword}, line ${c.line}: ${c.detail}` : `${c.type} patch: ${c.detail}`)}</td><td class="num">${c.nodes ?? c.faces}</td></tr>`).join("")}</table>`
     : `<p class="muted">The case defines no boundary condition or load that could be placed on the mesh${i.deck === null ? " (no input deck next to the result)" : ""}.</p>`;
   el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><h3 style="margin:0">Result of <span class="mono">${esc(step.step_id)}</span> in 3-D</h3>
       <span class="muted">${esc(i.solver)} · ${esc(i.file)}${i.time != null ? ` · t = ${fmt(i.time)}` : ""} · ${i.points.toLocaleString("en-US")} points, ${i.cells.toLocaleString("en-US")} cells${v.decimated ? ` · shown with ${v.faces.toLocaleString("en-US")} of ${v.faces_original.toLocaleString("en-US")} triangles` : ""}</span></div>
     <div class="v3wrap"><div id="v3d"></div><div><h4 style="margin:4px 0 6px">Where the case acts</h4>${conds}
       ${(v.notes || []).map((t) => `<p class="muted">${esc(t)}</p>`).join("")}
-      <p class="muted">Check that supports and loads sit where they should, the deformed shape bends the expected way and the fields have plausible ranges, before the step's numbers go into the dataset. Units are those of the case${i.length_unit === "model units" ? " (the deck's own)" : ""}.</p></div></div>`;
+      <p class="muted">${i.kind === "calculix"
+        ? "Check that supports and loads sit where they should, the deformed shape bends the expected way and the fields have plausible ranges, before the step's numbers go into the dataset."
+        : "Check that each patch carries the condition you meant (walls, the driving wall or inlet, outlets), that the flow moves where the driving condition pushes it, and that the fields have plausible ranges, before the step's numbers go into the dataset."} Units are those of the case${i.length_unit === "model units" ? " (the deck's own)" : ""}.</p></div></div>`;
   await whenViewer();
   const start = v.fields.find((f) => f.name === "STRESS") || v.fields.find((f) => /^U$/.test(f.name)) || v.fields[0];
   V3 = new FieldView3D($("#v3d"), { meta: v, glb: j.glb, field: start.name, height: 460 });

@@ -128,13 +128,15 @@ def test_view_result_of_a_solver_step(client, template):
     assert step["viewable"] and step["kind"] in ("calculix", "openfoam")
     v = c.get(f"/api/runs/{start['run_id']}/steps/{step['step_id']}/view3d").json()
     kinds = {x["kind"] for x in v["info"]["conditions"]}
-    assert kinds == {"bc", "load"}                                    # supports and load / walls and the moving lid
+    assert kinds == ({"bc", "load"} if template == "beam_calculix" else {"bc"})   # flow: all boundary conditions
     if template == "beam_calculix":
         assert v["view"]["deform"]["displacement"]["max"] == pytest.approx(step["outputs"]["max_displacement"], rel=1e-6)
         load = next(x for x in v["info"]["conditions"] if x["kind"] == "load")
         assert f"Fz = {-cases[0]['F']:.4g}" in load["name"]                # the deck's load, as the case defines it
     else:
         assert set(v["info"]["fields"]) >= {"U", "p"} and v["info"]["time"] == pytest.approx(step["outputs"]["latest_time"])
+        assert [x["name"] for x in v["info"]["conditions"] if x["role"] == "driving wall"] == ["movingWall"]
+        assert f"|U| = {cases[0]['U_lid']:.4g}" in " ".join(v["info"]["notes"])     # the wall value, beside the cells
     glb = c.get(v["glb"])
     assert glb.status_code == 200 and glb.content[:4] == b"glTF"
     again = _wait(c, c.post(f"/api/runs/{start['run_id']}/rerun").json()["run_id"], timeout=300)

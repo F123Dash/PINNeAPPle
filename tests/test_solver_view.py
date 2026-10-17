@@ -94,11 +94,12 @@ def test_calculix_result_view_deforms_and_marks_the_deck(tmp_path):
 def test_openfoam_result_view_cells_patches_and_2d_note(tmp_path):
     fv, info = solver_result_view(_cavity(tmp_path))
     assert info["kind"] == "openfoam" and set(info["fields"]) == {"U", "p"} and info["cells"] == 400
-    kinds = {c["name"]: c["kind"] for c in info["conditions"]}
-    assert kinds == {"movingWall": "load", "fixedWalls": "bc"}           # the moving lid drives the flow
+    kinds = {c["name"]: (c["kind"], c["role"]) for c in info["conditions"]}
+    assert kinds == {"movingWall": ("bc", "driving wall"), "fixedWalls": ("bc", "")}     # all boundary conditions
     assert "2-D case" in info["notes"][0] and fv.meta["deform"] == {}
+    assert "|U| = 1 m/s" in info["notes"][1] and "cell-centre values" in info["notes"][1]   # the lid moves at 1 m/s
     assert {f["where"] for f in fv.meta["fields"]} == {"cell"}
-    lid = next(m for m in fv.meta["markers"] if m["name"] == "movingWall")
+    lid = next(m for m in fv.meta["markers"] if m["name"] == "movingWall (driving wall)")
     assert lid["n"] == 20 and np.allclose(np.array(lid["points"])[:, 1], 0.1)
 
 

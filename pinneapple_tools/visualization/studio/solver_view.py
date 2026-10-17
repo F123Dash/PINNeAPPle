@@ -10,8 +10,9 @@ conditions and loads.
 * **CalculiX:** the ``.frd`` (nodes, elements, last increment of each result: DISP, STRESS as von Mises, ...) and,
   from the ``.inp`` next to it, ``*BOUNDARY`` (supports) and ``*CLOAD`` / ``*DLOAD`` (loads) as marked node sets.
 * **OpenFOAM:** the polyMesh, the volume fields of the latest time (vectors as magnitude) and every non-empty patch
-  with its conditions from the first time directory. A patch with a non-zero fixed vector value (a moving wall, an
-  inlet) is marked as the load that drives the flow; the other patches as boundary conditions.
+  with its conditions from the first time directory, all as boundary conditions. A patch with a non-zero fixed vector
+  value (a moving wall, an inlet) is the one that drives the flow: its role says so, and a note gives its value next
+  to the cell values the colours show (a wall value is not a cell value).
 
 Above ``max_faces`` triangles the surface is decimated (``VIEW_MAX_FACES``, from the size guide in
 docs/core_concepts/studio.md); the description says so.
@@ -97,26 +98,39 @@ def _openfoam(case: Path) -> tuple[Any, list, dict, list, dict]:
                        "label": name + (" magnitude" if a.ndim == 2 else "")})
     bcs = foam.boundary_conditions(fs, m)
     p = m.poly
-    conditions, markers = [], []
+    conditions, markers, notes = [], [], []
     for pa in p.patches:
         if pa["name"] not in bcs:
             continue
         cond = bcs[pa["name"]]
-        drive = any(re.match(r"fixedValue uniform \(", v) and
-                    any(float(x) for x in re.findall(r"[-+.\deE]+", v.split("(", 1)[1])) for v in cond.values())
-        kind = "load" if drive else "bc"
+        driving = {}                                             # field -> magnitude of a non-zero fixed vector
+        for k, v in cond.items():
+            if re.match(r"fixedValue uniform \(", v):
+                vec = np.array([float(x) for x in re.findall(r"[-+]?[\d.]+(?:[eE][-+]?\d+)?", v.split("(", 1)[1])])
+                if np.any(vec):
+                    driving[k] = float(np.linalg.norm(vec))
+        kind, role = "bc", ("driving " + ("wall" if pa["type"] == "wall" else "boundary")) if driving else ""
+        for k, mag in driving.items():
+            top = float(np.nanmax(np.linalg.norm(np.atleast_2d(m.cell_data[k]).reshape(m.n_cells, -1), axis=1))) \
+                if k in m.cell_data else None
+            notes.append(f"Colours are cell-centre values: the {pa['name']} {role} has |{k}| = {mag:.4g}"
+                         f"{' ' + m.units[k] if m.units.get(k) else ''} (its fixed value), above the largest cell value"
+                         f"{f' {top:.4g}' if top is not None else ''}." if top is not None and top < mag else
+                         f"{pa['name']} ({role}): |{k}| = {mag:.4g} (its fixed value).")
         f = np.arange(pa["startFace"], pa["startFace"] + pa["nFaces"])
         P = np.array([m.points[p.face_nodes[p.face_offsets[i]:p.face_offsets[i + 1]]].mean(0) for i in f]) \
             if len(f) else np.zeros((0, 3))
         detail = "; ".join(f"{k}: {v}" for k, v in cond.items())
-        conditions.append({"name": pa["name"], "kind": kind, "type": pa["type"], "faces": int(pa["nFaces"]),
-                           "detail": detail})
+        conditions.append({"name": pa["name"], "kind": kind, "role": role, "type": pa["type"],
+                           "faces": int(pa["nFaces"]), "detail": detail})
         if len(P):
-            markers.append({"name": pa["name"], "kind": kind, "points": P, "detail": f"{pa['type']} patch: {detail}"})
+            markers.append({"name": f"{pa['name']} ({role})" if role else pa["name"], "kind": kind, "points": P,
+                            "detail": f"{pa['type']} patch: {detail}"})
     empty = [pa["name"] for pa in p.patches if pa["type"] == "empty"]
     info = {"solver": m.source.get("application") or "OpenFOAM", "file": case.name, "time": m.source.get("time"),
             "length_unit": "m", "conditions": conditions,
-            "notes": [f"2-D case (empty patch {', '.join(empty)}): one of its two sides is shown"] if empty else []}
+            "notes": ([f"2-D case (empty patch {', '.join(empty)}): one of its two sides is shown"] if empty else [])
+            + notes}
     return m, fields, {}, markers, info
 
 

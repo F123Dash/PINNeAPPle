@@ -43,7 +43,7 @@ Large meshes are decimated above 250 k triangles (`RUNNER_VIEW_MAX_FACES`, from 
 
 ![A CalculiX cantilever step: von Mises stress on the deformed beam, the clamp and the tip load from the deck](../assets/apps/d27-runner-3d-calculix.jpg)
 
-![An OpenFOAM cavity step: velocity magnitude, the moving lid as the driving condition, the fixed walls](../assets/apps/d27-runner-3d-openfoam.jpg)
+![An OpenFOAM cavity step: velocity magnitude, the moving lid as the driving wall, the fixed walls](../assets/apps/d27-runner-3d-openfoam.jpg)
 
 ## The same engine in Python
 
