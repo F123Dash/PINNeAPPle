@@ -45,6 +45,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 - Newton backend: `RigidScene.compound` (one rigid body made of several boxes) and `simulate(..., wrenches=...)`
   (constant external forces and torques).
 - `render_geometry(..., frame=(lo, hi))`: a fixed framing box, so animation frames share one camera.
+- Engineering Design Optimizer app (`apps/engineering_optimizer`, day 17, `optimize.pinneapple.org`, port 8100):
+  black-box optimisation (NSGA-II, pymoo, SciPy differential evolution, Bayesian optimisation) on the heat-sink
+  example, a table of your evaluated designs (GP surrogate with held-out error) or a zoo model; candidates re-evaluated
+  with the FVM reference or an operator-configured solver, or verified later from uploaded solver results; feasibility
+  report, trade-off and convergence plots, ParameterSpace / ModelRef / StudyResult downloads. Runs as jobs of the
+  shared runtime (metered evaluations, campaigns and reference runs). Deploy: service `optimize`.
 - 3-D view of a held-out snapshot in the Reduced Order Model Lab (day 19): the FEM field, the ROM prediction and
   |ROM − FEM| on the deformed body, the clamp and load regions, the error hotspots and where the error concentrates
   against the study's numbers. `pinneapple_neural.architectures.rom.views.reconstruction_view` builds it.
@@ -167,6 +173,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `model_ref_for_surrogate`, `table_evaluator` (offline solver results as a reference), and a `progress` callback on
   `run`, `compare_methods` and `surrogate_assisted` (an exception from it, e.g. a cancelled job, stops the run).
 - `MethodComparison.union()`: every run's evaluations in one record with the run that produced each row.
+- `pinneapple_design.design_optimizer`: what the design apps show and export after a run, called by the Engineering
+  and Physics Design Optimizers: `verify_front` (candidates along the front, verified when there is a reference),
+  `write_design_files` (evaluations, candidates with their verification status, `candidates_to_run.csv` and the
+  `ParameterSpace`), `chart_points` (a thinned trade-off plot that keeps the front), `verify_uploaded_results`
+  (exported candidates verified against your offline solver results), `MethodComparison.union_result()` and
+  `.fronts()`, `presets.preset_info` (a preset's variables, defaults, objectives, baseline and reference) and
+  `presets.preset_bodies` (its solids for STL / STEP).
 - `pinneapple_design.geometry_library.exporters.stl_bytes`: the binary STL writer for any triangle mesh.
 - Inverse Model Studio app (day 21, `apps/inverse_studio`, inverse-studio.pinneapple.org, port 8104). It is a new app,
   separate from the Inverse Heat Lab, which is unchanged.
