@@ -1,0 +1,20 @@
+{
+ "files": [
+  "convergence.npz",
+  "grid_r.npz",
+  "grid_theta.npz",
+  "ood_alpha0.3.npz",
+  "test.npz",
+  "train.npz",
+  "val.npz"
+ ],
+ "rows": {
+  "convergence": 12,
+  "grid_r": 192,
+  "grid_theta": 96,
+  "ood_alpha0.3": 401,
+  "test": 401,
+  "train": 1604,
+  "val": 401
+ }
+}
