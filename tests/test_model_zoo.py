@@ -3,6 +3,7 @@ not-published behaviour, the fine-tune guard, validation and the publish script.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import warnings
 from pathlib import Path
@@ -45,7 +46,9 @@ def test_manifest_is_small_hashed_and_versioned():
     man = art.manifest()
     for kind in ("models", "datasets"):
         for name, e in man[kind].items():
-            assert e["hf_repo"].startswith("PINNeAPPle-Labs/") and e["revision"] == f"v{e['version']}"
+            # the tag of the version, or a republication of the same files (v1.0.0.post1: new card, Parquet copies)
+            assert e["hf_repo"].startswith("PINNeAPPle-Labs/") and re.fullmatch(
+                rf"v{re.escape(e['version'])}(\.post\d+)?", e["revision"])
             for fn, spec in e["files"].items():
                 assert len(spec["sha256"]) == 64 and spec["size"] > 0, (name, fn)
                 if name in HUB_ONLY_DATASETS + BLACKHOLE_DATASETS:     # downloaded on first use, never bundled
@@ -198,7 +201,8 @@ def test_lazy_download_then_cache_then_offline(monkeypatch, isolated_cache):
     assert pp.datasets.status("single_wheel_tests") == {"data.npz": "remote"}
     d = pp.datasets.load("single_wheel_tests", split="all")
     assert d.n_rows > 20 and len(calls) == 1
-    assert calls[0] == ("PINNeAPPle-Labs/single-wheel-tests", "data.npz", "v1.0.0", "dataset")
+    assert calls[0] == ("PINNeAPPle-Labs/single-wheel-tests", "data.npz",
+                        art.entry("datasets", "single_wheel_tests")["revision"], "dataset")
     assert pp.datasets.status("single_wheel_tests") == {"data.npz": "cached"}
     monkeypatch.setenv("PINNEAPPLE_OFFLINE", "1")
     pp.datasets.load("single_wheel_tests", split="all")                     # served from the cache
