@@ -203,6 +203,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
   `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
   (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Physics Anomaly Detector app (day 28, `apps/anomaly_detector`, anomaly.pinneapple.org, port 8111): sensor time
+  series (CSV / Parquet / JSON) checked with robust statistics, AR + CUSUM, conservation balances written as formulas
+  over the columns and physical-model residuals; events with severity, variables and explanations; precision / recall
+  against a label column; a benchmark on labelled synthetic runs; `StudyResult` export.
 - Digital Twin Runtime app (day 20, `apps/twin_runtime`, twin.pinneapple.org, port 8103): a lumped model or a
   reduced-order surrogate (`ModelRef`) next to live data over MQTT (embedded broker or external), REST or OPC UA
   (experimental); EnKF state and parameter estimation, forecasts with bands, rule-based alerts, drift monitoring and
