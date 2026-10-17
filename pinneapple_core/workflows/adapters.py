@@ -21,8 +21,10 @@ A new kind::
 """
 from __future__ import annotations
 
+import glob
 import importlib
 import json
+import os
 import shutil
 import sys
 from abc import ABC, abstractmethod
@@ -147,6 +149,25 @@ def resolve_function(ref: str) -> Callable:
     return obj
 
 
+_FOAM_BASHRCS = ("/usr/share/openfoam/etc/bashrc", "/usr/lib/openfoam/openfoam*/etc/bashrc",
+                 "/opt/openfoam*/etc/bashrc", "/opt/OpenFOAM-*/etc/bashrc")
+
+
+def _foam_bashrc(p: dict) -> str | None:
+    """The OpenFOAM bashrc to source before the commands: the step's ``bashrc``, else ``FOAM_BASHRC``, else (when the
+    environment is not loaded already) the first installation found in the usual places. None: nothing to source."""
+    for b in (p.get("bashrc"), os.environ.get("FOAM_BASHRC")):
+        if b and Path(b).is_file():
+            return str(b)
+    if os.environ.get("WM_PROJECT_DIR"):
+        return None
+    for pattern in _FOAM_BASHRCS:
+        found = sorted(glob.glob(pattern))
+        if found:
+            return found[-1]
+    return None
+
+
 class OpenFOAMAdapter(Adapter):
     """params: ``case`` (directory) or ``case_from`` (upstream step id), ``edits`` [{file, key, value}],
     ``solver`` (default icoFoam), ``commands`` (default ["blockMesh", solver]), ``bashrc`` (sourced first)."""
@@ -155,13 +176,16 @@ class OpenFOAMAdapter(Adapter):
 
     def available(self, step=None):
         p = step.params if step else {}
-        bashrc = p.get("bashrc")
-        if bashrc and Path(bashrc).is_file():
+        if _foam_bashrc(p):
             return True, ""
         solver = p.get("solver", "icoFoam")
-        if shutil.which(solver) and shutil.which("blockMesh"):
-            return True, ""
-        return False, f"OpenFOAM not found ({solver} not on PATH and no bashrc)"
+        if not (shutil.which(solver) and shutil.which("blockMesh")):
+            return False, f"OpenFOAM not found ({solver} not on PATH and no bashrc)"
+        if not os.environ.get("WM_PROJECT_DIR"):
+            # distribution packages put the binaries on PATH, but they only run with the environment loaded
+            return False, (f"{solver} is on PATH but the OpenFOAM environment is not loaded and no bashrc was found: "
+                           "source it, or set FOAM_BASHRC or the step's bashrc")
+        return True, ""
 
     def run(self, ctx):
         from pinneapple_simulation.external_solvers.openfoam.campaign import (
@@ -179,7 +203,7 @@ class OpenFOAMAdapter(Adapter):
         for e in p.get("edits", []):
             edit_file(case / e["file"], e["key"], str(e["value"]))
         solver = p.get("solver", "icoFoam")
-        bashrc = p.get("bashrc")
+        bashrc = _foam_bashrc(p)
         cmds = p.get("commands") or ["blockMesh", solver]
         line = "cd case && " + " && ".join(f"{c} > log.{c.split()[0]} 2>&1" for c in cmds)
         if bashrc:

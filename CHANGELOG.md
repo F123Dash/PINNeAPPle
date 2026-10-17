@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- "View result" panel in the Simulation Workflow Runner (day 27): a finished CalculiX or OpenFOAM step opens in 3-D
+  with its mesh, the selected field, the deformed shape (CalculiX, scale factor) and the boundary-condition and load
+  regions the case defines, decimated above 250 k triangles (`RUNNER_VIEW_MAX_FACES`).
+  `pinneapple_tools.visualization.studio.solver_view` builds it, with `pinneapple_data.cae.inp.deck_conditions`
+  (`*BOUNDARY`, `*CLOAD`, `*DLOAD` as node sets) and `pinneapple_data.cae.foam.boundary_conditions` (patch conditions);
+  `WorkflowRunner.step_workdir` gives where a (possibly reused) step's files are.
 - Physics Design Optimizer app (`apps/physics_design`, day 23, `design.pinneapple.org`, port 8106): gradient
   optimisation through differentiable surrogates, SLSQP, NSGA-II, differential evolution and Bayesian optimisation
   compared on the same problem, budget and seeds (hypervolume, evaluations to 95 %, convergence, wall time) on a
@@ -974,6 +980,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Workflow OpenFOAM steps (`openfoam` adapter, the runner's cavity template): with a distribution package
+  (blockMesh and icoFoam on PATH, environment not loaded) the step failed with `bash exited with code 1`, because
+  the solvers need the OpenFOAM environment. The step now sources the step's `bashrc`, else `FOAM_BASHRC`, else the
+  first installation found (`/usr/share/openfoam`, `/usr/lib/openfoam/openfoam*`, `/opt/openfoam*`,
+  `/opt/OpenFOAM-*`), and the template reports "needs solver" with the reason when there is none.
 - Zoo publishing: the file, viewer and model checks of the publish workflow run even when the Space or an item
   failed to upload (the Space's HTTP 402 skipped all of them), and the Space check runs only when the Space was
   published. `publish_space` turns the Hub's 402 (a Gradio Space needs a Team or Enterprise plan for the

@@ -263,6 +263,7 @@ services:
       RUNNER_FREE_JOBS_RUN: ${RUNNER_FREE_JOBS_RUN:-}
       RUNNER_FREE_COMPUTE_SECONDS: ${RUNNER_FREE_COMPUTE_SECONDS:-}
       RUNNER_FREE_STORAGE_MB: ${RUNNER_FREE_STORAGE_MB:-}
+      RUNNER_VIEW_MAX_FACES: ${RUNNER_VIEW_MAX_FACES:-250000}
       # RUNNER_SELF_HOSTED=1 runs any workflow the caller sends: never on a public server
     volumes:
       - runner_data:/data         # runs, step files, job queue, keys and usage: keep this volume
