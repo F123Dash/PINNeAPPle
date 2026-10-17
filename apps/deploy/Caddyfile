@@ -310,3 +310,15 @@
 		}
 	}
 }
+
+{$MESHLESS_DOMAIN} {
+	import common
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy meshless:8109 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}

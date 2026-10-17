@@ -14,6 +14,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Meshless Method Lab app (day 26, `apps/meshless_lab`, meshless.pinneapple.org, port 8109): a Poisson, Helmholtz or
+  heat problem (manufactured solution or source + boundary value) on a preset, polygon or point-cloud domain, solved
+  by Kansa, RBF-FD, embedded finite differences, linear FEM and a PINN in a queued refinement study on the shared
+  runtime; error, cost, condition number, noise amplification, observed order, the Kansa shape-parameter sweep, error
+  maps and the winner of each criterion; `StudyResult` contract and CSV/JSON downloads; four offline examples
+  (smooth L-shape, corner singularity, heat on a plate with a hole, Helmholtz on the disk).
+  `pinneapple_simulation.meshless.contracts` builds the contract.
 - Reduced Order Model Lab app (day 19, `apps/rom_lab`, rom.pinneapple.org, port 8102): upload field snapshots
   (OpenFOAM times, VTU/VTK/FRD series, NPZ/HDF5, CSV/Parquet or a `DatasetSpec` table), queue a ROM study on the
   shared runtime, compare POD + RBF / GPR, DMD, Operator Inference and an equal-budget neural surrogate on held-out

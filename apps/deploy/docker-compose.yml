@@ -460,6 +460,27 @@ services:
     expose: ["8102"]
     mem_limit: ${ROM_MEM_LIMIT:-1g}
 
+  meshless:
+    build:
+      context: ../..
+      dockerfile: apps/meshless_lab/Dockerfile
+    image: pinneapple/meshless-lab:latest
+    restart: unless-stopped
+    environment:
+      MESHLESS_USER: ${MESHLESS_USER:-}
+      MESHLESS_PASSWORD: ${MESHLESS_PASSWORD:-}
+      MESHLESS_MAX_JOBS: ${MESHLESS_MAX_JOBS:-2}
+      MESHLESS_MAX_NODES: ${MESHLESS_MAX_NODES:-20000}
+      MESHLESS_MAX_PINN_S: ${MESHLESS_MAX_PINN_S:-30}
+      MESHLESS_ADMIN_TOKEN: ${MESHLESS_ADMIN_TOKEN:-}
+      MESHLESS_FREE_RUNS: ${MESHLESS_FREE_RUNS:-}
+      MESHLESS_FREE_UNKNOWNS: ${MESHLESS_FREE_UNKNOWNS:-}
+      MESHLESS_FREE_REPORTS: ${MESHLESS_FREE_REPORTS:-}
+    volumes:
+      - meshless_data:/data          # jobs, uploads, usage (shared runtime): keep this volume
+    expose: ["8109"]
+    mem_limit: ${MESHLESS_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -492,12 +513,13 @@ services:
       INVS_DOMAIN: ${INVS_DOMAIN:-inverse-studio.localhost}
       GUIAGENT_DOMAIN: ${GUIAGENT_DOMAIN:-guiagent.localhost}
       ROM_DOMAIN: ${ROM_DOMAIN:-rom.localhost}
+      MESHLESS_DOMAIN: ${MESHLESS_DOMAIN:-meshless.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless]
 
 volumes:
   calibration_data:
@@ -508,6 +530,7 @@ volumes:
   lab_data:
   campaign_data:
   rom_data:
+  meshless_data:
   runner_data:
   obs_cache:
   caddy_data:
