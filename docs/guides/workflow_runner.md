@@ -88,4 +88,7 @@ This is how the Engineering GUI Agent adds GUI-driven steps.
   own login.
 - **Solvers.** The public image has no OpenFOAM or CalculiX. Those templates show "needs solver" there instead of
   pretending.
+- **OpenFOAM environment.** OpenFOAM steps source the step's `bashrc`, else `FOAM_BASHRC`, else the first installation
+  found in `/usr/share/openfoam`, `/usr/lib/openfoam/openfoam*`, `/opt/openfoam*` or `/opt/OpenFOAM-*`, unless the
+  environment is loaded already (`WM_PROJECT_DIR` set).
 - **Skip-done hashes only what a step declares.** Undeclared input files and solver versions are not seen.

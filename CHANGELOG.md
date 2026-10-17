@@ -974,6 +974,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Workflow OpenFOAM steps (`openfoam` adapter, the runner's cavity template): with a distribution package
+  (blockMesh and icoFoam on PATH, environment not loaded) the step failed with `bash exited with code 1`, because
+  the solvers need the OpenFOAM environment. The step now sources the step's `bashrc`, else `FOAM_BASHRC`, else the
+  first installation found (`/usr/share/openfoam`, `/usr/lib/openfoam/openfoam*`, `/opt/openfoam*`,
+  `/opt/OpenFOAM-*`), and the template reports "needs solver" with the reason when there is none.
 - Zoo publishing (`pinneapple_hub.zoo.publish`): each item gets its own working directory per kind. The model and
   the dataset `rover_contact_grc1_viper` share a name; publishing the model deleted the dataset's Parquet copies before
   they were committed, so the dataset was not published and the workflow failed before its download check.
