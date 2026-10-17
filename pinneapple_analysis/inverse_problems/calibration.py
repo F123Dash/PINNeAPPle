@@ -140,8 +140,12 @@ def calibrate(model: ForwardModel, obs: Observations, parameters: Sequence[Param
     try:
         cov = s2_used * np.linalg.pinv(Jw.T @ Jw, rcond=1e-10, hermitian=True)
         sd = np.sqrt(np.maximum(np.diag(cov), 0))
-        dd = np.where(sd > 0, sd, 1)
-        corr = cov / np.outer(dd, dd)
+        # correlations from a slightly regularised inverse: in a non-identifiable direction the pseudo-inverse
+        # drops the direction (and can flip the sign); the ridge keeps it, giving +-1 along the ambiguity
+        H = Jw.T @ Jw
+        C = np.linalg.inv(H + 1e-10 * max(float(np.max(np.linalg.eigvalsh(H))), 1e-300) * np.eye(p))
+        dd = np.sqrt(np.maximum(np.diag(C), 1e-300))
+        corr = np.clip(C / np.outer(dd, dd), -1, 1)
     except np.linalg.LinAlgError:
         sd, corr = np.full(p, np.inf), np.full((p, p), np.nan)
 
