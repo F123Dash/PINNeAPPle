@@ -24,6 +24,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   verification status; `surrogate_assisted` runs GP active learning against a reference; `feasibility_report` lists
   active constraints and margins; `hypervolume` is exact in 2-D. Presets: plate-fin heat sink (zoo MLP, closed
   form, FVM reference) and CST airfoil (zoo ensemble), with STL/STEP design files.
+- `pinneapple_design.design_optimizer`: `problem_from_spec` / `reference_for_spec` (problems from JSON specs: presets,
+  zoo models, tables), `study_result` and `to_parameter_space` (the shared data contracts, when
+  `pinneapple_data.contracts` is installed), `surrogate_from_table` with held-out metrics and
+  `model_ref_for_surrogate`, `table_evaluator` (offline solver results as a reference), and a `progress` callback on
+  `run`, `compare_methods` and `surrogate_assisted` (an exception from it, e.g. a cancelled job, stops the run).
 - `pinneapple_design.geometry_library.exporters.stl_bytes`: the binary STL writer for any triangle mesh.
 - Zoo dataset `airfoil_rans_cst_re4e6_fields` (Hub-only, 186 MB in 5 files): the cell fields p, Ux, Uy, nut and
   cell centres of the 436 OpenFOAM runs of `airfoil_rans_cst_re4e6`, with the same splits. The campaign was
