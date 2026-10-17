@@ -259,7 +259,7 @@ phase peak), phase resistance 93.6 mOhm at 100 degC from the winding data (72 se
 end turn 0.16 m per side estimated), and an illustrative compact car (1450 kg, C_rr 0.009, C_d A 0.58 m^2, wheel
 0.30 m, gear 4.113, 97 %). Results (`results/11_prius_drive.json`, `11_prius_drive.png`):
 
-* envelope: 343.6 N m up to 2000 rpm, then flux weakening (180.9 N m at 3750 rpm, 104.4 N m at 6000 rpm); peak
+* envelope: 343.6 N m up to 2000 rpm, then flux weakening (181.0 N m at 3750 rpm, 104.4 N m at 6000 rpm); peak
   electromagnetic power 77.7 kW at 2500 rpm under these limits. The Prius's published rating (50 kW, 400 N m,
   quoted in pyleecan's test suite) comes from its own inverter current and thermal limits, which are not modelled;
 * peak efficiency 96.2 % at 2750 rpm, 80 N m (copper + iron + magnet loss; no inverter or mechanical loss);
@@ -274,7 +274,7 @@ The optimiser is checked against the closed forms of the linear machine and agai
 | Drive: torque envelope vs closed form (linear dq) | max torque, 500..10000 rpm, both signs | MTPA / circle-ellipse intersection (R = 0) | 1.31e-14 | - | pass |
 | Drive: least-loss currents vs MTPA closed form | currents of least copper loss, 4 torques | i_d = (psi - sqrt(psi^2 + 8 (L_q - L_d)^2 I^2)) / (4 (L_q - L_d)) | 1.97e-08 | - | pass |
 | Drive cycle: WLTC class 3b energy balance | battery energy of a lossless drive | road-load work (kinetic energy returns to zero) | 0.00e+00 | - | pass |
-| Prius flux map: interpolation vs direct FEA | torque at 3 off-grid currents (7 x 7 grid) | FEA at the same currents | 2.76e-04 | - | pass |
+| Prius flux map: interpolation vs direct FEA | torque at 3 off-grid currents (7 x 7 grid) | FEA at the same currents | 2.72e-04 | - | pass |
 
 Notes from the same run:
 
