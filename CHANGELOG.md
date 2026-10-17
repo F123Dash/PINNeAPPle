@@ -14,6 +14,17 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Engineering Design Optimizer app (`apps/engineering_optimizer`, day 17, `optimize.pinneapple.org`, port 8100):
+  black-box optimisation (NSGA-II, pymoo, SciPy differential evolution, Bayesian optimisation) on the heat-sink
+  example, a table of your evaluated designs (GP surrogate with held-out error) or a zoo model; candidates re-evaluated
+  with the FVM reference or an operator-configured solver, or verified later from uploaded solver results; feasibility
+  report, trade-off and convergence plots, ParameterSpace / ModelRef / StudyResult downloads. Runs as jobs of the
+  shared runtime (metered evaluations, campaigns and reference runs). Deploy: service `optimize`.
+- `pinneapple_design.design_optimizer`: `problem_from_spec` / `reference_for_spec` (problems from JSON specs: presets,
+  zoo models, tables), `study_result` and `to_parameter_space` (the shared data contracts), `surrogate_from_table`
+  with held-out metrics and `model_ref_for_surrogate`, `table_evaluator` (offline solver results as a reference), and
+  a `progress` callback on `run`, `compare_methods` and `surrogate_assisted` (an exception from it, e.g. a cancelled
+  job, stops the run).
 - Design studies in `pinneapple_design.design_optimizer` (guide: `docs/guides/design_studies.md`): one problem
   description (`DesignSpace` with continuous and integer variables, `Objective`, `Constraint` with physical,
   manufacturing and validity kinds, `DesignProblem`), evaluators for Python functions, zoo models, torch modules,

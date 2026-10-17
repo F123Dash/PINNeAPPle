@@ -94,6 +94,11 @@ services:
       default: {}
       proxy:
         aliases: [pinneapple-playground]
+  optimize:
+    networks:
+      default: {}
+      proxy:
+        aliases: [pinneapple-optimize]
 
 networks:
   proxy:
