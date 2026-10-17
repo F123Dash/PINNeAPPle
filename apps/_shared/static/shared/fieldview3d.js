@@ -167,17 +167,22 @@ export class FieldView3D {
   placeLabels() {
     // labels never cover each other: in priority order, each takes its anchor or the nearest free slot above or
     // below it, else it is hidden (its points stay marked)
-    const w = this.stage.clientWidth, h = this.stage.clientHeight, placed = [];
+    const w = this.stage.clientWidth, h = this.stage.clientHeight, sr = this.stage.getBoundingClientRect();
+    const placed = [...this.stage.querySelectorAll(".fv3-info, .fv3-legend")].map((el) => {   // keep them readable
+      const r = el.getBoundingClientRect();
+      return { x: r.left - sr.left + r.width / 2, y: r.top - sr.top + r.height / 2, w: r.width, h: r.height };
+    });
     for (const l of this.labels) {
       const p = l.pos.clone().project(this.camera);
       let vis = l.on && this.shows(l.fields) && p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
       if (vis) {
         l.el.style.display = "block";
         const bw = l.el.offsetWidth + 4, bh = l.el.offsetHeight + 2, x = ((p.x + 1) / 2) * w, y = ((1 - p.y) / 2) * h;
+        const lift = 0.8 * l.el.offsetHeight;            // the CSS transform draws a label above its anchor
         const slot = [0, -1, 1, -2, 2, -3, 3].map((k) => y + k * bh).find((yy) => !placed.some((q) =>
-          Math.abs(q.x - x) < (q.w + bw) / 2 && Math.abs(q.y - yy) < (q.h + bh) / 2));
+          Math.abs(q.x - x) < (q.w + bw) / 2 && Math.abs(q.y - (yy - lift)) < (q.h + bh) / 2));
         if (slot === undefined) vis = false;
-        else { placed.push({ x, y: slot, w: bw, h: bh }); l.el.style.left = `${x}px`; l.el.style.top = `${slot}px`; }
+        else { placed.push({ x, y: slot - lift, w: bw, h: bh }); l.el.style.left = `${x}px`; l.el.style.top = `${slot}px`; }
       }
       l.el.style.display = vis ? "block" : "none";
     }
