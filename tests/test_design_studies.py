@@ -124,6 +124,23 @@ def test_nsga2_hypervolume_close_to_exact():
     assert hv <= _exact_hv() * (1 + 1e-9)                    # nothing beats the true front
 
 
+def test_bayesian_batch_acquisition_matches_pointwise():
+    from pinneapple_design.design_optimizer.optimizer import (
+        BayesianDesignOptimizer,
+        DesignOptimizerConfig,
+    )
+    for acq in ("ei", "ucb"):
+        o = BayesianDesignOptimizer(DesignOptimizerConfig(n_initial_random=4, acquisition=acq), seed=0)
+        rng = np.random.default_rng(1)
+        for _ in range(10):
+            x = rng.random(3)
+            o.update(x, [float((x ** 2).sum())])
+        o.y_obs = [float(y[0]) for y in o.Y_obs]
+        o._fit_gp()
+        X = rng.random((40, 3))
+        assert np.allclose(o._acquisition_batch(X), [o._acquisition(x) for x in X], atol=1e-12)
+
+
 def test_bayesian_runs_within_budget():
     r = run(schaffer(), "bayesian", budget=24, seed=0)
     assert r.status == "ok" and r.n_evals == 24 and len(r.pareto()) >= 1
@@ -207,6 +224,10 @@ def test_compare_methods_same_budget():
     assert c.winner() in t
     assert all(0 < r["hv_fraction_of_union"] <= 1 + 1e-9 for r in c.rows)
     assert c.to_dict()["curves"]
+    ev, labels = c.union()
+    assert len(ev) == len(labels) == sum(r.n_evals for r in c.results)
+    front = ev.pareto()
+    assert len(front) and {labels[i].split("#")[0] for i in front} <= {"random", "nsga2", "gradient"}
 
 
 def test_command_evaluator_runs_an_external_program(tmp_path):
