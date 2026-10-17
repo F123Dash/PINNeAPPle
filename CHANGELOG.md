@@ -14,6 +14,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Physics Anomaly Detector app (day 28, `apps/anomaly_detector`, anomaly.pinneapple.org, port 8111): sensor time
+  series (CSV / Parquet / JSON) checked with robust statistics, AR + CUSUM, conservation balances written as formulas
+  over the columns and physical-model residuals; events with severity, variables and explanations; precision / recall
+  against a label column; a benchmark on labelled synthetic runs; `StudyResult` export.
 - Operations library (`pinneapple_systems.operations`) for running validated models next to plant data: a
   heated-tank plant with mass and energy balances, sensors and six fault kinds (`plant`); operator inference with
   inputs fitted on whole trajectories with held-out rollout errors, also as CasADi expressions (`rom`); a digital

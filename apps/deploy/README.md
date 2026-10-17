@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `anomaly` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -104,7 +105,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground anomaly
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -258,6 +259,17 @@ playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
 }
+anomaly.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 120MB
+	}
+	reverse_proxy pinneapple-anomaly:8111 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -274,6 +286,13 @@ A static site: the zoo models run in the visitor's browser (ONNX), so the contai
 `docker build -f apps/playground/Dockerfile -t pinneapple-playground . && docker run -p 8095:8095 pinneapple-playground`.
 The same build can go to GitHub Pages instead: set the repository variable `PLAYGROUND_PAGES=true` and the docs
 workflow publishes it under `<docs site>/playground/` (see `apps/playground/README.md`).
+
+## Physics Anomaly Detector (`anomaly`)
+
+Finds abnormal behaviour in sensor time series with statistics, AR + CUSUM, conservation balances over the columns
+and physical-model residuals, and explains each event (day 28). Analyses and benchmarks run in the shared job queue
+(`ANOMALY_MAX_JOBS` at once); uploads, jobs and usage live in the `anomaly_data` volume. `ANOMALY_MAX_ROWS` caps a
+table (default 500,000 rows). 1 GB of memory is enough: the example and a benchmark seed take a few seconds.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
