@@ -2,7 +2,7 @@
 
 `pinneapple_tools.automation` runs a task in engineering software (FreeCAD, CfdOF, OpenFOAM, ParaView) and delivers
 the files plus a record of what happened: every command, log, screenshot, produced file (with its SHA-256) and check,
-in an HTML evidence report and a StudyResult JSON. Think of it as Selenium for computational engineering: the
+in an HTML evidence report and a `StudyResult` (the data contract the apps share). Think of it as Selenium for computational engineering: the
 application's own API first, the GUI only when there is no API, and a screenshot of each GUI step either way.
 
 ## The committed example: channel with an obstacle
@@ -92,7 +92,8 @@ optional (FreeCAD, CfdOF, OpenFOAM, ParaView, Xvfb); see [apps/deploy/README.md]
 | `display` | `VirtualDisplay` (Xvfb, screenshots with Pillow), `XdotoolDriver`, `PlaywrightDriver`, and `PywinautoDriver`: the interface for Windows GUIs (Ansys Workbench, Abaqus/CAE), documented but not runnable in a Linux container. |
 | `runner` | `Runner(workflow, folder, inputs).run(approve=[...])`: stops on the first failure, on a missing application (`blocked`) and before any step that needs confirmation (expensive, overwrite, destructive, external). A step whose expected files already exist counts as an overwrite. Runs resume from `run.json`. `plan()` says what a run would need without running it. |
 | `verify` | `mass_balance`, `inflow`, `pressure_drop`, `patch_fluxes`, `patch_mean` on OpenFOAM results (`pinneapple_check.fv`); criteria `converged`, `artifact`, `physics_lint` (`pinneapple check`). |
-| `report` | `write_report` (one HTML file with images embedded), `to_study_result` (schema `pinneapple.study_result/0`, the layout the Evidence Report app reads). |
+| `report` | `write_report` (one HTML file with images embedded), `to_study_result`: a `pinneapple_data.contracts.StudyResult` (`study_type="runs"`, checks and criteria as `CheckRecord`, files as `FileRef` with SHA-256, limits, provenance), the contract the Evidence Report app reads. |
+| `runner_step` | `register()` adds the step kind `guiagent` to the Simulation Workflow Runner (`pinneapple_core.workflows`): one runner step runs a committed workflow with `inputs` and the confirmations it is given in `approve`, and outputs its verdict, criteria and metrics. `available()` names the missing applications. |
 
 A step is `passed` only if its action returned, every check it produced held and every file it was expected to leave
 exists. Images are labelled with what they are: `screen` (the virtual display), `window` (one window or the 3D view

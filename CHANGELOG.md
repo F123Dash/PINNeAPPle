@@ -25,7 +25,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   inside the FreeCAD GUI on Xvfb, observed with xdotool), OpenFOAM (command line), ParaView (`pvpython`), Playwright
   and the acceptance criteria. The runner stops on the first failure and before expensive, overwriting, destructive
   or external steps until a person approves them, and records commands, logs, files with SHA-256, screenshots and
-  checks; `write_report` gives a self-contained HTML evidence report and `to_study_result` a StudyResult JSON.
+  checks; `write_report` gives a self-contained HTML evidence report and `to_study_result` a
+  `pinneapple_data.contracts.StudyResult`. `runner_step.register()` makes it a step kind (`guiagent`) of the Simulation
+  Workflow Runner.
   `interpret` maps a sentence to a committed workflow and its inputs (Ollama optional). Criteria: `mass_balance`,
   `inflow`, `pressure_drop` (from `pinneapple_check`'s finite-volume reader), `converged`, `artifact`,
   `physics_lint`. Example `channel_obstacle`: FreeCAD project, macro, CfdOF case, OpenFOAM v1912, ParaView export;

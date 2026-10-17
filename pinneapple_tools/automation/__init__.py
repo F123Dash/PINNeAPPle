@@ -39,7 +39,7 @@ from .display import (
 )
 from .interpret import Interpretation, interpret, parse_quantity
 from .record import Check, Evidence, FileRecord, RunRecord, StepRecord
-from .report import STUDY_RESULT_SCHEMA, to_study_result, write_report, write_study_result
+from .report import to_study_result, write_report, write_study_result
 from .runner import Runner, plan
 from .toolchain import Toolchain
 from .verify import evaluate_criterion, mass_balance, patch_fluxes, patch_mean, pressure_drop
@@ -61,7 +61,7 @@ __all__ = ["Workflow", "Step", "InputSpec", "ArtifactSpec", "Criterion", "Workfl
            "Check", "Evidence", "FileRecord", "Toolchain", "Adapter", "ActionResult", "ActionFailed", "StepContext",
            "get_adapter", "list_adapters", "known_actions", "VirtualDisplay", "XdotoolDriver", "PlaywrightDriver",
            "PywinautoDriver", "GuiUnavailable", "write_report", "write_study_result", "to_study_result",
-           "STUDY_RESULT_SCHEMA", "evaluate_criterion", "mass_balance", "pressure_drop", "patch_fluxes", "patch_mean",
+           "evaluate_criterion", "mass_balance", "pressure_drop", "patch_fluxes", "patch_mean",
            "EXAMPLES", "example_workflow", "catalog"]
 
 
