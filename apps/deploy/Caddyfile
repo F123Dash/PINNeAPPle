@@ -346,3 +346,15 @@
 		}
 	}
 }
+
+{$MDL_DOMAIN} {
+	import common
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy models:8114 {
+		transport http {
+			read_timeout 60s
+		}
+	}
+}

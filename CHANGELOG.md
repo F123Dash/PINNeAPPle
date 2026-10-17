@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Physics AI Model Gateway app (day 31, `apps/model_gateway`, models.pinneapple.org, port 8114):
+  - zoo models, ONNX graphs and Surrogate Studio models (by `ModelRef` or `model.zip`) served behind one `/v1` API;
+  - versions and stages, with an OOD policy per version (warn or refuse) that callers can only tighten;
+  - a run log, latency / count / error metrics and exports;
+  - publishing guarded by the admin token, or an API key for ONNX;
+  - metering of inferences and hosted models on the shared runtime.
 - Physics AI Benchmark Arena app (day 22, `apps/benchmark_arena`, arena.pinneapple.org, port 8105):
   - rankings of physics-AI methods per data regime (interpolation, few data, extrapolation, geometry change, steep
     fronts) under one protocol: equal data and compute, the same stopping rule, several seeds;

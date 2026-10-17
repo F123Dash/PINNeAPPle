@@ -100,6 +100,7 @@
     * [Reduced Order Model Lab](apps/rom_lab.md)
     * [Surrogate Studio](apps/surrogate_studio.md)
     * [Physics AI Benchmark Arena](apps/benchmark_arena.md)
+    * [Physics AI Model Gateway](apps/model_gateway.md)
 * [API Reference](api/index.md)
   * [pinneapple](api/pinneapple/index.md)
   * [pinneapple_physics](api/pinneapple_physics/index.md)

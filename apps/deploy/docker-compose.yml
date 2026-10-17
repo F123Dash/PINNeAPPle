@@ -538,6 +538,25 @@ services:
     expose: ["8105"]
     mem_limit: ${ARN_MEM_LIMIT:-1g}
 
+  models:
+    build:
+      context: ../..
+      dockerfile: apps/model_gateway/Dockerfile
+    image: pinneapple/model-gateway:latest
+    restart: unless-stopped
+    environment:
+      MDL_USER: ${MDL_USER:-}
+      MDL_PASSWORD: ${MDL_PASSWORD:-}
+      MDL_ADMIN_TOKEN: ${MDL_ADMIN_TOKEN:-}
+      MDL_REQUIRE_API_KEY: ${MDL_REQUIRE_API_KEY:-0}
+      MDL_MAX_ROWS: ${MDL_MAX_ROWS:-5000}
+      MDL_FREE_INFERENCES: ${MDL_FREE_INFERENCES:-}
+      MDL_FREE_HOSTED_MODELS: ${MDL_FREE_HOSTED_MODELS:-}
+    volumes:
+      - models_data:/data      # published models, run log, usage, API keys
+    expose: ["8114"]
+    mem_limit: ${MDL_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -573,16 +592,18 @@ services:
       MESHLESS_DOMAIN: ${MESHLESS_DOMAIN:-meshless.localhost}
       SUR_DOMAIN: ${SUR_DOMAIN:-surrogate.localhost}
       ARN_DOMAIN: ${ARN_DOMAIN:-arena.localhost}
+      MDL_DOMAIN: ${MDL_DOMAIN:-models.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate, arena]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate, arena, models]
 
 volumes:
   surrogate_data:
   arena_data:
+  models_data:
   calibration_data:
   evidence_data:
   identifiability_data:
