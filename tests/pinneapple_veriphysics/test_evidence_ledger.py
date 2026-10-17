@@ -18,6 +18,7 @@ from pinneapple_veriphysics.evidence_package import (
     make_figures,
     render_html,
     render_pdf,
+    to_study_result,
     verify_package,
 )
 from pinneapple_veriphysics.ledger import (
@@ -297,3 +298,24 @@ def test_shared_contract_shapes_are_read():
     (t,) = rep["tests"]
     assert t["status"] == NOT_RUN and t["source_claim"] == "passed" and t["why"] == "no evidence record"
     assert "study.json: one seed only" in rep["limitations"] and rep["contracts"][0]["name"] == "sweep"
+
+
+def test_contracts_are_validated_and_the_report_exports_a_study_result():
+    pytest.importorskip("pydantic")
+    from pinneapple_data.contracts import StudyResult, validate
+
+    good = {"kind": "StudyResult", "id": "s1", "study_type": "campaign", "title": "sweep",
+            "checks": [{"name": "mass balance", "status": "PASS", "value": 1e-5}]}
+    bad = {"kind": "StudyResult", "id": "s2", "study_type": "not-a-type"}
+    srcs = [_src("good.json", good), _src("bad.json", bad)]
+    assert srcs[0].problems == [] and srcs[1].problems and "contract_problems" in srcs[1].ref()
+    led = EvidenceLedger()
+    led.record("energy", passed=True, inputs_sha256=H, outputs={}, started_at=utc_now(), finished_at=utc_now())
+    rep = build_report({"title": "t"}, [*srcs, _src("ledger.json", led.to_dict())])
+    sr = to_study_result(rep)
+    assert validate(sr) == [] and StudyResult.from_dict(sr).study_type == "evidence"
+    st = {c["name"]: c["status"] for c in sr["checks"]}
+    assert st["good.json: mass balance"] == "NOT_RUN" and st["ledger.json: energy"] == "PASS"
+    assert sr["metrics"]["passed"] == 1 and sr["metrics"]["not_run"] == 1
+    with zipfile.ZipFile(io.BytesIO(build_package(rep, srcs))) as zf:
+        assert validate(json.loads(zf.read("study_result.json"))) == []

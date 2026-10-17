@@ -26,6 +26,7 @@ python run.py train --model fno --budget-s 3600
 python run.py train --model meshgraphnet --budget-s 3600
 python run.py evaluate                               # results.json, trust cards, figure, GIF, check/predictions
 python run.py datapipe                               # the same kind of checks on PhysicsNeMo's Darcy2D datapipe
+python run.py report                                 # Veriphysics Decision Record + Evidence Report PDF (scope of use)
 pinneapple check --config check/pinneapple-check.toml check/predictions/contrast   # exit code 1: out of range
 ```
 

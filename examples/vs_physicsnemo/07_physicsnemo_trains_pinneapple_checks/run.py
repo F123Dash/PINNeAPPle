@@ -5,6 +5,7 @@
     python run.py train --model meshgraphnet --budget-s 3600
     python run.py evaluate                   # checks, trust cards, results.json, figure, GIF, `pinneapple check` files
     python run.py datapipe                   # the same checks on a batch of PhysicsNeMo's Darcy2D datapipe
+    python run.py report                     # Veriphysics Decision Record + Evidence Report (PDF) per model
 
 Both models are PhysicsNeMo's own (``physicsnemo.models.fno.FNO``, ``physicsnemo.models.meshgraphnet.MeshGraphNet``),
 trained on ``darcy_2d_li2021`` (1000 train / 200 test, 128 x 128) with the same wall-clock budget
@@ -282,6 +283,59 @@ def _figures(regimes, preds, results, exported) -> None:
     print("figure:", OUT / "physicsnemo_darcy_trust.png", "GIF:", OUT / "physicsnemo_darcy_trust.gif")
 
 
+def cmd_report(args) -> None:
+    """A Veriphysics Decision Record and Evidence Report per model: the scope of use over the test set (which uses
+    the model serves, where it fails and why), the shifted regimes as notes, and the figure."""
+    from pinneapple_veriphysics.decision import DecisionRecord
+    from pinneapple_veriphysics.evidence_report import render_evidence_report_pdf
+    from pinneapple_veriphysics.scope import scope_from_batch
+    train = pp.datasets.load("darcy_2d_li2021", split="train")
+    envelope = dc.CoefficientEnvelope.fit(train["a"])
+    regimes = load_regimes()
+    models = {m: GridFieldPredictor.load(OUT / "models" / m) for m in MODELS}
+    preds = _predictions(models, regimes, False)
+    res = json.loads((OUT / "results.json").read_text())
+    evidence = {"interior field": "estimated", "walls and fluxes": "estimated", "inputs": "input check"}
+    validation = ("Estimated from the PDE residual alone (no reference). Validated on this case against the "
+                  "reference solver: the use verdicts agree with those from the true error on 94-100 % of samples in "
+                  "every regime, every disagreement conservative; the estimate over-estimates the error 1.4-2.7x.")
+    for m in MODELS:
+        scopes = {}
+        for r, data in regimes.items():
+            if r == "calibration":
+                continue
+            verdicts = [dc.use_verdicts(data["a"][i], preds[(r, m)][i], DARCY["f"], envelope=envelope)
+                        for i in range(len(data["a"]))]
+            label = {"in_distribution": "test set"}.get(r, SHIFTS.get(r, {}).get("label", r))
+            scopes[r] = scope_from_batch(f"PhysicsNeMo {LABEL[m]}, {label}", verdicts, evidence=evidence)
+        main = scopes["in_distribution"]
+        main.figure = str(OUT / "physicsnemo_darcy_trust.png")
+        main.notes = [validation] + [f"{s.subject}: {s.summary()} ("
+                                     + ", ".join(f"{u.use} {100 * u.fraction_ok:.0f} %" for u in s.uses)
+                                     + " of samples OK)" for r, s in scopes.items() if r != "in_distribution"]
+        tr = res["models"][m]["training"]
+        prof = res["regimes"]["in_distribution"][m]["profiles"]
+        rec = DecisionRecord(
+            run_id=f"physicsnemo-darcy-{m}",
+            problem_description="2-D Darcy, -div(a grad u) = 1, u = 0 on the unit-square boundary; zoo dataset "
+                                "darcy_2d_li2021 (128 x 128); prediction by a PhysicsNeMo model",
+            recommended_strategy=f"PhysicsNeMo {LABEL[m]}: {main.summary()}",
+            reasoning=f"Trained with PhysicsNeMo for {tr['wall_s'] / 60:.0f} min on 4 CPU threads ({tr['epochs']:.1f} "
+                      f"epochs). Certified profiles on the test set: fields {prof['fields']['decision']} "
+                      f"({prof['fields']['ratio']:.1f}x limit), fluxes {prof['fluxes']['decision']} "
+                      f"({prof['fluxes']['ratio']:.1f}x limit).",
+            trust_score=None, trust_coverage=0.0, trustworthy=None,
+            next_best_action=("For the uses listed under 'not for', use the reference finite-volume solver "
+                              "(0.07 s per case at 128 x 128 on this CPU) or retrain with a flux-aware loss; check "
+                              "new inputs against the training envelope (pinneapple check, PC401)."),
+            evidence={"results": str(OUT / "results.json")},
+            scope_of_use=main.to_dict())
+        (OUT / f"decision_record_{m}.txt").write_text(rec.render() + "\n")
+        (OUT / f"evidence_report_{m}.pdf").write_bytes(render_evidence_report_pdf(rec))
+        print(rec.render().split("\n\nPer-check")[0])
+        print("->", OUT / f"evidence_report_{m}.pdf")
+
+
 def cmd_datapipe(args) -> None:
     from physicsnemo import __version__ as pnemo_version
     from physicsnemo.datapipes.benchmarks.darcy import Darcy2D
@@ -332,8 +386,10 @@ def main(argv=None) -> None:
     p.add_argument("--batches", type=int, default=4)
     p.add_argument("--iterations", type=int, default=30000)
     p.add_argument("--multigrids", type=int, default=4)
+    sub.add_parser("report")
     a = ap.parse_args(argv)
-    {"data": cmd_data, "train": cmd_train, "evaluate": cmd_evaluate, "datapipe": cmd_datapipe}[a.cmd](a)
+    {"data": cmd_data, "train": cmd_train, "evaluate": cmd_evaluate, "datapipe": cmd_datapipe,
+     "report": cmd_report}[a.cmd](a)
 
 
 if __name__ == "__main__":
