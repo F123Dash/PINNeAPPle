@@ -65,11 +65,14 @@ def model_from_spec(spec: Mapping[str, Any]) -> ForwardModel:
 
 def synthetic(model: ForwardModel, params: list[Parameter], obs: Observations, seed: int,
               rel_sigma: bool = False) -> Observations:
-    """``obs`` with values = model at the parameters' truth (or value) + N(0, sigma) noise from ``seed``."""
+    """``obs`` with values = model at the parameters' truth (or value) + N(0, sigma) noise from ``seed``, recorded
+    at an instrument resolution of about sigma / 10 (rounded to that many decimals)."""
     theta = {p.name: (p.truth if p.truth is not None else p.value) for p in params}
     clean = model.predict(theta, obs.inputs, obs.observable)
     rng = np.random.default_rng(seed)
-    return obs.with_values(clean + rng.normal(0.0, 1.0, obs.n) * obs.sigma)
+    noisy = clean + rng.normal(0.0, 1.0, obs.n) * obs.sigma
+    decimals = np.clip(np.ceil(-np.log10(obs.sigma / 10)), 0, 12).astype(int)
+    return obs.with_values(np.array([round(float(v), int(d)) for v, d in zip(noisy, decimals, strict=True)]))
 
 
 @dataclass
