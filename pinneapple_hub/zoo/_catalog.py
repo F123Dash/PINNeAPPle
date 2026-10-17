@@ -75,6 +75,70 @@ MODELS = {
                        "naca_reference/Cl_mae": 0.01, "naca_reference/Cd_mape_pct": 2.0},
         "card_tolerance": 1e-3,
     },
+    "airfoil_cst_rans_gnn": {
+        "version": "1.0.0",
+        "adapter": "airfoil_gnn",
+        "dataset": "airfoil_rans_cst_re4e6",
+        "task": ("Airfoil flow fields (p, Ux, Uy, eddy viscosity) near the wall and aerodynamic coefficients (Cl, Cd, "
+                 "Cm) from shape and angle of attack, 2-D steady RANS"),
+        "description": (
+            "MeshGraphNet (Pfaff et al. 2021; 8 message-passing steps, hidden width 48) on the near-wall part of the "
+            "campaign's O-grid, whose nodes move with the CST shape. It predicts the kinematic pressure, both "
+            "velocity components and log(1 + nut/nu) at every node, and Cl, Cd, Cm from a readout pooled over the "
+            "wall nodes, of a fully turbulent, incompressible 2-D RANS solution at Re = 4e6. "
+            "predict_fields returns the node positions and fields; predict returns the coefficients."),
+        "architecture": "AeroGNN (MeshGraphNet + pooled coefficient head)",
+        "architecture_config": {"hidden": 48, "message_passing": 8, "node_features": "position, wall distance, "
+                                "shape weights, angle of attack", "edge_features": "relative position and length",
+                                "fields": ["p", "Ux", "Uy", "log(1 + nut/nu)"], "targets": ["Cl", "log Cd", "Cm"]},
+        "inputs": [*({"name": n, "unit": u, "description": d} for n, u, d in CST),
+                   {"name": "alpha_deg", "unit": "deg", "description": "angle of attack"}],
+        "outputs": [{"name": "Cl", "unit": "-", "description": "lift coefficient (per unit span, chord 1)"},
+                    {"name": "Cd", "unit": "-", "description": "drag coefficient"},
+                    {"name": "Cm", "unit": "-", "description": "pitching-moment coefficient about c/4"},
+                    {"name": "p, Ux, Uy, nut (predict_fields)", "unit": "U = 1, chord 1",
+                     "description": "kinematic pressure, velocity and eddy viscosity at the graph nodes"}],
+        "validity_range": {**CST_RANGE, "alpha_deg": [-2.0, 14.0], "reynolds": 4.0e6, "mach": "incompressible",
+                           "geometry_family": "2nd-order Bernstein CST, upper = M + T, lower = M - T, "
+                                              "trailing-edge thickness 0.25 % chord",
+                           "regime": "fully turbulent (k-omega SST), attached to mildly separated; deep stall "
+                                     "(Cl swing > 0.1 over the last 500 iterations) was excluded from training",
+                           "domain": "the near-wall graph of the 228 x 88 O-grid (fields are not predicted in the "
+                                     "far field)"},
+        "equations": ["steady incompressible RANS, k-omega SST (OpenFOAM v1912 simpleFoam)"],
+        "reference_source": (
+            "Held-out OpenFOAM RANS runs on 15 airfoil shapes never seen in training (60 runs; fields from the "
+            "dataset airfoil_rans_cst_re4e6_fields), 36 NACA 0012/2412/4412/4415 runs excluded from training and "
+            "the XFOIL 6.99 NACA 2412 polar. Solver verification as for airfoil_cst_rans_mlp: 3-grid study on NACA "
+            "2412 at alpha 4 deg (Cd GCI 1.9 %), XFOIL, thin-airfoil lift slope, NASA TMR NACA 0012 SST."),
+        "training_config": {"epochs": "@GNN_EPOCHS@", "optimizer": "Adam lr 1e-3, cosine to 3e-5, batch 4",
+                            "loss": "MSE on standardised fields + MSE on standardised (Cl, log Cd, Cm), weights "
+                                    "(1, 2, 1)",
+                            "selection": "fixed epoch budget, set before training (no checkpoint chosen on test)",
+                            "train_runs": "@GNN_TRAIN_RUNS@", "train_shapes": "@GNN_TRAIN_SHAPES@",
+                            "script": "scripts/zoo/train_airfoil_gnn.py"},
+        "data_lineage": {"dataset": "airfoil_rans_cst_re4e6 (coefficients), airfoil_rans_cst_re4e6_fields (fields)",
+                         "split": "by shape (pinneapple_design.aero.train.split, seed 3, 15 % of LHS shapes held "
+                                  "out); unsteady runs averaged or dropped (pinneapple_design.aero.dataset."
+                                  "steady_values)",
+                         "source": "the 436-run campaign regenerated with pinneapple_design.aero.dataset"},
+        "known_limitations": [
+            "Drag at high lift reads ~14 % high on the campaign grid (20k cells) compared with finer grids/XFOIL; the "
+            "network inherits the solver's bias, it does not correct it.",
+            "Fields are predicted only on the near-wall graph, not over the whole O-grid; the wake beyond it is not "
+            "covered.",
+            "Not valid in deep stall, at other Reynolds numbers, compressible flow or outside the CST bounds.",
+            "About 1000 times costlier per query than airfoil_cst_rans_mlp; use the MLP for coefficient-only sweeps."],
+        "license": "apache-2.0",
+        "tags": ["aerodynamics", "airfoil", "RANS", "surrogate", "graph neural network", "MeshGraphNet", "flow fields"],
+        "citation": AIRFOIL_FIELDS_CITATION,
+        "guard_metrics": ["test/Cl_mae", "test/Cd_mape_pct", "test/p_rel_l2", "test/Ux_rel_l2"],
+        "acceptance": {"test/Cl_mae": 0.02, "test/Cd_mape_pct": 3.0, "test/p_rel_l2": 0.05, "test/Ux_rel_l2": 0.05,
+                       "test/Uy_rel_l2": 0.05, "test/nut_log_rel_l2": 0.15,
+                       "naca_reference/Cl_mae": 0.02, "naca_reference/Cd_mape_pct": 3.0,
+                       "xfoil_naca2412/Cl_mae": 0.03, "xfoil_naca2412/Cd_mape_pct": 8.0},
+        "card_tolerance": 1e-3,
+    },
     "heatsink_forced_mlp": {
         "version": "1.0.0",
         "adapter": "heatsink_forced",
