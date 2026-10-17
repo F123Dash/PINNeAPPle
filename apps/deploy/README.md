@@ -44,6 +44,9 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `surrogate` | A | `<server IPv4>` |
+| `arena` | A | `<server IPv4>` |
+| `models` | A | `<server IPv4>` |
 | `rom` | A | `<server IPv4>` |
 | `meshless` | A | `<server IPv4>` |
 | `runner` | A | `<server IPv4>` |
@@ -78,15 +81,18 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 
 | Variable | Meaning |
 |---|---|
-| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN` | Public hostnames (must match the DNS records) |
+| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN`, `MDL_DOMAIN`, `ARN_DOMAIN`, `SUR_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. OBS, CALIB)|
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR, ARN, MDL) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
 | `IDENT_MAX_JOBS`, `IDENT_FREE_<UNIT>`, `IDENT_ADMIN_TOKEN`, `IDENT_MEM_LIMIT` | Parameter Identifiability Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `identifiability_data` volume. |
 | `INVS_MAX_JOBS`, `INVS_FREE_<UNIT>`, `INVS_ADMIN_TOKEN`, `INVS_MEM_LIMIT` | Inverse Model Studio, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `inverse-studio_data` volume. |
 | `IHL_MAX_JOBS` | Inverse Heat Lab: trainings running at the same time (default 2, each uses one CPU core). Any excess gets HTTP 429. The app runs one worker because jobs live in its memory. |
+| `SUR_MAX_JOBS`, `SUR_MAX_BUDGET_S`, `SUR_MAX_SEEDS`, `SUR_FREE_*`, `SUR_ADMIN_TOKEN`, `SUR_REQUIRE_API_KEY` | Surrogate Studio: trainings at once (queue), largest budget and seed count per study, free use per caller and month, API-key management (see `apps/_shared/README.md`). |
+| `ARN_MAX_JOBS`, `ARN_MAX_BUDGET_S`, `ARN_MAX_SEEDS`, `ARN_FREE_BENCHMARKS`, `ARN_ADMIN_TOKEN`, `ARN_REQUIRE_API_KEY` | Benchmark Arena: private benchmarks at once (queue), largest budget and seed count, free benchmarks per caller and month, API-key management (see `apps/_shared/README.md`). |
+| `MDL_ADMIN_TOKEN`, `MDL_REQUIRE_API_KEY`, `MDL_MAX_ROWS`, `MDL_FREE_*` | Model Gateway: admin token for publishing and key management, mandatory API keys, rows per call, free use per caller and month. |
 | `UDR_FORM_PDF` | Path inside the `udr` container to your copy of the fillable Form U-DR-1 (put the file in `apps/deploy/forms/`). Optional: users can upload it instead. |
 | `UDR_OLLAMA_MODEL` | Optional. Enables local-LLM extraction in the Form Compiler with this Ollama model (pull it first). Every value it returns is checked against the document text; documents never leave your network. |
 | `UDR_OLLAMA_URL` | Ollama server: `http://ollama:11434` (the optional `ollama` service, `--profile llm`) or `http://host.docker.internal:11434` (Ollama on the host). |
@@ -124,7 +130,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration models arena surrogate
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -277,6 +283,39 @@ observatory.example.org {
 playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
+}
+surrogate.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy pinneapple-surrogate:8097 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+arena.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy pinneapple-arena:8105 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+models.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy pinneapple-models:8114 {
+		transport http {
+			read_timeout 60s
+		}
+	}
 }
 runner.example.org {
 	encode zstd gzip
@@ -448,19 +487,25 @@ the login user, or with `X-Admin-Token: $CAMPAIGN_ADMIN_TOKEN` (`POST /api/keys`
 
 ## Engineering Uncertainty Lab (`uncertainty`)
 
-Day 15. One worker (`--workers 1`, 1 GB): a study runs in the request, in a thread, at most `UQL_MAX_HEAVY` at a time
-(default 2; any excess gets HTTP 429). Study size is capped by `UQL_MAX_CASES` (cases screened), `UQL_MAX_PROPAGATION`
-(Monte-Carlo samples), `UQL_MAX_HF` (heat-sink engine runs, about 0.4 s each) and `UQL_MAX_MB` (uploads). The zoo models
-and their reference datasets ship in the image; no outbound network is needed. ONNX uploads run in onnxruntime (CPU).
-Build and run it alone with
+Day 15, on the shared runtime (`apps/_shared/README.md`): studies are jobs in the queue (`UQL_MAX_JOBS` at once,
+default 2; `GET /api/jobs/{id}`), uploads go through `/api/uploads`, and use is metered per caller and month in
+`studies`, `scenarios` (cases screened), `propagation_samples` and `hf_runs` (`UQL_FREE_<UNIT>`; 429 past the limit).
+Keys: `UQL_ADMIN_TOKEN` or the app login manage `/api/keys`. Jobs, uploads, keys and usage live in the
+`uncertainty_data` volume. Study size is capped by `UQL_MAX_CASES`, `UQL_MAX_PROPAGATION`, `UQL_MAX_HF` (heat-sink
+engine runs, about 0.4 s each) and `UQL_MAX_MB`; the synchronous "Try with example" runs are capped by
+`UQL_MAX_HEAVY`. The zoo models and their reference datasets ship in the image; no outbound network is needed. ONNX
+uploads run in onnxruntime (CPU). Build and run it alone with
 `docker build -f apps/uncertainty_lab/Dockerfile -t uncertainty-lab . && docker run -p 8098:8098 uncertainty-lab`.
 
 ## Engineering Sensitivity Lab (`sensitivity`)
 
-Day 16. One worker (`--workers 1`, 1 GB): a study runs in the request, in a thread, at most `SEN_MAX_HEAVY` at a time
-(default 2; any excess gets HTTP 429). Study size is capped by `SEN_MAX_EVALS` (model evaluations; the UI shows the
-count before running), `SEN_MAX_PARAMS` (varied parameters) and `SEN_MAX_MB` (uploads). The zoo models and datasets ship
-in the image; no outbound network is needed. Build and run it alone with
+Day 16, on the shared runtime (`apps/_shared/README.md`): studies are jobs in the queue (`SEN_MAX_JOBS` at once,
+default 2; `GET /api/jobs/{id}`), uploads go through `/api/uploads`, and use is metered per caller and month in
+`studies`, `evaluations` and `parameters` (`SEN_FREE_STUDIES`, `SEN_FREE_EVALUATIONS`, `SEN_FREE_PARAMETERS`; 429 past
+the limit). Keys: `SEN_ADMIN_TOKEN` or the app login manage `/api/keys`. Jobs, uploads, keys and usage live in the
+`sensitivity_data` volume. Study size is capped by `SEN_MAX_EVALS` (model evaluations; the UI shows the count before
+running), `SEN_MAX_PARAMS` and `SEN_MAX_MB`; the synchronous "Try with example" runs are capped by `SEN_MAX_HEAVY`.
+The zoo models and datasets ship in the image; no outbound network is needed. Build and run it alone with
 `docker build -f apps/sensitivity_lab/Dockerfile -t sensitivity-lab . && docker run -p 8099:8099 sensitivity-lab`.
 
 ## Physics Validation Lab (`validate`)
@@ -546,6 +591,36 @@ Builds POD + RBF / GPR, DMD, Operator Inference and an equal-budget neural surro
 ## Meshless Method Lab (`meshless`)
 
 Refinement studies of Kansa, RBF-FD, embedded finite differences, linear finite elements and a PINN on the same 2-D problem. Studies run in the shared job queue: `MESHLESS_MAX_JOBS` at once (default 2; one CPU core each, seconds to a minute), `MESHLESS_MAX_NODES` caps one refinement level (default 20,000; Kansa stops at 4,000 in the library), `MESHLESS_MAX_PINN_S` the PINN budget. Jobs and usage live on the `meshless_data` volume; free use per caller and month: `MESHLESS_FREE_RUNS` (40), `MESHLESS_FREE_UNKNOWNS` (2,000,000 nodes summed over levels), `MESHLESS_FREE_REPORTS` (100 downloads). 1 GB of memory is enough at the default limits.
+
+## Surrogate Studio (`surrogate`)
+
+Trains surrogate models from uploaded simulation results (or the two built-in examples) and serves the chosen model
+at `/v1/models/<name>/predict`, the Model Gateway's API. Studies run in the shared job queue (`SUR_MAX_JOBS` at once,
+the rest wait in the queue); `SUR_MAX_BUDGET_S` and `SUR_MAX_SEEDS` cap the compute one study can ask for. Uploads,
+job results, hosted models, API keys and usage live on the `surrogate_data` volume: keep it across rebuilds. One
+uvicorn worker in a 1 GB container (torch ~400 MB idle, a study adds ~300 MB); the examples finish in about 10 s.
+Free use per caller and month: `SUR_FREE_TRAININGS` (30), `SUR_FREE_INFERENCES` (20000 rows), `SUR_FREE_HOSTED_MODELS`
+(10); `unlimited` lifts a limit. Hosted models are visible to everyone who can reach the server: set the login or
+`SUR_REQUIRE_API_KEY=1` for private use.
+
+## Physics AI Benchmark Arena (`arena`)
+
+Shows rankings of physics-AI methods per data regime from benchmark runs stored in `apps/benchmark_arena/results/`
+(written by `run_public_benchmarks.py`, with their date, hardware and dataset hash), and runs private benchmarks on
+uploaded data with the same protocol in the shared job queue (`ARN_MAX_JOBS`, default 1: a benchmark keeps one core
+busy). Refresh the public results on the deployment hardware with
+`docker compose exec arena python run_public_benchmarks.py` followed by a restart (the files live in the image; copy
+them back into the repository to keep them). `ARN_MAX_BUDGET_S` × methods × seeds × training sets bounds one
+benchmark's time. Uploads, private results, keys and usage live on the `arena_data` volume.
+
+## Physics AI Model Gateway (`models`)
+
+Serves physical models behind one API (`/v1/models/<name>/predict`), with versions, stages, an OOD policy per version
+(warn or refuse), a run log and latency / count / error metrics. On a fresh `models_data` volume it publishes three zoo
+models. Publishing needs the login or `MDL_ADMIN_TOKEN`; API-key holders may publish ONNX graphs. A Surrogate Studio
+model is published by its ModelRef (the gateway forwards to the studio and enforces the bounds itself) or as a
+`model.zip` (admin only: loading it unpickles the model). Keep the volume: it holds the models, the run log, keys and
+usage. Free use per caller and month: `MDL_FREE_INFERENCES` (50000 rows), `MDL_FREE_HOSTED_MODELS` (5).
 
 ## PINNeAPPle Lab catalogue (`lab`)
 

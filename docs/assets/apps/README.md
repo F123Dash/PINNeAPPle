@@ -29,6 +29,8 @@ Days 13–31 of the second series (apps that run studies), images named `dNN-<sl
 | Day | App | Image | Live |
 |---|---|---|---|
 | 13 | Simulation Campaign Planner | `d13-campaign-plan.jpg`, `d13-campaign-result.jpg` (airfoil, 436 existing runs), `d13-campaign-cantilever.jpg` | https://campaign.pinneapple.org |
+| 14 | Surrogate Studio | `d14-surrogate-input.jpg`, `-results.jpg`, `-fields.jpg`, `-predict.jpg` | https://surrogate.pinneapple.org |
+| 22 | Physics AI Benchmark Arena | `d22-arena-rankings.jpg`, `-cost.jpg`, `-private.jpg`, `-bench09.jpg` | https://arena.pinneapple.org |
 | 27 | Simulation Workflow Runner | `d27-runner-new-run.jpg`, `-run.jpg`, `-calculix.jpg`, `-dataset.jpg`, `-3d-calculix.jpg`, `-3d-openfoam.jpg` | https://runner.pinneapple.org |
 | 16 | Engineering Sensitivity Lab | `d16-sensitivity-heatsink.jpg`, `-ishigami.jpg`, `-dataset.jpg`, `-study.jpg` | https://sensitivity.pinneapple.org |
 | 24 | Physics Validation Lab | `d24-validate-report.jpg`, `-input.jpg`, `-form.jpg`, `-zoo-ood.jpg` | https://validate.pinneapple.org |
@@ -36,5 +38,6 @@ Days 13–31 of the second series (apps that run studies), images named `dNN-<sl
 | 27 (extra) | Engineering GUI Agent | `d27-guiagent-home.jpg`, `d27-guiagent-gate.jpg`, `d27-guiagent-run.jpg` | https://guiagent.pinneapple.org |
 | 19 | Reduced Order Model Lab | `d19-rom-input.jpg`, `d19-rom-wake.jpg`, `d19-rom-wake-recon.jpg`, `d19-rom-beam.jpg` | https://rom.pinneapple.org |
 | 26 | Meshless Method Lab | `d26-meshless-input.jpg`, `d26-meshless-lshape.jpg`, `d26-meshless-corner.jpg`, `d26-meshless-heat.jpg`, `d26-meshless-heat-maps.jpg` | https://meshless.pinneapple.org |
+| 31 | Physics AI Model Gateway | `d31-models-endpoint.jpg`, `-remote.jpg`, `-publish.jpg`, `-operations.jpg` | https://models.pinneapple.org |
 
 The Form Compiler image uses the fictitious example documents only (no ASME form).
