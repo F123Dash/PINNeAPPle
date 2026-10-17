@@ -26,7 +26,7 @@ __all__ = ["write_report", "to_study_result", "write_study_result", "STUDY_RESUL
 
 STUDY_RESULT_SCHEMA = "pinneapple.study_result/0"
 _STATE_COLOR = {"passed": "#15803d", "failed": "#b91c1c", "rejected": "#b45309", "awaiting_confirmation": "#4338ca",
-                "blocked": "#6b7280", "running": "#0369a1", "pending": "#9ca3af", "skipped": "#9ca3af",
+                "blocked": "#6b7280", "declined": "#6b7280", "running": "#0369a1", "pending": "#9ca3af", "skipped": "#9ca3af",
                 "paused": "#6b7280"}
 _KIND = {"screen": "screenshot of the virtual display", "window": "screenshot of one window",
          "render": "image exported by the application", "plot": "chart drawn from the step's log"}
@@ -67,8 +67,10 @@ def _step_html(run_dir: Path, s: StepRecord, n: int) -> str:
     rows = []
     if s.confirmation:
         c = s.confirmation
-        who = f"approved by {_e(c.get('approved_by'))} at {_t(c.get('at'))}" if c.get("approved_by") else \
-            "<b>waiting for a person to approve</b>"
+        who = (f"declined by {_e(c.get('declined_by'))} at {_t(c.get('at'))}"
+               + (f": {_e(c.get('reason'))}" if c.get("reason") else "") if c.get("declined_by") else
+               f"approved by {_e(c.get('approved_by'))} at {_t(c.get('at'))}" if c.get("approved_by") else
+               "<b>waiting for a person to approve</b>")
         rows.append(f"<div class=conf>Confirmation ({_e(', '.join(c.get('categories', [])))}): "
                     f"{_e('; '.join(c.get('reasons', [])))} — {who}</div>")
     if s.error:

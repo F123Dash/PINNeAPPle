@@ -116,6 +116,9 @@ class Runner:
                 sr = rec.step(step.id)
                 if sr.state == "passed":
                     continue
+                if sr.state == "declined":
+                    rec.state, rec.message = "declined", f"{step.id} was declined; start a new run"
+                    break
                 if step.id == stop_before:
                     rec.state, rec.message = "paused", f"stopped before {step.id} as asked"
                     break
@@ -189,6 +192,25 @@ class Runner:
                 write_report(rec, self.run_dir / "report.html")
                 write_study_result(rec, self.run_dir / "study_result.json")
                 self.record.save()
+        return rec
+
+    def decline(self, step_id: str, by: str = "", reason: str = "") -> RunRecord:
+        """A person refused the confirmation a step asked for: the step is ``declined``, the run stops there for good
+        (state ``declined``) and the report says who declined and why."""
+        rec = self.record
+        sr = rec.step(step_id)
+        if sr.state != "awaiting_confirmation":
+            raise WorkflowError([f"{step_id} is {sr.state}, not awaiting confirmation"])
+        sr.state = "declined"
+        sr.confirmation = {**(sr.confirmation or {}), "declined_by": by or "unnamed", "at": time.time(),
+                           "reason": reason}
+        rec.state, rec.finished = "declined", time.time()
+        rec.message = f"{step_id} declined by {by or 'unnamed'}" + (f": {reason}" if reason else "")
+        self._emit("run_stopped", state=rec.state, message=rec.message)
+        if self.report:
+            from .report import write_report, write_study_result
+            write_report(rec, self.run_dir / "report.html")
+            write_study_result(rec, self.run_dir / "study_result.json")
         return rec
 
     def _run_step(self, step, sr: StepRecord, params: dict[str, Any], expects, display) -> bool:

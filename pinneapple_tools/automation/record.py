@@ -16,7 +16,7 @@ from typing import Any
 
 __all__ = ["Check", "Evidence", "FileRecord", "StepRecord", "RunRecord", "STATES", "file_record"]
 
-STATES = ("pending", "running", "passed", "failed", "skipped", "awaiting_confirmation", "blocked")
+STATES = ("pending", "running", "passed", "failed", "skipped", "awaiting_confirmation", "declined", "blocked")
 
 
 @dataclass
@@ -130,7 +130,8 @@ class RunRecord:
     workflow: dict[str, Any]
     inputs: dict[str, Any]
     folder: str
-    state: str = "pending"   # pending running passed rejected (steps ran, a criterion not met) failed awaiting_confirmation blocked paused
+    state: str = "pending"   # pending running passed rejected (steps ran, a criterion not met)
+    # failed awaiting_confirmation declined blocked paused
     created: float = field(default_factory=time.time)
     finished: float | None = None
     steps: list[StepRecord] = field(default_factory=list)

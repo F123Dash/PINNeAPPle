@@ -183,6 +183,17 @@ def test_runner_stops_for_confirmation_then_resumes(tmp_path):
         Runner(wf, tmp_path / "r", inputs={"h": 2}, toolchain=Toolchain())
 
 
+def test_declined_confirmation_ends_the_run(tmp_path):
+    run = Runner(_wf(), tmp_path / "r", toolchain=Toolchain()).run()
+    run = Runner(_wf(), tmp_path / "r", toolchain=Toolchain()).decline("c", by="reviewer", reason="no budget")
+    assert run.state == "declined" and run.step("c").state == "declined"
+    assert "declined by reviewer: no budget" in (tmp_path / "r" / "report.html").read_text()
+    run = Runner(_wf(), tmp_path / "r", toolchain=Toolchain()).run(approve=["c"])
+    assert run.state == "declined" and not (tmp_path / "r" / "c" / "out.txt").exists()
+    with pytest.raises(WorkflowError, match="not awaiting"):
+        Runner(_wf(), tmp_path / "r", toolchain=Toolchain()).decline("a")
+
+
 def test_existing_outputs_count_as_overwrite(tmp_path):
     (tmp_path / "r" / "a").mkdir(parents=True)
     (tmp_path / "r" / "a" / "out.txt").write_text("someone's file")
