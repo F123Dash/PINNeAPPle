@@ -128,14 +128,16 @@ function renderRun(r) {
   const links = done ? `<span class="links"><a target="_blank" href="/api/runs/${r.run_id}/report">Evidence report</a>
     <a target="_blank" href="/api/runs/${r.run_id}/study_result">StudyResult</a><a href="/api/runs/${r.run_id}/bundle">Download all (zip)</a></span>` : "";
   const inputs = Object.entries(r.inputs).map(([k, v]) => `${esc(k)} = ${esc(v)} ${esc(r.workflow.inputs?.[k]?.unit || "")}`).join(" · ");
-  const msg = r.active ? `Working on “${esc((r.steps.find((s) => s.id === r.current_step) || {}).title || "…")}”` : esc(r.message);
+  const queued = r.job && r.job.status === "queued";
+  const msg = queued ? "Waiting in the queue: this server runs one task at a time"
+    : r.active ? `Working on “${esc((r.steps.find((s) => s.id === r.current_step) || {}).title || "…")}”` : esc(r.message);
   const scope = `<details class="limits"><summary>Limits of this workflow (${(r.workflow.limits || []).length})</summary>
     <ul>${(r.workflow.limits || []).map((l) => `<li>${esc(l)}</li>`).join("")}</ul>
     <p>Every number, image and log on this page comes from this run. A step is passed only if it ran and every check
       on it held. Meeting the acceptance criteria written in the workflow is not a validation of the model.</p></details>`;
   $("view").innerHTML = `<div class="panel">
     <div class="runhead"><div><h2>${esc(r.workflow.title)}</h2><div class="meta">run ${esc(r.run_id)} · ${inputs}</div></div>
-      <div><span class="state st-${esc(r.active ? "running" : r.state)}">${esc((r.active ? "running" : r.state).replaceAll("_", " "))}</span>${links}</div></div>
+      <div><span class="state st-${esc(r.active ? "running" : r.state)}">${esc(queued ? "queued" : (r.active ? "running" : r.state).replaceAll("_", " "))}</span>${links}</div></div>
     <div class="verdict ${esc(r.active ? "running" : r.state)}">${msg}</div>
     ${gate(r)}
     <div class="timeline">${r.steps.map((s, i) => stepCard(r, s, i)).join("")}</div>

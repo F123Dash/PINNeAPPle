@@ -88,7 +88,8 @@
           <tr><td><code>POST /api/runs</code></td><td>start a run (<code>workflow</code> + <code>inputs</code>, or <code>task</code>)</td></tr>
           <tr><td><code>GET /api/runs/{id}</code></td><td>live record: steps, checks, screenshots, criteria</td></tr>
           <tr><td><code>POST /api/runs/{id}/approve</code>, <code>/decline</code></td><td>answer the confirmation a step is waiting for</td></tr>
-          <tr><td><code>GET /api/runs/{id}/report</code>, <code>/study_result</code>, <code>/bundle</code>, <code>/files/{path}</code></td><td>the evidence report, the StudyResult JSON, everything as a zip, single files</td></tr>
+          <tr><td><code>GET /api/runs/{id}/report</code>, <code>/study_result</code>, <code>/bundle</code>, <code>/files/{path}</code></td><td>the evidence report, the StudyResult (<code>pinneapple_data.contracts</code>), everything as a zip, single files</td></tr>
+          <tr><td><code>GET /api/jobs/{id}</code>, <code>/api/usage</code>, <code>/api/keys</code></td><td>the shared runtime: queue jobs, your use this month (runs, compute seconds, storage), API keys (<code>X-API-Key</code>)</td></tr>
         </tbody>
       </table>
     </div>

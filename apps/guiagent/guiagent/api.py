@@ -2,32 +2,33 @@
 work in FreeCAD, CfdOF, OpenFOAM and ParaView inside this container and hands back the files plus the evidence of
 every step: screenshots, logs, commands, produced files with SHA-256, checks and the acceptance criteria.
 
-All the work is done by ``pinneapple_tools.automation``; this module only exposes it over HTTP.
+The work is done by ``pinneapple_tools.automation``; runs execute in the shared job queue of ``apps/_shared``
+(``install_runtime``: job queue, API keys, usage metering). This module only connects them over HTTP.
 
 Run:  uvicorn guiagent.api:app --port 8115   (from apps/guiagent)
 
-Environment (all optional):
+Environment (all optional; the runtime's own variables are listed in apps/_shared/README.md):
   GUIAGENT_USER / GUIAGENT_PASSWORD   HTTP Basic login on everything except /health
   GUIAGENT_MODE                       public (default: only the committed workflows) or selfhosted (also uploads)
-  GUIAGENT_DATA                       folder for runs and uploaded workflows (default ./data)
-  GUIAGENT_MAX_JOBS                   concurrent runs (default 1); more requests get 429
+  GUIAGENT_MAX_JOBS                   runs at the same time (default 1); further runs wait in the queue
   GUIAGENT_KEEP_RUNS                  runs kept on disk, oldest deleted first (default 40)
+  GUIAGENT_FREE_RUNS / _COMPUTE_SECONDS / _STORAGE_MB   free use per caller and month (20 / 1800 / 500)
   GUIAGENT_OLLAMA_URL / GUIAGENT_OLLAMA_MODEL   optional local LLM for reading sentences (rule-based without it)
 """
 from __future__ import annotations
 
 import io
+import json
 import os
 import re
 import secrets
 import shutil
 import sys
-import threading
 import time
 import zipfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -46,30 +47,26 @@ from pinneapple_tools.automation import (
 )
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
-from appkit import install  # noqa: E402
+from appkit import install, install_runtime, principal  # noqa: E402
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 MODE = (os.environ.get("GUIAGENT_MODE") or "public").lower()
-DATA = Path(os.environ.get("GUIAGENT_DATA") or HERE.parent / "data").resolve()
-RUNS = DATA / "runs"
-UPLOADED = DATA / "workflows"
-MAX_JOBS = int(os.environ.get("GUIAGENT_MAX_JOBS") or 1)
 KEEP_RUNS = int(os.environ.get("GUIAGENT_KEEP_RUNS") or 40)
 RUN_ID = re.compile(r"^[0-9]{8}-[0-9]{6}-[0-9a-f]{6}$")
 
 app = FastAPI(title="Engineering GUI Agent", version=VERSION,
               description="Run a task in engineering software (FreeCAD, CfdOF, OpenFOAM, ParaView) and get the files "
-                          "plus the evidence of every step. POST /api/runs starts a run of a committed workflow; it "
+                          "plus the evidence of every step. POST /api/runs queues a run of a committed workflow; it "
                           "stops before expensive steps until POST /api/runs/{id}/approve. GET /api/runs/{id} follows "
                           "it; /report, /study_result and /bundle deliver the evidence.")
 app.add_middleware(GZipMiddleware, minimum_size=2000)
 install(app, prefix="GUIAGENT")
-
-_jobs = threading.BoundedSemaphore(MAX_JOBS)
-_lock = threading.Lock()
-_active: dict[str, str] = {}                    # run id -> step being run (for the UI while a thread works)
+rt = install_runtime(app, prefix="GUIAGENT", name="guiagent", max_jobs=1,
+                     units={"runs": 20, "compute_seconds": 1800, "storage_mb": 500})
+RUNS = rt.root / "runs"
+UPLOADED = rt.root / "workflows"
 _toolchain = Toolchain.discover()
 
 
@@ -95,45 +92,71 @@ def _workflow(wid: str) -> Workflow:
     return cat[wid]
 
 
-def _run_dir(run_id: str) -> Path:
-    if not RUN_ID.match(run_id) or not (RUNS / run_id / "run.json").is_file():
+def _meta(folder: Path) -> dict:
+    p = folder / "owner.json"
+    return json.loads(p.read_text()) if p.is_file() else {}
+
+
+def _active(meta: dict) -> bool:
+    try:
+        return rt.jobs.get(meta["job_id"])["status"] in ("queued", "running")
+    except (KeyError, TypeError):
+        return False
+
+
+def _run_dir(request: Request, run_id: str) -> Path:
+    """The run's folder if it exists and the caller owns it (or is admin); 404 otherwise."""
+    folder = RUNS / run_id
+    if not RUN_ID.match(run_id) or not (folder / "run.json").is_file():
         raise HTTPException(404, "No such run.")
-    return RUNS / run_id
+    if _meta(folder).get("owner") != principal(request) and not rt.is_admin(request):
+        raise HTTPException(404, "No such run.")
+    return folder
 
 
 def _prune() -> None:
     runs = sorted((p for p in RUNS.iterdir() if p.is_dir() and RUN_ID.match(p.name)), key=lambda p: p.name)
     for p in runs[:-KEEP_RUNS] if len(runs) > KEEP_RUNS else []:
-        if p.name not in _active:
+        if not _active(_meta(p)):
             shutil.rmtree(p, ignore_errors=True)
 
 
-def _slot() -> None:
-    """Take one of the MAX_JOBS run slots, or answer 429."""
-    if not _jobs.acquire(blocking=False):
-        raise HTTPException(429, f"The agent is busy with another run ({MAX_JOBS} at a time on this server). "
-                                 "Please retry in a minute.")
+def agent_job(params: dict, ctx) -> dict:
+    """Queue job: run (or resume) one automation run, report progress, meter compute time and storage."""
+    folder = RUNS / params["run_id"]
+    rec = RunRecord.load(folder)
+    wf = _workflow(rec.workflow["id"])
+    ids = [s.id for s in wf.steps]
+    t0 = time.time()
+
+    def on_event(e: dict) -> None:
+        if e["event"] == "step_started":
+            ctx.progress(ids.index(e["step"]) / len(ids), f"{e['step']}")      # also stops here on cancel
+        elif e["event"] in ("progress", "confirmation_needed", "step_blocked", "step_finished"):
+            ctx.log(f"{e.get('step', '')}: {e.get('message') or e.get('state') or e.get('error') or e['event']}")
+
+    rec = Runner(wf, folder, toolchain=_toolchain, on_event=on_event).run(
+        approve=params.get("approve") or [], approver=params.get("approver") or "")
+    seconds = sum(s.duration_s or 0.0 for s in rec.steps if s.started and s.started >= t0)
+    mb = sum(f.stat().st_size for f in folder.rglob("*") if f.is_file()) / 2**20
+    owner = _meta(folder).get("owner", "")
+    rt.meter.record(owner, "compute_seconds", seconds, ref=rec.run_id)
+    rt.meter.record(owner, "storage_mb", mb, ref=rec.run_id)
+    ctx.log(f"run {rec.run_id}: {rec.state}, {seconds:.1f} s of compute, {mb:.1f} MB")
+    return {"run_id": rec.run_id, "state": rec.state, "message": rec.message, "compute_seconds": seconds,
+            "storage_mb": mb}
 
 
-def _launch(fn, run_id: str) -> None:
-    """Run ``fn`` in a background thread holding the slot taken by :func:`_slot`."""
-    def work():
-        try:
-            fn()
-        finally:
-            with _lock:
-                _active.pop(run_id, None)
-            _jobs.release()
-
-    with _lock:
-        _active[run_id] = "starting"
-    threading.Thread(target=work, daemon=True).start()
+rt.jobs.register("agent", agent_job)
 
 
-def _on_event(e: dict) -> None:
-    if e.get("step"):
-        with _lock:
-            _active[e["run_id"]] = e["step"]
+def _submit(request: Request, folder: Path, params: dict, units: dict) -> dict:
+    who = principal(request)
+    for unit in ("compute_seconds", "storage_mb"):
+        rt.meter.check(who, unit, 0)                     # already past the month's compute or storage: 429
+    job = rt.submit(request, "agent", params, units=units)
+    (folder / "owner.json").write_text(json.dumps({**_meta(folder), "owner": who, "job_id": job["id"]}))
+    return job
 
 
 # ----------------------------------------------------------------------------------------------------- schemas
@@ -162,7 +185,8 @@ def health():
 @app.get("/api/meta")
 def meta():
     missing = _toolchain.missing(["freecad", "cfdof", "openfoam", "gmsh", "paraview", "xvfb", "xdotool"])
-    return {"version": VERSION, "mode": MODE, "max_jobs": MAX_JOBS, "busy": len(_active),
+    stats = rt.jobs.stats()
+    return {"version": VERSION, "mode": MODE, "max_jobs": rt.jobs.max_concurrent, "queue": stats,
             "llm": bool(os.environ.get("GUIAGENT_OLLAMA_MODEL")), "tools": _toolchain.versions(),
             "missing_tools": missing, "uploads": MODE == "selfhosted"}
 
@@ -193,9 +217,9 @@ def api_interpret(body: InterpretIn):
 
 
 @app.post("/api/runs")
-def start_run(body: RunIn):
-    """Start a run. It goes on in the background until it finishes, fails, or reaches a step that needs a person's
-    approval (the solver step of the example); follow it with GET /api/runs/{id}."""
+def start_run(request: Request, body: RunIn):
+    """Queue a run. It goes on in the background until it finishes, fails, or reaches a step that needs a person's
+    approval (the solver step of the example); follow it with GET /api/runs/{id}. Counts one run."""
     try:
         if body.task:
             it = interpret(body.task, _catalog(), llm=_llm())
@@ -207,78 +231,78 @@ def start_run(body: RunIn):
         runner_inputs = wf.resolve_inputs(inputs)
     except WorkflowError as e:
         raise HTTPException(422, str(e)) from e
+    rt.meter.check(principal(request), "runs", 1)
     RUNS.mkdir(parents=True, exist_ok=True)
-    _slot()
-    try:
-        run_id = time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + secrets.token_hex(3)
-        runner = Runner(wf, RUNS / run_id, inputs=runner_inputs, toolchain=_toolchain, on_event=_on_event)
-        _prune()
-    except BaseException:
-        _jobs.release()
-        raise
-    _launch(runner.run, run_id)
-    return {"run_id": run_id, "workflow": wf.id, "inputs": runner_inputs}
+    run_id = time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + secrets.token_hex(3)
+    folder = RUNS / run_id
+    Runner(wf, folder, inputs=runner_inputs, toolchain=_toolchain)        # writes run.json (pending)
+    job = _submit(request, folder, {"run_id": run_id}, units={"runs": 1})
+    _prune()
+    return {"run_id": run_id, "job_id": job["id"], "workflow": wf.id, "inputs": runner_inputs}
 
 
 @app.get("/api/runs")
-def list_runs(limit: int = 20):
+def list_runs(request: Request, limit: int = 20):
+    """The caller's runs (the admin sees every run), newest first."""
     if not RUNS.is_dir():
         return []
-    out = []
-    for p in sorted((p for p in RUNS.iterdir() if RUN_ID.match(p.name)), reverse=True)[:max(1, min(limit, 100))]:
+    admin, who, out = rt.is_admin(request), principal(request), []
+    for p in sorted((p for p in RUNS.iterdir() if RUN_ID.match(p.name)), reverse=True):
+        m = _meta(p)
+        if not admin and m.get("owner") != who:
+            continue
         try:
             r = RunRecord.load(p)
         except (OSError, ValueError):
             continue
         out.append({"run_id": r.run_id, "workflow": r.workflow.get("id"), "title": r.workflow.get("title"),
                     "inputs": r.inputs, "state": r.state, "message": r.message, "created": r.created,
-                    "finished": r.finished, "active": r.run_id in _active})
+                    "finished": r.finished, "active": _active(m), "job_id": m.get("job_id")})
+        if len(out) >= max(1, min(limit, 100)):
+            break
     return out
 
 
 @app.get("/api/runs/{run_id}")
-def get_run(run_id: str):
+def get_run(request: Request, run_id: str):
     """The live record: state, every step (state, duration, commands, logs, artifacts, screenshots, checks,
-    outputs, confirmation), the acceptance criteria and the tools used."""
-    d = RunRecord.load(_run_dir(run_id)).to_dict()
-    d["active"] = run_id in _active
-    d["current_step"] = _active.get(run_id)
+    outputs, confirmation), the acceptance criteria and the tools used; plus the queue job."""
+    folder = _run_dir(request, run_id)
+    d = RunRecord.load(folder).to_dict()
+    m = _meta(folder)
+    job = None
+    if m.get("job_id"):
+        try:
+            job = rt.jobs.get(m["job_id"])
+        except KeyError:
+            job = None
+    d["active"] = bool(job and job["status"] in ("queued", "running"))
+    d["job"] = {k: job.get(k) for k in ("id", "status", "progress", "message", "error")} if job else None
+    d["current_step"] = next((s["id"] for s in d["steps"] if s["state"] == "running"), None)
     d.pop("folder", None)
     return d
 
 
-def _resume(run_id: str, approve: list[str], by: str) -> None:
-    folder = _run_dir(run_id)
-    rec = RunRecord.load(folder)
-    wf = _workflow(rec.workflow["id"])
-    _slot()
-    try:
-        runner = Runner(wf, folder, toolchain=_toolchain, on_event=_on_event)
-    except BaseException:
-        _jobs.release()
-        raise
-    _launch(lambda: runner.run(approve=approve, approver=by), run_id)
-
-
 @app.post("/api/runs/{run_id}/approve")
-def approve(run_id: str, body: Decision):
-    """Approve the step the run is waiting on; the run continues in the background."""
-    rec = RunRecord.load(_run_dir(run_id))
-    if run_id in _active:
-        raise HTTPException(409, "This run is already running.")
-    step = next((s for s in rec.steps if s.id == body.step), None)
+def approve(request: Request, run_id: str, body: Decision):
+    """Approve the step the run is waiting on; the run continues in the queue."""
+    folder = _run_dir(request, run_id)
+    if _active(_meta(folder)):
+        raise HTTPException(409, "This run is already queued or running.")
+    step = next((s for s in RunRecord.load(folder).steps if s.id == body.step), None)
     if step is None or step.state != "awaiting_confirmation":
         raise HTTPException(409, f"Step {body.step!r} is not waiting for a confirmation.")
-    _resume(run_id, [body.step], body.by.strip() or "web user")
-    return {"run_id": run_id, "approved": body.step}
+    job = _submit(request, folder, {"run_id": run_id, "approve": [body.step],
+                                    "approver": body.by.strip() or "web user"}, units={})
+    return {"run_id": run_id, "approved": body.step, "job_id": job["id"]}
 
 
 @app.post("/api/runs/{run_id}/decline")
-def decline(run_id: str, body: Decision):
+def decline(request: Request, run_id: str, body: Decision):
     """Refuse the confirmation: the run ends there, and the evidence says who declined and why."""
-    folder = _run_dir(run_id)
-    if run_id in _active:
-        raise HTTPException(409, "This run is already running.")
+    folder = _run_dir(request, run_id)
+    if _active(_meta(folder)):
+        raise HTTPException(409, "This run is already queued or running.")
     rec = RunRecord.load(folder)
     try:
         rec = Runner(_workflow(rec.workflow["id"]), folder, toolchain=_toolchain).decline(
@@ -293,45 +317,45 @@ _MEDIA = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".js
 
 
 @app.get("/api/runs/{run_id}/files/{path:path}")
-def run_file(run_id: str, path: str):
+def run_file(request: Request, run_id: str, path: str):
     """A file of the run (screenshots, logs, exported fields, the FreeCAD documents)."""
-    root = _run_dir(run_id).resolve()
+    root = _run_dir(request, run_id).resolve()
     p = (root / path).resolve()
-    if not p.is_relative_to(root) or not p.is_file():
+    if not p.is_relative_to(root) or not p.is_file() or p.name == "owner.json":
         raise HTTPException(404, "No such file in this run.")
     media = _MEDIA.get(p.suffix.lower()) or ("text/plain" if p.name.startswith("log.") else "application/octet-stream")
     return FileResponse(p, media_type=media)
 
 
 @app.get("/api/runs/{run_id}/report")
-def report(run_id: str):
+def report(request: Request, run_id: str):
     """The evidence report: one self-contained HTML file (print it to PDF from the browser)."""
-    p = _run_dir(run_id) / "report.html"
+    p = _run_dir(request, run_id) / "report.html"
     if not p.is_file():
         raise HTTPException(404, "The report is written when the run stops.")
     return FileResponse(p, media_type="text/html")
 
 
 @app.get("/api/runs/{run_id}/study_result")
-def study_result(run_id: str):
-    """The run as a StudyResult (schema pinneapple.study_result/0), for the Evidence Report app."""
-    p = _run_dir(run_id) / "study_result.json"
+def study_result(request: Request, run_id: str):
+    """The run as a pinneapple_data.contracts.StudyResult, for the Evidence Report app."""
+    p = _run_dir(request, run_id) / "study_result.json"
     if not p.is_file():
         raise HTTPException(404, "The StudyResult is written when the run stops.")
     return FileResponse(p, media_type="application/json")
 
 
 @app.get("/api/runs/{run_id}/bundle")
-def bundle(run_id: str):
+def bundle(request: Request, run_id: str):
     """Everything the run produced as a zip: record, report, StudyResult, FreeCAD documents, the OpenFOAM case at
     its last time, logs, screenshots, exported fields."""
-    root = _run_dir(run_id)
-    if run_id in _active:
+    root = _run_dir(request, run_id)
+    if _active(_meta(root)):
         raise HTTPException(409, "The run is still going; download it when it stops.")
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for p in sorted(root.rglob("*")):
-            if p.is_file() and not p.name.startswith("."):
+            if p.is_file() and not p.name.startswith(".") and p.name != "owner.json":
                 z.write(p, f"{run_id}/{p.relative_to(root).as_posix()}")
     return Response(buf.getvalue(), media_type="application/zip",
                     headers={"Content-Disposition": f'attachment; filename="guiagent-{run_id}.zip"'})
@@ -347,12 +371,12 @@ async def upload_workflow(file: UploadFile = File(...)):  # noqa: B008  (FastAPI
     data = await file.read()
     if len(data) > 50 * 1024 * 1024:
         raise HTTPException(413, "Workflow archives are limited to 50 MB.")
+    UPLOADED.mkdir(parents=True, exist_ok=True)
     tmp = UPLOADED / (".upload-" + secrets.token_hex(4))
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as z:
             for name in z.namelist():
-                target = (tmp / name).resolve()
-                if not target.is_relative_to(tmp.resolve()):
+                if not (tmp / name).resolve().is_relative_to(tmp.resolve()):
                     raise HTTPException(422, f"Unsafe path in the archive: {name}")
             z.extractall(tmp)
         found = sorted(tmp.rglob("workflow.y*ml")) + sorted(tmp.rglob("workflow.json"))
