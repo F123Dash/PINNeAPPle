@@ -62,6 +62,7 @@
     * [Colab notebooks](guides/colab_notebooks.md)
     * [PINNeAPPle from coding agents (MCP server)](guides/mcp_server.md)
     * [Physics checks in CI](guides/physics_checks_in_ci.md)
+    * [Engineering GUI agent: run FreeCAD, OpenFOAM, ParaView with evidence](guides/engineering_gui_agent.md)
     * [pp.validate: one call, one validation report](guides/pp_validate.md)
     * [FMI import compatibility](guides/fmi_compatibility.md)
     * [Spectral fidelity: what relative L2 does not see](guides/spectral_fidelity.md)

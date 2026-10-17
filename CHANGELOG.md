@@ -14,6 +14,19 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Engineering GUI agent (`pinneapple_tools.automation`): runs a task in engineering software and keeps the evidence.
+  A structured workflow (YAML/JSON: inputs with bounds, steps with preconditions, expected files and confirmation
+  categories, acceptance criteria) is executed step by step through adapters for FreeCAD and CfdOF (Python API
+  inside the FreeCAD GUI on Xvfb, observed with xdotool), OpenFOAM (command line), ParaView (`pvpython`), Playwright
+  and the acceptance criteria. The runner stops on the first failure and before expensive, overwriting, destructive
+  or external steps until a person approves them, and records commands, logs, files with SHA-256, screenshots and
+  checks; `write_report` gives a self-contained HTML evidence report and `to_study_result` a
+  `pinneapple_data.contracts.StudyResult`. `runner_step.register()` makes it a step kind (`guiagent`) of the Simulation
+  Workflow Runner.
+  `interpret` maps a sentence to a committed workflow and its inputs (Ollama optional). Criteria: `mass_balance`,
+  `inflow`, `pressure_drop` (from `pinneapple_check`'s finite-volume reader), `converged`, `artifact`,
+  `physics_lint`. Example `channel_obstacle`: FreeCAD project, macro, CfdOF case, OpenFOAM v1912, ParaView export;
+  [guide](docs/guides/engineering_gui_agent.md).
 - Design studies in `pinneapple_design.design_optimizer` (guide: `docs/guides/design_studies.md`): one problem
   description (`DesignSpace` with continuous and integer variables, `Objective`, `Constraint` with physical,
   manufacturing and validity kinds, `DesignProblem`), evaluators for Python functions, zoo models, torch modules,
@@ -812,6 +825,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- `pinneapple check`: `FV.patch_sums` (per-patch flux and heat-flow totals of the balance checks PC101/PC103) read
+  the boundary arrays with the internal-face offset and returned 0 for every patch; the net balance was right.
 - `pinneapple_analysis.inverse_problems.heat_transfer.__all__` listed an undefined `FinInput`, so
   `from ... import *` failed.
 - App job queue (`pinneapple_core.service.jobs`): the final log line of a job is written before its final status, so
