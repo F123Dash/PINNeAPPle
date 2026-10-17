@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 __all__ = ["Polygon", "SectorGeometry", "arc", "VRotor", "RoundBottomSlots", "polygon_area", "prius_2004",
-           "MachineGeometry"]
+           "MachineGeometry", "geometry_errors"]
 
 TWO_PI = 2.0 * math.pi
 
@@ -37,9 +37,12 @@ def polygon_area(xy: np.ndarray) -> float:
     return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(np.roll(x, -1), y))
 
 
-def arc(center: complex, radius: float, a0: float, a1: float, h: float) -> np.ndarray:
-    """Points of a circular arc from angle ``a0`` to ``a1`` (both included), spacing at most ``h``."""
+def arc(center: complex, radius: float, a0: float, a1: float, h: float, even: bool = False) -> np.ndarray:
+    """Points of a circular arc from angle ``a0`` to ``a1`` (both included), spacing at most ``h``; ``even``: an even
+    number of intervals, so the mid-angle is a vertex (arcs symmetric about a mirror axis)."""
     n = max(1, int(math.ceil(abs(a1 - a0) * radius / h)))
+    if even:
+        n += n % 2
     t = np.linspace(a0, a1, n + 1)
     return np.column_stack([center.real + radius * np.cos(t), center.imag + radius * np.sin(t)])
 
@@ -207,7 +210,7 @@ class RoundBottomSlots:
     def _bottom(self, top: float, h: float) -> np.ndarray:
         x4 = top + self.H2 - self.R1
         if abs(self.R1 - self.W2 / 2) < 1e-12:  # semicircular bottom
-            return arc(complex(x4, 0.0), self.R1, -math.pi / 2, math.pi / 2, h)
+            return arc(complex(x4, 0.0), self.R1, -math.pi / 2, math.pi / 2, h, even=True)
         lo = arc(complex(x4, -self.W2 / 2 + self.R1), self.R1, -math.pi / 2, 0.0, h)
         hi = arc(complex(x4, self.W2 / 2 - self.R1), self.R1, 0.0, math.pi / 2, h)
         return np.vstack([lo, hi])
@@ -220,7 +223,7 @@ class RoundBottomSlots:
         Z1 = Rbo * complex(math.cos(al), -math.sin(al))
         x2 = Z1.real + self.H0  # top of the opening
         top = x2 + self.H1  # bottom of the wedge = top of the winding
-        bore = arc(0j, Rbo, al, -al, h)[1:-1]
+        bore = arc(0j, Rbo, al, -al, h, even=True)[1:-1]
         polys = [Polygon("opening", np.vstack([_pts(Z1, complex(x2, -self.W0 / 2), complex(x2, self.W0 / 2),
                                                     Z1.conjugate()), bore]))]
         body = [complex(top, -self.W1 / 2)]
@@ -257,3 +260,55 @@ def prius_2004() -> MachineGeometry:
     """2004 Toyota Prius traction motor: dimensions of pyleecan's ``Toyota_Prius.json`` (pyleecan 1.4.2,
     Apache-2.0), which models the machine of the ORNL evaluation reports (ORNL/TM-2004/185, ORNL/TM-2006/423)."""
     return MachineGeometry(VRotor(), RoundBottomSlots(), length=0.08382, stacking_factor=0.95)
+
+
+def _segments_cross(p, q, r, s, tol: float) -> bool:
+    """Proper intersection of segments pq and rs (touching at shared end points does not count)."""
+    def orient(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+    if min(np.linalg.norm(a - b) for a in (p, q) for b in (r, s)) <= tol:
+        return False
+    d1, d2, d3, d4 = orient(r, s, p), orient(r, s, q), orient(p, q, r), orient(p, q, s)
+    return (d1 * d2 < -tol ** 2) and (d3 * d4 < -tol ** 2)
+
+
+def geometry_errors(sector: SectorGeometry, tol: float = 1e-9) -> list[str]:
+    """Reasons why a sector is not a valid cross-section (empty when valid): polygons that self-intersect, cross each
+    other, overlap (a vertex strictly inside another polygon), or leave the annular sector."""
+    from matplotlib.path import Path
+
+    errs = []
+    half = sector.span / 2.0
+    edges = []
+    for k, pg in enumerate(sector.polygons):
+        xy = pg.xy
+        r = np.hypot(xy[:, 0], xy[:, 1])
+        a = np.arctan2(xy[:, 1], xy[:, 0])
+        if np.any(r < sector.r_in - tol) or np.any(r > sector.r_out + tol) or np.any(np.abs(a) > half + 1e-12):
+            errs.append(f"{pg.name} leaves the sector")
+        if polygon_area(xy) == 0.0:
+            errs.append(f"{pg.name} has zero area")
+        edges += [(k, xy[i], xy[(i + 1) % len(xy)]) for i in range(len(xy))]
+    for i in range(len(edges)):
+        for j in range(i + 1, len(edges)):
+            if _segments_cross(edges[i][1], edges[i][2], edges[j][1], edges[j][2], tol):
+                a, b = sector.polygons[edges[i][0]].name, sector.polygons[edges[j][0]].name
+                errs.append(f"{a} and {b} cross" if a != b else f"{a} intersects itself")
+    for i, pa in enumerate(sector.polygons):
+        path = Path(pa.xy)
+        for j, pb in enumerate(sector.polygons):
+            if i == j:
+                continue
+            inside = path.contains_points(pb.xy) & (_distance_to_boundary(pb.xy, pa.xy) > 1e3 * tol)
+            if np.any(inside):
+                errs.append(f"{pb.name} overlaps {pa.name}")
+    return sorted(set(errs))
+
+
+def _distance_to_boundary(pts: np.ndarray, xy: np.ndarray) -> np.ndarray:
+    a, b = xy, np.roll(xy, -1, axis=0)
+    ab = b - a
+    t = np.clip(((pts[:, None, :] - a[None]) * ab[None]).sum(-1) / np.maximum((ab * ab).sum(-1), 1e-300), 0, 1)
+    d = pts[:, None, :] - (a[None] + t[..., None] * ab[None])
+    return np.sqrt((d * d).sum(-1)).min(1)

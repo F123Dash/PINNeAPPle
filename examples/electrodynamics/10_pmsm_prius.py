@@ -44,21 +44,21 @@ def main(quick: bool, write_docs: bool) -> dict:
                       "psi_pm_peak_Wb": float(np.max(np.abs(nl["psi"][:, 0]))),
                       "emf_line_rms_V_at_1000rpm": emf["line_rms"], "emf_thd": emf["thd"]}
 
-    curve = mv.prius_torque_curve(n_gap, n_positions=6 if quick else 12)
+    curve = mv.prius_torque_curve(n_gap, n_positions=12)
     res["torque_vs_angle"] = {"phi0_deg": curve["phi0_deg"].tolist(), "torque_Nm": curve["torque"].tolist(),
                               "torque_dq_Nm": curve["torque_dq"].tolist(),
                               "yang_2013_Nm": mv.YANG_2013_TORQUE_NM.tolist()}
 
     mtpa = []
-    for I in ((100.0, 250.0) if quick else (50.0, 100.0, 150.0, 200.0, 250.0)):
-        g, _ = m.mtpa(I, n_positions=4, tol=math.radians(1.0))
-        op = m.operating_point(I_peak=I, gamma=g, n_positions=6 if quick else 12)
+    for amp in ((100.0, 250.0) if quick else (50.0, 100.0, 150.0, 200.0, 250.0)):
+        g, _ = m.mtpa(amp, n_positions=4, tol=math.radians(1.0))
+        op = m.operating_point(I_peak=amp, gamma=g, n_positions=6 if quick else 12)
         ind = m.inductances(op["i_d"], op["i_q"])
-        mtpa.append({"I_peak_A": I, "gamma_deg": math.degrees(g), "torque_Nm": op["torque_mean"],
+        mtpa.append({"I_peak_A": amp, "gamma_deg": math.degrees(g), "torque_Nm": op["torque_mean"],
                      "ripple_pk_pk": op["ripple"], "i_d": op["i_d"], "i_q": op["i_q"], "psi_d": op["psi_d"],
                      "psi_q": op["psi_q"], "L_d_mH": 1e3 * ind["L_dd"], "L_q_mH": 1e3 * ind["L_qq"],
                      "psi_pm_Wb": ind["psi_pm_d"]})
-        print(f"MTPA {I:5.0f} A: gamma {mtpa[-1]['gamma_deg']:5.1f} deg, T {op['torque_mean']:6.1f} N m, "
+        print(f"MTPA {amp:5.0f} A: gamma {mtpa[-1]['gamma_deg']:5.1f} deg, T {op['torque_mean']:6.1f} N m, "
               f"ripple {100 * op['ripple']:4.1f} %, L_d {mtpa[-1]['L_d_mH']:.3f} mH, L_q {mtpa[-1]['L_q_mH']:.3f} mH",
               flush=True)
     res["mtpa"] = mtpa

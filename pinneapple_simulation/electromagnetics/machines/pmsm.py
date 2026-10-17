@@ -35,6 +35,7 @@ from ..postprocess import (
     element_flux_density_history,
     flux_linkage,
     iron_loss,
+    iron_loss_components,
     magnet_eddy_loss_resistance_limited,
     torque_maxwell_stress,
 )
@@ -289,12 +290,8 @@ class IPMMachine:
                 "thd": float(np.sqrt(np.sum(np.abs(2 * F[2:]) ** 2)) / e1)}
 
     # ------------------------------------------------------------------ losses
-    def losses(self, rpm: float, i_d: float, i_q: float, steps: int = 48, loss_model=None,
-               magnet_pieces_per_magnet: int = 1, n_harmonics: int | None = None) -> dict:
-        """Iron loss (stator, rotor) from the flux density over one electrical period (each element in its own
-        frame; ``loss_model`` default: the catalogue table of the steel) and resistance-limited magnet eddy
-        loss (each magnet an insulated piece)."""
-        model = loss_model or TableIronLoss(self.steel)
+    def _period(self, i_d: float, i_q: float, steps: int):
+        """Solutions over one electrical period with fixed dq currents, and B in each element's own frame."""
         thetas = self.positions(steps, period=TWO_PI / self.pole_pairs)
         sols, A0 = [], None
         for th in thetas:
@@ -303,20 +300,43 @@ class IPMMachine:
             sols.append(ms)
         rot = np.zeros(self.mm.n_elements, bool)
         rot[self.mm.rotor_elements] = True
-        Bh = element_flux_density_history([s.B for s in sols], thetas, rot)
-        f = rpm / 60.0 * self.pole_pairs
-        area = sols[0].sol.geometry.area
-        kf = self.geometry.stacking_factor
-        Pst, dst = iron_loss(Bh, f, model, area * kf, self._stator_iron, self.length, n_harmonics)
-        Prt, drt = iron_loss(Bh, f, model, area * kf, self._rotor_iron, self.length, n_harmonics)
-        # magnet loss: A in the rotor frame is A at rotor nodes (they turn with the rotor)
+        return thetas, sols, element_flux_density_history([s.B for s in sols], thetas, rot)
+
+    def _magnet_loss(self, sols, f: float) -> float:
+        # A in the rotor frame is A at the rotor nodes (they turn with the rotor)
         A_hist = np.array([s.A for s in sols])
         pieces = [self.mm.region == self.mm.region_names.index(f"magnet{k}") for k in range(self.geometry.rotor.poles)]
-        Pm = magnet_eddy_loss_resistance_limited(sols[0].mesh, sols[0].sol.geometry, A_hist, 1.0 / f,
-                                                 1.0 / self.magnet.resistivity, pieces, self.length)
-        if magnet_pieces_per_magnet != 1:
-            raise NotImplementedError("segmented magnets: set VRotor.magnet_segments instead")
+        return magnet_eddy_loss_resistance_limited(sols[0].mesh, sols[0].sol.geometry, A_hist, 1.0 / f,
+                                                   1.0 / self.magnet.resistivity, pieces, self.length)
+
+    def losses(self, rpm: float, i_d: float, i_q: float, steps: int = 48, loss_model=None,
+               n_harmonics: int | None = None) -> dict:
+        """Iron loss (stator, rotor) from the flux density over one electrical period (each element in its own
+        frame; ``loss_model`` default: the catalogue table of the steel) and resistance-limited magnet eddy
+        loss (each magnet an insulated piece; segment them with ``VRotor.magnet_segments``)."""
+        model = loss_model or TableIronLoss(self.steel)
+        thetas, sols, Bh = self._period(i_d, i_q, steps)
+        f = rpm / 60.0 * self.pole_pairs
+        area = sols[0].sol.geometry.area * self.geometry.stacking_factor
+        Pst, dst = iron_loss(Bh, f, model, area, self._stator_iron, self.length, n_harmonics)
+        Prt, drt = iron_loss(Bh, f, model, area, self._rotor_iron, self.length, n_harmonics)
         T = np.array([self.torque(s) for s in sols])
-        return {"frequency_Hz": f, "stator_iron_W": Pst, "rotor_iron_W": Prt, "magnet_W": Pm,
+        return {"frequency_Hz": f, "stator_iron_W": Pst, "rotor_iron_W": Prt, "magnet_W": self._magnet_loss(sols, f),
                 "torque_mean": float(T.mean()), "torque": T, "thetas": thetas,
                 "stator_loss_density": dst, "rotor_loss_density": drt}
+
+    def loss_components(self, i_d: float, i_q: float, alpha: float, beta: float, steps: int = 24,
+                        n_harmonics: int | None = None) -> dict:
+        """Speed-free loss data of one operating point: iron-loss sums ``S = (S_h, S_c, S_e)`` of stator and rotor
+        (:func:`~..postprocess.iron_loss_components`; loss ``k_h f^alpha S_h + k_c f^2 S_c + k_e f^1.5 S_e``) and
+        the magnet loss coefficient ``P_m / f^2`` (resistance limited), with the mean torque and dq flux."""
+        thetas, sols, Bh = self._period(i_d, i_q, steps)
+        area = sols[0].sol.geometry.area * self.geometry.stacking_factor
+        rho = self.steel.density
+        out = {"stator": iron_loss_components(Bh, area, self._stator_iron, alpha, beta, rho, self.length, n_harmonics),
+               "rotor": iron_loss_components(Bh, area, self._rotor_iron, alpha, beta, rho, self.length, n_harmonics),
+               "magnet_per_f2": self._magnet_loss(sols, 1.0)}
+        T = np.array([self.torque(s) for s in sols])
+        dq = np.array([self.park(self.flux_linkage(s), th) for s, th in zip(sols, thetas, strict=True)])
+        out.update(torque_mean=float(T.mean()), psi_d=float(dq[:, 0].mean()), psi_q=float(dq[:, 1].mean()))
+        return out

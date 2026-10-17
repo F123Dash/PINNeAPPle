@@ -142,7 +142,7 @@ def _coenergy(quick: bool) -> CaseResult:
 @case("Prius IPM: dq power balance and frozen permeability")
 def _dq(quick: bool) -> CaseResult:
     m = _machine(480 if quick else 960)
-    op = m.operating_point(I_peak=250.0, gamma=math.radians(50.0), n_positions=6 if quick else 12)
+    op = m.operating_point(I_peak=250.0, gamma=math.radians(50.0), n_positions=12)
     dev = abs(op["torque_dq"] - op["torque_mean"]) / op["torque_mean"]
     ind = m.inductances(op["i_d"], op["i_q"])
     return CaseResult("Prius IPM: dq power balance and frozen permeability",
@@ -155,7 +155,7 @@ def _dq(quick: bool) -> CaseResult:
 @case("Prius IPM: torque vs current angle (Yang et al. 2013)")
 def _yang(quick: bool) -> CaseResult:
     n = 480 if quick else 960
-    c = prius_torque_curve(n, n_positions=6 if quick else 12)
+    c = prius_torque_curve(n, n_positions=12)
     T = c["torque"]
     k = int(np.argmax(T))
     rms = float(np.sqrt(np.mean((T - YANG_2013_TORQUE_NM) ** 2)) / YANG_2013_TORQUE_NM.max())

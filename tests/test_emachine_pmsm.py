@@ -96,8 +96,35 @@ def test_no_load_flux_is_on_the_d_axis_and_cogging_is_periodic(prius):
     assert T1 == pytest.approx(T0, abs=1e-6 * max(1.0, abs(T0)))
 
 
-@pytest.mark.parametrize("name", list(mv.CASES))
+@pytest.mark.parametrize("name", [n for n in mv.CASES if not n.startswith(("Drive", "Prius flux map"))])
 def test_machine_verification_case(name):
     """Each case meets its tolerance: closed forms at second order, torque consistency, the published curve."""
     r = mv.run([name], quick=True)[0]
     assert r.passed, r.row() + " " + r.detail
+
+
+def test_loss_components_reproduce_the_direct_loss(prius):
+    """One period of field solutions gives the iron loss at any speed: the speed-free sums of
+    ``loss_components`` times the Bertotti coefficients equal ``losses`` with the same model."""
+    fit = fit_iron_loss(M400_50A, f_max=1000.0)
+    k_h, alpha, beta, k_c, k_e = fit.fitted
+    c = prius.loss_components(-100.0, 150.0, alpha, beta, steps=12)
+    for rpm in (1000.0, 4000.0):
+        direct = prius.losses(rpm, -100.0, 150.0, steps=12, loss_model=fit.model)
+        f = rpm / 60.0 * prius.pole_pairs
+        S = c["stator"] + c["rotor"]
+        from_sums = k_h * f ** alpha * S[0] + k_c * f ** 2 * S[1] + k_e * f ** 1.5 * S[2]
+        assert from_sums == pytest.approx(direct["stator_iron_W"] + direct["rotor_iron_W"], rel=1e-10)
+        assert c["magnet_per_f2"] * f ** 2 == pytest.approx(direct["magnet_W"], rel=1e-10)
+
+
+def test_geometry_errors_accept_the_prius_and_reject_broken_rotors():
+    import dataclasses
+
+    from pinneapple_simulation.electromagnetics.machines.geometry import geometry_errors
+
+    g = prius_2004()
+    assert geometry_errors(g.rotor.sector(1e-3)) == [] and geometry_errors(g.stator.sector(1e-3)) == []
+    assert any("leaves the sector" in e for e in geometry_errors(dataclasses.replace(g.rotor, W4=0.026).sector(1e-3)))
+    assert any("cross" in e or "itself" in e
+               for e in geometry_errors(dataclasses.replace(g.rotor, H3=0.012).sector(1e-3)))

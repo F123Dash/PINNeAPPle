@@ -79,6 +79,10 @@ def mesh_sector(geom: SectorGeometry, size: Callable[[np.ndarray], np.ndarray] |
         polys = []
         for pg in geom.polygons:
             xy = _clip_lower(pg.xy)
+            r = np.hypot(xy[:, 0], xy[:, 1])
+            for rr in (geom.r_in, geom.r_out):  # a chord clipped on the axis next to an arc: snap onto the arc
+                near = (np.abs(r - rr) < 1e-6 * rr) & (np.abs(xy[:, 1]) <= 1e-15)
+                xy[near] = np.column_stack([np.full(near.sum(), rr), np.zeros(near.sum())])
             if len(xy) >= 3 and abs(polygon_area(xy)) > 0:
                 polys.append(Polygon(pg.name, _turn(xy, q)))
         hg = SectorGeometry(geom.r_in, geom.r_out, half, geom.fill, polys,
