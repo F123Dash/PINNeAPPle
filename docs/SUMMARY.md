@@ -58,6 +58,7 @@
     * [Pre-trained models and datasets (pp.zoo)](guides/model_zoo.md)
     * [Zoo catalogue](guides/zoo_catalogue.md)
     * [Geometry library](guides/geometry_library.md)
+    * [Design studies: optimisers and verified candidates](guides/design_studies.md)
     * [Colab notebooks](guides/colab_notebooks.md)
     * [PINNeAPPle from coding agents (MCP server)](guides/mcp_server.md)
     * [Physics checks in CI](guides/physics_checks_in_ci.md)

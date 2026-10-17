@@ -14,6 +14,23 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Design studies in `pinneapple_design.design_optimizer` (guide: `docs/guides/design_studies.md`): one problem
+  description (`DesignSpace` with continuous and integer variables, `Objective`, `Constraint` with physical,
+  manufacturing and validity kinds, `DesignProblem`), evaluators for Python functions, zoo models, torch modules,
+  external solvers run as commands and model references (`from_model_ref`), and `run(problem, method, budget=...)`
+  for `random`, `nsga2`, `pymoo-nsga2` (optional pymoo), `scipy-de`, `scipy-slsqp`, `bayesian` and `gradient`
+  (autograd) under one evaluation budget. `compare_methods` tabulates hypervolume, cost and convergence on the same
+  budget; `verify_candidates` re-evaluates chosen designs with a reference and reports surrogate errors and a
+  verification status; `surrogate_assisted` runs GP active learning against a reference; `feasibility_report` lists
+  active constraints and margins; `hypervolume` is exact in 2-D. Presets: plate-fin heat sink (zoo MLP, closed
+  form, FVM reference) and CST airfoil (zoo ensemble), with STL/STEP design files.
+- `pinneapple_design.design_optimizer`: `problem_from_spec` / `reference_for_spec` (problems from JSON specs: presets,
+  zoo models, tables), `study_result` and `to_parameter_space` (the shared data contracts, when
+  `pinneapple_data.contracts` is installed), `surrogate_from_table` with held-out metrics and
+  `model_ref_for_surrogate`, `table_evaluator` (offline solver results as a reference), and a `progress` callback on
+  `run`, `compare_methods` and `surrogate_assisted` (an exception from it, e.g. a cancelled job, stops the run).
+- `MethodComparison.union()`: every run's evaluations in one record with the run that produced each row.
+- `pinneapple_design.geometry_library.exporters.stl_bytes`: the binary STL writer for any triangle mesh.
 - Inverse Model Studio app (day 21, `apps/inverse_studio`, inverse-studio.pinneapple.org, port 8104). It is a new app,
   separate from the Inverse Heat Lab, which is unchanged.
   - It formulates an inverse problem once (measurements, model, unknown parameters, boundary conditions or field
@@ -763,6 +780,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
+- **Behavior:** `BayesianDesignOptimizer` scores its acquisition on all candidate points with one GP prediction (same
+  values, several times faster) and seeds the GP hyper-parameter restarts with its own seed, so a run is reproducible.
+- **Behavior:** `EvolutionaryDesignOptimizer` in multi-objective mode now draws parents by the NSGA-II
+  crowded-comparison tournament (front rank, then crowding distance) instead of by the first objective, so the
+  population spreads along the front.
 - `pp.benchmark`: adding entries to `budget_study` or `ablations` reuses an existing `out_dir` (they only add jobs); changing
   or removing an entry is still refused. Before, any change to them was refused.
 - **Behavior:** `pinneapple_analysis.cost.measure` now counts FLOPs of code that calls `torch.autograd.grad` with
