@@ -53,6 +53,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `calibration` | A | `<server IPv4>` |
 | `identifiability` | A | `<server IPv4>` |
 | `inverse-studio` | A | `<server IPv4>` |
+| `guiagent` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -88,6 +89,11 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 | `UDR_OLLAMA_MODEL` | Optional. Enables local-LLM extraction in the Form Compiler with this Ollama model (pull it first). Every value it returns is checked against the document text; documents never leave your network. |
 | `UDR_OLLAMA_URL` | Ollama server: `http://ollama:11434` (the optional `ollama` service, `--profile llm`) or `http://host.docker.internal:11434` (Ollama on the host). |
 | `UDR_OLLAMA_TIMEOUT` | Seconds per LLM request (default 600; local models on CPU are slow). |
+| `GUIAGENT_DOMAIN`, `GUIAGENT_USER` / `GUIAGENT_PASSWORD`, `GUIAGENT_MEM_LIMIT` | Engineering GUI Agent (optional heavy image): hostname, HTTP Basic login, memory cap (default 2g) |
+| `GUIAGENT_MODE` | `public` (default): only the committed workflows run. `selfhosted`: `POST /api/workflows` also adds your own workflows, FreeCAD projects and macros. Macros are code, so never enable this on a public server. |
+| `GUIAGENT_MAX_JOBS`, `GUIAGENT_KEEP_RUNS` | Runs at the same time (default 1; further runs wait in the shared job queue) and runs kept on disk (default 40; the oldest are deleted first) |
+| `GUIAGENT_FREE_RUNS`, `GUIAGENT_FREE_COMPUTE_SECONDS`, `GUIAGENT_FREE_STORAGE_MB`, `GUIAGENT_ADMIN_TOKEN` | Free use per caller and month (defaults 20 runs, 1800 s, 500 MB; over it: HTTP 429) and the admin token for API keys (see `apps/_shared/README.md`) |
+| `GUIAGENT_OLLAMA_MODEL`, `GUIAGENT_OLLAMA_URL` | Optional local LLM that reads free-form tasks. Without it, tasks are read by rules, and the demo works either way. |
 
 ## 5. Start
 
@@ -363,6 +369,14 @@ inverse-studio.example.org {
 		}
 	}
 }
+guiagent.example.org {
+	encode zstd gzip
+	reverse_proxy pinneapple-guiagent:8115 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -472,6 +486,31 @@ live in SQLite on the `inverse-studio_data` volume. `INVS_HEAT_LAB_URL` sets the
 classical methods take seconds; a PINN trains for 25 s (fin) to 95 s (plate) on one core, so keep `INVS_MAX_JOBS` at
 or below the cores you can spare. 1 GB of memory is enough.
 
+## Engineering GUI Agent (`guiagent`)
+
+A **separate, optional heavy image** (about 5.4 GB uncompressed, 1.8 GB compressed). It contains:
+
+- FreeCAD 1.0.2: the AppImage, extracted;
+- the CfdOF 1.37.3 workbench;
+- OpenFOAM v1912 (the Ubuntu package, as elsewhere in the repository);
+- ParaView 5.11 with `pvpython`;
+- Xvfb and xdotool.
+
+It has the compose profile `guiagent`, so a plain `docker compose up -d` does not build or start it. Name it instead:
+
+```bash
+docker compose up -d --build guiagent                     # with this project's Caddy
+PROXY_NETWORK=<network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
+  up -d --build --no-deps guiagent                         # behind an existing proxy (pinneapple-guiagent:8115)
+```
+
+The service runs one uvicorn worker with `mem_limit` 2g and one run at a time (`GUIAGENT_MAX_JOBS=1`; later runs
+wait in the shared job queue of `apps/_shared`, which also meters runs, compute seconds and storage per caller). A full run of
+the example took 42 s in the image (2 GB limit, 0.9 GB in use after the run). Runs and their evidence, the job queue, API keys and usage are kept in
+the `guiagent_data` volume (`/data/guiagent`); the oldest runs are deleted beyond `GUIAGENT_KEEP_RUNS`. On a public server, keep `GUIAGENT_MODE=public`: only the committed
+workflows run, with their inputs inside the workflow's bounds, and no uploads are accepted. Building the image
+downloads the FreeCAD AppImage from GitHub (about 800 MB) and CfdOF from GitHub.
+
 ## PINNeAPPle Lab catalogue (`lab`)
 
 The `lab` service runs `python -m pinneapple_lab serve` (standard library HTTP server, port 8093) on the `lab_data`
@@ -492,7 +531,7 @@ Set `LAB_USER` / `LAB_PASSWORD` in `.env` to require a login (`/health` stays op
 | Task | Command (in `apps/deploy`) |
 |---|---|
 | Update to the latest code | `git pull && docker compose up -d --build` |
-| Logs | `docker compose logs -f heatsink` (or `pcb`, `caddy`) |
+| Logs | `docker compose logs -f heatsink` (or `pcb`, `caddy`, `guiagent`) |
 | Change a password | edit `.env`, then `docker compose up -d` |
 | Restart | `docker compose restart` |
 | Stop | `docker compose down` (certificates stay in the `caddy_data` volume) |

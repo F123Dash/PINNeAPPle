@@ -31,7 +31,7 @@ Measured on FreeCAD 1.0.2, CfdOF 1.37.3, OpenFOAM v1912, gmsh 4.13.1, ParaView 5
 |---|---|---|---|---|---|---|
 | 25 mm | 20 193 | 119 | 1.000e-4 | 1e-8 | 1.9 mPa | ACCEPTED |
 | 55 mm (default) | 19 370 | 162 | 1.000e-4 | 5e-9 | 3.5 mPa | ACCEPTED |
-| 80 mm | 18 618 | 223 | 1.000e-4 | 7e-9 | 14.1 mPa | REJECTED by the 0.01 Pa limit |
+| 80 mm | 18 618 | 223 | 1.000e-4 | 7e-9 | 14.1 mPa (14.3 in the Docker run) | REJECTED by the 0.01 Pa limit |
 
 The whole workflow takes about 30 s (FreeCAD start-up included). gmsh meshes with several threads, so the cell
 count changes by a few hundred between runs of the same input (19 370 and 19 588 for 55 mm); the decisions did not.
@@ -63,6 +63,25 @@ These are the reasons the checks exist; each was found by a real run and is now 
   inlet as `fixedValue` on ESI releases before v2006 and records the edit.
 * **A bug in `pinneapple check`'s per-patch fluxes.** `FV.patch_sums` read past the end of the boundary arrays the
   balances pass it, so every patch total was 0 (only the net balance was right). Fixed, with a test.
+
+## The app: guiagent.pinneapple.org
+
+`apps/guiagent` (port 8115) puts the library behind a web page and a REST API. You:
+
+1. type a task, or pick the workflow and its inputs;
+2. watch the step timeline fill with checks and screenshots;
+3. approve or decline the solver step;
+4. download the evidence report, the StudyResult and the run as a zip.
+
+Runs execute in the shared job queue of `apps/_shared` (one at a time; others wait), belong to the caller and are
+metered in runs, compute seconds and storage. The public server runs only the committed workflows. Uploading your own workflows, projects and macros
+is for self-hosted mode (`GUIAGENT_MODE=selfhosted`), because a macro is code. The Docker image is separate and
+optional (FreeCAD, CfdOF, OpenFOAM, ParaView, Xvfb); see [apps/deploy/README.md](../../apps/deploy/README.md).
+
+| Waiting for approval before the solver | A finished run (80 mm obstacle, rejected by the pressure-drop limit) |
+|---|---|
+| ![gate](../assets/apps/d27-guiagent-gate.jpg) | ![done](../assets/apps/d27-guiagent-run.jpg) |
+
 
 ## Building blocks
 
