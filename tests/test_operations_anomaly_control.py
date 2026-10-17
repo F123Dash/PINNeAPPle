@@ -235,3 +235,15 @@ def test_from_dict_round_trips():
     assert cfg.balances[0].name == "m"
     with pytest.raises(ValueError):
         DetectorConfig.from_dict({"normal_until": 1, "bogus": 2})
+
+
+def test_intervals_from_labels_score_like_faults():
+    from pinneapple_systems.operations.anomaly import intervals_from_labels
+
+    iv = intervals_from_labels([0, 10, 20, 30, 40, 50], ["", "leak", "leak", "0", "normal", "bias"])
+    assert [(i.kind, i.start, i.end) for i in iv] == [("leak", 10.0, 30.0), ("bias", 50.0, 60.0)]
+    data, faults = fault_benchmark(seed=203)
+    res = detect(data, _cfg(methods=("balance",)))
+    a = score_events(res, faults)
+    b = score_events(res, intervals_from_labels(data["t"], data["fault"]))
+    assert a["tp"] == b["tp"] and a["event_recall"] == b["event_recall"]

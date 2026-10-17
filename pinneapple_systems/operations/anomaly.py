@@ -443,6 +443,40 @@ def fault_benchmark(seed: int = 0, t0: float = 7200.0, dt: float = 10.0) -> tupl
     return data, faults
 
 
+@dataclass
+class LabelledInterval:
+    """A labelled abnormal interval ``[start, end)`` read from data (same interface as a plant ``Fault``)."""
+
+    kind: str
+    start: float
+    end: float
+    target: str = ""
+
+    def active(self, t) -> np.ndarray:
+        t = np.asarray(t, dtype=float)
+        return (t >= self.start) & (t < self.end)
+
+
+def intervals_from_labels(t, labels) -> list[LabelledInterval]:
+    """Contiguous runs of a label column: empty, ``0``, ``normal`` or ``false`` mean normal, anything else names
+    the anomaly. Each run ends at the next sample's time."""
+    t = np.asarray(t, dtype=float)
+    lab = ["" if v is None or (isinstance(v, float) and np.isnan(v)) else str(v).strip() for v in labels]
+    lab = ["" if v.lower() in ("", "0", "0.0", "normal", "false", "none", "nan") else v for v in lab]
+    out, i = [], 0
+    while i < len(lab):
+        if not lab[i]:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(lab) and lab[j + 1] == lab[i]:
+            j += 1
+        end = t[j + 1] if j + 1 < len(t) else t[j] + (t[j] - t[j - 1] if j > 0 else 1.0)
+        out.append(LabelledInterval(lab[i], float(t[i]), float(end)))
+        i = j + 1
+    return out
+
+
 def score_events(result: DetectionResult, faults: Sequence[Fault], grace: float = 600.0,
                  evaluate_from: float | None = None) -> dict:
     """Point-wise and event-wise scores against the true fault intervals.
