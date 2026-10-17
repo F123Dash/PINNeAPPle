@@ -14,6 +14,20 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Operations library (`pinneapple_systems.operations`) for running validated models next to plant data: a
+  heated-tank plant with mass and energy balances, sensors and six fault kinds (`plant`); operator inference with
+  inputs fitted on whole trajectories with held-out rollout errors, also as CasADi expressions (`rom`); a digital
+  twin runtime with EnKF state and parameter estimation, forecasts with input uncertainty, rule-based alerts, drift
+  monitoring with `assess_drift`, open-loop revalidation and a SQLite/Postgres history (`twin`); physics anomaly
+  detection with statistical, AR/CUSUM, conservation-balance and model-residual channels, events with explanations
+  and a labelled fault benchmark (`anomaly`); linear (SLSQP) and nonlinear (CasADi/IPOPT or SciPy) MPC compared with
+  PID and rule-based baselines in closed loop, simulation / recommendation only (`control`); the days 13-31 chain
+  campaign -> surrogate -> uncertainty -> optimizer -> twin through the data contracts (`series`); `ModelRef` and
+  `StudyResult` builders (`contracts`).
+- Embedded MQTT 3.1.1 broker (`pinneapple_systems.digital_twin.io.mqtt_broker.MQTTBroker`: QoS 0/1, retained
+  messages, wildcards, optional login) for demos and single-asset edge setups; works with `MQTTStream`.
+- `PIDController` takes optional `output_limits` (saturation with anti-windup by conditional integration) and a
+  feed-forward `bias`; without them it behaves as before.
 - Data contracts shared by the apps (`pinneapple_data.contracts`): `ParameterSpace` (bounds, units, log scale,
   integer and categorical parameters, constants, safe constraint expressions, unit-hypercube mapping, feasibility),
   `DatasetSpec` (columns with roles and units, files with SHA-256, splits, provenance), `ModelRef` (held-out metrics

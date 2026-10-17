@@ -18,7 +18,7 @@ as ``observer`` below instead of adding a third parallel implementation.
 """
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 import numpy as np
 
@@ -35,13 +35,13 @@ class PIDController:
     textbook unbounded law, as before."""
 
     def __init__(self, kp: float, ki: float, kd: float, setpoint: float,
-                 output_limits: Optional[Tuple[float, float]] = None, bias: float = 0.0):
+                 output_limits: tuple[float, float] | None = None, bias: float = 0.0):
         self.kp, self.ki, self.kd = kp, ki, kd
         self.setpoint = setpoint
         self.output_limits = output_limits
         self.bias = bias
         self._integral = 0.0
-        self._prev_error: Optional[float] = None
+        self._prev_error: float | None = None
 
     def reset(self) -> None:
         self._integral = 0.0
@@ -74,9 +74,9 @@ def run_closed_loop(
     dt: float = 0.1,
     process_noise: float = 0.0,
     measurement_noise: float = 0.0,
-    observer: Optional[Callable[[float], float]] = None,
+    observer: Callable[[float], float] | None = None,
     seed: int = 0,
-) -> Dict[str, List[float]]:
+) -> dict[str, list[float]]:
     """Closes a discrete-time control loop around ``plant``.
 
     At each step the PID controller computes an action from the (optionally
@@ -93,7 +93,7 @@ def run_closed_loop(
     rng = np.random.default_rng(seed)
     controller = PIDController(kp=kp, ki=ki, kd=kd, setpoint=setpoint)
 
-    history: Dict[str, List[float]] = {
+    history: dict[str, list[float]] = {
         "time": [], "setpoint": [], "action": [], "measured": [], "filtered": [],
     }
     filtered = 0.0

@@ -19,7 +19,6 @@ import asyncio
 import logging
 import struct
 import threading
-from typing import Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -64,28 +63,28 @@ class _Client:
     def __init__(self, writer: asyncio.StreamWriter):
         self.writer = writer
         self.client_id = ""
-        self.subscriptions: Set[str] = set()
+        self.subscriptions: set[str] = set()
 
 
 class MQTTBroker:
     """Run with :meth:`start` (background thread with its own event loop) and :meth:`stop`."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 1883, username: Optional[str] = None,
-                 password: Optional[str] = None, max_packet: int = 256 * 1024):
+    def __init__(self, host: str = "127.0.0.1", port: int = 1883, username: str | None = None,
+                 password: str | None = None, max_packet: int = 256 * 1024):
         self.host, self.port = host, int(port)
         self.username, self.password = username, password
         self.max_packet = int(max_packet)
-        self.clients: List[_Client] = []
-        self.retained: Dict[str, bytes] = {}
+        self.clients: list[_Client] = []
+        self.retained: dict[str, bytes] = {}
         self.n_published = 0
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._server: Optional[asyncio.AbstractServer] = None
-        self._thread: Optional[threading.Thread] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._server: asyncio.AbstractServer | None = None
+        self._thread: threading.Thread | None = None
         self._ready = threading.Event()
-        self._error: Optional[BaseException] = None
+        self._error: BaseException | None = None
 
     # ------------------------------------------------------------------ lifecycle
-    def start(self, timeout: float = 5.0) -> "MQTTBroker":
+    def start(self, timeout: float = 5.0) -> MQTTBroker:
         self._thread = threading.Thread(target=self._run, name="mqtt-broker", daemon=True)
         self._thread.start()
         if not self._ready.wait(timeout):
@@ -131,7 +130,7 @@ class MQTTBroker:
             loop.close()
 
     # ------------------------------------------------------------------ protocol
-    async def _read_packet(self, reader: asyncio.StreamReader) -> Tuple[int, int, bytes]:
+    async def _read_packet(self, reader: asyncio.StreamReader) -> tuple[int, int, bytes]:
         head = await reader.readexactly(1)
         mult, length = 1, 0
         for _ in range(4):

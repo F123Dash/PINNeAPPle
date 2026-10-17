@@ -22,8 +22,8 @@ reports point-wise and event-wise precision / recall, false alarms and detection
 """
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -54,14 +54,14 @@ class BalanceRule:
     units: str = ""
     description: str = ""
 
-    def variables(self, constants: Mapping[str, float]) -> List[str]:
+    def variables(self, constants: Mapping[str, float]) -> list[str]:
         names = set()
         for expr in (self.accumulation, self.inflow, self.outflow):
             names |= _names_in_expr(expr)
         return sorted(n for n in names if n not in constants)
 
 
-def tank_balance_rules() -> List[BalanceRule]:
+def tank_balance_rules() -> list[BalanceRule]:
     """Mass and energy balances of the heated tank (:mod:`pinneapple_systems.operations.plant`)."""
     return [
         BalanceRule("mass", "A * h", "q_in", "q_out", "m3/s",
@@ -72,7 +72,7 @@ def tank_balance_rules() -> List[BalanceRule]:
     ]
 
 
-def tank_constants(p: Optional[TankParams] = None) -> Dict[str, float]:
+def tank_constants(p: TankParams | None = None) -> dict[str, float]:
     p = p or TankParams()
     return {"A": p.area, "rho": p.rho, "cp": p.cp, "UA": p.ua}
 
@@ -82,10 +82,10 @@ class DetectorConfig:
     """What to run and how strict to be. ``normal_until`` (time, same units as ``t``) ends the normal window."""
 
     normal_until: float
-    sensors: Optional[List[str]] = None              # default: every numeric column except t
-    methods: Tuple[str, ...] = METHODS
-    balances: List[BalanceRule] = field(default_factory=list)
-    constants: Dict[str, float] = field(default_factory=dict)
+    sensors: list[str] | None = None              # default: every numeric column except t
+    methods: tuple[str, ...] = METHODS
+    balances: list[BalanceRule] = field(default_factory=list)
+    constants: dict[str, float] = field(default_factory=dict)
     window: int = 12                                  # samples in the balance / model residual window
     threshold: float = 5.0                            # flag when |score| > threshold
     ar_order: int = 3
@@ -105,13 +105,13 @@ class DetectorConfig:
 # --------------------------------------------------------------------------------------------------------------
 
 
-def _columns(data) -> Dict[str, np.ndarray]:
+def _columns(data) -> dict[str, np.ndarray]:
     if hasattr(data, "to_dict") and hasattr(data, "columns"):          # pandas DataFrame
         return {str(c): np.asarray(data[c]) for c in data.columns}
     return {str(k): np.asarray(v) for k, v in dict(data).items()}
 
 
-def _robust(x: np.ndarray) -> Tuple[float, float]:
+def _robust(x: np.ndarray) -> tuple[float, float]:
     x = x[np.isfinite(x)]
     if x.size < 5:
         raise ValueError("the normal window needs at least 5 finite samples per signal")
@@ -182,7 +182,7 @@ class Channel:
 
     method: str
     name: str
-    variables: List[str]
+    variables: list[str]
     residual: np.ndarray
     centre: float
     spread: float
@@ -204,11 +204,11 @@ class Event:
     i1: int
     severity: str
     peak_ratio: float
-    methods: List[str]
-    channels: List[str]
-    variables: List[str]
-    explanations: List[str]
-    evidence: List[dict]
+    methods: list[str]
+    channels: list[str]
+    variables: list[str]
+    explanations: list[str]
+    evidence: list[dict]
 
     @property
     def duration(self) -> float:
@@ -223,9 +223,9 @@ class Event:
 @dataclass
 class DetectionResult:
     t: np.ndarray
-    channels: List[Channel]
+    channels: list[Channel]
     flags: np.ndarray                  # (n,) bool: any channel above threshold
-    events: List[Event]
+    events: list[Event]
     config: DetectorConfig
     normal_samples: int
 
@@ -246,7 +246,7 @@ class DetectionResult:
                 "flagged_fraction": float(self.flags.mean())}
 
 
-def _model_channels(cols, t, normal, model, state_names, input_names, cfg) -> List[Channel]:
+def _model_channels(cols, t, normal, model, state_names, input_names, cfg) -> list[Channel]:
     X = np.column_stack([cols[n].astype(float) for n in state_names])
     V = np.column_stack([cols[n].astype(float) for n in input_names])
     pred = np.asarray(model.step(X[:-1], V[:-1]))[:, :len(state_names)]
@@ -282,7 +282,7 @@ def detect(data, config: DetectorConfig, model=None, model_states: Sequence[str]
     missing = [s for s in sensors if s not in cols]
     if missing:
         raise ValueError(f"columns not found: {missing}")
-    channels: List[Channel] = []
+    channels: list[Channel] = []
     th = config.threshold
     if "statistical" in config.methods:
         for s in sensors:
@@ -333,7 +333,7 @@ def detect(data, config: DetectorConfig, model=None, model_states: Sequence[str]
     return DetectionResult(t, channels, flags, events, config, n_norm)
 
 
-def _explain(c: Channel, i0: int, i1: int, t: np.ndarray) -> Tuple[str, dict]:
+def _explain(c: Channel, i0: int, i1: int, t: np.ndarray) -> tuple[str, dict]:
     seg = c.residual[i0:i1 + 1]
     sc = c.score[i0:i1 + 1]
     k = int(np.nanargmax(np.abs(np.nan_to_num(sc))))
@@ -369,7 +369,7 @@ def _explain(c: Channel, i0: int, i1: int, t: np.ndarray) -> Tuple[str, dict]:
     return msg, ev
 
 
-def _events(t: np.ndarray, channels: List[Channel], F: np.ndarray, cfg: DetectorConfig) -> List[Event]:
+def _events(t: np.ndarray, channels: list[Channel], F: np.ndarray, cfg: DetectorConfig) -> list[Event]:
     flags = F.any(axis=1) if F.size else np.zeros(t.size, bool)
     idx = np.flatnonzero(flags)
     if idx.size == 0:
@@ -407,10 +407,10 @@ def _events(t: np.ndarray, channels: List[Channel], F: np.ndarray, cfg: Detector
 # --------------------------------------------------------------------------------------------------------------
 
 
-def benchmark_faults(t0: float = 7200.0) -> List[Fault]:
+def benchmark_faults(t0: float = 7200.0) -> list[Fault]:
     """The faults of :func:`fault_benchmark`, after a fault-free first ``t0`` seconds (the calibration window).
     Magnitudes are small on purpose (a few percent of the nominal flows and powers)."""
-    nominal_q, nominal_Q = 6.6e-3, 2.8e5
+    nominal_q, _nominal_Q = 6.6e-3, 2.8e5
     return [
         Fault("leak", t0 + 1800, t0 + 4200, 0.06 * nominal_q),                    # 6 % of the inflow
         Fault("heater", t0 + 6000, t0 + 8400, 0.10),                              # 10 % power loss
@@ -421,8 +421,8 @@ def benchmark_faults(t0: float = 7200.0) -> List[Fault]:
     ]
 
 
-def fault_benchmark(seed: int = 0, t0: float = 7200.0, dt: float = 10.0) -> Tuple[Dict[str, np.ndarray],
-                                                                                  List[Fault]]:
+def fault_benchmark(seed: int = 0, t0: float = 7200.0, dt: float = 10.0) -> tuple[dict[str, np.ndarray],
+                                                                                  list[Fault]]:
     """One labelled run: ``t0`` s of normal operation, then the six faults of :func:`benchmark_faults` separated by
     normal periods. Different ``seed`` = different operating profile and noise (a held-out run)."""
     faults = benchmark_faults(t0)
@@ -432,7 +432,7 @@ def fault_benchmark(seed: int = 0, t0: float = 7200.0, dt: float = 10.0) -> Tupl
 
 
 def score_events(result: DetectionResult, faults: Sequence[Fault], grace: float = 600.0,
-                 evaluate_from: Optional[float] = None) -> dict:
+                 evaluate_from: float | None = None) -> dict:
     """Point-wise and event-wise scores against the true fault intervals.
 
     Point-wise: a sample is positive when a fault is active; predictions are the flagged samples. Event-wise: a
@@ -475,7 +475,7 @@ def score_events(result: DetectionResult, faults: Sequence[Fault], grace: float 
             "per_fault": per_fault, "false_alarms": false_alarms, "evaluated_hours": hours, "grace_s": grace}
 
 
-def run_benchmark(seeds: Sequence[int] = (101, 102, 103), methods_sets: Optional[Dict[str, Tuple[str, ...]]] = None,
+def run_benchmark(seeds: Sequence[int] = (101, 102, 103), methods_sets: dict[str, tuple[str, ...]] | None = None,
                   window: int = 12, threshold: float = 5.0) -> dict:
     """Score each detector family alone and all together on held-out labelled runs (one per seed). The
     calibration window of every run is its own fault-free first two hours; thresholds are never tuned on the
@@ -486,7 +486,7 @@ def run_benchmark(seeds: Sequence[int] = (101, 102, 103), methods_sets: Optional
                                     "balance": ("balance",), "model": ("model",), "combined": METHODS}
     p = TankParams()
     model = LumpedTankModel(p, dt=10.0, estimate=())
-    rows: Dict[str, dict] = {}
+    rows: dict[str, dict] = {}
     for label, methods in methods_sets.items():
         agg = {"tp": 0, "fp": 0, "fn": 0, "detected": 0, "faults": 0, "false_alarm_events": 0, "hours": 0.0,
                "delays": [], "per_kind": {}}

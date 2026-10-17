@@ -15,8 +15,8 @@ and reports one-step and full-rollout errors on them, plus the training box of e
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Dict, List, Sequence
 
 import numpy as np
 
@@ -35,8 +35,8 @@ def _features(xs: np.ndarray, vs: np.ndarray, quadratic: bool, bilinear: bool) -
 class ControlledOpInf:
     """A fitted model; build it with :func:`fit_controlled_opinf` or :meth:`from_dict`."""
 
-    state_names: List[str]
-    input_names: List[str]
+    state_names: list[str]
+    input_names: list[str]
     dt: float
     W: np.ndarray                       # (n_features, n_state), acting on scaled variables
     x_mean: np.ndarray
@@ -45,8 +45,8 @@ class ControlledOpInf:
     v_scale: np.ndarray
     quadratic: bool = True
     bilinear: bool = True
-    bounds: Dict[str, List[float]] = field(default_factory=dict)
-    validation: Dict[str, object] = field(default_factory=dict)
+    bounds: dict[str, list[float]] = field(default_factory=dict)
+    validation: dict[str, object] = field(default_factory=dict)
 
     def step(self, x, v) -> np.ndarray:
         """One step of ``dt`` seconds from state(s) ``x`` (n,) or (N, n) with inputs ``v`` (m,) or (N, m)."""
@@ -91,7 +91,7 @@ class ControlledOpInf:
                 "validation": self.validation}
 
     @classmethod
-    def from_dict(cls, d: dict) -> "ControlledOpInf":
+    def from_dict(cls, d: dict) -> ControlledOpInf:
         if d.get("kind") != "controlled_opinf":
             raise ValueError(f"not a controlled_opinf model: kind={d.get('kind')!r}")
         arr = {k: np.asarray(d[k], dtype=float) for k in ("W", "x_mean", "x_scale", "v_mean", "v_scale")}
@@ -104,7 +104,7 @@ def _rel_rmse(pred: np.ndarray, true: np.ndarray, scale: np.ndarray) -> np.ndarr
     return np.sqrt(np.mean((pred - true) ** 2, axis=0)) / scale
 
 
-def fit_controlled_opinf(trajectories: Sequence[Dict[str, np.ndarray]], state_names: Sequence[str],
+def fit_controlled_opinf(trajectories: Sequence[dict[str, np.ndarray]], state_names: Sequence[str],
                          input_names: Sequence[str], dt: float, *, holdout: int = 1, ridge: float = 1e-6,
                          quadratic: bool = True, bilinear: bool = True) -> ControlledOpInf:
     """Fit on all but the last ``holdout`` trajectories and validate on those.
@@ -155,16 +155,16 @@ def fit_controlled_opinf(trajectories: Sequence[Dict[str, np.ndarray]], state_na
     model.validation = {
         "n_train_trajectories": len(train), "n_test_trajectories": len(test),
         "n_train_steps": int(len(X0)), "n_test_steps": int(len(T0)),
-        "one_step_rmse": dict(zip(state_names, np.sqrt(np.mean((one - T1) ** 2, 0)).tolist())),
-        "rollout_rmse": dict(zip(state_names, np.sqrt(np.mean((R - Rt) ** 2, 0)).tolist())),
-        "rollout_rel_rmse": dict(zip(state_names, _rel_rmse(R, Rt, spread).tolist())),
-        "rollout_max_abs_error": dict(zip(state_names, np.max(np.abs(R - Rt), 0).tolist())),
-        "split": "whole trajectories held out (last %d)" % holdout,
+        "one_step_rmse": dict(zip(state_names, np.sqrt(np.mean((one - T1) ** 2, 0)).tolist(), strict=False)),
+        "rollout_rmse": dict(zip(state_names, np.sqrt(np.mean((R - Rt) ** 2, 0)).tolist(), strict=False)),
+        "rollout_rel_rmse": dict(zip(state_names, _rel_rmse(R, Rt, spread).tolist(), strict=False)),
+        "rollout_max_abs_error": dict(zip(state_names, np.max(np.abs(R - Rt), 0).tolist(), strict=False)),
+        "split": f"whole trajectories held out (last {holdout})",
     }
     return model
 
 
-def residual_sigma(model: ControlledOpInf, trajectories: Sequence[Dict[str, np.ndarray]]) -> Dict[str, float]:
+def residual_sigma(model: ControlledOpInf, trajectories: Sequence[dict[str, np.ndarray]]) -> dict[str, float]:
     """One-step residual standard deviation per state on ``trajectories`` (use held-out ones): the process noise
     a filter running this model should assume."""
     errs = []
@@ -173,5 +173,5 @@ def residual_sigma(model: ControlledOpInf, trajectories: Sequence[Dict[str, np.n
         U = np.column_stack([np.asarray(tr[n], dtype=float) for n in model.input_names])
         errs.append(model.step(X[:-1], U[:-1]) - X[1:])
     e = np.concatenate(errs)
-    return dict(zip(model.state_names, e.std(0).tolist()))
+    return dict(zip(model.state_names, e.std(0).tolist(), strict=False))
 

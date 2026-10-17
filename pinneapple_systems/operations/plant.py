@@ -25,8 +25,8 @@ offset on one sensor), ``sensor_drift`` (a ramp on one sensor), ``stuck_sensor``
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field, replace
-from typing import Callable, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -139,15 +139,15 @@ class Scenario:
     x0: Sequence[float] = (1.2, 25.0)
     T_in: Callable[[float], float] = lambda t: 15.0
     T_amb: Callable[[float], float] = lambda t: 20.0
-    q_in: Optional[Callable[[float], float]] = None
-    Q: Optional[Callable[[float], float]] = None
+    q_in: Callable[[float], float] | None = None
+    Q: Callable[[float], float] | None = None
 
 
 @dataclass
 class SensorNoise:
     """Standard deviation of each sensor's white measurement noise (SI units)."""
 
-    sigma: Dict[str, float] = field(default_factory=lambda: {
+    sigma: dict[str, float] = field(default_factory=lambda: {
         "h": 0.003, "T": 0.05, "q_in": 5e-5, "q_out": 5e-5, "Q": 500.0, "T_in": 0.05, "T_amb": 0.1})
 
 
@@ -165,8 +165,8 @@ def _plant_modifiers(faults: Sequence[Fault], t: float) -> dict:
     return {"eta": eta, "valve": valve, "q_leak": leak}
 
 
-def measure(truth: Dict[str, float], t: float, faults: Sequence[Fault], noise: SensorNoise,
-            rng: np.random.Generator, frozen: Dict[str, float]) -> Dict[str, float]:
+def measure(truth: dict[str, float], t: float, faults: Sequence[Fault], noise: SensorNoise,
+            rng: np.random.Generator, frozen: dict[str, float]) -> dict[str, float]:
     """Sensor readings for one time step: true value + noise, then sensor faults."""
     out = {}
     for name in SENSOR_NAMES:
@@ -188,24 +188,24 @@ class TankSimulator:
     """Step-by-step simulator of the heated tank with sensors and faults. Used open loop (scenario inputs),
     closed loop (a controller sets the inputs each step) or as the live source of a digital twin demo."""
 
-    def __init__(self, params: Optional[TankParams] = None, x0: Sequence[float] = (1.2, 25.0),
-                 faults: Sequence[Fault] = (), noise: Optional[SensorNoise] = None, seed: int = 0):
+    def __init__(self, params: TankParams | None = None, x0: Sequence[float] = (1.2, 25.0),
+                 faults: Sequence[Fault] = (), noise: SensorNoise | None = None, seed: int = 0):
         self.p = params or TankParams()
         self.x = np.asarray(x0, dtype=float).copy()
         self.t = 0.0
         self.faults = list(faults)
         self.noise = noise or SensorNoise()
         self.rng = np.random.default_rng(seed)
-        self._frozen: Dict[str, float] = {}
+        self._frozen: dict[str, float] = {}
 
-    def truth(self, u: Sequence[float], d: Sequence[float]) -> Dict[str, float]:
+    def truth(self, u: Sequence[float], d: Sequence[float]) -> dict[str, float]:
         mods = _plant_modifiers(self.faults, self.t)
         h, T = float(self.x[0]), float(self.x[1])
         return {"h": h, "T": T, "q_in": float(u[0]), "q_out": mods["valve"] * self.p.k_out * np.sqrt(max(h, 0.0)),
                 "Q": float(u[1]), "T_in": float(d[0]), "T_amb": float(d[1]), "q_leak": mods["q_leak"],
                 "eta": mods["eta"]}
 
-    def read(self, u: Sequence[float], d: Sequence[float]) -> Dict[str, float]:
+    def read(self, u: Sequence[float], d: Sequence[float]) -> dict[str, float]:
         """Sensor readings at the current time (before stepping)."""
         stuck_now = {f.target for f in self.faults if f.kind == "stuck_sensor" and f.active(self.t)}
         self._frozen = {k: v for k, v in self._frozen.items() if k in stuck_now}
@@ -217,16 +217,16 @@ class TankSimulator:
         self.t += dt
 
 
-def simulate(scenario: Scenario, params: Optional[TankParams] = None, faults: Sequence[Fault] = (),
-             noise: Optional[SensorNoise] = None, seed: int = 0) -> Dict[str, np.ndarray]:
+def simulate(scenario: Scenario, params: TankParams | None = None, faults: Sequence[Fault] = (),
+             noise: SensorNoise | None = None, seed: int = 0) -> dict[str, np.ndarray]:
     """Open-loop run of ``scenario`` (its ``q_in`` and ``Q`` must be set). Returns columns: ``t``, the measured
     sensors, ``true_<state>``, ``true_q_leak``, ``true_eta`` and ``fault`` (name of the active fault or "")."""
     if scenario.q_in is None or scenario.Q is None:
         raise ValueError("an open-loop scenario needs q_in and Q schedules")
     sim = TankSimulator(params, scenario.x0, faults, noise, seed)
     n = int(round(scenario.duration / scenario.dt)) + 1
-    rows: List[Dict[str, float]] = []
-    labels: List[str] = []
+    rows: list[dict[str, float]] = []
+    labels: list[str] = []
     for _ in range(n):
         t = sim.t
         u = (scenario.q_in(t), scenario.Q(t))

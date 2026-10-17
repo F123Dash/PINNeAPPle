@@ -27,8 +27,8 @@ and their predicted consequences for a person to review.
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from scipy.linalg import expm
@@ -36,7 +36,15 @@ from scipy.optimize import minimize
 
 from pinneapple_systems.component_modeling.control import PIDController
 
-from .plant import Fault, SensorNoise, TankParams, TankSimulator, inputs_for_steady_state, tank_rhs, tank_step
+from .plant import (
+    Fault,
+    SensorNoise,
+    TankParams,
+    TankSimulator,
+    inputs_for_steady_state,
+    tank_rhs,
+    tank_step,
+)
 from .twin import AlertRules, LumpedTankModel, TwinRuntime
 
 try:  # optional: nonlinear MPC with IPOPT
@@ -63,12 +71,12 @@ class ControlSpec:
 
     dt: float = 20.0
     horizon: int = 15
-    setpoints: List[Tuple[float, float, float]] = field(
+    setpoints: list[tuple[float, float, float]] = field(
         default_factory=lambda: [(0.0, 1.2, 25.0), (600.0, 1.2, 29.0), (1800.0, 1.0, 29.0)])
-    h_bounds: Tuple[float, float] = (0.6, 1.6)
+    h_bounds: tuple[float, float] = (0.6, 1.6)
     T_max: float = 31.0
-    q_in_bounds: Tuple[float, float] = (0.0, 0.015)
-    Q_bounds: Tuple[float, float] = (0.0, 600e3)
+    q_in_bounds: tuple[float, float] = (0.0, 0.015)
+    Q_bounds: tuple[float, float] = (0.0, 600e3)
     dq_max: float = 0.002            # pump flow change per step [m3/s]
     dQ_max: float = 80e3             # heater power change per step [W]
     h_scale: float = 0.05
@@ -79,7 +87,7 @@ class ControlSpec:
     w_energy: float = 0.05
     w_constraint: float = 1e4
 
-    def reference(self, t: float) -> Tuple[float, float]:
+    def reference(self, t: float) -> tuple[float, float]:
         h, T = self.setpoints[0][1], self.setpoints[0][2]
         for ts, hr, Tr in self.setpoints:
             if t >= ts:
@@ -95,10 +103,10 @@ class ControlScenario:
     """The plant side of a closed-loop study: duration, disturbances and faults (shared by every controller)."""
 
     duration: float = 3600.0
-    x0: Tuple[float, float] = (1.2, 25.0)
-    T_in_steps: List[Tuple[float, float]] = field(default_factory=lambda: [(0.0, 15.0), (2400.0, 11.0)])
+    x0: tuple[float, float] = (1.2, 25.0)
+    T_in_steps: list[tuple[float, float]] = field(default_factory=lambda: [(0.0, 15.0), (2400.0, 11.0)])
     T_amb: float = 20.0
-    faults: List[Fault] = field(default_factory=lambda: [Fault("valve", 1200.0, 3600.0, -0.2)])
+    faults: list[Fault] = field(default_factory=lambda: [Fault("valve", 1200.0, 3600.0, -0.2)])
     noise: SensorNoise = field(default_factory=SensorNoise)
     seed: int = 0
 
@@ -127,7 +135,7 @@ class PIDBaseline:
     name = "PID"
     uses_estimate = False
 
-    def __init__(self, spec: ControlSpec, params: Optional[TankParams] = None, kp_h: float = 0.02,
+    def __init__(self, spec: ControlSpec, params: TankParams | None = None, kp_h: float = 0.02,
                  ki_h: float = 1e-4, kp_T: float = 60e3, ki_T: float = 400.0):
         p = params or TankParams()
         h0, T0 = spec.reference(0.0)
@@ -137,7 +145,7 @@ class PIDBaseline:
         self.temp = PIDController(kp_T, ki_T, 0.0, T0, output_limits=spec.Q_bounds, bias=float(u0[1]))
         self.gains = {"kp_h": kp_h, "ki_h": ki_h, "kp_T": kp_T, "ki_T": ki_T}
 
-    def act(self, t: float, reading: Dict[str, float], estimate: Optional[dict] = None):
+    def act(self, t: float, reading: dict[str, float], estimate: dict | None = None):
         self.level.setpoint, self.temp.setpoint = self.spec.reference(t)
         u = np.array([self.level.update(reading["h"], self.spec.dt), self.temp.update(reading["T"], self.spec.dt)])
         return u, {}
@@ -157,7 +165,7 @@ class RuleBasedBaseline:
         self.pump_high, self.heater_on = True, True
         self.rules = {"band_h": band_h, "band_T": band_T, "q_low": q_low, "q_high": q_high, "Q_on": Q_on}
 
-    def act(self, t: float, reading: Dict[str, float], estimate: Optional[dict] = None):
+    def act(self, t: float, reading: dict[str, float], estimate: dict | None = None):
         h_ref, T_ref = self.spec.reference(t)
         if reading["h"] < h_ref - self.band_h:
             self.pump_high = True
@@ -175,7 +183,7 @@ class RuleBasedBaseline:
 # --------------------------------------------------------------------------------------------------------------
 
 
-def _estimate_vector(estimate: dict) -> Tuple[np.ndarray, float, float]:
+def _estimate_vector(estimate: dict) -> tuple[np.ndarray, float, float]:
     st = estimate["state"]
     return np.array([st["h"], st["T"]]), float(st.get("q_leak", 0.0)), float(st.get("eta", 1.0))
 
@@ -183,12 +191,12 @@ def _estimate_vector(estimate: dict) -> Tuple[np.ndarray, float, float]:
 class _MPCBase:
     uses_estimate = True
 
-    def __init__(self, spec: ControlSpec, params: Optional[TankParams] = None):
+    def __init__(self, spec: ControlSpec, params: TankParams | None = None):
         self.spec = spec
         self.p = params or TankParams()
-        self.u_prev: Optional[np.ndarray] = None
-        self.U_warm: Optional[np.ndarray] = None
-        self.solve_ms: List[float] = []
+        self.u_prev: np.ndarray | None = None
+        self.U_warm: np.ndarray | None = None
+        self.solve_ms: list[float] = []
         self.n_fail = 0
         lo = np.array([spec.q_in_bounds[0], spec.Q_bounds[0]])
         hi = np.array([spec.q_in_bounds[1], spec.Q_bounds[1]])
@@ -211,7 +219,7 @@ class _MPCBase:
                      + s.w_energy * np.sum(U[:, 1] / s.Q_bounds[1])
                      + s.w_constraint * (np.sum((vh / s.h_scale) ** 2) + np.sum((vT / s.T_scale) ** 2)))
 
-    def _start(self, reading: Dict[str, float]) -> np.ndarray:
+    def _start(self, reading: dict[str, float]) -> np.ndarray:
         if self.u_prev is None:
             self.u_prev = np.array([reading["q_in"], reading["Q"]], dtype=float)
         return self.u_prev
@@ -254,7 +262,7 @@ class LinearMPC(_MPCBase):
         E = expm(M * self.spec.dt)
         return E[:2, :2], E[:2, 2:4], E[:2, 4]
 
-    def act(self, t: float, reading: Dict[str, float], estimate: dict):
+    def act(self, t: float, reading: dict[str, float], estimate: dict):
         t0 = time.perf_counter()
         s, N = self.spec, self.spec.horizon
         x0, q_leak, eta = _estimate_vector(estimate)
@@ -330,7 +338,7 @@ class LinearMPC(_MPCBase):
 class NonlinearMPC(_MPCBase):
     """Nonlinear MPC on the tank balances (CasADi/IPOPT if available) or on any ``model`` (SciPy)."""
 
-    def __init__(self, spec: ControlSpec, params: Optional[TankParams] = None, model=None,
+    def __init__(self, spec: ControlSpec, params: TankParams | None = None, model=None,
                  backend: str = "auto"):
         super().__init__(spec, params)
         self.model = model
@@ -490,7 +498,7 @@ class NonlinearMPC(_MPCBase):
         X = self._rollout_batch(x0, U[None], d, q_leak, eta)[0]
         return U, X, bool(res.success), {"cost": float(res.fun), "backend": "scipy/slsqp", "iterations": int(res.nit)}
 
-    def act(self, t: float, reading: Dict[str, float], estimate: dict):
+    def act(self, t: float, reading: dict[str, float], estimate: dict):
         t0 = time.perf_counter()
         x0, q_leak, eta = _estimate_vector(estimate)
         if self.model is not None:
@@ -509,7 +517,7 @@ class NonlinearMPC(_MPCBase):
 # --------------------------------------------------------------------------------------------------------------
 
 
-def make_estimator(spec: ControlSpec, params: Optional[TankParams] = None, seed: int = 0) -> TwinRuntime:
+def make_estimator(spec: ControlSpec, params: TankParams | None = None, seed: int = 0) -> TwinRuntime:
     """The state estimator the MPCs read: an EnKF twin of the tank with unaccounted outflow and heater efficiency."""
     model = LumpedTankModel(params, dt=spec.dt, estimate=("q_leak", "eta"))
     rules = AlertRules(limits={}, param_limits={}, forecast_steps=0, drift_every=10 ** 9)
@@ -518,7 +526,7 @@ def make_estimator(spec: ControlSpec, params: Optional[TankParams] = None, seed:
 
 
 def run_closed_loop(controller, spec: ControlSpec, scenario: ControlScenario,
-                    params: Optional[TankParams] = None) -> dict:
+                    params: TankParams | None = None) -> dict:
     """Simulate ``controller`` on ``scenario``. Returns the trajectories, the controller's plans (every 10th
     step, MPC only) and :func:`performance` metrics."""
     p = params or TankParams()
@@ -553,7 +561,7 @@ def run_closed_loop(controller, spec: ControlSpec, scenario: ControlScenario,
             "metrics": performance(out, spec), "failed_solves": getattr(controller, "n_fail", 0)}
 
 
-def performance(tr: Dict[str, np.ndarray], spec: ControlSpec) -> dict:
+def performance(tr: dict[str, np.ndarray], spec: ControlSpec) -> dict:
     """Integrated absolute tracking errors (true states), constraint violations, energy, actuator travel and
     solve time of a closed-loop trajectory."""
     dt = spec.dt
@@ -570,8 +578,8 @@ def performance(tr: Dict[str, np.ndarray], spec: ControlSpec) -> dict:
             "mean_solve_ms": float(np.mean(tr["solve_ms"])), "max_solve_ms": float(np.max(tr["solve_ms"]))}
 
 
-def compare_controllers(spec: Optional[ControlSpec] = None, scenario: Optional[ControlScenario] = None,
-                        params: Optional[TankParams] = None, controllers: Sequence[str] = ("pid", "rules", "lmpc",
+def compare_controllers(spec: ControlSpec | None = None, scenario: ControlScenario | None = None,
+                        params: TankParams | None = None, controllers: Sequence[str] = ("pid", "rules", "lmpc",
                                                                                           "nmpc"),
                         surrogate=None) -> dict:
     """Run the named controllers on the same scenario. Names: ``pid``, ``rules``, ``lmpc``, ``nmpc`` and
@@ -595,8 +603,8 @@ def compare_controllers(spec: Optional[ControlSpec] = None, scenario: Optional[C
             "casadi_available": ca is not None}
 
 
-def recommend(estimate: Dict[str, float], reading: Dict[str, float], spec: Optional[ControlSpec] = None,
-              params: Optional[TankParams] = None, t: float = 0.0, method: str = "nmpc") -> dict:
+def recommend(estimate: dict[str, float], reading: dict[str, float], spec: ControlSpec | None = None,
+              params: TankParams | None = None, t: float = 0.0, method: str = "nmpc") -> dict:
     """Proposed next actions for a person to review. ``estimate``: state (``h``, ``T`` and optionally ``q_leak``,
     ``eta``); ``reading``: current ``q_in``, ``Q``, ``T_in``, ``T_amb``. Nothing is sent anywhere."""
     spec = spec or ControlSpec()

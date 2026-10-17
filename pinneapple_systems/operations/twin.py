@@ -26,8 +26,8 @@ import sqlite3
 import threading
 import time
 from collections import deque
-from dataclasses import asdict, dataclass, field
-from typing import Deque, Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass, field, replace
 
 import numpy as np
 from scipy import stats
@@ -55,7 +55,7 @@ class LumpedTankModel:
     kind = "lumped_tank"
     input_names = ["q_in", "Q", "T_in", "T_amb"]
 
-    def __init__(self, params: Optional[TankParams] = None, dt: float = 10.0,
+    def __init__(self, params: TankParams | None = None, dt: float = 10.0,
                  estimate: Sequence[str] = ("q_leak", "eta")):
         bad = set(estimate) - {"q_leak", "eta"}
         if bad:
@@ -64,10 +64,10 @@ class LumpedTankModel:
         self.dt = float(dt)
         self.estimate = list(estimate)
         self.state_names = ["h", "T"] + self.estimate
-        self.bounds: Dict[str, List[float]] = {"h": [self.p.h_min, self.p.h_max]}
-        self.validation: Dict[str, object] = {}
+        self.bounds: dict[str, list[float]] = {"h": [self.p.h_min, self.p.h_max]}
+        self.validation: dict[str, object] = {}
 
-    def prior(self) -> Dict[str, float]:
+    def prior(self) -> dict[str, float]:
         return {"q_leak": 0.0, "eta": 1.0}
 
     def step(self, x, v) -> np.ndarray:
@@ -100,11 +100,11 @@ class SurrogateModel:
         self.dt = rom.dt
         self.state_names = list(rom.state_names)
         self.input_names = list(rom.input_names)
-        self.estimate: List[str] = []
+        self.estimate: list[str] = []
         self.bounds = rom.bounds
         self.validation = rom.validation
 
-    def prior(self) -> Dict[str, float]:
+    def prior(self) -> dict[str, float]:
         return {}
 
     def step(self, x, v) -> np.ndarray:
@@ -132,9 +132,9 @@ def model_from_dict(d: dict):
 class AlertRules:
     """Alert thresholds. ``limits`` and ``param_limits`` map a state name to ``(low, high)`` (``None`` = open)."""
 
-    limits: Dict[str, Tuple[Optional[float], Optional[float]]] = field(
+    limits: dict[str, tuple[float | None, float | None]] = field(
         default_factory=lambda: {"h": (0.3, 1.8), "T": (None, 40.0)})
-    param_limits: Dict[str, Tuple[Optional[float], Optional[float]]] = field(
+    param_limits: dict[str, tuple[float | None, float | None]] = field(
         default_factory=lambda: {"q_leak": (None, 3e-4), "eta": (0.85, None)})
     param_sigmas: float = 3.0              # a parameter alert needs its limit outside the estimate's +- k sigma
     nis_probability: float = 0.999         # chi-square quantile of the consistency test
@@ -142,6 +142,8 @@ class AlertRules:
     forecast_steps: int = 60               # horizon of the forecast checked against ``limits``
     drift_window: int = 90                 # samples in the validity window
     drift_every: int = 30                  # samples between validity checks
+    hold_window: int = 20                  # readings averaged for the held input of a forecast
+    bias_practical: float = 0.5            # a bias below this fraction of the predictive spread is not alerted
     drift: DriftThresholds = field(default_factory=lambda: DriftThresholds(
         nrmse_review=math.inf, nrmse_retrain=math.inf, coverage_z=4.0, trend_alpha=1e-3))
 
@@ -152,7 +154,7 @@ class Alert:
     kind: str
     severity: str           # info | warning | critical
     message: str
-    data: Dict[str, object] = field(default_factory=dict)
+    data: dict[str, object] = field(default_factory=dict)
     cleared: bool = False
 
     def to_dict(self) -> dict:
@@ -199,7 +201,7 @@ class TwinStore:
                 (asset, float(t), json.dumps(payload, default=_json_default)))
             self._conn.commit()
 
-    def read(self, table: str, asset: str, since: float = -math.inf, limit: int = 10000) -> List[dict]:
+    def read(self, table: str, asset: str, since: float = -math.inf, limit: int = 10000) -> list[dict]:
         if table not in self.TABLES:
             raise ValueError(f"unknown table {table!r}")
         with self._lock:
@@ -247,10 +249,10 @@ class TwinRuntime:
     sigma0 : initial spread per state.
     """
 
-    def __init__(self, model, obs_names: Sequence[str], sigma_obs: Dict[str, float],
-                 sigma_process: Dict[str, float], *, x0: Optional[Dict[str, float]] = None,
-                 sigma0: Optional[Dict[str, float]] = None, n_ens: int = 48, inflation: float = 1.0,
-                 rules: Optional[AlertRules] = None, asset: str = "asset-1", store: Optional[TwinStore] = None,
+    def __init__(self, model, obs_names: Sequence[str], sigma_obs: dict[str, float],
+                 sigma_process: dict[str, float], *, x0: dict[str, float] | None = None,
+                 sigma0: dict[str, float] | None = None, n_ens: int = 48, inflation: float = 1.0,
+                 rules: AlertRules | None = None, asset: str = "asset-1", store: TwinStore | None = None,
                  seed: int = 0):
         self.model = model
         self.obs_names = list(obs_names)
@@ -270,30 +272,30 @@ class TwinRuntime:
             self.n, len(self.obs_names), f=lambda x: x, h=lambda x: x[self.obs_idx],
             Q=np.diag(np.maximum(self.sigma_process, 1e-12) ** 2), R=np.diag(self.sigma_obs ** 2),
             n_ens=n_ens, inflation=inflation, seed=seed)
-        self.t: Optional[float] = None
-        self.v_last: Optional[np.ndarray] = None
+        self.t: float | None = None
+        self.v_last: np.ndarray | None = None
         self.n_updates = 0
         self._nis_run = 0
         self.nis_threshold = float(stats.chi2.ppf(self.rules.nis_probability, len(self.obs_names)))
-        self.active: Dict[str, Alert] = {}
-        self.alerts: List[Alert] = []
+        self.active: dict[str, Alert] = {}
+        self.alerts: list[Alert] = []
         win = self.rules.drift_window
-        self._win: Dict[str, Deque] = {k: deque(maxlen=win) for k in ("y", "yp", "sp", "v")}
-        self.history: Deque[dict] = deque(maxlen=20000)
-        self.last_drift: Optional[dict] = None
-        self.revalidations: List[dict] = []
+        self._win: dict[str, deque] = {k: deque(maxlen=win) for k in ("y", "yp", "sp", "v")}
+        self.history: deque[dict] = deque(maxlen=20000)
+        self.last_drift: dict | None = None
+        self.revalidations: list[dict] = []
         self.status = "starting"
         self.timing = {"assimilation_ms": 0.0}
 
     # ---------------------------------------------------------------------------------------------------- core
 
-    def _inputs(self, reading: Dict[str, float]) -> np.ndarray:
+    def _inputs(self, reading: dict[str, float]) -> np.ndarray:
         try:
             return np.array([float(reading[n]) for n in self.model.input_names])
         except KeyError as e:
             raise KeyError(f"reading lacks input {e.args[0]!r}; the model needs {self.model.input_names}") from e
 
-    def _initialize(self, reading: Dict[str, float]) -> None:
+    def _initialize(self, reading: dict[str, float]) -> None:
         prior = self.model.prior()
         x0, s0 = np.zeros(self.n), np.zeros(self.n)
         for i, name in enumerate(self.model.state_names):
@@ -308,7 +310,7 @@ class TwinRuntime:
             s0[i] = self.sigma0.get(name, default_s)
         self.filter.initialize(x0, np.diag(s0 ** 2))
 
-    def ingest(self, reading: Dict[str, float]) -> dict:
+    def ingest(self, reading: dict[str, float]) -> dict:
         """Assimilate one reading: a dict with ``t`` [s], the model's inputs and the observed states (a missing or
         NaN observation skips the analysis step: the twin then runs on the model alone)."""
         t0 = time.perf_counter()
@@ -328,7 +330,7 @@ class TwinRuntime:
             HX = f.ensemble[self.obs_idx]
             prior_pred = (HX.mean(1), np.sqrt(HX.var(1, ddof=1) + self.sigma_obs ** 2))
         self._clip_ensemble()
-        out: Dict[str, object] = {"t": t}
+        out: dict[str, object] = {"t": t}
         finite = np.isfinite(y)
         if self.t is not None and finite.all():
             HX = f.ensemble[self.obs_idx]
@@ -338,7 +340,7 @@ class TwinRuntime:
             f.update(y)
             self._clip_ensemble()
             out["nis"] = nis
-            out["innovation"] = dict(zip(self.obs_names, innov.tolist()))
+            out["innovation"] = dict(zip(self.obs_names, innov.tolist(), strict=False))
             self._win["y"].append(y)
             self._win["yp"].append(prior_pred[0])
             self._win["sp"].append(prior_pred[1])
@@ -346,12 +348,12 @@ class TwinRuntime:
         self.t, self.v_last = t, v
         self.n_updates += 1
         mean, sd = f.mean, np.sqrt(np.maximum(np.diag(f.covariance), 0))
-        out["state"] = dict(zip(self.model.state_names, mean.tolist()))
-        out["state_sd"] = dict(zip(self.model.state_names, sd.tolist()))
-        out["observed"] = {n: (None if not np.isfinite(val) else float(val)) for n, val in zip(self.obs_names, y)}
-        out["inputs"] = dict(zip(self.model.input_names, v.tolist()))
+        out["state"] = dict(zip(self.model.state_names, mean.tolist(), strict=False))
+        out["state_sd"] = dict(zip(self.model.state_names, sd.tolist(), strict=False))
+        out["observed"] = {n: (None if not np.isfinite(val) else float(val)) for n, val in zip(self.obs_names, y, strict=False)}
+        out["inputs"] = dict(zip(self.model.input_names, v.tolist(), strict=False))
         if prior_pred is not None:
-            out["predicted"] = dict(zip(self.obs_names, prior_pred[0].tolist()))
+            out["predicted"] = dict(zip(self.obs_names, prior_pred[0].tolist(), strict=False))
         new_alerts = self._check_alerts(out)
         if self.n_updates % self.rules.drift_every == 0 and len(self._win["y"]) >= 10:
             new_alerts += self._check_validity(t)
@@ -384,7 +386,7 @@ class TwinRuntime:
 
     # ---------------------------------------------------------------------------------------------------- alerts
 
-    def _raise(self, key: str, t: float, kind: str, severity: str, message: str, data: dict) -> List[Alert]:
+    def _raise(self, key: str, t: float, kind: str, severity: str, message: str, data: dict) -> list[Alert]:
         if key in self.active:
             self.active[key].data = data
             return []
@@ -393,7 +395,7 @@ class TwinRuntime:
         self.alerts.append(a)
         return [a]
 
-    def _clear(self, key: str, t: float) -> List[Alert]:
+    def _clear(self, key: str, t: float) -> list[Alert]:
         a = self.active.pop(key, None)
         if a is None:
             return []
@@ -401,9 +403,9 @@ class TwinRuntime:
         self.alerts.append(c)
         return [c]
 
-    def _check_alerts(self, out: dict) -> List[Alert]:
+    def _check_alerts(self, out: dict) -> list[Alert]:
         t, st, sd = out["t"], out["state"], out["state_sd"]
-        new: List[Alert] = []
+        new: list[Alert] = []
         for name, (lo, hi) in self.rules.limits.items():
             if name not in st:
                 continue
@@ -451,20 +453,31 @@ class TwinRuntime:
                 new += self._clear("forecast", t)
         return new
 
-    def _check_validity(self, t: float) -> List[Alert]:
+    def _check_validity(self, t: float) -> list[Alert]:
         y, yp, sp, V = (np.array(self._win[k]) for k in ("y", "yp", "sp", "v"))
         bounds = None
         names = self.model.input_names
         if all(n in self.model.bounds for n in names):
             bounds = (np.array([self.model.bounds[n][0] for n in names]),
                       np.array([self.model.bounds[n][1] for n in names]))
+        if bounds is not None:                     # an input held constant in training: allow its sensor noise
+            flat = bounds[1] - bounds[0] <= 0
+            bounds[0][flat] -= np.inf
+            bounds[1][flat] += np.inf
         rep = assess_drift(y, yp, sigma=sp, X_new=V if bounds is not None else None, bounds=bounds,
                            thresholds=self.rules.drift)
+        # a significant but practically negligible bias (below bias_practical x the predictive spread) is noted,
+        # not alerted: with many samples a model bias far inside the noise is "significant"
+        rel_bias = np.abs(rep.bias) / np.mean(sp, axis=0)
+        if any(r.startswith("bias significant") for r in rep.reasons) and np.all(rel_bias < self.rules.bias_practical):
+            rep = assess_drift(y, yp, sigma=sp, X_new=V if bounds is not None else None, bounds=bounds,
+                               thresholds=replace(self.rules.drift, bias_z=math.inf))
         self.last_drift = {"t": t, "n": rep.n, "decision": rep.decision, "reasons": rep.reasons,
-                           "nrmse": dict(zip(self.obs_names, rep.nrmse.tolist())),
-                           "bias": dict(zip(self.obs_names, rep.bias.tolist())),
+                           "relative_bias": dict(zip(self.obs_names, rel_bias.tolist(), strict=False)),
+                           "nrmse": dict(zip(self.obs_names, rep.nrmse.tolist(), strict=False)),
+                           "bias": dict(zip(self.obs_names, rep.bias.tolist(), strict=False)),
                            "coverage": None if rep.coverage is None else dict(zip(self.obs_names,
-                                                                                 rep.coverage.tolist())),
+                                                                                 rep.coverage.tolist(), strict=False)),
                            "out_of_bounds": rep.out_of_bounds}
         if self.store is not None:
             self.store.write("events", self.asset, t, {"type": "drift_check", **self.last_drift})
@@ -484,14 +497,26 @@ class TwinRuntime:
 
     # ---------------------------------------------------------------------------------------------------- outputs
 
-    def forecast(self, steps: int, v_plan: Optional[np.ndarray] = None) -> dict:
-        """Propagate the current ensemble ``steps`` model steps with inputs ``v_plan`` (steps, m) or the last
-        inputs held. Returns times, mean and 5/95 % bands per state, and the first limit crossing of the band."""
+    def forecast(self, steps: int, v_plan: np.ndarray | None = None) -> dict:
+        """Propagate the current ensemble ``steps`` model steps with inputs ``v_plan`` (steps, m), or hold the
+        inputs: the mean of the last ``rules.hold_window`` readings, each member with a constant offset drawn from
+        their spread (a held input is not known exactly: a 1 % flow-meter noise integrates into the level).
+        Returns times, mean and 5/95 % bands per state, and the first limit crossing of the band."""
         if self.t is None:
             raise RuntimeError("no reading assimilated yet")
         E = self.filter.ensemble.copy()
+        n_ens = E.shape[1]
         rng = np.random.default_rng(self.n_updates)
-        Vp = np.repeat(self.v_last[None], steps, 0) if v_plan is None else np.asarray(v_plan, dtype=float)
+        if v_plan is None:
+            recent = np.array([h["inputs"][n] for h in list(self.history)[-self.rules.hold_window:]
+                               for n in self.model.input_names]).reshape(-1, len(self.model.input_names))
+            if len(recent) == 0:
+                recent = self.v_last[None]
+            spread = recent.std(0, ddof=1) if len(recent) > 1 else np.zeros(recent.shape[1])
+            Vm = recent.mean(0) + spread * rng.standard_normal((n_ens, recent.shape[1]))
+            Vp = np.repeat(Vm[None], steps, 0)                         # (steps, n_ens, m)
+        else:
+            Vp = np.asarray(v_plan, dtype=float)
         means, lo, hi = [], [], []
         for k in range(steps):
             E = self.model.step(E.T, Vp[k]).T
@@ -529,7 +554,7 @@ class TwinRuntime:
             raise ValueError("need at least 10 assimilated samples to revalidate")
         x = np.array([hist[0]["state"][n] for n in self.model.state_names])
         preds = [x[self.obs_idx]]
-        for a, b in zip(hist[:-1], hist[1:]):
+        for a, b in zip(hist[:-1], hist[1:], strict=False):
             v = np.array([a["inputs"][n] for n in self.model.input_names])
             for _ in range(max(1, int(round((b["t"] - a["t"]) / self.model.dt)))):
                 x = self.model.step(x, v)
