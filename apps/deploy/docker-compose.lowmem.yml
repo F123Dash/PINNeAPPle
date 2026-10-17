@@ -96,3 +96,6 @@ services:
   optimize:
     command: ["uvicorn", "engineering_optimizer.api:app", "--host", "0.0.0.0", "--port", "8100", "--workers", "1"]
     mem_limit: 800m     # torch + the zoo models; heavy runs are jobs (EDO_MAX_JOBS)
+  design:
+    command: ["uvicorn", "physics_design.api:app", "--host", "0.0.0.0", "--port", "8106", "--workers", "1"]
+    mem_limit: 800m     # torch + the zoo models; heavy runs are jobs (PDO_MAX_JOBS)

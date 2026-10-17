@@ -406,3 +406,15 @@
 		}
 	}
 }
+
+{$PDO_DOMAIN} {
+	import common
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy design:8106 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+}
