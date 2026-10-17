@@ -22,7 +22,6 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   with metering (`studies`, `evaluations`, `parameters`) and reads and writes these contracts; so does the Engineering
   Uncertainty Lab (`studies`, `scenarios`, `propagation_samples`, `hf_runs`; a `ModelRef` and a `ParameterSpace` in, a
   `StudyResult` out).
-  with metering (`studies`, `evaluations`, `parameters`) and reads and writes these contracts.
 - Physics checks during training (`pinneapple_neural.callbacks`, #704): `PhysicsMonitor` runs the checks of
   `pp.validate` on a validation batch every N steps, warns or stops when a physics metric worsens for K checks while
   the loss improves, and writes the report and trust card at the end; adapters for PyTorch Lightning
