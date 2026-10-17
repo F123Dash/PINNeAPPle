@@ -213,6 +213,33 @@ def _plate_preset() -> Preset:
                   lesson="The field is the product: the hot spot under the device comes from the calibrated model.")
 
 
+def _plate_table_preset() -> Preset:
+    """The plate case with the model given as a table of simulated runs (the finite-volume solver at 8 values of h,
+    read at the sensor positions): what a calibration against a solver campaign looks like."""
+    plate = model_from_spec({"type": "plate_2d", "options": {"nx": 60, "ny": 36}})
+    s = np.array([[10, 10], [50, 10], [90, 10], [70, 30], [90, 50], [50, 50], [10, 50], [30, 55],
+                  [30, 30], [20, 40], [75, 15], [60, 40]], float)
+    rows = []
+    for h in (4.0, 6.0, 9.0, 13.0, 19.0, 28.0, 40.0, 60.0):
+        T = plate.predict({"h": h, "power": 8.0, "T_air": 25.0}, {"x_mm": s[:, 0], "y_mm": s[:, 1]})
+        rows += [{"h": h, "x_mm": float(x), "y_mm": float(y), "T": round(float(t), 4)} for (x, y), t in zip(s, T, strict=True)]
+    spec = {"type": "table", "rows": rows, "parameters": ["h"], "inputs": ["x_mm", "y_mm"], "output": "T",
+            "name": "plate FV runs"}
+    params = [_p("h", 30.0, 4.0, 60.0, "W/m²K", truth=15.0, log=False)]
+    truth_model = [_p("h", 30.0, 4.0, 60.0, "W/m²K", truth=15.0), _p("power", 8.0, 0.5, 50.0, "W", fixed=True),
+                   _p("T_air", 25.0, -50.0, 200.0, "°C", fixed=True, log=False)]
+    obs = _obs(plate, truth_model, {"x_mm": s[:8, 0], "y_mm": s[:8, 1]}, 0.5, ["T"] * 8, 100)
+    val = _obs(plate, truth_model, {"x_mm": s[8:, 0], "y_mm": s[8:, 1]}, 0.5, ["T"] * 4, 101)
+    return Preset("plate_h_table", "Plate: h from a table of simulated runs",
+                  "The heat-spreader plate again, but the model is a campaign of 8 solver runs (h = 4 to 60 W/m²K) "
+                  "read at the sensor positions, interpolated between runs. Measurements: eight thermocouples "
+                  "(±0.5 °C); held out: four more. True h: 15 W/m²K.", spec, params, obs, val,
+                  methods=["least_squares", "bayesian"], tags=["heat", "2D", "simulated results"], seed=100,
+                  lesson="A table of solver runs is a model, and interpolating between runs adds an error the "
+                         "confidence interval does not include: compare with the plate_h preset, which runs the "
+                         "solver itself.")
+
+
 def _cooling_presets() -> list[Preset]:
     spec = {"type": "lumped_cooling", "options": {"area_m2": 0.012}}
     model = model_from_spec(spec)
@@ -267,7 +294,8 @@ def _arrhenius_presets() -> list[Preset]:
 
 def _build() -> dict[str, Preset]:
     out: dict[str, Preset] = {}
-    for p in _fin_presets() + _rod_presets() + [_plate_preset()] + _cooling_presets() + _arrhenius_presets():
+    for p in (_fin_presets() + _rod_presets() + [_plate_preset(), _plate_table_preset()] + _cooling_presets()
+              + _arrhenius_presets()):
         out[p.id] = p
     return out
 
@@ -281,8 +309,8 @@ def _all() -> dict[str, Preset]:
     return _CACHE
 
 
-PRESETS = ("fin_h", "fin_h_k", "fin_h_k_flux", "rod_h_field", "rod_base_bc", "plate_h", "cooling_h", "cooling_h_C",
-           "arrhenius_one_T", "arrhenius_two_T")
+PRESETS = ("fin_h", "fin_h_k", "fin_h_k_flux", "rod_h_field", "rod_base_bc", "plate_h", "plate_h_table", "cooling_h",
+           "cooling_h_C", "arrhenius_one_T", "arrhenius_two_T")
 
 
 def get_preset(name: str) -> Preset:

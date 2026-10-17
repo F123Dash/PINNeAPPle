@@ -198,6 +198,8 @@ def test_model_from_spec_validates_options():
 
 def test_contracts_round_trip():
     contracts = pytest.importorskip("pinneapple_data.contracts")
+    if not hasattr(contracts, "ParameterSpace"):
+        pytest.skip("pinneapple_data.contracts is not on this branch")
     from pinneapple_analysis.inverse_problems import contracts as ic
 
     b = inv.get_preset("fin_h_k_flux").build()
