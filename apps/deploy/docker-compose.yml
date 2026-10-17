@@ -595,6 +595,21 @@ services:
     expose: ["8111"]
     mem_limit: ${ANOMALY_MEM_LIMIT:-1g}
 
+  control:
+    build:
+      context: ../..
+      dockerfile: apps/control_lab/Dockerfile
+    image: pinneapple/control-lab:latest
+    restart: unless-stopped
+    environment:
+      CONTROL_USER: ${CONTROL_USER:-}
+      CONTROL_PASSWORD: ${CONTROL_PASSWORD:-}
+      CONTROL_MAX_JOBS: ${CONTROL_MAX_JOBS:-2}
+    volumes:
+      - control_data:/data          # jobs, uploads, usage: keep this volume
+    expose: ["8112"]
+    mem_limit: ${CONTROL_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -633,12 +648,13 @@ services:
       MDL_DOMAIN: ${MDL_DOMAIN:-models.localhost}
       TWIN_DOMAIN: ${TWIN_DOMAIN:-twin.localhost}
       ANOMALY_DOMAIN: ${ANOMALY_DOMAIN:-anomaly.localhost}
+      CONTROL_DOMAIN: ${CONTROL_DOMAIN:-control.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate, arena, models, twin, anomaly]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate, arena, models, twin, anomaly, control]
 
 volumes:
   surrogate_data:
@@ -646,6 +662,7 @@ volumes:
   models_data:
   twin_data:
   anomaly_data:
+  control_data:
   calibration_data:
   evidence_data:
   identifiability_data:
