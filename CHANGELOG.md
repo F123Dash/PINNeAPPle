@@ -951,6 +951,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Zoo publishing: the file, viewer and model checks of the publish workflow run even when the Space or an item
+  failed to upload (the Space's HTTP 402 skipped all of them), and the Space check runs only when the Space was
+  published. `publish_space` turns the Hub's 402 (a Gradio Space needs a Team or Enterprise plan for the
+  organisation) into an error that says so and how to publish without the Space.
 - Zoo publishing (`pinneapple_hub.zoo.publish`): each item gets its own working directory per kind. The model and
   the dataset `rover_contact_grc1_viper` share a name; publishing the model deleted the dataset's Parquet copies before
   they were committed, so the dataset was not published and the workflow failed before its download check.
