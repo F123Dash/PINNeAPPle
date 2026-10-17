@@ -30,18 +30,17 @@ from pydantic import BaseModel, Field
 
 from pinneapple_design.aero.geometry import PARAMS, outline
 from pinneapple_design.design_optimizer import (
-    OptimizationResult,
+    DESIGN_FILES,
     available_methods,
+    chart_points,
     compare_methods,
-    designs_frame,
     feasibility_report,
     presets,
     problem_from_spec,
     reference_for_spec,
-    select_candidates,
     study_result,
-    to_parameter_space,
-    verify_candidates,
+    verify_front,
+    write_design_files,
 )
 from pinneapple_design.design_optimizer.spec import SpecError
 
@@ -57,7 +56,7 @@ LABEL = {"gradient": "Gradient (autograd through the model)", "scipy-slsqp": "SL
          "scipy-de": "Differential evolution", "random": "Latin hypercube (baseline)"}
 MAX_TOTAL_EVALS = 40000
 MAX_BAYES = 150
-FILES = ("comparison.csv", "candidates.csv", "evaluations.csv", "study.json", "parameter_space.json")
+FILES = ("comparison.csv", *DESIGN_FILES, "study.json")
 
 app = FastAPI(title="Physics Design Optimizer", version=VERSION,
               description="Optimise parametric designs (plate-fin heat sink, CST airfoil) with gradient methods "
@@ -100,12 +99,6 @@ def scope() -> dict:
         ]}
 
 
-def _bodies(spec: dict, row: dict) -> list:
-    if spec.get("preset", "heatsink") == "airfoil":
-        return presets.airfoil_bodies({p: float(row[p]) for p in PARAMS})
-    return presets.plate_fin_bodies(row)
-
-
 # ----------------------------------------------------------------------------------------------- job
 def study_job(params: dict[str, Any], ctx) -> dict[str, Any]:
     t0 = time.time()
@@ -119,40 +112,18 @@ def study_job(params: dict[str, Any], ctx) -> dict[str, Any]:
     if ev is None:
         raise SpecError("no method produced evaluations")
     front = [int(i) for i in ev.pareto()]
-    cand = select_candidates(ev, front, int(params.get("n_verify", 5)))
     reference = reference_for_spec(spec)
-    ver = None
-    if reference is not None and cand:
-        ctx.progress(0.86, f"verifying {len(cand)} candidates with {reference.name}")
-        ver = verify_candidates(problem, ev, cand, reference)
-    status = {r["index"]: r["status"] for r in ver.rows} if ver is not None else {}
+    if reference is not None:
+        ctx.progress(0.86, f"verifying candidates with {reference.name}")
+    cand, ver, status = verify_front(problem, ev, front, int(params.get("n_verify", 5)), reference)
     feas = feasibility_report(problem, ev, cand)
     ctx.progress(0.95, "writing files")
     wd = Path(ctx.workdir)
     pd.DataFrame(cmp.table()).drop(columns=["best"]).to_csv(wd / "comparison.csv", index=False)
-    edf = designs_frame(problem, ev)
-    edf["run"] = labels
-    edf.to_csv(wd / "evaluations.csv", index=False)
-    cdf = designs_frame(problem, ev, cand, status)
-    cdf["found_by"] = [labels[i] for i in cand]
-    cdf.to_csv(wd / "candidates.csv", index=False)
-    to_parameter_space(problem.space, problem.name, problem.description).save(wd / "parameter_space.json")
-    union = OptimizationResult(problem, "comparison: " + ", ".join(methods), seeds[0], budget * len(cmp.results), ev,
-                               sum(r.wall_s for r in cmp.results))
-    study_result(problem, union, study_id=ctx.job_id, app=NAME, candidates=cand, verification=ver,
+    write_design_files(wd, problem, ev, cand, status, labels=labels)
+    study_result(problem, cmp.union_result(), study_id=ctx.job_id, app=NAME, candidates=cand, verification=ver,
                  comparison=cmp, limits=[scope()["items"][0]["detail"]]).save(wd / "study.json")
-    objs = [o.name for o in problem.objectives]
-    fronts = {}
-    for r in cmp.results:
-        if r.evaluations is None or r.seed != seeds[0]:
-            continue
-        p = r.pareto()
-        fronts[r.method] = [[float(r.evaluations.Y[k][i]) for k in objs] for i in p]
-    pts = []
-    stride = max(1, len(ev) // 2500)
-    for i in range(0, len(ev), stride):
-        if ev.feasible[i] and not ev.relaxed[i]:
-            pts.append({"run": labels[i].split("#")[0], **{k: float(ev.Y[k][i]) for k in objs}})
+    pts = [q for q in chart_points(problem, ev, front, limit=2500, labels=labels) if q["f"] and not q["r"]]
     rows = ev.rows(problem.space, cand)
     for r, f in zip(rows, feas, strict=True):
         r["found_by"] = labels[r["index"]].split("#")[0]
@@ -164,7 +135,7 @@ def study_job(params: dict[str, Any], ctx) -> dict[str, Any]:
         "problem": problem.to_dict(), "methods": {m: LABEL.get(m, m) for m in methods},
         "table": cmp.table(), "runs": [{k: v for k, v in x.items() if k != "front"} for x in cmp.rows],
         "curves": cmp.to_dict()["curves"], "winner": cmp.winner(),
-        "fronts": fronts, "points": pts, "candidates": rows,
+        "fronts": cmp.fronts(seeds[0]), "points": pts, "candidates": rows,
         "verification": ver.to_dict() if ver is not None else None,
         "reference": reference.info() if reference is not None else None,
         "files": list(FILES), "seconds": round(time.time() - t0, 2), "budget": budget, "seeds": seeds,
@@ -190,21 +161,12 @@ def health():
 
 @app.get("/api/meta")
 def meta():
-    hs = presets.heatsink_problem("surrogate")
-    af = presets.airfoil_problem()
-    avail = {"heatsink": available_methods(hs), "airfoil": available_methods(af)}
+    avail = {"heatsink": available_methods(presets.heatsink_problem("surrogate")),
+             "airfoil": available_methods(presets.airfoil_problem())}
     return {"version": VERSION, "scope": scope(), "labels": LABEL,
             "methods": {k: {m: v[m] for m in METHODS} for k, v in avail.items()},
             "limits": {"max_total_evaluations": MAX_TOTAL_EVALS, "max_budget_bayesian": MAX_BAYES},
-            "presets": {
-                "heatsink": {"variables": [v.__dict__ for v in presets.HEATSINK_VARIABLES],
-                             "operating": presets.HeatsinkOperating().__dict__,
-                             "limits": presets._process_limits().__dict__,
-                             "objectives": list(presets._HEATSINK_OBJECTIVES), "baseline": presets.heatsink_baseline(),
-                             "reference": "3-D finite-volume heat-sink engine"},
-                "airfoil": {"variables": [v.__dict__ for v in af.space.variables],
-                            "limits": {"cl_min": 0.6, "cm_min": -0.12, "aft_min": 0.012},
-                            "baseline": presets.airfoil_baseline(), "reference": None}},
+            "presets": {k: presets.preset_info(k) for k in ("heatsink", "airfoil")},
             "runtime": rt.describe()}
 
 
@@ -267,7 +229,7 @@ def design_file(request: Request, job_id: str, k: int, fmt: str):
     spec = rt.job_for(request, job_id)["params"]["spec"]
     row = df.iloc[k - 1].to_dict()
     name = f"{spec.get('preset', 'heatsink')}_{job_id}_c{k}"
-    data = presets.design_file(_bodies(spec, row), fmt, name)
+    data = presets.design_file(presets.preset_bodies(spec.get("preset", "heatsink"), row), fmt, name)
     return Response(data, media_type="model/stl" if fmt == "stl" else "application/step",
                     headers={"Content-Disposition": f'attachment; filename="{name}.{fmt}"'})
 
@@ -278,7 +240,7 @@ def baseline_file(preset: str, fmt: str):
     if preset not in ("heatsink", "airfoil") or fmt not in ("stl", "step"):
         raise HTTPException(404, "heatsink or airfoil, stl or step")
     row = presets.heatsink_baseline() if preset == "heatsink" else presets.airfoil_baseline()
-    data = presets.design_file(_bodies({"preset": preset}, row), fmt, f"{preset}_baseline")
+    data = presets.design_file(presets.preset_bodies(preset, row), fmt, f"{preset}_baseline")
     return Response(data, media_type="application/octet-stream",
                     headers={"Content-Disposition": f'attachment; filename="{preset}_baseline.{fmt}"'})
 

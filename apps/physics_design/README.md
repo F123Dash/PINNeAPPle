@@ -39,8 +39,8 @@ design is a surrogate prediction nobody re-ran in the solver.
   - A **verification status**: *verified by high fidelity*, *rejected by reference*, or *only surrogate*.
 - **Design files**: each candidate as **STL** or **STEP** (AP214 faceted solids, one per body), and the parameters
   as **CSV** (`candidates.csv`).
-- **Other files**: `comparison.csv`, `evaluations.csv`, `study.json` (StudyResult, study type "design") and
-  `parameter_space.json` (ParameterSpace).
+- **Other files**: `comparison.csv`, `evaluations.csv`, `candidates_to_run.csv` (the candidates' parameters only, to
+  run in your solver), `study.json` (StudyResult, study type "design") and `parameter_space.json` (ParameterSpace).
 
 ## Methods
 
