@@ -361,12 +361,16 @@ services:
       GUIAGENT_USER: ${GUIAGENT_USER:-}
       GUIAGENT_PASSWORD: ${GUIAGENT_PASSWORD:-}
       GUIAGENT_MODE: ${GUIAGENT_MODE:-public}         # public: committed workflows only; selfhosted: uploads too
-      GUIAGENT_MAX_JOBS: ${GUIAGENT_MAX_JOBS:-1}
+      GUIAGENT_MAX_JOBS: ${GUIAGENT_MAX_JOBS:-1}         # runs at once; further runs wait in the shared job queue
+      GUIAGENT_ADMIN_TOKEN: ${GUIAGENT_ADMIN_TOKEN:-}   # X-Admin-Token for API keys when there is no login
+      GUIAGENT_FREE_RUNS: ${GUIAGENT_FREE_RUNS:-}       # free use per caller and month (defaults 20 runs,
+      GUIAGENT_FREE_COMPUTE_SECONDS: ${GUIAGENT_FREE_COMPUTE_SECONDS:-}   # 1800 s, 500 MB)
+      GUIAGENT_FREE_STORAGE_MB: ${GUIAGENT_FREE_STORAGE_MB:-}
       GUIAGENT_KEEP_RUNS: ${GUIAGENT_KEEP_RUNS:-40}
       GUIAGENT_OLLAMA_URL: ${GUIAGENT_OLLAMA_URL:-http://ollama:11434}
       GUIAGENT_OLLAMA_MODEL: ${GUIAGENT_OLLAMA_MODEL:-}  # empty = rule-based reading of tasks
     volumes:
-      - guiagent_data:/data       # runs and their evidence (oldest deleted beyond GUIAGENT_KEEP_RUNS)
+      - guiagent_data:/data       # runs and their evidence, job queue, API keys, usage: keep this volume
     expose: ["8115"]
     mem_limit: ${GUIAGENT_MEM_LIMIT:-2g}
     shm_size: 256m

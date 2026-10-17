@@ -17,8 +17,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 - Engineering GUI Agent app (`apps/guiagent`, guiagent.pinneapple.org, port 8115). It takes a task sentence or a
   workflow and runs it in FreeCAD, CfdOF, OpenFOAM and ParaView inside a separate, optional heavy Docker image. The page
   shows the step timeline with checks and screenshots, asks for approval before the solver, and delivers the HTML
-  evidence report, the StudyResult and a zip of the run. In the public mode only the committed workflows run; uploads
-  need self-hosted mode. Deployed through the compose service `guiagent` (profile `guiagent`) and a Caddy block.
+  evidence report, the StudyResult and a zip of the run. Runs go through the shared runtime (job queue, ownership,
+  metering of runs, compute seconds and storage). In the public mode only the committed workflows run; uploads need
+  self-hosted mode. The Simulation Workflow Runner registers the `guiagent` step kind. Deployed through the compose service `guiagent` (profile `guiagent`) and a Caddy block.
 - Engineering GUI agent (`pinneapple_tools.automation`): runs a task in engineering software and keeps the evidence.
   A structured workflow (YAML/JSON: inputs with bounds, steps with preconditions, expected files and confirmation
   categories, acceptance criteria) is executed step by step through adapters for FreeCAD and CfdOF (Python API

@@ -73,7 +73,8 @@ These are the reasons the checks exist; each was found by a real run and is now 
 3. approve or decline the solver step;
 4. download the evidence report, the StudyResult and the run as a zip.
 
-The public server runs only the committed workflows, one at a time. Uploading your own workflows, projects and macros
+Runs execute in the shared job queue of `apps/_shared` (one at a time; others wait), belong to the caller and are
+metered in runs, compute seconds and storage. The public server runs only the committed workflows. Uploading your own workflows, projects and macros
 is for self-hosted mode (`GUIAGENT_MODE=selfhosted`), because a macro is code. The Docker image is separate and
 optional (FreeCAD, CfdOF, OpenFOAM, ParaView, Xvfb); see [apps/deploy/README.md](../../apps/deploy/README.md).
 

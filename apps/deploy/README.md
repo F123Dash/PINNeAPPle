@@ -85,7 +85,8 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 | `UDR_OLLAMA_TIMEOUT` | Seconds per LLM request (default 600; local models on CPU are slow). |
 | `GUIAGENT_DOMAIN`, `GUIAGENT_USER` / `GUIAGENT_PASSWORD`, `GUIAGENT_MEM_LIMIT` | Engineering GUI Agent (optional heavy image): hostname, HTTP Basic login, memory cap (default 2g) |
 | `GUIAGENT_MODE` | `public` (default): only the committed workflows run. `selfhosted`: `POST /api/workflows` also adds your own workflows, FreeCAD projects and macros. Macros are code, so never enable this on a public server. |
-| `GUIAGENT_MAX_JOBS`, `GUIAGENT_KEEP_RUNS` | Runs at the same time (default 1; any excess gets HTTP 429) and runs kept on disk (default 40; the oldest are deleted first) |
+| `GUIAGENT_MAX_JOBS`, `GUIAGENT_KEEP_RUNS` | Runs at the same time (default 1; further runs wait in the shared job queue) and runs kept on disk (default 40; the oldest are deleted first) |
+| `GUIAGENT_FREE_RUNS`, `GUIAGENT_FREE_COMPUTE_SECONDS`, `GUIAGENT_FREE_STORAGE_MB`, `GUIAGENT_ADMIN_TOKEN` | Free use per caller and month (defaults 20 runs, 1800 s, 500 MB; over it: HTTP 429) and the admin token for API keys (see `apps/_shared/README.md`) |
 | `GUIAGENT_OLLAMA_MODEL`, `GUIAGENT_OLLAMA_URL` | Optional local LLM that reads free-form tasks. Without it, tasks are read by rules, and the demo works either way. |
 
 ## 5. Start
@@ -431,9 +432,10 @@ PROXY_NETWORK=<network> docker compose -f docker-compose.yml -f docker-compose.e
   up -d --build --no-deps guiagent                         # behind an existing proxy (pinneapple-guiagent:8115)
 ```
 
-The service runs one uvicorn worker with `mem_limit` 2g and one run at a time (`GUIAGENT_MAX_JOBS=1`). A full run of
-the example took 42 s in the image (2 GB limit, 0.9 GB in use after the run). Runs and their evidence are kept in the `guiagent_data` volume; the
-oldest are deleted beyond `GUIAGENT_KEEP_RUNS`. On a public server, keep `GUIAGENT_MODE=public`: only the committed
+The service runs one uvicorn worker with `mem_limit` 2g and one run at a time (`GUIAGENT_MAX_JOBS=1`; later runs
+wait in the shared job queue of `apps/_shared`, which also meters runs, compute seconds and storage per caller). A full run of
+the example took 42 s in the image (2 GB limit, 0.9 GB in use after the run). Runs and their evidence, the job queue, API keys and usage are kept in
+the `guiagent_data` volume (`/data/guiagent`); the oldest runs are deleted beyond `GUIAGENT_KEEP_RUNS`. On a public server, keep `GUIAGENT_MODE=public`: only the committed
 workflows run, with their inputs inside the workflow's bounds, and no uploads are accepted. Building the image
 downloads the FreeCAD AppImage from GitHub (about 800 MB) and CfdOF from GitHub.
 

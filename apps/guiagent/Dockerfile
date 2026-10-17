@@ -50,10 +50,11 @@ RUN /opt/app/bin/pip install --no-cache-dir . -r apps/guiagent/requirements.txt 
     && ln -s /opt/freecad-mods/CfdOF /home/agent/.local/share/FreeCAD/Mod/CfdOF \
     && chown -R agent:agent /home/agent /data "$XDG_RUNTIME_DIR"
 
+# runs, job queue, API keys and usage live in /data/guiagent (apps/_shared runtime)
 ENV PATH=/opt/app/bin:$PATH PYTHONPATH=/srv:/srv/apps/guiagent \
     PINNEAPPLE_FREECAD=/opt/freecad/usr/bin/freecad PINNEAPPLE_CFDOF=/opt/freecad-mods/CfdOF \
     FOAM_BASHRC=/usr/share/openfoam/etc/bashrc PINNEAPPLE_PVPYTHON=/usr/bin/pvpython \
-    GUIAGENT_DATA=/data
+    PINNEAPPLE_APP_DATA=/data
 USER agent
 WORKDIR /srv/apps/guiagent
 VOLUME /data

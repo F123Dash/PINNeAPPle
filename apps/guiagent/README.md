@@ -39,7 +39,8 @@ The run as a whole delivers:
 
 - the acceptance criteria, each with the measured value and the threshold;
 - an HTML evidence report (print it to PDF from the browser);
-- `study_result.json`, a StudyResult (schema `pinneapple.study_result/0`) for the Evidence Report app (day 30);
+- `study_result.json`, a `pinneapple_data.contracts.StudyResult` (the contract the apps share) for the Evidence
+  Report app (day 30);
 - a zip of everything: the modified FreeCAD document, the CfdOF/OpenFOAM case, the velocity field as CSV, images,
   logs.
 
@@ -75,10 +76,15 @@ are handled, and are recorded in the evidence (see the guide).
 - **PINNeAPPle:** the criteria use `pinneapple_check`'s finite-volume reader, and the logs are read by
   `pinneapple_data.simulation_metadata`. Results go out as a StudyResult for the Evidence Report app, and the run
   folder is plain files.
-- **Simulation Workflow Runner (day 27):** its executors can call the same adapters
-  (`get_adapter(name).run(action, params, ctx)`) once it is on main.
+- **Simulation Workflow Runner (day 27):** the runner gains a step kind `guiagent`
+  (`pinneapple_tools.automation.runner_step`). One runner step runs a committed workflow with given inputs and
+  approvals, and its verdict and metrics flow downstream. The public runner image has no FreeCAD, so the step kind
+  shows what is missing there; a self-hosted runner with the applications runs it.
+- **Shared runtime (`apps/_shared`):** runs execute in the shared job queue, belong to the caller (IP, login or
+  `X-API-Key`), and are metered in `runs`, `compute_seconds` and `storage_mb` (`GET /api/usage`).
 
-**Monetization: jobs, compute time, storage.** Paid tiers would add:
+**Monetization: jobs, compute time, storage.** These are the metered units, with free monthly limits per caller
+(`GUIAGENT_FREE_RUNS` 20, `GUIAGENT_FREE_COMPUTE_SECONDS` 1800, `GUIAGENT_FREE_STORAGE_MB` 500). Paid tiers would add:
 
 - more concurrent jobs, and longer or bigger cases (meshes, iterations);
 - run storage and retention;
@@ -95,9 +101,8 @@ are handled, and are recorded in the evidence (see the guide).
 - GUI steps are driven through FreeCAD's Python inside the GUI. xdotool finds and observes the windows; pixel clicking
   is available in the library but not needed here. There is no live remote desktop (noVNC): you see screenshots per
   step.
-- The public demo runs one job at a time and only committed workflows. Uploads and macros are for self-hosted mode
-  only.
-- `study_result.json` uses a provisional schema until `pinneapple_data.contracts.StudyResult` is released.
+- The public demo runs one job at a time (others wait in the queue) and only committed workflows. Uploads and macros
+  are for self-hosted mode only.
 
 ## Run
 
@@ -108,8 +113,9 @@ docker run -p 8115:8115 guiagent                                 # http://localh
 
 Without Docker (FreeCAD, CfdOF, OpenFOAM, ParaView, Xvfb and xdotool installed; see the guide for the variables):
 `pip install pinneapple -r apps/guiagent/requirements.txt`, then `cd apps/guiagent && uvicorn guiagent.api:app --port
-8115`. Environment variables: `GUIAGENT_USER`/`GUIAGENT_PASSWORD`, `GUIAGENT_MODE`, `GUIAGENT_DATA`,
-`GUIAGENT_MAX_JOBS`, `GUIAGENT_KEEP_RUNS`, `GUIAGENT_OLLAMA_URL`/`GUIAGENT_OLLAMA_MODEL`.
+8115`. Environment variables: `GUIAGENT_USER`/`GUIAGENT_PASSWORD`, `GUIAGENT_MODE`, `GUIAGENT_MAX_JOBS`,
+`GUIAGENT_KEEP_RUNS`, `GUIAGENT_FREE_*`, `GUIAGENT_ADMIN_TOKEN`, `GUIAGENT_DATA_DIR`,
+`GUIAGENT_OLLAMA_URL`/`GUIAGENT_OLLAMA_MODEL` (the runtime's variables are listed in `apps/_shared/README.md`).
 
 ## API
 
@@ -122,3 +128,4 @@ Without Docker (FreeCAD, CfdOF, OpenFOAM, ParaView, Xvfb and xdotool installed; 
 | `POST /api/runs/{id}/approve`, `/decline` | answer the confirmation a step waits for |
 | `GET /api/runs/{id}/report`, `/study_result`, `/bundle`, `/files/{path}` | the evidence |
 | `POST /api/workflows` | self-hosted only: add a workflow (zip) |
+| `GET /api/jobs/{id}`, `/api/usage`, `/api/keys` | the shared runtime: queue jobs, use this month, API keys |
