@@ -71,11 +71,18 @@ class InverseProblem:
     def truth(self) -> dict[str, float] | None:
         return self.params.truth()
 
+    def groups(self) -> list[list[str]]:
+        """``field_groups``, or the model's own (``model.field_groups()``) when none were given."""
+        if self.field_groups:
+            return self.field_groups
+        fn = getattr(self.model, "field_groups", None)
+        return fn() if callable(fn) else []
+
     def prior(self) -> Prior:
         ps = self.params
         L = None
         rows = []
-        for grp in self.field_groups:
+        for grp in self.groups():
             idx = [ps.names.index(n) for n in grp if n in ps.names]
             for a, b in zip(idx[:-1], idx[1:], strict=False):
                 r = np.zeros(len(ps))
@@ -187,8 +194,8 @@ def solve_inverse(problem: InverseProblem, method: str, *, identifiability: Iden
         std = _gn_std(params, r.jac, obs, r.chi2, extra_prec=prec)
         z, history, deriv, converged = r.z, r.history, r.derivatives, r.success
         notes.append(f"Gaussian prior: std {problem.prior_std:g} in ln units around the initial guesses"
-                     + (f"; smoothness weight {problem.smoothness:g} on {problem.field_groups}"
-                        if problem.smoothness > 0 and problem.field_groups else ""))
+                     + (f"; smoothness weight {problem.smoothness:g} on {problem.groups()}"
+                        if problem.smoothness > 0 and problem.groups() else ""))
         lo, hi = params.bounds()
         if getattr(model, "cost", "cheap") == "cheap" and len(params) <= 8 and np.all(np.isfinite(lo)) \
                 and np.all(np.isfinite(hi)):
@@ -289,7 +296,11 @@ def compare_methods(problem: InverseProblem, methods: Sequence[str] = ("least_sq
             sols.append({"method": m, "label": METHODS.get(m, m), "status": "error", "reason": str(exc)})
     done = [s for s in sols if s["status"] == "done"]
     key = "validation" if problem.validation is not None and problem.validation.n else "fit"
-    ranking = sorted(done, key=lambda s: s[key]["rmse"] if s.get(key) else math.inf)
+    def rank(s):                     # RMSE to 3 significant digits; a tie goes to the cheaper method
+        r = s[key]["rmse"] if s.get(key) else math.inf
+        return (float(f"{r:.3g}") if math.isfinite(r) else math.inf, s.get("forward_evaluations") or 0)
+
+    ranking = sorted(done, key=rank)
     table = [{"method": s["method"], "label": s["label"], "status": s["status"],
               "fit_rmse": s.get("fit", {}).get("rmse") if s["status"] == "done" else None,
               "validation_rmse": (s.get("validation") or {}).get("rmse") if s["status"] == "done" else None,
@@ -301,5 +312,5 @@ def compare_methods(problem: InverseProblem, methods: Sequence[str] = ("least_sq
                                     "observations": problem.observations.to_dict(),
                                     "validation": None if problem.validation is None else problem.validation.to_dict()},
                         "identifiability": None if rep is None else rep.to_dict(), "solutions": sols, "table": table,
-                        "ranked_by": f"{key} RMSE", "best": ranking[0]["method"] if ranking else None,
+                        "ranked_by": f"{key} RMSE (ties to 3 significant digits go to fewer model runs)", "best": ranking[0]["method"] if ranking else None,
                         "available": available_methods(problem), "seconds": time.time() - t0})
