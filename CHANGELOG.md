@@ -14,6 +14,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Physics-Based Control Lab app (day 29, `apps/control_lab`, control.pinneapple.org, port 8112): linear and nonlinear
+  MPC (CasADi/IPOPT, SciPy fallback, or a reduced-order surrogate as the model) compared with PID and rule-based
+  baselines in closed loop on the same simulated plant, and a recommendation mode from a twin's estimated state.
+  Simulation / recommendation only: no command path to real equipment.
 - Operations library (`pinneapple_systems.operations`) for running validated models next to plant data: a
   heated-tank plant with mass and energy balances, sensors and six fault kinds (`plant`); operator inference with
   inputs fitted on whole trajectories with held-out rollout errors, also as CasADi expressions (`rom`); a digital

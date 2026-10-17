@@ -181,3 +181,15 @@
 	import common
 	reverse_proxy playground:8095
 }
+
+{$CONTROL_DOMAIN} {
+	import common
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy control:8112 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
