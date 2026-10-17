@@ -311,3 +311,104 @@ def test_zoo_model_reference_evaluator():
     ev = from_model_ref({"uri": "zoo:airfoil_cst_rans_mlp"}, space, fixed=fixed)
     out = ev(np.array([[4.0]]))
     assert out["Cl"][0] == pytest.approx(0.66, abs=0.02) and out["_valid"][0]
+
+
+# --------------------------------------------------------------------------- specs, contracts, data-trained models
+def test_problem_from_spec_heatsink_and_errors():
+    from pinneapple_design.design_optimizer import SpecError, problem_from_spec, reference_for_spec
+    p, fit = problem_from_spec({"preset": "heatsink", "operating": {"power_w": 80}, "limits": {"t_source_max_c": 90},
+                                "variables": [{"name": "base_width_mm", "upper": 120}],
+                                "objectives": [{"name": "mass_g"}, {"name": "pressure_drop_pa"}]})
+    assert fit is None and p.space.bounds[0].tolist() == [40.0, 120.0] and p.evaluator.op.power_w == 80
+    assert p.constraints[0].upper == 90 and [o.name for o in p.objectives] == ["mass_g", "pressure_drop_pa"]
+    assert reference_for_spec({"preset": "heatsink"}).fidelity == "reference"
+    assert reference_for_spec({"source": "zoo", "model": "x"}) is None
+    for bad in ({"preset": "nope"}, {"preset": "heatsink", "limits": {"foo": 1}},
+                {"preset": "heatsink", "objectives": [{"name": "volume"}]},
+                {"preset": "heatsink", "variables": [{"name": "n_fins", "lower": 9, "upper": 5}]},
+                {"source": "zoo", "model": "not-a-model", "objectives": [{"name": "a"}]}):
+        with pytest.raises(SpecError):
+            problem_from_spec(bad)
+
+
+def test_zoo_spec_bounds_from_validity_range():
+    from pinneapple_design.design_optimizer import problem_from_spec
+    p, _ = problem_from_spec({"source": "zoo", "model": "airfoil_cst_rans_mlp", "fixed": {"alpha_deg": 4},
+                              "objectives": [{"name": "Cd"}], "constraints": [{"name": "Cl", "lower": 0.6}]})
+    assert p.space.names == ["T0", "T1", "T2", "M0", "M1", "M2"]
+    assert p.space.bounds[0].tolist() == [0.1, 0.24]
+    r = run(p, "nsga2", budget=200)
+    best = r.best()
+    assert r.evaluations.Y["Cl"][best] >= 0.6
+
+
+def test_parameter_space_contract_round_trip_and_study_result():
+    pytest.importorskip("pinneapple_data.contracts")        # the shared data contracts (apps runtime)
+    from pinneapple_data.contracts import ParameterSpace, StudyResult
+    from pinneapple_design.design_optimizer import study_result, to_parameter_space
+    from pinneapple_design.design_optimizer.study import constants_of
+    p = presets.heatsink_problem("surrogate")
+    ps = to_parameter_space(p.space, "heatsink")
+    assert isinstance(ps, ParameterSpace) and ps.parameters[3].kind == "integer"
+    back = DesignSpace.from_parameter_space(ps)
+    assert back.names == p.space.names and back.integer.tolist() == p.space.integer.tolist()
+    with_const = ps.to_dict()
+    with_const["parameters"].append({"name": "power", "kind": "constant", "value": 60})
+    assert DesignSpace.from_parameter_space(with_const).names == p.space.names
+    assert constants_of(with_const) == {"power": 60}
+    r = run(p, "nsga2", budget=200, seed=1)
+    cand = select_candidates(r.evaluations, r.pareto(), 3)
+    sr = study_result(p, r, study_id="s1", app="test", candidates=cand)
+    names = {c.name: c.status for c in sr.checks}
+    assert names["high_fidelity_verification"] == "NOT_RUN"          # nothing ran: never reported as passed
+    rep = verify_candidates(p, r.evaluations, cand, presets.HeatsinkEvaluator("fvm"))
+    sr2 = study_result(p, r, study_id="s2", app="test", candidates=cand, verification=rep)
+    hf = next(c for c in sr2.checks if c.name == "high_fidelity_verification")
+    assert hf.status in ("PASS", "FAIL") and hf.value.endswith(f"/{len(cand)}")
+    assert len(sr2.table.columns["verification"]) == len(cand)
+    assert isinstance(StudyResult.from_json(sr2.to_json()), StudyResult)
+
+
+def test_surrogate_from_table_held_out_and_table_reference():
+    import pandas as pd
+
+    from pinneapple_design.design_optimizer import (
+        model_ref_for_surrogate,
+        surrogate_from_table,
+        table_evaluator,
+    )
+    p = schaffer()
+    X = p.space.sample(60, seed=4)
+    Y = _fn(X)
+    df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], **Y})
+    fit = surrogate_from_table(df, ["x", "y"], ["f1", "f2", "g"], seed=0)
+    assert fit.n_test == 12 and fit.n_train == 48
+    assert fit.metrics["g"]["r2"] > 0.999 and fit.metrics["f1"]["r2"] > 0.99       # smooth: a GP nails them
+    assert fit.space.bounds[0, 0] == pytest.approx(X[:, 0].min())
+    try:
+        import pinneapple_data.contracts  # noqa: F401
+        ref = model_ref_for_surrogate(fit, "gp", "app:test/1")
+        assert ref.metrics_split == "test" and ref.inputs[0].low == pytest.approx(X[:, 0].min())
+    except ImportError:
+        pass                                                   # contracts not installed: ModelRef not checked here
+    tab = table_evaluator(fit.space, df, ["f1"])
+    out = tab(np.vstack([X[:2], [[0.123, 0.456]]]))
+    assert np.allclose(out["f1"][:2], Y["f1"][:2]) and np.isnan(out["f1"][2]) and out["_valid"].tolist() == [1, 1, 0]
+    with pytest.raises(ValueError):
+        surrogate_from_table(df.head(5), ["x", "y"], ["f1"])
+
+
+def test_progress_callback_and_cancel():
+    p = schaffer()
+    seen = []
+    run(p, "nsga2", budget=100, progress=lambda u, b: seen.append((u, b)))
+    assert seen[-1] == (100, 100) and all(b == 100 for _, b in seen)
+
+    class Cancelled(Exception):
+        pass
+
+    def stop(u, b):
+        if u >= 40:
+            raise Cancelled
+    with pytest.raises(Cancelled):
+        run(p, "nsga2", budget=100, progress=stop)

@@ -66,14 +66,18 @@ class MethodComparison:
 def compare_methods(problem: DesignProblem, methods: Sequence[str], *, budget: int = 300,
                     seeds: Sequence[int] = (0,), tol: float = 0.01, options: dict[str, dict] | None = None,
                     progress=None) -> MethodComparison:
-    """Run every method in ``methods`` once per seed with ``budget`` evaluations and tabulate the outcome."""
+    """Run every method in ``methods`` once per seed with ``budget`` evaluations and tabulate the outcome.
+
+    ``progress(done, total)`` counts runs (fractional while a run is going)."""
     from .methods import FAMILIES
 
     results: list[OptimizationResult] = []
     total = len(methods) * len(seeds)
     for m in methods:
         for s in seeds:
-            results.append(run(problem, m, budget=budget, seed=int(s), **(options or {}).get(m, {})))
+            k = len(results)
+            step = (lambda used, b, k=k: progress(k + used / b, total)) if progress else None
+            results.append(run(problem, m, budget=budget, seed=int(s), progress=step, **(options or {}).get(m, {})))
             if progress:
                 progress(len(results), total)
     feas = [r.evaluations.F[r.evaluations.feasible & ~r.evaluations.relaxed] for r in results
