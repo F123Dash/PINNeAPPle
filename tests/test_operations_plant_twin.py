@@ -172,3 +172,37 @@ def test_store_and_model_round_trip(tmp_path):
         tw.ingest({"t": 1e6, "h": 1.0})
     snap = tw.snapshot()
     assert snap["asset"] == "t1" and snap["n_updates"] == len(out["t"])
+
+
+def test_live_twin_over_embedded_mqtt_and_rest():
+    import time
+
+    pytest.importorskip("paho.mqtt.client")
+    from pinneapple_systems.operations.live import LiveTwin, demo_record, make_twin, replay
+
+    lt = LiveTwin(make_twin(LumpedTankModel()), speed=1000.0).start()
+    try:
+        deadline = time.time() + 10
+        while lt.twin.n_updates < 30 and time.time() < deadline:
+            time.sleep(0.1)
+        assert lt.twin.n_updates >= 30 and lt.broker is not None and lt.broker.n_published >= 30
+        f = lt.inject_fault("leak", 5e-4)
+        assert f["kind"] == "leak" and lt.sim.faults
+        snap = lt.snapshot()
+        assert snap["running"] and len(snap["history"]["t"]) == len(snap["history"]["h"])
+        assert snap["forecast"]["t"]
+    finally:
+        lt.stop()
+    rest = LiveTwin(make_twin(LumpedTankModel()), source="rest").start()
+    rec = demo_record(600.0)
+    for i in range(len(rec["t"])):
+        rest.push({k: rec[k][i] for k in ("t", "h", "T", "q_in", "Q", "T_in", "T_amb")})
+    rest.stop()
+    assert rest.twin.n_updates == len(rec["t"])
+    with pytest.raises(RuntimeError):
+        rest.inject_fault("leak", 1e-4)
+    tw, res = replay(demo_record(), LumpedTankModel())
+    raised = [a for a in res["alerts"] if not a["cleared"]]
+    assert len(raised) == 1 and raised[0]["data"]["parameter"] == "q_leak"   # one alert, no flapping
+    with pytest.raises(ValueError, match="lacks columns"):
+        replay({"t": [0.0, 1.0]}, LumpedTankModel())

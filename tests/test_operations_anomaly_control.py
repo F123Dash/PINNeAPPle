@@ -221,3 +221,17 @@ def test_study_results_record_only_checks_that_ran(tmp_path):
     (tmp_path / "m.json").write_text("{}")
     with pytest.raises(ValueError, match="SHA-256"):
         load_model(ref, tmp_path)
+
+
+def test_from_dict_round_trips():
+    spec = ControlSpec.from_dict({"horizon": 10, "setpoints": [[600, 1.1, 28], [0, 1.2, 25]]})
+    assert spec.setpoints[0] == (0.0, 1.2, 25.0) and spec.reference(700) == (1.1, 28.0)
+    with pytest.raises(ValueError):
+        ControlSpec.from_dict({"horizn": 10})
+    sc = ControlScenario.from_dict(ControlScenario().to_dict())
+    assert sc.faults[0].kind == "valve" and sc.T_in(3000) == 11.0
+    cfg = DetectorConfig.from_dict({"normal_until": 100.0, "balances": [{"name": "m", "accumulation": "A*h",
+                                                                          "inflow": "q_in"}]})
+    assert cfg.balances[0].name == "m"
+    with pytest.raises(ValueError):
+        DetectorConfig.from_dict({"normal_until": 1, "bogus": 2})

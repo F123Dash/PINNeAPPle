@@ -97,6 +97,24 @@ class ControlSpec:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, d: dict) -> ControlSpec:
+        """Build from a JSON object; unknown keys are an error, missing keys take the defaults."""
+        known = set(cls.__dataclass_fields__)
+        bad = set(d) - known
+        if bad:
+            raise ValueError(f"unknown control-spec fields {sorted(bad)}")
+        kw = dict(d)
+        for k in ("h_bounds", "q_in_bounds", "Q_bounds"):
+            if k in kw:
+                kw[k] = tuple(float(v) for v in kw[k])
+        if "setpoints" in kw:
+            kw["setpoints"] = sorted((float(a), float(b), float(c)) for a, b, c in kw["setpoints"])
+        spec = cls(**kw)
+        if spec.horizon < 2 or spec.dt <= 0:
+            raise ValueError("horizon must be >= 2 and dt > 0")
+        return spec
+
 
 @dataclass
 class ControlScenario:
@@ -122,6 +140,24 @@ class ControlScenario:
         d["faults"] = [f.to_dict() for f in self.faults]
         d["noise"] = dict(self.noise.sigma)
         return d
+
+    @classmethod
+    def from_dict(cls, d: dict) -> ControlScenario:
+        known = set(cls.__dataclass_fields__)
+        bad = set(d) - known
+        if bad:
+            raise ValueError(f"unknown scenario fields {sorted(bad)}")
+        kw = dict(d)
+        if "faults" in kw:
+            kw["faults"] = [Fault(**{**f, "end": float("inf") if f.get("end") is None else f["end"]})
+                            for f in kw["faults"]]
+        if "noise" in kw:
+            kw["noise"] = SensorNoise({**SensorNoise().sigma, **{k: float(v) for k, v in kw["noise"].items()}})
+        if "T_in_steps" in kw:
+            kw["T_in_steps"] = sorted((float(a), float(b)) for a, b in kw["T_in_steps"])
+        if "x0" in kw:
+            kw["x0"] = tuple(float(v) for v in kw["x0"])
+        return cls(**kw)
 
 
 # --------------------------------------------------------------------------------------------------------------

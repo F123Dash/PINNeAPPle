@@ -136,7 +136,8 @@ class AlertRules:
         default_factory=lambda: {"h": (0.3, 1.8), "T": (None, 40.0)})
     param_limits: dict[str, tuple[float | None, float | None]] = field(
         default_factory=lambda: {"q_leak": (None, 3e-4), "eta": (0.85, None)})
-    param_sigmas: float = 3.0              # a parameter alert needs its limit outside the estimate's +- k sigma
+    param_sigmas: float = 3.0              # raised when the limit is outside the estimate's +- k sigma, cleared
+                                           # when the estimate itself is back inside (hysteresis)
     nis_probability: float = 0.999         # chi-square quantile of the consistency test
     nis_consecutive: int = 3               # consecutive samples above it before alerting
     forecast_steps: int = 60               # horizon of the forecast checked against ``limits``
@@ -411,12 +412,13 @@ class TwinRuntime:
                 continue
             key = f"limit:{name}"
             val = st[name]
+            margin = 2 * sd[name]                    # hysteresis: clear only once well back inside
             if (lo is not None and val < lo) or (hi is not None and val > hi):
                 side = "below" if lo is not None and val < lo else "above"
                 lim = lo if side == "below" else hi
                 new += self._raise(key, t, "limit", "critical", f"estimated {name} = {val:.4g} is {side} its limit "
                                    f"{lim:.4g}", {"state": name, "value": val, "limit": lim})
-            else:
+            elif (lo is None or val > lo + margin) and (hi is None or val < hi - margin):
                 new += self._clear(key, t)
         k = self.rules.param_sigmas
         for name, (lo, hi) in self.rules.param_limits.items():
@@ -430,7 +432,7 @@ class TwinRuntime:
                 new += self._raise(key, t, "parameter", "warning",
                                    f"estimated {name} = {val:.4g} +- {s:.2g} is {side} {lim:.4g} "
                                    f"(beyond {k:g} sigma)", {"parameter": name, "value": val, "sd": s, "limit": lim})
-            else:
+            elif (hi is None or val < hi) and (lo is None or val > lo):   # hysteresis: the mean is back inside
                 new += self._clear(key, t)
         nis = out.get("nis")
         if nis is not None:

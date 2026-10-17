@@ -99,6 +99,18 @@ class DetectorConfig:
         d["methods"] = list(self.methods)
         return d
 
+    @classmethod
+    def from_dict(cls, d: dict) -> DetectorConfig:
+        """Build from a JSON object (balances as a list of objects); unknown keys are an error."""
+        bad = set(d) - set(cls.__dataclass_fields__)
+        if bad:
+            raise ValueError(f"unknown detector fields {sorted(bad)}")
+        kw = dict(d)
+        kw["balances"] = [b if isinstance(b, BalanceRule) else BalanceRule(**b) for b in kw.get("balances", [])]
+        if "methods" in kw:
+            kw["methods"] = tuple(kw["methods"])
+        return cls(**kw)
+
 
 # --------------------------------------------------------------------------------------------------------------
 # Helpers
