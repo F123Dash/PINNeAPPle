@@ -26,6 +26,6 @@ Days 13–31 of the second series (apps that run studies), images named `dNN-<sl
 |---|---|---|---|
 | 13 | Simulation Campaign Planner | `d13-campaign-plan.jpg`, `d13-campaign-result.jpg` (airfoil, 436 existing runs), `d13-campaign-cantilever.jpg` | https://campaign.pinneapple.org |
 | 27 | Simulation Workflow Runner | `d27-runner-new-run.jpg`, `-run.jpg`, `-calculix.jpg`, `-dataset.jpg` | https://runner.pinneapple.org |
-| d31 | Physics AI Model Gateway | `d31-models-endpoint.jpg`, `-remote.jpg`, `-publish.jpg`, `-operations.jpg` | https://models.pinneapple.org |
+| 31 | Physics AI Model Gateway | `d31-models-endpoint.jpg`, `-remote.jpg`, `-publish.jpg`, `-operations.jpg` | https://models.pinneapple.org |
 
 The Form Compiler image uses the fictitious example documents only (no ASME form).
