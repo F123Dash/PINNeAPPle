@@ -314,11 +314,15 @@ What each repo holds besides the manifest's files, so the Hub's own tools work:
   provider can run these models with their encoding, ensembles and validity checks, so the widget is off. Its "How to
   use" code prints the numbers of `example.json`, and the publishing workflow runs it.
 - **The demo Space** [`PINNeAPPle-Labs/zoo-demo`](https://huggingface.co/spaces/PINNeAPPle-Labs/zoo-demo), linked from
-  every model card, replaces the widget: a Gradio app (`apps/zoo_space/app.py`, UI only) over
-  `pinneapple_hub.zoo.demo`. It loads each model from its Hub repo, plots the prediction along a sweep of one input
-  with the ensemble spread or conformal bound, shades where the query checks warn or fail, and lists every check
-  for the chosen input with the model's trust decision. The workflow installs the library in the Space from a wheel
-  built from the same commit.
+  every model card, replaces the widget. It is a static Space (no server, free for the organisation):
+  `pinneapple_hub.zoo.demo.export_space` computes, from the models published on the Hub, every model's prediction
+  along a sweep of each input with its ensemble spread or conformal bound and the verdict of its query checks at
+  every point, and writes them with each model's ONNX graph (prediction and query checks in one graph) and the
+  browser runtime (`pinneapple_hub/zoo/web`). The page (`apps/zoo_space`, UI only, with the Playground's charts)
+  plots a sweep, shades where the checks warn (yellow) or fail (red), and shows the checks at the chosen input and
+  the model's trust decision. **Evaluate in your browser** runs the graph on the visitor's own inputs.
+  `tests/js/zoo_space.test.mjs` runs every precomputed sweep again through the browser runtime and requires the
+  same numbers and the same verdicts as Python.
 
 To publish (maintainers):
 
@@ -340,7 +344,7 @@ After the upload the workflow checks, anonymously, what the Hub serves, and fail
 3. every model: loaded from the Hub with the bundled copy ignored, its card metrics reproduced on the stored
    reference, the card's example reproduced by the PyTorch, safetensors and ONNX copies, the card's front matter,
    and its "How to use" code run;
-4. the Space reaches `RUNNING`.
+4. the Space reaches `RUNNING` and serves its page, `index.json` and every model's sweeps.
 
 To republish files that did not change (a new card, new derived formats), bump the item's `revision` to the next
 `v<version>.postN`: the old tags stay as they are, so code pinned to them keeps working. Inputs of the manual run:

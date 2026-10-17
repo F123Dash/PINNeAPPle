@@ -14,6 +14,17 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- The zoo demo Space `PINNeAPPle-Labs/zoo-demo` is a static Space (a Gradio Space needs a paid plan for the
+  organisation). `pinneapple_hub.zoo.demo.precompute` / `export_space` compute, from the models published on the
+  Hub, each model's sweep of every input with its band and the verdict of its query checks at every point, and
+  write them with the models' ONNX graphs and the browser runtime; the page (`apps/zoo_space`, with the
+  Playground's charts) shows the curves and zones and evaluates the visitor's own inputs in the browser.
+  `pinneapple_hub.zoo.publish.build_space` builds it, `publish_space` uploads it, `verify_space` checks that it
+  runs and serves its page and data. `tests/js/zoo_space.test.mjs` checks the browser runtime against every
+  precomputed sweep. The zoo runtime's models gain `evaluateRows` (a sweep of rows with their checks) and the
+  Playground chart a `zones` option.
+- `heatsink_natural_mlp` has query checks (`pp.zoo.query_checks`): validity box, fin gap, source fractions, two
+  fins, R > 0 and the conductivity monotonicity, as `heatsink_forced_mlp` without air speed and pressure drop.
 - "View result" panel in the Simulation Workflow Runner (day 27): a finished CalculiX or OpenFOAM step opens in 3-D
   with its mesh, the selected field, the deformed shape (CalculiX, scale factor) and the boundary-condition and load
   regions the case defines, decimated above 250 k triangles (`RUNNER_VIEW_MAX_FACES`).
