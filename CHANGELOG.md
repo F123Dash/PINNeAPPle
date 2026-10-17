@@ -45,6 +45,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 - Newton backend: `RigidScene.compound` (one rigid body made of several boxes) and `simulate(..., wrenches=...)`
   (constant external forces and torques).
 - `render_geometry(..., frame=(lo, hi))`: a fixed framing box, so animation frames share one camera.
+- Physics Design Optimizer app (`apps/physics_design`, day 23, `design.pinneapple.org`, port 8106): gradient
+  optimisation through differentiable surrogates, SLSQP, NSGA-II, differential evolution and Bayesian optimisation
+  compared on the same problem, budget and seeds (hypervolume, evaluations to 95 %, convergence, wall time) on a
+  plate-fin heat sink or a CST airfoil; candidates from the best front over all methods with their verification
+  status (FVM engine for the heat sink, "only surrogate" for the airfoil), constraint margins, geometry preview and
+  STL / STEP / CSV exports. Jobs of the shared runtime. Deploy: service `design`.
 - 3-D view in the Physics Validation Lab (day 24): for a 3-D result on a mesh with a reference (OpenFOAM case,
   VTU/VTK), the prediction, the reference and the pointwise error on the mesh, exactly the values PC701 compared, with
   the declared boundary conditions and a list of the regions with the largest error
