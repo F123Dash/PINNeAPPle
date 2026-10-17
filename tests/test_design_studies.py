@@ -343,7 +343,7 @@ def test_zoo_spec_bounds_from_validity_range():
 
 
 def test_parameter_space_contract_round_trip_and_study_result():
-    pytest.importorskip("pinneapple_data.contracts")        # the shared data contracts (apps runtime)
+    pytest.importorskip("pinneapple_data.contracts.models")  # the shared data contracts (apps runtime)
     from pinneapple_data.contracts import ParameterSpace, StudyResult
     from pinneapple_design.design_optimizer import study_result, to_parameter_space
     from pinneapple_design.design_optimizer.study import constants_of
@@ -386,7 +386,7 @@ def test_surrogate_from_table_held_out_and_table_reference():
     assert fit.metrics["g"]["r2"] > 0.999 and fit.metrics["f1"]["r2"] > 0.99       # smooth: a GP nails them
     assert fit.space.bounds[0, 0] == pytest.approx(X[:, 0].min())
     try:
-        import pinneapple_data.contracts  # noqa: F401
+        import pinneapple_data.contracts.models  # noqa: F401
         ref = model_ref_for_surrogate(fit, "gp", "app:test/1")
         assert ref.metrics_split == "test" and ref.inputs[0].low == pytest.approx(X[:, 0].min())
     except ImportError:
