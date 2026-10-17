@@ -84,3 +84,12 @@ services:
     mem_limit: 1g               # one worker, one benchmark at a time (ARN_MAX_JOBS=1)
   models:
     mem_limit: 1g               # one worker already (torch + the zoo models ~500 MB)
+  twin:
+    command: ["uvicorn", "twin_runtime.api:app", "--host", "0.0.0.0", "--port", "8103", "--workers", "1"]
+    mem_limit: 900m
+  anomaly:
+    command: ["uvicorn", "anomaly_detector.api:app", "--host", "0.0.0.0", "--port", "8111", "--workers", "1"]
+    mem_limit: 900m
+  control:
+    command: ["uvicorn", "control_lab.api:app", "--host", "0.0.0.0", "--port", "8112", "--workers", "1"]
+    mem_limit: 900m

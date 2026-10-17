@@ -6,6 +6,9 @@
 // CFD convention: jet, blue = low, red = high. Stops: [position 0..1, [r, g, b] 0..255].
 export const JET = [[0, [0, 0, 143]], [0.125, [0, 0, 255]], [0.375, [0, 255, 255]], [0.625, [255, 255, 0]], [0.875, [255, 0, 0]], [1, [128, 0, 0]]];
 
+// errors: sequential, white = no error, dark red = largest (YlOrRd); used for |prediction - reference|
+export const ERR = [[0, [255, 255, 229]], [0.2, [255, 237, 160]], [0.4, [254, 178, 76]], [0.6, [252, 78, 42]], [0.8, [189, 0, 38]], [1, [103, 0, 13]]];
+
 export function ramp(stops, t) {
   t = Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 0;
   for (let i = 1; i < stops.length; i++) if (t <= stops[i][0]) {
@@ -36,7 +39,7 @@ export function decimals(lo, hi) {
   return Math.max(0, Math.min(6, 2 - Math.floor(Math.log10(s))));
 }
 export function fmt(v, d) {
-  if (v === 0) return (0).toFixed(d);
+  if (v === 0) return d > 3 ? "0" : (0).toFixed(d);
   return Math.abs(v) >= 1e4 || Math.abs(v) < 1e-3 ? v.toExponential(2) : v.toFixed(d);
 }
 export function ticks(lo, hi, n = 5, nd = null) {

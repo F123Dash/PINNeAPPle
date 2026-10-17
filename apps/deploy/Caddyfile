@@ -358,3 +358,39 @@
 		}
 	}
 }
+
+{$TWIN_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy twin:8103 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$ANOMALY_DOMAIN} {
+	import common
+	request_body {
+		max_size 120MB
+	}
+	reverse_proxy anomaly:8111 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
+
+{$CONTROL_DOMAIN} {
+	import common
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy control:8112 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
