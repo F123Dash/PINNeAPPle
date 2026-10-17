@@ -569,9 +569,12 @@ The zoo models and datasets ship in the image; no outbound network is needed. Bu
 Runs `pinneapple check` on uploaded predictions, results or a zoo model and reports numerical verification,
 validation against data and physical consistency separately, with an evidence record per check. Uploaded Python
 models and checkpoints are refused (they would run uploaded code); zoo models ship in the image. Each validation
-runs in a temporary folder that is deleted afterwards: nothing is stored. `VAL_MAX_HEAVY` validations run at once per
-worker (the excess gets HTTP 429), `VAL_MAX_MB` caps an upload. 1 GB of memory is enough: the examples take under a
-second.
+runs in a temporary folder that is deleted afterwards. Only the glTF of a 3-D view is kept (the prediction, reference
+and error on the mesh of a 3-D result with a reference): the newest `VAL_VIEWS_KEPT` (300) files in the app's data
+directory (`VAL_DATA_DIR`, default `/data/validate` when `/data` is writable, else the user's home), each decimated
+above `VAL_VIEW_MAX_FACES` (250,000) triangles. They are a cache: a lost file only means running the validation again.
+`VAL_MAX_HEAVY` validations run at once per worker (the excess gets HTTP 429), `VAL_MAX_MB` caps an upload. 1 GB of
+memory is enough: the examples take under a second, the 3-D one about two.
 
 ## Engineering Evidence Report (`evidence`)
 

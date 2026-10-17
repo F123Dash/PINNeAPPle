@@ -33,7 +33,7 @@ Days 13–31 of the second series (apps that run studies), images named `dNN-<sl
 | 22 | Physics AI Benchmark Arena | `d22-arena-rankings.jpg`, `-cost.jpg`, `-private.jpg`, `-bench09.jpg` | https://arena.pinneapple.org |
 | 27 | Simulation Workflow Runner | `d27-runner-new-run.jpg`, `-run.jpg`, `-calculix.jpg`, `-dataset.jpg` | https://runner.pinneapple.org |
 | 16 | Engineering Sensitivity Lab | `d16-sensitivity-heatsink.jpg`, `-ishigami.jpg`, `-dataset.jpg`, `-study.jpg` | https://sensitivity.pinneapple.org |
-| 24 | Physics Validation Lab | `d24-validate-report.jpg`, `-input.jpg`, `-form.jpg`, `-zoo-ood.jpg` | https://validate.pinneapple.org |
+| 24 | Physics Validation Lab | `d24-validate-report.jpg`, `-input.jpg`, `-form.jpg`, `-zoo-ood.jpg`, `-3d-stress.jpg`, `-3d-displacement.jpg` | https://validate.pinneapple.org |
 | 30 | Engineering Evidence Report | `d30-evidence-report.jpg`, `-input.jpg`, `-comparison.jpg`, `-tests.jpg` | https://evidence.pinneapple.org |
 | 27 (extra) | Engineering GUI Agent | `d27-guiagent-home.jpg`, `d27-guiagent-gate.jpg`, `d27-guiagent-run.jpg` | https://guiagent.pinneapple.org |
 | 19 | Reduced Order Model Lab | `d19-rom-input.jpg`, `d19-rom-wake.jpg`, `d19-rom-wake-recon.jpg`, `d19-rom-beam.jpg`, `d19-rom-beam-3d-error.jpg`, `d19-rom-beam-3d-fem.jpg` | https://rom.pinneapple.org |
