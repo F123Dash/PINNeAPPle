@@ -175,6 +175,20 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
   `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
   (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Operations library (`pinneapple_systems.operations`) for running validated models next to plant data: a
+  heated-tank plant with mass and energy balances, sensors and six fault kinds (`plant`); operator inference with
+  inputs fitted on whole trajectories with held-out rollout errors, also as CasADi expressions (`rom`); a digital
+  twin runtime with EnKF state and parameter estimation, forecasts with input uncertainty, rule-based alerts, drift
+  monitoring with `assess_drift`, open-loop revalidation and a SQLite/Postgres history (`twin`); physics anomaly
+  detection with statistical, AR/CUSUM, conservation-balance and model-residual channels, events with explanations
+  and a labelled fault benchmark (`anomaly`); linear (SLSQP) and nonlinear (CasADi/IPOPT or SciPy) MPC compared with
+  PID and rule-based baselines in closed loop, simulation / recommendation only (`control`); the days 13-31 chain
+  campaign -> surrogate -> uncertainty -> optimizer -> twin through the data contracts (`series`); `ModelRef` and
+  `StudyResult` builders (`contracts`).
+- Embedded MQTT 3.1.1 broker (`pinneapple_systems.digital_twin.io.mqtt_broker.MQTTBroker`: QoS 0/1, retained
+  messages, wildcards, optional login) for demos and single-asset edge setups; works with `MQTTStream`.
+- `PIDController` takes optional `output_limits` (saturation with anti-windup by conditional integration) and a
+  feed-forward `bias`; without them it behaves as before.
 - Validation report as an artifact (`pinneapple_analysis.validation.report_artifact`, #706): JSON schema
   `validation-report/v1` with provenance hashes, `pp.validate.diff(old, new)` (lost / gained checks, moved metrics,
   validity-envelope changes), a model-card section, an SVG badge and a shields.io endpoint, signatures with
