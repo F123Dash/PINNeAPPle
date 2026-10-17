@@ -432,7 +432,11 @@ custom workflows (commands, scripts, Docker steps, Slurm submission with `dry_ru
 caller sends, so never set it on a public server. Install OpenFOAM / CalculiX in the image (or use the Docker
 executor) for the solver templates. Limits: `RUNNER_MAX_JOBS` runs at once, `RUNNER_MAX_CASES` cases per run,
 `RUNNER_FREE_JOBS_RUN` / `RUNNER_FREE_COMPUTE_SECONDS` / `RUNNER_FREE_STORAGE_MB` per principal and month
-(`/api/usage`); API keys via `/api/keys` with `RUNNER_ADMIN_TOKEN` (see `apps/_shared/README.md`).
+(`/api/usage`); API keys via `/api/keys` with `RUNNER_ADMIN_TOKEN` (see `apps/_shared/README.md`). The "View
+result" panel of a CalculiX or OpenFOAM step builds a glTF once and keeps it under `/data/runner/workflows/views/`
+(decimated above `RUNNER_VIEW_MAX_FACES`, 250,000 triangles); it is a cache and can be deleted at any time. It needs a
+runner with the solvers, so it does not appear on the public image.
+
 ## Simulation Campaign Planner (`campaign`)
 
 Day 13, port 8096. It plans campaigns as jobs in the shared runtime queue (`apps/_shared`). Jobs, the files of

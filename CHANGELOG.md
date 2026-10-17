@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- "View result" panel in the Simulation Workflow Runner (day 27): a finished CalculiX or OpenFOAM step opens in 3-D
+  with its mesh, the selected field, the deformed shape (CalculiX, scale factor) and the boundary-condition and load
+  regions the case defines, decimated above 250 k triangles (`RUNNER_VIEW_MAX_FACES`).
+  `pinneapple_tools.visualization.studio.solver_view` builds it, with `pinneapple_data.cae.inp.deck_conditions`
+  (`*BOUNDARY`, `*CLOAD`, `*DLOAD` as node sets) and `pinneapple_data.cae.foam.boundary_conditions` (patch conditions);
+  `WorkflowRunner.step_workdir` gives where a (possibly reused) step's files are.
 - 3-D field views for the apps: `pp.viz.field_view` (`pinneapple_tools.visualization.studio.fieldview`) turns a
   mesh with values, errors, nodal displacements and marked regions into a glTF and a description (colour ranges, one
   scale per group, errors from 0 to their 99th percentile, decimation above 250 k triangles). The shared page module
