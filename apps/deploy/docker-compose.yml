@@ -435,7 +435,6 @@ volumes:
   lab_data:
   campaign_data:
   runner_data:
-  runner_data:
   obs_cache:
   caddy_data:
   caddy_config:
