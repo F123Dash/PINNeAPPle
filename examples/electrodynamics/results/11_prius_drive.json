@@ -1076,5 +1076,31 @@
   "gear_efficiency": 0.97,
   "note": "illustrative compact car, not a measured Prius"
  },
- "seconds": 144.46382779299984
+ "seconds": 144.46382779299984,
+ "verification": [
+  {
+   "case": "Drive: torque envelope vs closed form (linear dq)",
+   "error": 1.306940023413922e-14,
+   "passed": true,
+   "detail": "L_d = 0.6 mH, L_q = 2.4 mH, psi_m = 0.2 Wb, 250 A, 500 V SVPWM"
+  },
+  {
+   "case": "Drive: least-loss currents vs MTPA closed form",
+   "error": 1.973246299416986e-08,
+   "passed": true,
+   "detail": ""
+  },
+  {
+   "case": "Drive cycle: WLTC class 3b energy balance",
+   "error": 0.0,
+   "passed": true,
+   "detail": "trace: 23266.3 m (GTR 15: 23 266 m), max 131.3 km/h, sum 83758.6 km/h s"
+  },
+  {
+   "case": "Prius flux map: interpolation vs direct FEA",
+   "error": 0.00027600278303206477,
+   "passed": true,
+   "detail": "error relative to 300 N m"
+  }
+ ]
 }
