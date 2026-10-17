@@ -43,5 +43,6 @@ Days 13–31 of the second series (apps that run studies), images named `dNN-<sl
 | 28 | Physics Anomaly Detector | `d28-anomaly-events.jpg`, `-benchmark.jpg` | https://anomaly.pinneapple.org |
 | 29 | Physics-Based Control Lab | `d29-control-compare.jpg`, `-recommend.jpg` | https://control.pinneapple.org |
 | 17 | Engineering Design Optimizer | `d17-optimize-form.jpg`, `-result.jpg`, `-feasibility.jpg` | https://optimize.pinneapple.org |
+| 23 | Physics Design Optimizer | `d23-design-form.jpg`, `-heatsink.jpg`, `-candidates.jpg`, `-airfoil.jpg` | https://design.pinneapple.org |
 
 The Form Compiler image uses the fictitious example documents only (no ASME form).

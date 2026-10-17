@@ -20,6 +20,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `pinneapple_tools.visualization.studio.solver_view` builds it, with `pinneapple_data.cae.inp.deck_conditions`
   (`*BOUNDARY`, `*CLOAD`, `*DLOAD` as node sets) and `pinneapple_data.cae.foam.boundary_conditions` (patch conditions);
   `WorkflowRunner.step_workdir` gives where a (possibly reused) step's files are.
+- Physics Design Optimizer app (`apps/physics_design`, day 23, `design.pinneapple.org`, port 8106): gradient
+  optimisation through differentiable surrogates, SLSQP, NSGA-II, differential evolution and Bayesian optimisation
+  compared on the same problem, budget and seeds (hypervolume, evaluations to 95 %, convergence, wall time) on a
+  plate-fin heat sink or a CST airfoil; candidates from the best front over all methods with their verification
+  status (FVM engine for the heat sink, "only surrogate" for the airfoil), constraint margins, geometry preview and
+  STL / STEP / CSV exports. Jobs of the shared runtime. Deploy: service `design`.
 - 3-D view in the Physics Validation Lab (day 24): for a 3-D result on a mesh with a reference (OpenFOAM case,
   VTU/VTK), the prediction, the reference and the pointwise error on the mesh, exactly the values PC701 compared, with
   the declared boundary conditions and a list of the regions with the largest error
