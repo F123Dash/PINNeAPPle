@@ -236,9 +236,9 @@ class IPMMachine:
                 "superposition_error": float(np.hypot(total[0] - pm[0] - cu[0], total[1] - pm[1] - cu[1])
                                              / np.hypot(*total))}
 
-    def mtpa(self, I_peak: float, n_positions: int = 4, bracket=(0.0, math.radians(80.0)), tol: float = 0.5e-2):
+    def mtpa(self, I_peak: float, n_positions: int = 4, bracket: tuple = (0.0, 1.4), tol: float = 0.5e-2):
         """Current angle gamma (rad) of maximum mean torque at current amplitude ``I_peak`` (golden section
-        on the FEA torque averaged over ``n_positions`` rotor angles)."""
+        on the FEA torque averaged over ``n_positions`` rotor angles, within ``bracket``)."""
         f = lambda gm: -self.operating_point(I_peak=I_peak, gamma=gm, n_positions=n_positions)["torque_mean"]  # noqa: E731
         a, b = bracket
         r = (math.sqrt(5) - 1) / 2

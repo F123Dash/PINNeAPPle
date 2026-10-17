@@ -11,7 +11,15 @@ The surface-PM and reluctance model on the polar mesher is :class:`pinneapple_si
 from .geometry import MachineGeometry, Polygon, RoundBottomSlots, SectorGeometry, VRotor, prius_2004
 from .mesher import MachineMesh, SectorMesh, mesh_sector
 from .pmsm import IPMMachine, Winding
-from .steel import M400_50A, MAGNET_PRIUS, MagnetGrade, SteelGrade, TableIronLoss, fit_iron_loss, stacked
+from .steel import (
+           M400_50A,
+           MAGNET_PRIUS,
+           MagnetGrade,
+           SteelGrade,
+           TableIronLoss,
+           fit_iron_loss,
+           stacked,
+)
 
 __all__ = ["MachineGeometry", "Polygon", "RoundBottomSlots", "SectorGeometry", "VRotor", "prius_2004",
            "MachineMesh", "SectorMesh", "mesh_sector", "IPMMachine", "Winding", "M400_50A", "MAGNET_PRIUS",

@@ -139,6 +139,42 @@ angular steps, rotor off the grid); Maxwell-stress and co-energy torque of the s
 torque of 38.10 N m with linear iron; re-evaluated with the nonlinear B-H curve the same rotor gives 13.44 N m, so
 saturation must be in the optimisation loop for thin-featured designs.
 
+### Interior-PM traction motor: the 2004 Toyota Prius
+
+`pinneapple_simulation.electromagnetics.machines` models interior-magnet machines on conforming meshes:
+
+* `geometry`: parametric V-magnet rotors (`VRotor`: V opening and depth, magnet width and thickness, bridges, ribs,
+  centre post, magnet segments) and round-bottom slots (`RoundBottomSlots`), the parametrisations of pyleecan's
+  `HoleM50` and `SlotW11`; `prius_2004()` holds the dimensions of pyleecan's `Toyota_Prius.json` (48 slots, 8 poles,
+  0.75 mm gap, 83.82 mm stack, stacking factor 0.95).
+* `mesher`: every polygon edge is a mesh edge (conforming Delaunay with Gabriel-edge recovery, concentric-shell
+  splitting at small angles). Half a pole and half a slot pitch are meshed, mirrored and copied around, so all
+  poles and slots have identical, symmetric elements: the no-load torque of the aligned rotor is 6e-13 N m
+  and the cogging curve is antisymmetric with zero mean. The air gap holds three ring layers; only the middle
+  one (moving band) is re-triangulated as the rotor turns.
+* `steel`: M400-50A (EN 10106) B-H curve and specific-loss table (50 Hz to 2.5 kHz), the data of pyleecan's material
+  library (Apache-2.0), and the Prius magnet grade (Br 1.24 T at 20 degC, -0.1 %/K); `stacked` applies the
+  stacking factor; `TableIronLoss` interpolates the catalogue table; `fit_iron_loss` fits
+  `k_h f^alpha B^beta + k_c (f B)^2 + k_e (f B)^1.5` with the classical term from resistivity and thickness.
+* `pmsm.IPMMachine`: Newton solution with the nonlinear B-H curve, Arkkio and co-energy torque, flux linkage,
+  back-EMF, the dq frame (d-axis on the magnet flux), torque ripple, frozen-permeability flux split and L_d / L_q,
+  MTPA by golden-section search on the FEA torque, iron loss per element in its own frame (table or fit) and
+  resistance-limited magnet eddy loss.
+
+The cross-check is against a published benchmark, not against FEMM or pyleecan (neither runs in this
+environment: FEMM is Windows-only, pyleecan's wheel needs a git-only dependency). The reference is the
+torque against current angle of the Prius motor at 250 A peak computed by Yang, Krishnamurthy and Brown (IEEE IEMDC
+2013), as tabulated in pyleecan's test suite. Their model and pyleecan's geometry are not the same file (centre
+post, magnet temperature, steel data), so agreement within a few per cent is the expectation, not a mesh error.
+
+`python examples/electrodynamics/10_pmsm_prius.py --write-docs` (run on 2026-10-17, 960 gap nodes, 29 936
+elements) wrote the table below and `examples/electrodynamics/results/10_pmsm_prius.json`; figures:
+`10_pmsm_field.png` (|B| and flux lines at MTPA, 250 A), `10_pmsm_curves.png` (torque against current angle with the
+published curve, cogging, back-EMF), `10_pmsm_mtpa.png` (MTPA locus, L_d and L_q).
+
+<!-- machine-verification:start -->
+<!-- machine-verification:end -->
+
 ## Verification
 
 Each case compares a solver or reference implementation with an independent result; where the mesh or step is
@@ -202,6 +238,10 @@ Notes from the same run:
   by the integral kinds.
 * `maxwell_checks` uses central differences on tensor grids: fields with discontinuities (material interfaces,
   PEC edges) leave residuals there that are not errors of the field; crop them or check each region separately.
+* Machines: 2-D only (no end windings, no axial flux, no skew in the FEA), magnets at a uniform temperature,
+  iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
+  magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
+  M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.
 * `JilesAtherton` is the scalar model; its parameters must be fitted to measured loops of the material.
   `illustrative_steel` is a formula, not a measured grade.
 
@@ -213,6 +253,14 @@ Notes from the same run:
   3rd ed., Artech House, 2005.
 * J.-M. Jin, *The Finite Element Method in Electromagnetics*, 3rd ed., Wiley-IEEE Press, 2014.
 * D. M. Pozar, *Microwave Engineering*, 4th ed., Wiley, 2012.
+* Z. Yang, M. Krishnamurthy, I. P. Brown, "Electromagnetic and vibrational characteristic of IPM over full
+  torque-speed range", IEEE IEMDC 2013, pp. 295-302.
+* M. Arkkio, *Analysis of induction motors based on the numerical solution of the magnetic field and circuit
+  equations*, Acta Polytechnica Scandinavica EE-59, 1987.
+* G. Bertotti, "General properties of power losses in soft ferromagnetic materials", IEEE Trans. Magn. 24(1),
+  621-630, 1988.
+* J. R. Shewchuk, "Delaunay refinement algorithms for triangular mesh generation", Comput. Geom. 22, 21-74, 2002.
+* pyleecan 1.4.2 (Apache-2.0): machine and material library, https://github.com/Eomys/pyleecan.
 * C. A. Balanis, *Antenna Theory*, 4th ed., Wiley, 2016.
 * R. F. Harrington, *Time-Harmonic Electromagnetic Fields*, McGraw-Hill, 1961.
 * M. Born and E. Wolf, *Principles of Optics*, 7th ed., Cambridge University Press, 1999.
