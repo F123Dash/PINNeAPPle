@@ -154,6 +154,10 @@ class RodModel(ForwardModel):
                      Parameter("T_base", 80.0, -50.0, 1000.0, "°C", log=False, fixed=True),
                      Parameter("T_air", 25.0, -50.0, 500.0, "°C", log=False, fixed=True)]
 
+    def field_groups(self) -> list[list[str]]:
+        """Parameters that form one field, in spatial order (the h zones), for smoothness priors."""
+        return [list(self.h_names)] if self.n_zones > 1 else []
+
     def zone_edges_mm(self) -> list[float]:
         return list(np.linspace(0, self.length_mm, self.n_zones + 1))
 
