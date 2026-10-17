@@ -404,7 +404,9 @@ Validation Lab reports, evidence ledgers, `pinneapple check` JSON, Simulation Co
 ModelRef / DatasetSpec JSON, metrics tables, any file. A test is printed as passed only when its own evidence record
 shows it ran. Nothing is stored. The example study (FEM vs PINN on a Poisson problem plus a Validation Lab run) is
 computed on the first request (about 5 s, one CPU core) and then reused. `EVR_MAX_HEAVY` reports at
-once per worker (the excess gets HTTP 429), `EVR_MAX_MB` caps an upload. 1 GB of memory is enough.
+once per worker (the excess gets HTTP 429), `EVR_MAX_MB` caps an upload. 1 GB of memory is enough. API keys and
+usage metering come from the shared runtime (`evidence_data` volume): `EVR_FREE_REPORTS` and `EVR_FREE_DOWNLOADS`
+(PDF or package) per caller and month, default 30 each; `EVR_ADMIN_TOKEN` for `/api/keys`.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 

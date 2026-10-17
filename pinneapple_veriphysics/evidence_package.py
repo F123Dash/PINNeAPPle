@@ -45,7 +45,7 @@ from .ledger import NOT_RUN, EvidenceLedger, canonical_json, sha256_bytes, sha25
 from .validation_lab import DISCLAIMER, LAB_SCHEMA
 
 __all__ = ["Source", "load_source", "build_report", "make_figures", "render_html", "render_pdf", "build_package",
-           "verify_package", "REPORT_SCHEMA", "CONTRACT_TYPES"]
+           "verify_package", "to_study_result", "REPORT_SCHEMA", "CONTRACT_TYPES"]
 
 REPORT_SCHEMA = "pinneapple-evidence-report/v1"
 CONTRACT_TYPES = ("StudyResult", "ModelRef", "DatasetSpec", "ParameterSpace")
@@ -62,10 +62,14 @@ class Source:
     url: str = ""
     data: Any = None                         # parsed JSON (dict or list), or rows of a table
     contract: str = ""                       # StudyResult / ModelRef / DatasetSpec / ParameterSpace
+    problems: list[str] = field(default_factory=list)   # schema problems of a contract (pinneapple_data.contracts)
 
     def ref(self) -> dict[str, Any]:
-        return {"name": self.name, "kind": self.kind + (f":{self.contract}" if self.contract else ""),
-                "sha256": self.sha256, "bytes": self.bytes, "url": self.url}
+        out = {"name": self.name, "kind": self.kind + (f":{self.contract}" if self.contract else ""),
+               "sha256": self.sha256, "bytes": self.bytes, "url": self.url}
+        if self.problems:
+            out["contract_problems"] = self.problems
+        return out
 
 
 def _contract_type(d: dict[str, Any]) -> str:
@@ -75,6 +79,17 @@ def _contract_type(d: dict[str, Any]) -> str:
             if v.lower() == c.lower() or v.lower().endswith("." + c.lower()):
                 return c
     return ""
+
+
+def _contract_problems(obj: dict[str, Any]) -> list[str]:
+    """Schema problems of a contract under ``pinneapple_data.contracts`` (it is read either way)."""
+    try:
+        from pinneapple_data.contracts import validate
+    except ImportError:                                         # pydantic missing: read it duck-typed
+        return []
+    if "kind" not in obj:
+        return ["no `kind` field: read by its type key, not validated against the contract schema"]
+    return list(validate(obj))
 
 
 def _rows_csv(text: str) -> list[dict[str, Any]]:
@@ -133,6 +148,7 @@ def load_source(name: str, data: bytes, url: str = "") -> Source:
         s.kind = "comparator"
     elif _contract_type(obj):
         s.kind, s.contract = "contract", _contract_type(obj)
+        s.problems = _contract_problems(obj)
     else:
         s.kind = "metadata"
     return s
@@ -535,12 +551,42 @@ def render_pdf(report: dict[str, Any], figures: dict[str, str] | None = None, pa
 
 
 # ---------------------------------------------------------------------------------------------- package
+def to_study_result(report: dict[str, Any], app: str = "evidence") -> dict[str, Any]:
+    """The report as a ``StudyResult`` (``pinneapple_data.contracts``, study type ``evidence``) for the next app:
+    one check per test (PASS / FAIL with its record as evidence, NOT_RUN otherwise), the test counts as metrics, the
+    artifacts by SHA-256 and the limitations as limits."""
+    from pinneapple_data.contracts import CheckRecord, FileRef, Provenance, StudyResult
+
+    status = {"passed": "PASS", "failed": "FAIL"}
+    checks = [CheckRecord(name=f"{t['source']}: {t['check_id']}"[:200], status=status.get(t["status"], "NOT_RUN"),
+                          detail=(t["why"] or t["detail"] or "")[:500],
+                          evidence=(f"ran {t['started_at']} to {t['finished_at']}, inputs sha256 {t['inputs_sha256']}"
+                                    if t["status"] in status else ""))
+              for t in report["tests"]]
+    arts = [FileRef(path=a["url"] or a["name"], sha256=a["sha256"], size=a["bytes"],
+                    description=f"{a['name']} ({a['kind']})") for a in report["artifacts"]]
+    try:
+        from pinneapple_check import __version__ as version
+    except ImportError:                                         # pragma: no cover
+        version = ""
+    sr = StudyResult(id=f"evidence-{report['report_sha256'][:16]}", study_type="evidence", app=app,
+                     title=report["title"], metrics={k.replace(" ", "_"): v for k, v in report["test_counts"].items()},
+                     checks=checks, artifacts=arts, limits=list(report["limitations"]),
+                     provenance=Provenance(app=app, source="evidence report", library_version=version,
+                                           notes=f"report sha256 {report['report_sha256']}"))
+    return sr.to_dict()
+
+
 def build_package(report: dict[str, Any], sources: Sequence[Source], *, html: str | None = None,
                   pdf: bytes | None = None, figures: dict[str, str] | None = None) -> bytes:
     """Zip: report.json/html/pdf, evidence-ledger.json, figures/, sources/ (the original bytes) and
     MANIFEST.json with the SHA-256 of every other file."""
     files: dict[str, bytes] = {"report.json": json.dumps(report, indent=1).encode(),
                                "evidence-ledger.json": json.dumps(report["ledger"], indent=1).encode()}
+    try:
+        files["study_result.json"] = json.dumps(to_study_result(report), indent=1).encode()
+    except ImportError:                                         # pydantic missing: no contract export
+        pass
     if html is not None:
         files["report.html"] = html.encode()
     if pdf is not None:
