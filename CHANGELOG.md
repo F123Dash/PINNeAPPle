@@ -14,6 +14,29 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- The zoo on the Hugging Face Hub works with the Hub's own tools:
+  - `pinneapple_hub.zoo.parquet`: deterministic Parquet copies of every zoo dataset for the dataset viewer and
+    `datasets.load_dataset` (`write_dataset`, `read_parquet`, `read_npz`, `plan_split`, `features_yaml`). Scalar
+    columns stay columns, arrays become fixed-size list columns of their shape, samples over 512 KiB with a leading
+    time axis are stored one row per step (`sample`, `step`), shards stay under 256 MiB and row groups under 16 MiB,
+    and splits with other columns become separate configs. The npz files and their SHA-256 stay the library's
+    format; the round trip npz -> Parquet -> arrays is exact.
+  - `pinneapple_hub.zoo.hub_cards`: dataset cards with the YAML the Hub reads (`configs` / `data_files`,
+    `dataset_info`, licence, task and size categories, tags) and the columns, units, provenance and loading code;
+    model cards with `pipeline_tag: tabular-regression`, `inference: false` (and why), the training dataset, a
+    "How to use" example whose printed numbers come from the model, the ONNX usage, the files with their SHA-256, and
+    a link to the demo Space.
+  - `pinneapple_hub.zoo.export.export_safetensors` / `load_safetensors`; `export_onnx` now also exports
+    `heatsink_natural_mlp`. Each model repo gets `model.safetensors`, `model.onnx` and `example.json`.
+  - `pinneapple_hub.zoo.demo` and the Gradio Space `PINNeAPPle-Labs/zoo-demo` (`apps/zoo_space/app.py`): every
+    zoo model loaded from the Hub, its prediction along a sweep of one input with the spread or conformal bound, the
+    query checks shaded and listed, and the trust decision.
+  - `pinneapple_hub.zoo.publish`: the publishing logic (from `scripts/zoo/publish_to_hub.py`, now its command line)
+    with the checks after an upload: datasets-server `is-valid` / `splits` / `first-rows` of every dataset, every
+    model downloaded anonymously (card metrics, example reproduced by PyTorch, safetensors and ONNX, "How to use"
+    code run), and the Space's build stage. The **Publish zoo** workflow runs them and fails when the viewer of a
+    dataset is not valid; Hub-only datasets that are not staged are converted from their copy on the Hub.
+  - `pinneapple_hub.zoo.checks.has_query_checks`.
 - PhysicsNeMo trains, PINNeAPPle checks (2-D Darcy):
   - `pinneapple_physics.darcy_checks`: physics checks of a predicted Darcy field `-div(a grad u) = f`. They use
     the reference solver's own finite-volume discretisation and need no reference solution. `residual_error_bound`
@@ -700,6 +723,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
+- **Behavior:** every zoo item's Hub `revision` is now `v<version>.post1` (same files, republished with the
+  Parquet / safetensors / ONNX copies and the new cards). The `v<version>` tags are unchanged, so code pinned to them
+  keeps working; the loader falls back to `v<version>` until the new tag exists. The `[hub]` extra now also
+  installs `pyarrow`, `safetensors`, `onnx` and `onnxruntime`.
 - `pp.benchmark`: adding entries to `budget_study` or `ablations` reuses an existing `out_dir` (they only add jobs); changing
   or removing an entry is still refused. Before, any change to them was refused.
 - **Behavior:** `pinneapple_analysis.cost.measure` now counts FLOPs of code that calls `torch.autograd.grad` with

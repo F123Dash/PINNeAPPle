@@ -275,6 +275,8 @@ def _carry_versions(old: dict | None, new: dict, spec: dict) -> dict:
     (its files lose ``bundled``: they now live only on the Hub, under the old tag)."""
     if not old:
         return new
+    if old["version"] == new["version"] and old["revision"].startswith(new["revision"] + ".post"):
+        new = {**new, "revision": old["revision"]}       # same files republished (new card, derived formats)
     history = list(old.get("superseded", []))
     if old["version"] != new["version"]:
         prev = {"version": old["version"], "revision": old["revision"], "superseded_by": new["version"],
