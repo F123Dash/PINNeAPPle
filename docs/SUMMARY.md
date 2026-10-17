@@ -84,8 +84,9 @@
     * [Simulation Campaign Planner: which simulations need to run](guides/campaign_planner.md)
     * [Choose a model by the scale of the question](guides/scale_aware_ensembles.md)
     * [Identifiability, calibration and inverse problems](guides/identifiability_calibration_inversion.md)
-    * [PhysicsNeMo trains, PINNeAPPle says when to trust](guides/physicsnemo_trust.md)
 * Apps
+    * [Model Calibration Lab (day 18)](apps/calibration_lab.md)
+    * [PhysicsNeMo trains, PINNeAPPle says when to trust](guides/physicsnemo_trust.md)
     * [Engineering Evidence Report (day 30)](apps/evidence_report.md)
     * [Physics Validation Lab (day 24)](apps/validation_lab.md)
     * [Uncertainty and sensitivity studies on any model](guides/uncertainty_and_sensitivity.md)

@@ -253,3 +253,15 @@
 		}
 	}
 }
+
+{$CALIB_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy calibration:8101 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
