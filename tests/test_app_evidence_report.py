@@ -22,7 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture(scope="module")
-def client():
+def client(tmp_path_factory):
+    os.environ["EVR_DATA_DIR"] = str(tmp_path_factory.mktemp("evr"))      # runtime state (keys, usage)
+    os.environ["EVR_FREE_REPORTS"] = "2"
     sys.path.insert(0, os.path.join(ROOT, "apps", "evidence_report"))
     from evidence_report.api import app
     return TestClient(app)
@@ -88,3 +90,19 @@ def test_bad_requests(client):
     files = [("files", ("a.txt", b"x"))]
     assert client.post("/api/report", files=files, data={"meta": "[1]"}).status_code == 422
     assert client.get("/api/example/nope").status_code == 404
+
+
+def test_reports_are_metered_and_exported_as_a_study_result(client):
+    from pinneapple_data.contracts import validate
+
+    files = [("files", ("metrics.csv", b"run,cd\nCFD,0.02\nsurrogate,0.03\n"))]
+    codes, last = [], None
+    for _ in range(3):
+        r = client.post("/api/report", files=files, data={"meta": "{}"})
+        codes.append(r.status_code)
+        last = r.json() if r.status_code == 200 else last
+    assert 429 in codes and codes.index(429) <= 2                   # EVR_FREE_REPORTS=2 per caller and month
+    assert validate(last["study_result"]) == [] and last["study_result"]["study_type"] == "evidence"
+    usage = client.get("/api/usage").json()
+    assert usage and client.get("/api/runtime").json()["app"] == "evidence"
+    assert client.get("/api/example").status_code == 200               # the example is not metered
