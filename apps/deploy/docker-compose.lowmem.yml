@@ -76,3 +76,11 @@ services:
   meshless:
     command: ["uvicorn", "meshless_lab.api:app", "--host", "0.0.0.0", "--port", "8109", "--workers", "1"]
     mem_limit: 900m
+  surrogate:
+    environment:
+      SUR_MAX_JOBS: 1           # one training at a time
+    mem_limit: 1g               # one worker already (torch ~400 MB idle, a study adds ~300 MB)
+  arena:
+    mem_limit: 1g               # one worker, one benchmark at a time (ARN_MAX_JOBS=1)
+  models:
+    mem_limit: 1g               # one worker already (torch + the zoo models ~500 MB)
