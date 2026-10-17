@@ -29,6 +29,7 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `pinneapple_data.contracts` is installed), `surrogate_from_table` with held-out metrics and
   `model_ref_for_surrogate`, `table_evaluator` (offline solver results as a reference), and a `progress` callback on
   `run`, `compare_methods` and `surrogate_assisted` (an exception from it, e.g. a cancelled job, stops the run).
+- `MethodComparison.union()`: every run's evaluations in one record with the run that produced each row.
 - `pinneapple_design.geometry_library.exporters.stl_bytes`: the binary STL writer for any triangle mesh.
 - Observatory: space journey from your place to the target (#723). `pinneapple_physics.astro.journey`: heliocentric
   ICRS positions of the observer (Earth from the JPL ephemeris plus the site), the Solar System bodies at the date and
@@ -467,6 +468,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
+- **Behavior:** `BayesianDesignOptimizer` scores its acquisition on all candidate points with one GP prediction (same
+  values, several times faster) and seeds the GP hyper-parameter restarts with its own seed, so a run is reproducible.
 - **Behavior:** `EvolutionaryDesignOptimizer` in multi-objective mode now draws parents by the NSGA-II
   crowded-comparison tournament (front rank, then crowding distance) instead of by the first objective, so the
   population spreads along the front.
