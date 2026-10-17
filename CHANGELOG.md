@@ -14,6 +14,37 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Electromagnetics and electrodynamics (`pinneapple_simulation.electromagnetics`, `pp.em`; guide
+  `docs/guides/electromagnetics.md`):
+  - SI core: CODATA 2022 constants (`constants`), SI dimensions of every field and a dimensional check of Maxwell's
+    equations (`units.check_equations`, `units.check_units`); `pinneapple_data.physical_units` gains T, mT, Wb,
+    coulomb, farad, henry and siemens.
+  - Media (`media`): isotropic, anisotropic (`Anisotropic`, uniaxial crystals, plane-wave indices, reciprocity) and
+    dispersive Drude / Lorentz / Debye poles with auxiliary-differential-equation coefficients for time-domain
+    solvers, phasor convention `exp(+j omega t)`; `hysteresis`: Froehlich-Kennelly curve (plugs into the Newton
+    solver) and the Jiles-Atherton model.
+  - References in closed form: `statics` (capacitors, exact Biot-Savart of segments, loops in elliptic integrals,
+    solenoids, mutual and self inductance), `waves` (Fresnel, multilayers, skin depth, waveguides, cavities, dipoles,
+    TMz cylinder scattering, surface plasmons), `mie` (dielectric and conducting spheres, checked against miepython
+    and Bohren & Huffman's published values).
+  - `electrostatics.solve_electrostatic` (P1 FEM, capacitance from energy), `mesh.rect_mesh`.
+  - The electric-machine work of the `feat/motor-magnetics-topopt` branch: A_z magnetostatics with Newton for
+    nonlinear B-H, magnets and (anti-)periodic constraints; time-harmonic eddy currents in solid conductors; SPM and
+    reluctance machine model (Maxwell-stress and co-energy torque, cogging, back-EMF, losses, adjoint
+    sensitivities); `pinneapple_design.topology` (SIMP, filter, projection, OC, MMA; compliance, thermal,
+    Stokes-Brinkman and rotor problems; guide `docs/guides/topology_optimization.md`).
+  - `verification`: 19 cases against closed forms, published values and miepython with measured orders; the table
+    in the guide is the output of `examples/electrodynamics/07_em_verification.py`.
+  - Physics checks of any field (`pinneapple_physics.maxwell_checks`, `pp.maxwell`): Gauss, Faraday,
+    Ampere-Maxwell and continuity residuals with a grid-halving test that tells discretisation error from a field
+    that breaks the law, Poynting energy balance, PEC faces, tangential continuity, S-parameter reciprocity and
+    passivity, and a deploy decision. `pinneapple check` runs them with `physics = "maxwell"` (PC102, PC301, PC103;
+    tolerances `maxwell-gauss`, `maxwell-faraday`, `maxwell-ampere`, `maxwell-continuity`, `maxwell-energy`).
+  - PDE compiler kinds `electrostatics`, `magnetostatics_az`, `eddy_current_az`, `maxwell_tm`, `maxwell_3d`,
+    `maxwell_tm_frequency` and the integral forms `electrostatics_integral` and `maxwell_tm_integral` (Gauss's law
+    and Ampere-Maxwell / Faraday on control squares, which see material interfaces); presets `em_*` with closed-form
+    solutions registered for `pp.solve(problem, "analytic")`.
+  - Optional extra `em` (miepython); catalog items S29-S39 and E66-E71.
 - PhysicsNeMo trains, PINNeAPPle checks (2-D Darcy):
   - `pinneapple_physics.darcy_checks`: physics checks of a predicted Darcy field `-div(a grad u) = f`. They use
     the reference solver's own finite-volume discretisation and need no reference solution. `residual_error_bound`
@@ -729,6 +760,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- `eddy_current_fdm`: `annular_current_source` injected a current that depended on how the coil band fell on the
+  grid (it normalised by the nominal band area; 0.75 N I in one case); `axial_flux_density` returned half the field
+  on the axis; `eddy_current_density` had the wrong sign for the solver's `exp(+j omega t)` convention. Together they
+  explain the coil field at a fraction of the loop formula recorded in the validation gallery.
+- `solve_magnetostatic` (electromagnetics): the Newton line search could stall at a 1e-7 residual when the Armijo
+  test compared energy changes below round-off; near convergence it now takes the full step.
 - App job queue (`pinneapple_core.service.jobs`): the final log line of a job is written before its final status, so
   a caller that sees `done`, `failed` or `cancelled` also sees the whole log (a race made
   `test_job_runs_with_progress_logs_and_workdir` fail intermittently).

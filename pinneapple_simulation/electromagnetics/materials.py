@@ -18,10 +18,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .constants import MU0
+
 __all__ = ["MU0", "NU0", "LinearMaterial", "Magnet", "BHCurve", "BrauerCurve", "illustrative_steel",
            "AIR", "COPPER"]
 
-MU0 = 4.0e-7 * math.pi
 NU0 = 1.0 / MU0
 
 

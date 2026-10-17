@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-__all__ = ["Mesh2D", "Ring", "polar_mesh", "zipper", "mesh_from_gmsh"]
+__all__ = ["Mesh2D", "Ring", "polar_mesh", "zipper", "mesh_from_gmsh", "rect_mesh"]
 
 TWO_PI = 2.0 * math.pi
 _TIE = 1e-10  # radians: nodes closer than this in angle count as aligned
@@ -215,6 +215,34 @@ def polar_mesh(rings: Sequence[Ring], classify: Callable[[int, float, float], st
     region = np.array([lookup[n] for n in names], dtype=np.int64)
     return Mesh2D(points, tris, region, rn, layer=layer, boundary=ring_nodes[-1].copy(),
                   rings=ring_nodes)
+
+
+def rect_mesh(x, y, classify: Callable[[float, float], str] | None = None) -> Mesh2D:
+    """Structured triangle mesh of the rectangle spanned by the node coordinates ``x`` and ``y`` (1-D, increasing;
+    any spacing), two triangles per cell with diagonals alternating from cell to cell, so the mesh has no preferred
+    direction. ``classify(xc, yc)`` names the region of each element from its centroid. Node
+    ``i * len(y) + j`` sits at ``(x[i], y[j])``; ``boundary`` holds the nodes on the four sides."""
+    x, y = np.asarray(x, float), np.asarray(y, float)
+    nx, ny = len(x), len(y)
+    X, Y = np.meshgrid(x, y, indexing="ij")
+    points = np.column_stack([X.ravel(), Y.ravel()])
+    ci, cj = np.meshgrid(np.arange(nx - 1), np.arange(ny - 1), indexing="ij")
+    ci, cj = ci.ravel(), cj.ravel()
+    n00, n10, n01, n11 = ci * ny + cj, (ci + 1) * ny + cj, ci * ny + cj + 1, (ci + 1) * ny + cj + 1
+    flip = (ci + cj) % 2 == 1
+    t1 = np.where(flip[:, None], np.column_stack([n00, n10, n01]), np.column_stack([n00, n10, n11]))
+    t2 = np.where(flip[:, None], np.column_stack([n10, n11, n01]), np.column_stack([n00, n11, n01]))
+    tris = _orient(points, np.vstack([t1, t2]))
+    c = points[tris].mean(axis=1)
+    names = ["domain"] * len(tris) if classify is None else [classify(float(a), float(b)) for a, b in c]
+    rn: list[str] = []
+    for n in names:
+        if n not in rn:
+            rn.append(n)
+    lookup = {n: i for i, n in enumerate(rn)}
+    region = np.array([lookup[n] for n in names], dtype=np.int64)
+    on_b = (X == x[0]) | (X == x[-1]) | (Y == y[0]) | (Y == y[-1])
+    return Mesh2D(points, tris, region, rn, boundary=np.flatnonzero(on_b.ravel()))
 
 
 def mesh_from_gmsh(dim: int = 2, model=None) -> Mesh2D:

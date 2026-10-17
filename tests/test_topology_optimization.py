@@ -46,7 +46,7 @@ def test_sensitivities_through_filter_and_projection_match_finite_differences(ma
 
 def test_mma_matches_slsqp_on_svanberg_cantilever_problem():
     """min 0.0624 sum(x)  s.t.  61/x1^3 + 37/x2^3 + 19/x3^3 + 7/x4^3 + 1/x5^3 <= 1, 1 <= x <= 10
-    (the five-variable test problem of Svanberg 1987)."""
+    (the five-variable test problem of Svanberg 1987); MMA( against the reference solution of SLSQP."""
     from scipy.optimize import minimize
 
     c1, a = 0.0624, np.array([61.0, 37.0, 19.0, 7.0, 1.0])

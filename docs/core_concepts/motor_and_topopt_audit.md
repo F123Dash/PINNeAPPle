@@ -1,6 +1,7 @@
-# Audit: electric-motor magnetics and topology optimization (work in progress)
+# Audit: electric-motor magnetics and topology optimization
 
-Status: paused. Numbers below come from runs of the code on this branch (tests in
+Status: merged with the electromagnetics package (user guides: [electromagnetics](../guides/electromagnetics.md),
+[topology optimisation](../guides/topology_optimization.md)). Numbers below come from runs of the code (tests in
 `tests/test_motor_magnetics.py`, `tests/test_topology_optimization.py`, examples in
 `examples/motor_magnetics/` and `examples/topology_optimization/`).
 
@@ -46,5 +47,6 @@ Verification (measured):
 - Optimized reluctance rotor: Maxwell 46.2 vs co-energy 47.1 N m (1.9 %) on the thin-featured
   design; nonlinear re-evaluation drops mean torque from 38.1 (linear) to 13.4 N m (saturation),
   so the optimization should use nonlinear iron.
-- Not done: user docs page, CHANGELOG, CI step, TEAM benchmark references, transient eddy currents,
-  geometry-parameter surrogate, PR.
+- Done since: user guides, CHANGELOG, CI step; the Newton solver's stall at a 1e-7 residual (Armijo test below
+  round-off) is fixed.
+- Not done: TEAM benchmark references, transient eddy currents, geometry-parameter surrogate.

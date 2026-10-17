@@ -63,6 +63,7 @@ def test_zipper_mesh_is_valid_and_band_keeps_element_count():
 
 # ----------------------------------------------------------------------------- statics
 def test_round_wire_matches_amperes_law_and_converges_second_order():
+    """solve_magnetostatic( against the closed-form wire potential (Ampere's law), second order."""
     a, R, current = 0.01, 0.05, 100.0
     errs = []
     for n in (32, 64):
@@ -195,6 +196,7 @@ def _slotless(n, theta, p=2, Br0=1.1, J0=3e6, phJ=0.7, mur_fe=1000.0, mur_m=1.05
 
 
 def test_slotless_spm_torque_and_gap_field_match_subdomain_solution():
+    """torque_maxwell_stress( and co-energy torque against the exact solution (subdomain method) of a slotless machine."""
     n = 360
     h = 2 * math.pi / n
     theta = 0.3 * h  # rotor off the grid: the moving band is skewed
@@ -323,6 +325,7 @@ def test_iron_loss_formula_on_alternating_and_rotating_fields():
 
 
 def test_skin_effect_in_round_wire_matches_bessel_solution():
+    """solve_time_harmonic( against the closed-form (Bessel) impedance of a round wire."""
     a, R, sigma = 0.005, 0.02, 5.8e7
     delta = a / 3
     omega = 2 / (MU0 * sigma * delta ** 2)

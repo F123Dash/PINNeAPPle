@@ -221,8 +221,11 @@ def solve_magnetostatic(mesh: Mesh2D, nu: np.ndarray, J: np.ndarray | None = Non
         if is_nl:
             Pi0 = functional(A)
             slope = float(r @ d)
-            while s > 1e-6 and functional(P @ (a + s * d) + AD) > Pi0 + 1e-4 * s * slope:
-                s *= 0.5
+            # Near the solution the predicted decrease falls below the round-off of Pi (a sum of terms of size
+            # |Pi|); the Armijo test is then noise, and the full Newton step is taken (quadratic convergence).
+            if -slope > 1e3 * np.finfo(float).eps * max(abs(Pi0), 1e-300):
+                while s > 1e-6 and functional(P @ (a + s * d) + AD) > Pi0 + 1e-4 * s * slope:
+                    s *= 0.5
         a = a + s * d
         A = P @ a + AD
         B, B2, nu_e, dnu_e = state(A)

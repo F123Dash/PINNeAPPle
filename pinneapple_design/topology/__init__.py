@@ -3,7 +3,7 @@
 Problems: structural compliance (MBB beam, cantilever), thermal compliance, Stokes flow with
 Brinkman penalization (Borrvall-Petersson), and the iron of a machine rotor for torque
 (:mod:`pinneapple_design.topology.magnetic`, built on ``pinneapple_simulation.electromagnetics``).
-See docs/core_concepts/motor_magnetics_and_topology_optimization.md.
+See docs/guides/topology_optimization.md.
 """
 from .driver import DesignChain, TopOptResult, finite_difference_check, optimize  # noqa: F401
 from .filters import DensityFilter, SymmetryMap, heaviside, heaviside_derivative  # noqa: F401
