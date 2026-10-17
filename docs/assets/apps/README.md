@@ -40,6 +40,8 @@ Days 13–31 of the second series (apps that run studies), images named `dNN-<sl
 | 26 | Meshless Method Lab | `d26-meshless-input.jpg`, `d26-meshless-lshape.jpg`, `d26-meshless-corner.jpg`, `d26-meshless-heat.jpg`, `d26-meshless-heat-maps.jpg` | https://meshless.pinneapple.org |
 | 31 | Physics AI Model Gateway | `d31-models-endpoint.jpg`, `-remote.jpg`, `-publish.jpg`, `-operations.jpg` | https://models.pinneapple.org |
 | 20 | Digital Twin Runtime | `d20-twin-live.jpg`, `-replay.jpg`, `-series.jpg` | https://twin.pinneapple.org |
+| 28 | Physics Anomaly Detector | `d28-anomaly-events.jpg`, `-benchmark.jpg` | https://anomaly.pinneapple.org |
+| 29 | Physics-Based Control Lab | `d29-control-compare.jpg`, `-recommend.jpg` | https://control.pinneapple.org |
 | 17 | Engineering Design Optimizer | `d17-optimize-form.jpg`, `-result.jpg`, `-feasibility.jpg` | https://optimize.pinneapple.org |
 
 The Form Compiler image uses the fictitious example documents only (no ASME form).

@@ -58,6 +58,8 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `calibration` | A | `<server IPv4>` |
 | `identifiability` | A | `<server IPv4>` |
 | `twin` | A | `<server IPv4>` |
+| `anomaly` | A | `<server IPv4>` |
+| `control` | A | `<server IPv4>` |
 | `inverse-studio` | A | `<server IPv4>` |
 | `guiagent` | A | `<server IPv4>` |
 | `optimize` | A | `<server IPv4>` |
@@ -85,7 +87,7 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 |---|---|
 | `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN`, `MDL_DOMAIN`, `ARN_DOMAIN`, `SUR_DOMAIN`, `EDO_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR, ARN, MDL, TWIN, EDO) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR, ARN, MDL, TWIN, ANOMALY, CONTROL, EDO) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
@@ -132,7 +134,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration models arena surrogate twin optimize
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration models arena surrogate twin anomaly control optimize
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -453,6 +455,28 @@ twin.example.org {
 		}
 	}
 }
+anomaly.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 120MB
+	}
+	reverse_proxy pinneapple-anomaly:8111 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
+control.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy pinneapple-control:8112 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
 optimize.example.org {
 	encode zstd gzip
 	request_body {
@@ -653,6 +677,21 @@ takes a `postgresql://` URL when `psycopg[binary]` is added to the image. The em
 port (`ports: ["1883:1883"]` in an override), or set `TWIN_MQTT_URL=mqtt://user:pass@broker:1883` for your own
 broker. OPC UA (`TWIN_OPCUA_URL`, `TWIN_OPCUA_NODES`) is experimental and needs `asyncua` in the image. 1 GB of
 memory is enough (about 400 MB idle).
+
+## Physics Anomaly Detector (`anomaly`)
+
+Finds abnormal behaviour in sensor time series with statistics, AR + CUSUM, conservation balances over the columns
+and physical-model residuals, and explains each event (day 28). Analyses and benchmarks run in the shared job queue
+(`ANOMALY_MAX_JOBS` at once); uploads, jobs and usage live in the `anomaly_data` volume. `ANOMALY_MAX_ROWS` caps a
+table (default 500,000 rows). 1 GB of memory is enough: the example and a benchmark seed take a few seconds.
+
+## Physics-Based Control Lab (`control`)
+
+Compares model predictive control (linear, nonlinear with CasADi/IPOPT, and on a reduced-order surrogate) with PID and
+rule-based baselines on the same simulated plant, and recommends actions (day 29). **Simulation and recommendation
+only: there is no command path to real equipment.** Comparisons run in the shared job queue (`CONTROL_MAX_JOBS` at
+once, about 15 s for the default study); jobs and usage live in the `control_data` volume. 1 GB of memory is
+enough.
 
 ## Engineering Design Optimizer (`optimize`)
 
