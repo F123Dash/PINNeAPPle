@@ -20,6 +20,34 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   - a run log, latency / count / error metrics and exports;
   - publishing guarded by the admin token, or an API key for ONNX;
   - metering of inferences and hosted models on the shared runtime.
+- Physics AI Benchmark Arena app (day 22, `apps/benchmark_arena`, arena.pinneapple.org, port 8105):
+  - rankings of physics-AI methods per data regime (interpolation, few data, extrapolation, geometry change, steep
+    fronts) under one protocol: equal data and compute, the same stopping rule, several seeds;
+  - cost, physics violations, solver baselines and an audit of the splits;
+  - public results from runs stored with their date and hardware (`run_public_benchmarks.py`);
+  - private benchmarks on uploaded data as jobs, with `StudyResult` and Markdown reports.
+- Surrogate Studio app (day 14, `apps/surrogate_studio`, surrogate.pinneapple.org, port 8097). It turns uploaded
+  simulation results (CSV, Parquet, JSON, HDF5, NPZ or a `DatasetSpec`) into a surrogate:
+  - an equal-budget comparison of every applicable method on held-out and distribution-shift splits;
+  - the chosen model hosted at `/v1/models/<name>/predict` (the Model Gateway API) with its OOD gate;
+  - a limitations report and a trust decision;
+  - downloads as contracts (`StudyResult`, `ModelRef`, `DatasetSpec`), a report, ONNX and TorchScript.
+  It runs on the shared job queue, API keys and usage metering. Two offline examples run in about 10 s. Deployed with
+  `docker-compose.yml` (service `surrogate`), the Caddyfile and `.env.example`.
+- `pinneapple_analysis.study_contracts`: the shared contracts for uncertainty and sensitivity studies. A
+  `ParameterSpace` becomes study parameters (uniform on the bounds, other distributions from
+  `metadata["distributions"]`; categorical and log-scaled parameters are refused) and back exactly; a `ModelRef`
+  (`zoo:<name>`, ONNX) becomes a `StudyModel` and back; `uncertainty_result` / `sensitivity_result` write a
+  `StudyResult` with the checks that ran. The Engineering Sensitivity Lab runs its studies in the shared job queue
+  with metering (`studies`, `evaluations`, `parameters`) and reads and writes these contracts; so does the Engineering
+  Uncertainty Lab (`studies`, `scenarios`, `propagation_samples`, `hf_runs`; a `ModelRef` and a `ParameterSpace` in, a
+  `StudyResult` out).
+- `train_gnn` (`pinneapple_design.aero.train`) gains `checkpoint_dir` and `checkpoint_every`. Every few epochs it
+  saves the full training state (weights, optimiser, epoch, elapsed time, history, shuffling RNG). A later call with
+  the same settings resumes from it to the same weights as an uninterrupted run, and a checkpoint written with other
+  settings is refused (#780). `scripts/zoo/train_airfoil_gnn.py` trains the airfoil graph network on the regenerated
+  campaign with checkpoints, and `build_assets.py --airfoil-gnn` gates and packages it. The first such network was
+  rejected by the gate: its coefficients pass, but its field errors and stagnation pressure fail (see the inventory).
 - Meshless Method Lab app (day 26, `apps/meshless_lab`, meshless.pinneapple.org, port 8109): a Poisson, Helmholtz or
   heat problem (manufactured solution or source + boundary value) on a preset, polygon or point-cloud domain, solved
   by Kansa, RBF-FD, embedded finite differences, linear FEM and a PINN in a queued refinement study on the shared
@@ -175,6 +203,20 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
   `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
   (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Operations library (`pinneapple_systems.operations`) for running validated models next to plant data: a
+  heated-tank plant with mass and energy balances, sensors and six fault kinds (`plant`); operator inference with
+  inputs fitted on whole trajectories with held-out rollout errors, also as CasADi expressions (`rom`); a digital
+  twin runtime with EnKF state and parameter estimation, forecasts with input uncertainty, rule-based alerts, drift
+  monitoring with `assess_drift`, open-loop revalidation and a SQLite/Postgres history (`twin`); physics anomaly
+  detection with statistical, AR/CUSUM, conservation-balance and model-residual channels, events with explanations
+  and a labelled fault benchmark (`anomaly`); linear (SLSQP) and nonlinear (CasADi/IPOPT or SciPy) MPC compared with
+  PID and rule-based baselines in closed loop, simulation / recommendation only (`control`); the days 13-31 chain
+  campaign -> surrogate -> uncertainty -> optimizer -> twin through the data contracts (`series`); `ModelRef` and
+  `StudyResult` builders (`contracts`).
+- Embedded MQTT 3.1.1 broker (`pinneapple_systems.digital_twin.io.mqtt_broker.MQTTBroker`: QoS 0/1, retained
+  messages, wildcards, optional login) for demos and single-asset edge setups; works with `MQTTStream`.
+- `PIDController` takes optional `output_limits` (saturation with anti-windup by conditional integration) and a
+  feed-forward `bias`; without them it behaves as before.
 - Validation report as an artifact (`pinneapple_analysis.validation.report_artifact`, #706): JSON schema
   `validation-report/v1` with provenance hashes, `pp.validate.diff(old, new)` (lost / gained checks, moved metrics,
   validity-envelope changes), a model-card section, an SVG badge and a shields.io endpoint, signatures with
