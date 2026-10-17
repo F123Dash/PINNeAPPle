@@ -556,6 +556,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ### Fixed
 - `pinneapple_analysis.inverse_problems.heat_transfer.__all__` listed an undefined `FinInput`, so
   `from ... import *` failed.
+- App job queue (`pinneapple_core.service.jobs`): the final log line of a job is written before its final status, so
+  a caller that sees `done`, `failed` or `cancelled` also sees the whole log (a race made
+  `test_job_runs_with_progress_logs_and_workdir` fail intermittently).
 - Quantile regression (`pinneapple_analysis.uncertainty.quantile`): `QuantileLoss` scored the first `Q` outputs
   when the model produced more outputs than levels and raised a bare `IndexError` when it produced fewer; the pinball
   loss broadcast a `(B, 1)` target against `(B, H)` predictions; a level outside (0, 1) such as 1.5 was accepted and
