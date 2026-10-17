@@ -263,7 +263,7 @@ def as_field_model(model) -> Callable[[np.ndarray], np.ndarray]:
             with torch.no_grad():
                 try:
                     y = model(x)
-                except RuntimeError:                              # expects a channel axis
+                except (RuntimeError, ValueError):                # expects a channel axis (PhysicsNeMo: ValueError)
                     y = model(x[:, None])
             y = getattr(y, "y", y)
             return y.detach().cpu().numpy().astype(float).reshape(np.shape(a))
@@ -485,6 +485,41 @@ def _darcy_checks(f, data, reference, query, level, tol, rhs, seed) -> list[Vali
     return C
 
 
+def _rollout_checks(step, cfg: Mapping[str, Any], data: Mapping[str, Any], level: str) -> list[ValidationCheck]:
+    """``problem={"rollout": {"ndim", "dt", "conserved", "chaotic", "steps", "burn_in"}}``, ``data={"u0", "reference",
+    "long_u0", "long_reference"}``: the model is a stepper ``u -> u_next`` (``validation.rollout``)."""
+    from .rollout import rollout, validate_rollout
+    ref = data.get("reference")
+    long_ref = data.get("long_reference") if level != "quick" else None
+    steps = int(cfg.get("steps", (len(ref) - 1) if ref is not None else 100))
+    pred = rollout(step, data["u0"], steps)
+    long_pred = rollout(step, data.get("long_u0", data["u0"]), len(long_ref) - 1) if long_ref is not None else None
+    kw = dict(dt=float(cfg.get("dt", 1.0)), conserved=cfg.get("conserved", ()), chaotic=bool(cfg.get("chaotic")),
+              periodic=bool(cfg.get("periodic", True)), tolerances=cfg.get("tolerances"))
+    rep = validate_rollout(pred, int(cfg["ndim"]), ref, **kw)
+    checks = rep.checks
+    if long_pred is not None:
+        st = validate_rollout(long_pred, int(cfg["ndim"]), long_ref=long_ref, burn_in=int(cfg.get("burn_in", 0)), **kw)
+        checks += [c for c in st.checks if c["id"] == "rollout.statistics"]
+    else:
+        checks.append({"id": "rollout.statistics", "status": NA,
+                       "summary": "no long reference run (data['long_reference'])" if level != "quick" else
+                       "long-run statistics run from level 'standard'"})
+    return [ValidationCheck(c["id"], c["status"], c["summary"], value=c.get("value"), threshold=c.get("threshold"))
+            for c in checks]
+
+
+def _pinn_checks(model, spec: Mapping[str, Any], data: Mapping[str, Any], level: str, seed: int
+                 ) -> list[ValidationCheck]:
+    """``problem={"pinn": "burgers_1d" | PINNProblem, "tolerances": {...}}``, ``data={"train_points": X}``: a trained
+    PINN on fresh points (``validation.pinn``)."""
+    from .pinn import validate_pinn
+    rep = validate_pinn(model, spec["pinn"], n_points=1024 if level == "quick" else 4096,
+                        train_points=data.get("train_points"), tolerances=spec.get("tolerances"), seed=seed)
+    return [ValidationCheck(c["id"], c["status"], c["summary"], value=c.get("value"), threshold=c.get("threshold"))
+            for c in rep.checks]
+
+
 def _fault_injection() -> ValidationCheck:
     try:
         from . import fault_injection  # noqa: F401  (#697)
@@ -622,7 +657,14 @@ def validate(model, problem=None, data: Mapping[str, Mapping[str, np.ndarray]] |
     else:
         spec = {"pde": "darcy"} if problem in ("darcy", "darcy_2d") else dict(problem or {}) \
             if isinstance(problem, Mapping) else _from_physical_problem(problem)
-        if spec.get("pde") == "darcy":
+        if "pinn" in spec:
+            checks += _pinn_checks(model, spec, data or {}, level, seed)
+            pname = f"PINN, {getattr(spec['pinn'], 'name', spec['pinn'])}"
+            prov["physics"]["problem"] = {**spec, "pinn": getattr(spec["pinn"], "name", spec["pinn"])}
+        elif "rollout" in spec:
+            pname = spec.get("name", "autoregressive rollout")
+            checks += _rollout_checks(model, spec["rollout"], data or {}, level)
+        elif spec.get("pde") == "darcy":
             pname = "Darcy 2-D, -div(a grad u) = f, u = 0 (cell-centred, darcy_2d)"
             checks += _darcy_checks(as_field_model(model), data, reference, query, level, tol, spec.get("f", 1.0),
                                     seed)
