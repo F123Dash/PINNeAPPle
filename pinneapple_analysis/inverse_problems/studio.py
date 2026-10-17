@@ -71,11 +71,18 @@ class InverseProblem:
     def truth(self) -> dict[str, float] | None:
         return self.params.truth()
 
+    def groups(self) -> list[list[str]]:
+        """``field_groups``, or the model's own (``model.field_groups()``) when none were given."""
+        if self.field_groups:
+            return self.field_groups
+        fn = getattr(self.model, "field_groups", None)
+        return fn() if callable(fn) else []
+
     def prior(self) -> Prior:
         ps = self.params
         L = None
         rows = []
-        for grp in self.field_groups:
+        for grp in self.groups():
             idx = [ps.names.index(n) for n in grp if n in ps.names]
             for a, b in zip(idx[:-1], idx[1:], strict=False):
                 r = np.zeros(len(ps))
@@ -187,8 +194,8 @@ def solve_inverse(problem: InverseProblem, method: str, *, identifiability: Iden
         std = _gn_std(params, r.jac, obs, r.chi2, extra_prec=prec)
         z, history, deriv, converged = r.z, r.history, r.derivatives, r.success
         notes.append(f"Gaussian prior: std {problem.prior_std:g} in ln units around the initial guesses"
-                     + (f"; smoothness weight {problem.smoothness:g} on {problem.field_groups}"
-                        if problem.smoothness > 0 and problem.field_groups else ""))
+                     + (f"; smoothness weight {problem.smoothness:g} on {problem.groups()}"
+                        if problem.smoothness > 0 and problem.groups() else ""))
         lo, hi = params.bounds()
         if getattr(model, "cost", "cheap") == "cheap" and len(params) <= 8 and np.all(np.isfinite(lo)) \
                 and np.all(np.isfinite(hi)):
