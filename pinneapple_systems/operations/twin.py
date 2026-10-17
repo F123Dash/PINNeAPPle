@@ -143,6 +143,7 @@ class AlertRules:
     forecast_steps: int = 60               # horizon of the forecast checked against ``limits``
     drift_window: int = 90                 # samples in the validity window
     drift_every: int = 30                  # samples between validity checks
+    review_consecutive: int = 2            # "review" alerts after this many checks in a row; "retrain" at once
     hold_window: int = 20                  # readings averaged for the held input of a forecast
     bias_practical: float = 0.5            # a bias below this fraction of the predictive spread is not alerted
     drift: DriftThresholds = field(default_factory=lambda: DriftThresholds(
@@ -284,6 +285,7 @@ class TwinRuntime:
         self._win: dict[str, deque] = {k: deque(maxlen=win) for k in ("y", "yp", "sp", "v")}
         self.history: deque[dict] = deque(maxlen=20000)
         self.last_drift: dict | None = None
+        self._review_run = 0
         self.revalidations: list[dict] = []
         self.status = "starting"
         self.timing = {"assimilation_ms": 0.0}
@@ -484,7 +486,11 @@ class TwinRuntime:
         if self.store is not None:
             self.store.write("events", self.asset, t, {"type": "drift_check", **self.last_drift})
         if rep.decision == "ok":
+            self._review_run = 0
             return self._clear("drift", t)
+        self._review_run = self._review_run + 1 if rep.decision == "review" else 0
+        if rep.decision == "review" and self._review_run < self.rules.review_consecutive:
+            return []                              # one marginal flag is noted (last_drift), not alerted
         return self._raise("drift", t, "revalidation", "critical" if rep.decision == "retrain" else "warning",
                            f"revalidation required ({rep.decision}): " + "; ".join(rep.reasons), self.last_drift)
 

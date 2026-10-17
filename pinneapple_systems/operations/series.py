@@ -270,7 +270,7 @@ def run_series_flow(workdir: str | Path, *, seed: int = 0, n_runs: int = 12, ste
                      {"h": max(3 * sig["h"], 2e-4), "T": max(3 * sig["T"], 0.01)}, rules=rules,
                      asset="tank-1", seed=seed)
     sim = TankSimulator(p, phys, seed=seed + 7)
-    change_at, n_steps = 2400.0, 270
+    change_at, n_steps = 2400.0, int(round(5400.0 / dt))
     first_reval = None
     for _k in range(n_steps):
         T_in = T_in_nom if sim.t < change_at else 6.0           # cold inlet water: outside the training range
