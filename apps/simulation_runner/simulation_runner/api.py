@@ -60,6 +60,12 @@ rt = install_runtime(app, prefix="RUNNER", name="runner",
                      upload_suffixes={".csv", ".parquet", ".json", ".h5", ".hdf5"}, upload_max_mb=20)
 RUNNER = WorkflowRunner(rt.root / "workflows")
 
+try:    # the Engineering GUI Agent as a step kind ("guiagent"): FreeCAD/CfdOF/OpenFOAM/ParaView workflows as one step
+    from pinneapple_tools.automation.runner_step import register as _register_guiagent
+    _register_guiagent()
+except ImportError:                                  # pragma: no cover - library without the automation package
+    pass
+
 
 def _executor_options(name: str, options: dict | None) -> dict:
     if SELF_HOSTED:
@@ -169,8 +175,10 @@ def meta():
         execs.append({"name": name, "available": ok and allowed,
                       "reason": why if allowed else "self-hosted runners only",
                       "note": "writes sbatch scripts, does not submit" if name == "slurm" and not SELF_HOSTED else ""})
+    from pinneapple_core.workflows import ADAPTERS
+    kinds = [{"kind": k, "available": a.available()[0], "reason": a.available()[1]} for k, a in sorted(ADAPTERS.items())]
     return {"version": VERSION, "self_hosted": SELF_HOSTED, "max_cases": MAX_CASES,
-            "templates": [_template_info(t) for t in TEMPLATES.values()], "executors": execs,
+            "templates": [_template_info(t) for t in TEMPLATES.values()], "executors": execs, "step_kinds": kinds,
             "runtime": rt.describe(), "scope": scope()}
 
 
