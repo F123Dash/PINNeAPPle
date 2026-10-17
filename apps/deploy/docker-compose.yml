@@ -373,6 +373,25 @@ services:
     expose: ["8101"]
     mem_limit: ${CALIB_MEM_LIMIT:-1g}
 
+  identifiability:
+    build:
+      context: ../..
+      dockerfile: apps/identifiability_lab/Dockerfile
+    image: pinneapple/identifiability-lab:latest
+    restart: unless-stopped
+    environment:
+      IDENT_USER: ${IDENT_USER:-}
+      IDENT_PASSWORD: ${IDENT_PASSWORD:-}
+      IDENT_MAX_JOBS: ${IDENT_MAX_JOBS:-2}
+      IDENT_ADMIN_TOKEN: ${IDENT_ADMIN_TOKEN:-}
+      IDENT_FREE_ANALYSES: ${IDENT_FREE_ANALYSES:-}
+      IDENT_FREE_PARAMETERS: ${IDENT_FREE_PARAMETERS:-}
+      IDENT_FREE_SCENARIOS: ${IDENT_FREE_SCENARIOS:-}
+    volumes:
+      - identifiability_data:/data          # jobs, API keys, usage, uploads (SQLite): keep this volume
+    expose: ["8108"]
+    mem_limit: ${IDENT_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -401,16 +420,18 @@ services:
       VAL_DOMAIN: ${VAL_DOMAIN:-validate.localhost}
       EVR_DOMAIN: ${EVR_DOMAIN:-evidence.localhost}
       CALIB_DOMAIN: ${CALIB_DOMAIN:-calibration.localhost}
+      IDENT_DOMAIN: ${IDENT_DOMAIN:-identifiability.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability]
 
 volumes:
   calibration_data:
   evidence_data:
+  identifiability_data:
   lab_data:
   campaign_data:
   runner_data:

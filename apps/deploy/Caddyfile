@@ -265,3 +265,15 @@
 		}
 	}
 }
+
+{$IDENT_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy identifiability:8108 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
