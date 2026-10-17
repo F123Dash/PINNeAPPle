@@ -24,7 +24,8 @@ async function api(url, opts) {
   const P = META.public;
   $("#benchlist").innerHTML = P.map((b, i) => `<button data-b="${b.id}" class="${i === 0 ? "on" : ""}"><b>${esc(b.title)}</b>
     <span>${b.n_samples} runs · ${b.kind} · ${b.n_methods} methods · ${b.seeds.length} seeds · ${fmt(b.budget.wall_s)} s per training · winner <b style="display:inline">${esc(b.winner)}</b> · run ${esc(b.created.slice(0, 10))}</span></button>`).join("") || `<div class="panel empty">No public results on this server yet (run run_public_benchmarks.py).</div>`;
-  $$("#benchlist button").forEach((b) => b.onclick = () => { $$("#benchlist button").forEach((x) => x.classList.toggle("on", x === b)); openPublic(b.dataset.b); });
+  $("#benchlist").innerHTML += (META.external || []).map((e) => `<button data-e="${e.id}"><b>${esc(e.title)}</b><span>published run · ${esc(e.hardware.cpu || "")} · commit ${esc(e.commit.slice(0, 7))} (${esc(e.commit_date)}) · pinneapple-benchmark</span></button>`).join("");
+  $$("#benchlist button").forEach((b) => b.onclick = () => { $$("#benchlist button").forEach((x) => x.classList.toggle("on", x === b)); b.dataset.e ? openExternal(b.dataset.e) : openPublic(b.dataset.b); });
   if (P.length) openPublic(P[0].id);
   $("#regimes").innerHTML = Object.entries(META.regimes).map(([k, v]) => `<label title="${esc(v)}"><input type="checkbox" data-reg="${k}" checked> ${k.replace("_", " ")}</label>`).join("");
   $("#methods").innerHTML = META.methods.map((m) => `<label><input type="checkbox" data-m="${m.id}" checked> ${esc(m.title)}</label>`).join("");
@@ -36,6 +37,25 @@ async function api(url, opts) {
 async function openPublic(id) {
   const r = await api(`/api/public/${id}`);
   render(r, $("#view"), [[`/api/public/${id}/report.md`, "report.md"], [`/api/public/${id}/study_result.json`, "study_result.json"], [`/api/public/${id}`, "result.json"]]);
+}
+
+async function openExternal(id) {
+  const e = await api(`/api/external/${id}`), el = $("#view");
+  const H = e.hardware, probs = [...new Set(e.rows.map((r) => r.problem))];
+  let h = `<p class="prov">Published in <a class="link" href="${esc(e.repository)}/tree/${esc(e.commit)}/${esc(e.path)}" target="_blank">${esc(e.repository.replace("https://github.com/", ""))}/${esc(e.path)}</a> at commit <code>${esc(e.commit.slice(0, 10))}</code> (${esc(e.commit_date)}), ${esc(e.license)}. Run on <b>${esc(H.cpu || "?")}</b>, ${H.logical_cpus} logical CPUs, torch ${esc(H.torch || "?")}, ${H.torch_threads} thread per run, no GPU.</p>
+    <div class="panel"><p style="margin-top:0">${esc(e.protocol)}</p><p class="meta">${esc(e.note)} Methods marked INVALID failed the run's own training gates.</p></div>`;
+  for (const p of probs) {
+    const rows = e.rows.filter((r) => r.problem === p), meths = [...new Set(rows.map((r) => r.method))];
+    const cols = [...new Set(rows.filter((r) => r.kind === "field" || r.kind === "integral").map((r) => r.column))];
+    const get = (m, c) => rows.find((r) => r.method === m && r.column === c);
+    const best = Object.fromEntries(cols.map((c) => [c, Math.min(...meths.map((m) => (get(m, c) || {}).mean).filter((v) => v !== undefined))]));
+    h += `<div class="panel" style="margin-top:14px"><h3 style="margin-top:0">${esc(p.replace("_", " "))}</h3><div class="hscroll"><table class="matrix ext"><thead><tr><th>method</th>${cols.map((c) => `<th class="reg">${esc(c)}</th>`).join("")}<th class="num">train s</th><th class="num">time per instance</th><th>status</th></tr></thead><tbody>
+      ${meths.map((m) => { const st = (rows.find((r) => r.method === m) || {}).status || ""; return `<tr><td>${esc(m)}</td>${cols.map((c) => { const x = get(m, c); return x ? `<td class="cell ${x.mean === best[c] ? "r1" : ""}">${fmt(x.mean)} <span class="sd">± ${fmt(x.std)}</span></td>` : `<td class="na">—</td>`; }).join("")}
+        <td class="num">${fmt((get(m, "train_s") || {}).mean)}</td><td class="num">${sec((get(m, "time_per_instance_s") || {}).mean)}</td><td>${st === "INVALID" ? '<span class="badge fail">invalid</span>' : `<span class="badge pass">${esc(st)}</span>`}</td></tr>`; }).join("")}
+      </tbody></table></div><p class="meta">Mean ± std over ${(rows.find((r) => r.n_seeds) || {}).n_seeds || "?"} seeds; lower is better; best per column highlighted. Columns as published (test and OOD instance sets of the experiment).</p></div>`;
+  }
+  h += `<div class="panel" style="margin-top:14px"><div class="files"><a href="/api/external/${id}" download="${id}.json">${id}.json</a></div></div>`;
+  el.innerHTML = h;
 }
 
 // ------------------------------------------------------------------ result view

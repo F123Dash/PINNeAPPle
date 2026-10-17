@@ -41,6 +41,15 @@ def test_public_results_are_real_runs(client):
         assert client.get(f"/api/public/{b['id']}/study_result.json").json()["study_type"] == "benchmark"
 
 
+def test_external_published_results(client):
+    m = client.get("/api/meta").json()
+    assert [e["id"] for e in m["external"]] == ["bench09"] and len(m["external"][0]["commit"]) == 40
+    e = client.get("/api/external/bench09").json()
+    assert {r["problem"] for r in e["rows"]} == {"burgers", "darcy", "navier_stokes", "airfoil", "inverse_heat"}
+    fno = next(r for r in e["rows"] if r["problem"] == "burgers" and r["method"] == "fno" and r["set"] == "pinn_test")
+    assert abs(fno["mean"] - 0.001676527301879763) < 1e-12                 # as published, unchanged
+
+
 def test_private_benchmark(client):
     rng = np.random.default_rng(0)
     X = rng.uniform(0, 1, (120, 2))

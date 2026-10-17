@@ -13,7 +13,9 @@ by reputation and find out later.
 
 ## Input
 
-- Public benchmarks: two problems run by `run_public_benchmarks.py`. They are stored in `results/` with date, hardware
+- Public benchmarks: two problems run by `run_public_benchmarks.py`, plus the published results of
+  pinneapple-benchmark experiment 09 (`results/external/bench09/`, unchanged, with the source commit).
+- The two arena problems They are stored in `results/` with date, hardware
   and the dataset hash.
   - The OpenFOAM airfoil campaign of the zoo: scalars, 100 shapes.
   - Exact viscous Burgers fields with a declared PDE and a finite-difference solver baseline.
@@ -53,8 +55,9 @@ Not compared:
 - Graph networks need mesh connectivity, which parametric tables and grids lack. `pp.benchmark` runs MeshGraphNet on
   mesh fields.
 - R-OAMS is not in the library.
-- The pinneapple-benchmark repository was not reachable from this build, so its results are not imported. Only runs
-  executed here are shown.
+- Published runs of pinneapple-benchmark experiment 09 (PINN vs FNO vs DeepONet, MLP and MeshGraphNet on five
+  problems, `pp.benchmark` protocol) are shown as their own view, copied unchanged from the repository at a pinned
+  commit with their hardware record (`results/external/bench09/`). The arena did not rerun them.
 
 ## Integrations
 

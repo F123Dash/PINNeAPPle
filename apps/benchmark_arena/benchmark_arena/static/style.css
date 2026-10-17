@@ -37,3 +37,6 @@ td.num { white-space: nowrap; }
 .joblist button { border: 0; background: none; color: var(--brand); font-weight: 600; cursor: pointer; font: inherit; }
 .failed { color: var(--bad); font-size: 12px; }
 .costtab td:first-child { min-width: 220px; }
+.hscroll { overflow-x: auto; }
+table.ext th.reg { white-space: normal; min-width: 92px; max-width: 130px; vertical-align: bottom; }
+table.ext td.cell { font-size: 12px; }

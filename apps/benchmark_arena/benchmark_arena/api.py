@@ -1,7 +1,8 @@
 """Physics AI Benchmark Arena: which method works best for each physical problem, under one protocol.
 
 Public rankings come from benchmark runs that were actually executed (results/*.json, written by
-run_public_benchmarks.py with their date, hardware and dataset hash). Private benchmarks run the same protocol
+run_public_benchmarks.py with their date, hardware and dataset hash), and from published runs of the
+pinneapple-benchmark repository copied unchanged with their commit (results/external/<id>/). Private benchmarks run the same protocol
 (pinneapple_arena.regimes.run_regime_arena) on an uploaded dataset as a job: equal data, equal compute budget, same
 stopping rule, several seeds, per regime (interpolation, few data, extrapolation, geometry change, steep fronts),
 with cost, physics violations and an independent audit of the splits.
@@ -66,6 +67,23 @@ def _public() -> dict[str, dict[str, Any]]:
 
 
 PUBLIC = _public()
+
+
+def _external() -> dict[str, dict[str, Any]]:
+    """Published results of other benchmark runs, copied unchanged with their source (results/external/<id>/)."""
+    import csv
+    out = {}
+    for d in sorted((RESULTS / "external").glob("*/source.json")):
+        src = json.loads(d.read_text())
+        with open(d.parent / "table.csv", newline="") as f:
+            rows = [{k: (float(v) if k in ("mean", "std", "n", "n_seeds") and v not in ("", None) else v)
+                     for k, v in r.items()} for r in csv.DictReader(f)]
+        hw = json.loads((d.parent / "hardware.json").read_text()) if (d.parent / "hardware.json").exists() else {}
+        out[src["id"]] = {**src, "hardware": hw, "rows": rows}
+    return out
+
+
+EXTERNAL = _external()
 
 
 def _summary(r: dict[str, Any]) -> dict[str, Any]:
@@ -154,7 +172,9 @@ def meta():
             "methods": [{"id": c.id, "title": c.title, "family": c.family} for c in S.CANDIDATES.values()],
             "pde_types": {k: {"coords": list(v[0]), "coefficients": list(v[1])} for k, v in S.PDE_TYPES.items()},
             "limits": {"max_budget_s": MAX_BUDGET, "max_seeds": MAX_SEEDS, "max_rows": MAX_ROWS},
-            "public": [_summary(r) for r in PUBLIC.values()], "runtime": rt.describe()}
+            "public": [_summary(r) for r in PUBLIC.values()],
+            "external": [{k: v for k, v in e.items() if k != "rows"} for e in EXTERNAL.values()],
+            "runtime": rt.describe()}
 
 
 @app.get("/api/public")
@@ -186,6 +206,14 @@ def public_contract(bid: str):
     return Response(SC.arena_study_result(r, id=f"arena-{bid}", title=r.get("title", "")).to_json(),
                     media_type="application/json",
                     headers={"Content-Disposition": f'attachment; filename="arena-{bid}.study_result.json"'})
+
+
+@app.get("/api/external/{eid}")
+def external(eid: str):
+    """A published benchmark (e.g. pinneapple-benchmark experiment 09) as its source table, unchanged."""
+    if eid not in EXTERNAL:
+        raise HTTPException(404, "no such external benchmark")
+    return EXTERNAL[eid]
 
 
 OPTIONAL_FILE = File(default=None)

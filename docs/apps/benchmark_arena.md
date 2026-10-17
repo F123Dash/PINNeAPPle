@@ -23,9 +23,12 @@ numerical-solver baselines. The splits are audited independently by `pinneapple_
 checks of `pinneapple check`.
 
 **Results.** Public results are files in `apps/benchmark_arena/results/`, written by `run_public_benchmarks.py` with
-their date, hardware and dataset hash. Private benchmarks run the same protocol on an uploaded table as a job.
+their date, hardware and dataset hash. The published results of pinneapple-benchmark experiment 09 (five problems, `pp.benchmark`
+protocol) are shown unchanged with their source commit and hardware. Private benchmarks run the same protocol on an uploaded table as a job.
 
 ![Cost, physics, regimes and the dataset audit](../assets/apps/d22-arena-cost.jpg)
+
+![Published results of experiment 09](../assets/apps/d22-arena-bench09.jpg)
 
 **Library.** `pinneapple_arena.regimes`, `pinneapple_analysis.surrogate.methods`,
 `pinneapple_analysis.cost.equal_budget`, `pinneapple_data.audit`; guide:
