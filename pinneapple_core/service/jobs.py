@@ -388,25 +388,26 @@ class JobQueue:
             except (TypeError, ValueError) as exc:
                 kind, payload = "error", f"result is not JSON-serialisable: {exc}"
             else:
+                # the final log line first: a caller that sees the final status also sees the whole log
+                self.log(job_id, f"attempt {attempt} done", attempt)
                 self._db.conn.execute("UPDATE jobs SET status='done', result=?, progress=1, finished=?, error=NULL "
                                    "WHERE id=?", (result, now, job_id))
-                self.log(job_id, f"attempt {attempt} done", attempt)
                 return
         if kind in ("cancelled",):
+            self.log(job_id, payload, attempt)
             self._db.conn.execute("UPDATE jobs SET status='cancelled', finished=?, error=?, message=? WHERE id=?",
                                (now, None, payload, job_id))
-            self.log(job_id, payload, attempt)
             return
         current = self.get(job_id)
         if attempt <= current["max_retries"] and not current["cancel_requested"]:
+            self.log(job_id, f"attempt {attempt} failed ({payload}); retrying", attempt)
             self._db.conn.execute("UPDATE jobs SET status='queued', error=?, message=? WHERE id=?",
                                (payload, f"retrying after: {payload}"[:500], job_id))
-            self.log(job_id, f"attempt {attempt} failed ({payload}); retrying", attempt)
             self._wake.set()
         else:
+            self.log(job_id, f"attempt {attempt} failed: {payload}", attempt)
             self._db.conn.execute("UPDATE jobs SET status='failed', finished=?, error=? WHERE id=?",
                                (now, payload, job_id))
-            self.log(job_id, f"attempt {attempt} failed: {payload}", attempt)
 
 
 def _process_entry(pipe, ref: str, db_path: str, job_id: str, params: dict[str, Any], workdir: str,
