@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- 3-D case in the Surrogate Studio (day 14): the ROM Lab's solid FEM cantilever as a field dataset
+  (`pinneapple_analysis.surrogate.from_snapshots` / `snapshot_values` for snapshots on a node lattice). The page shows
+  held-out errors per field, per zone and on the tip displacement and the largest stress
+  (`pinneapple_analysis.surrogate.heldout`). It also shows the speed-up against a FEM solve timed on the machine,
+  and any held-out design on its body (surrogate, FEM, error), through `rom.views.prediction_view`, now shared by
+  the ROM Lab and the Surrogate Studio.
 - 3-D view of a held-out snapshot in the Reduced Order Model Lab (day 19): the FEM field, the ROM prediction and
   |ROM − FEM| on the deformed body, the clamp and load regions, the error hotspots and where the error concentrates
   against the study's numbers. `pinneapple_neural.architectures.rom.views.reconstruction_view` builds it.

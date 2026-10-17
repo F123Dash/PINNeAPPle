@@ -10,6 +10,11 @@
                   for ``n`` viscosities log-uniform in ``nu_range``; output the field u(x, t) on an ``nx`` x ``nt``
                   grid, t in [0, t_max]. Small viscosities form a steep front at x = 0 (a near-discontinuity); the
                   recommended shift split holds out the smallest viscosities.
+``cantilever_3d``  the 3-D solid FEM cantilever of the ROM Lab (``apps/rom_lab/examples/cantilever_designs.npz``: 100
+                  Latin-hypercube designs over height H, width W and load angle) as a field dataset on its
+                  31 x 4 x 7 node lattice: displacement (ux, uy, uz, mm) and von Mises stress (MPa). The FEM solve
+                  time is measured here, on this machine, by solving ``n_timed`` stored designs again (and checking
+                  that they reproduce the stored fields). The shift split holds out the smallest load angles.
 """
 from __future__ import annotations
 
@@ -17,7 +22,7 @@ import numpy as np
 
 from .data import SurrogateData
 
-__all__ = ["airfoil_rans", "burgers_fields", "burgers_fdm_baseline", "EXAMPLES"]
+__all__ = ["airfoil_rans", "burgers_fields", "burgers_fdm_baseline", "cantilever_3d", "EXAMPLES"]
 
 
 def airfoil_rans() -> SurrogateData:
@@ -61,6 +66,32 @@ def burgers_fields(n: int = 96, nu_range: tuple[float, float] = (0.004, 0.1), nx
             "constraints": ["abs(u) <= 1.005"],     # maximum principle |u| <= max |u(x, 0)| = 1, 0.5 % slack
             "pde": {"type": "burgers", "coords": {"x": "x", "t": "t"}, "coefficients": {"nu": "nu"}}}
     return SurrogateData(nus[:, None], U, ["nu"], ["u"], coords=coords, coord_names=["x", "t"], meta=meta)
+
+
+def cantilever_3d(path, n_timed: int = 2) -> SurrogateData:
+    """See the module docstring. ``path``: the snapshot file (``load_snapshots`` of the same file gives the mesh of
+    each design and the clamp and load sets for a 3-D view; ``snapshot_values`` maps predictions back)."""
+    import time
+
+    from pinneapple_data.snapshots import load_snapshots
+    from pinneapple_lab.experiments.rom import cantilever
+
+    from .data import from_snapshots
+    with open(path, "rb") as f:
+        snaps = load_snapshots([("cantilever_designs.npz", f.read())])
+    times = []
+    for i in range(n_timed):                                     # time the FEM here, and check it is the data's FEM
+        t0 = time.perf_counter()
+        r = cantilever(*snaps.params[i])
+        times.append(time.perf_counter() - t0)
+        stored = snaps.field_values("von_mises")[i]
+        if not np.allclose(r.von_mises / 1e6, stored, rtol=1e-4, atol=1e-4):
+            raise RuntimeError(f"design {i}: the FEM no longer reproduces the stored von Mises stress")
+    meta = {"source": "3-D solid FEM cantilever (pinneapple_lab.experiments.rom.cantilever, 30 x 3 x 6 hexahedra), "
+                      "100 Latin-hypercube designs", "solver": "pinneapple_simulation.numerical_solvers.solid_fem",
+            "solver_s_per_sample": float(np.median(times)) if times else None, "solver_s_timed_on": len(times),
+            "shift": {"column": "angle_deg", "side": "low"}}
+    return from_snapshots(snaps, meta=meta)
 
 
 def burgers_fdm_baseline(nx: int = 201, cfl: float = 0.4):

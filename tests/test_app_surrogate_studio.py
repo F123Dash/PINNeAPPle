@@ -38,7 +38,7 @@ def _wait(c, job_id, timeout=300):
 def test_health_meta_page(client):
     assert client.get("/health").json()["status"] == "ok"
     m = client.get("/api/meta").json()
-    assert {e["name"] for e in m["examples"]} == {"airfoil_rans", "burgers_fields"}
+    assert {e["name"] for e in m["examples"]} == {"airfoil_rans", "burgers_fields", "cantilever_3d"}
     assert {x["id"] for x in m["methods"]} >= {"gp", "mlp", "fno", "deeponet", "pinn"}
     assert "Surrogate Studio" in client.get("/").text and client.get("/docs").status_code == 200
 
@@ -75,3 +75,34 @@ def test_upload_inspect_and_train(client):
     bad = client.post("/api/studies", json={**body, "outputs": ["nope"]})
     assert bad.status_code == 422
     assert client.post("/api/studies", json={**body, "budget_s": 1e6}).status_code == 422
+
+
+def test_cantilever_3d_held_out_designs_on_the_mesh(client):
+    """The 3-D FEM cantilever: a field surrogate of displacement and stress, held-out errors per field, per zone and
+    on the read-off quantities, the speed-up from two timings, and a held-out design on its body."""
+    r = _wait(client, client.post("/api/studies", json={"example": "cantilever_3d", "methods": ["gp", "ridge"],
+                                                        "budget_s": 1.0}).json()["id"])
+    assert r["status"] == "done", r.get("error")
+    res = r["result"]
+    reasons = {m["id"]: m["reason"] for m in res["study"]["methods"]}
+    assert "1-D and 2-D" in reasons["fno"]                       # a 4-D lattice field: FNO says why it is not run
+    H = res["heldout3d"]
+    assert H["fem_s"] > 0 and H["fem_timed_on"] == 2 and H["speedup"] == pytest.approx(H["fem_s"] / H["infer_s"])
+    T = H["test"]
+    assert T["n"] == res["study"]["splits"]["n_test"] and H["shift"]["n"] == res["study"]["splits"]["n_shift"]
+    assert set(T["fields"]) == {"displacement", "von_mises"}
+    assert set(T["fields"]["von_mises"]["regions"]) == {"clamp zone", "loaded tip zone", "rest of the body"}
+    assert {q["name"] for q in T["qois"]} == {"max |displacement| on loaded tip", "max von_mises"}
+    # the extrapolated designs (smallest load angles) are worse than the interpolated ones
+    assert H["shift"]["fields"]["von_mises"]["rel_l2"] > T["fields"]["von_mises"]["rel_l2"]
+    v = client.get(f"/api/studies/{r['id']}/view3d", params={"split": "shift", "k": 0}).json()
+    assert [f["name"] for f in v["view"]["fields"]][:3] == ["displacement:full", "displacement:surrogate",
+                                                          "displacement:error"]
+    assert set(v["view"]["deform"]) == {"FEM", "Surrogate"} and v["view"]["deform"]["FEM"]["unit"] == "m"
+    assert v["errors"]["von_mises"]["rel_l2"] == pytest.approx(H["shift"]["samples"][0]["von_mises"], rel=1e-9)
+    assert "pooled over the" in v["errors"]["von_mises"]["summary"][0]
+    assert {m["kind"] for m in v["view"]["markers"]} >= {"bc", "load"}
+    glb = client.get(v["glb"])
+    assert glb.status_code == 200 and glb.content[:4] == b"glTF"
+    assert client.get(f"/api/studies/{r['id']}/view3d", params={"split": "test", "k": 999}).status_code == 422
+    assert client.get("/api/examples/cantilever_3d/data").status_code == 200

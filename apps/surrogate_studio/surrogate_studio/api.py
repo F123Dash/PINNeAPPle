@@ -16,6 +16,7 @@ Environment (all optional):
   SUR_MAX_ROWS                largest table, rows (default 20000)
   SUR_FREE_TRAININGS, SUR_FREE_INFERENCES, SUR_FREE_HOSTED_MODELS   free use per caller and month
   SUR_UPLOAD_MAX_MB, SUR_ADMIN_TOKEN, SUR_REQUIRE_API_KEY, SUR_DATA_DIR   see apps/_shared/README.md
+  SUR_VIEW_MAX_FACES          triangles of a 3-D view before it is decimated (default 250,000)
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ import json
 import os
 import re
 import sys
+import time
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -37,6 +39,7 @@ from pydantic import BaseModel, Field
 
 from pinneapple_analysis import surrogate as S
 from pinneapple_analysis.surrogate import contracts as SC
+from pinneapple_analysis.surrogate.heldout import heldout_report
 from pinneapple_core.jsonable import to_jsonable
 from pinneapple_registry.gateway import ModelGateway
 from pinneapple_registry.gateway_api import gateway_router
@@ -51,6 +54,9 @@ MAX_BUDGET = float(os.environ.get("SUR_MAX_BUDGET_S") or 30)
 MAX_SEEDS = int(os.environ.get("SUR_MAX_SEEDS") or 3)
 MAX_ROWS = int(os.environ.get("SUR_MAX_ROWS") or 20000)
 SUFFIXES = {".csv", ".txt", ".parquet", ".pq", ".json", ".h5", ".hdf5", ".npz"}
+VIEW_MAX_FACES = int(os.environ.get("SUR_VIEW_MAX_FACES") or 250_000)
+# the 3-D FEM cantilever designs of the ROM Lab (apps/rom_lab/examples): one dataset, two apps
+CANTILEVER = HERE.parents[1] / "rom_lab" / "examples" / "cantilever_designs.npz"
 
 EXAMPLES: dict[str, dict[str, Any]] = {
     "airfoil_rans": {
@@ -65,6 +71,13 @@ EXAMPLES: dict[str, dict[str, Any]] = {
                        "0.004 .. 0.1; the PDE is declared, so a PINN competes. The smallest viscosities (steepest "
                        "fronts) are held out.",
         "params": {"budget_s": 2.0, "seeds": 1, "model_name": "example-burgers-u"}},
+    "cantilever_3d": {
+        "title": "3-D solid FEM cantilever (displacement and stress fields)",
+        "description": "100 solid-FEM cantilevers (height, width, load angle; Latin hypercube), the ROM Lab's data: "
+                       "displacement and von Mises stress on the 31 x 4 x 7 node lattice. The smallest load angles are "
+                       "held out as the shift. The FEM is timed here (two designs solved again) for the speed-up; "
+                       "the held-out designs open in 3-D.",
+        "params": {"budget_s": 3.0, "seeds": 1, "model_name": "example-cantilever-3d"}},
 }
 
 app = FastAPI(title="Surrogate Studio", version=VERSION,
@@ -102,6 +115,8 @@ def _read(path: Path):
 
 
 def _data(params: dict[str, Any]) -> S.SurrogateData:
+    if params.get("example") == "cantilever_3d":
+        return S.examples.cantilever_3d(CANTILEVER)
     if params.get("example"):
         return S.examples.EXAMPLES[params["example"]]()
     df, _ = _read(Path(params["path"]))
@@ -201,12 +216,35 @@ def study_job(params: dict[str, Any], ctx) -> dict[str, Any]:
             exports.append(fname)
         except Exception as e:  # noqa: BLE001 (reported, not hidden)
             ctx.log(f"{fmt} export not available: {e}")
+    heldout = _heldout(params, st, data)
     ctx.progress(1.0, "done")
-    return to_jsonable({"study": st.to_dict(), "model": {"name": name, "version": version, "uri": uri, "stage": stage,
+    return to_jsonable({"heldout3d": heldout, "study": st.to_dict(), "model": {"name": name, "version": version, "uri": uri, "stage": stage,
                                                          "ood_policy": params.get("ood_policy", "warn")},
                         "model_ref": ref.to_dict(), "study_result_passed": result.passed,
                         "parity": _parity(st, data), "files": sorted([*files, "model.zip", *exports]),
                         "example": params.get("example")})
+
+
+def _snapshots(params: dict[str, Any]):
+    """The snapshot set behind a lattice field dataset (its meshes and node sets), or None."""
+    if params.get("example") != "cantilever_3d":
+        return None
+    from pinneapple_data.snapshots import load_snapshots
+    return load_snapshots([(CANTILEVER.name, CANTILEVER.read_bytes())])
+
+
+def _heldout(params: dict[str, Any], st, data) -> dict[str, Any] | None:
+    """Held-out errors per field, per region and on the scalar quantities, and the measured speed-up."""
+    snaps = _snapshots(params)
+    if snaps is None:
+        return None
+    sb = next(r for r in st.methods if r["id"] == st.best)["summary"]
+    fem = data.meta.get("solver_s_per_sample")
+    return {"test": heldout_report(snaps, data, st.model, st.splits.test),
+            "shift": heldout_report(snaps, data, st.model, st.splits.shift),
+            "fem_s": fem, "fem_timed_on": data.meta.get("solver_s_timed_on"), "infer_s": sb["infer_s_per_query"],
+            "speedup": fem / sb["infer_s_per_query"] if fem and sb.get("infer_s_per_query") else None,
+            "channels": data.meta.get("channels")}
 
 
 rt.jobs.register("study", study_job)
@@ -310,11 +348,62 @@ def study_file(request: Request, job_id: str, name: str):
     return FileResponse(rt.jobs.workdir / job_id / name, filename=f"{job_id}-{name}")
 
 
+def _view(request: Request, job_id: str, split: str, k: int):
+    """3-D view of held-out sample ``k`` of ``split``: the FEM field, the surrogate's and the error on the body."""
+    job = rt.job_for(request, job_id)
+    res = job.get("result") or {}
+    if job["status"] != "done" or not res.get("heldout3d"):
+        raise HTTPException(409, "only finished studies of mesh data (the 3-D cantilever) have a 3-D view")
+    if split not in ("test", "shift"):
+        raise HTTPException(422, "split is test or shift")
+    rep = res["heldout3d"][split]
+    if not 0 <= k < rep["n"]:
+        raise HTTPException(422, f"k is 0 .. {rep['n'] - 1}")
+    wd = rt.jobs.workdir / job_id
+    js, glb = wd / "views" / f"{split}_{k}.json", wd / "views" / f"{split}_{k}.glb"
+    if not (js.is_file() and glb.is_file()):
+        from pinneapple_neural.architectures.rom.views import prediction_view
+        snaps = _snapshots(job["params"])
+        data = S.from_snapshots(snaps)
+        model = S.SurrogateModel.load(wd / "model")
+        i = rep["indices"][k]
+        t0 = time.perf_counter()
+        y = model.predict_array(data.X[i:i + 1])
+        dt = time.perf_counter() - t0
+        pred = S.snapshot_values(snaps, data, y)[0]
+        fv, info = prediction_view(
+            snaps, i, pred, label="Surrogate", full_label="FEM", note=f"surrogate: {res['study']['best']}",
+            max_faces=VIEW_MAX_FACES,
+            reported_by_field={n: {f"pooled over the {rep['n']} {split} designs": f["rel_l2"]}
+                               for n, f in rep["fields"].items()})
+        info.update(index=i, params=dict(zip(data.input_names, data.X[i].tolist(), strict=True)),
+                    predict_s=dt)
+        js.parent.mkdir(exist_ok=True)
+        glb.write_bytes(fv.glb())
+        js.write_text(json.dumps(to_jsonable({"view": fv.meta, **info})))
+    out = json.loads(js.read_text())
+    return {**out, "glb": f"/api/studies/{job_id}/view3d.glb?split={split}&k={k}"}, glb
+
+
+@app.get("/api/studies/{job_id}/view3d")
+def view3d(request: Request, job_id: str, split: str = "test", k: int = 0):
+    """A held-out design of a mesh study in 3-D: FEM, surrogate and |surrogate - FEM| on the deformed body, the
+    clamp and load sets, the error hotspots and where the error concentrates. The glTF is at ``view3d.glb``."""
+    return _view(request, job_id, split, k)[0]
+
+
+@app.get("/api/studies/{job_id}/view3d.glb")
+def view3d_glb(request: Request, job_id: str, split: str = "test", k: int = 0):
+    return FileResponse(_view(request, job_id, split, k)[1], media_type="model/gltf-binary")
+
+
 @app.get("/api/examples/{name}/data")
 def example_data(name: str):
-    """The example as a CSV, to see what an upload looks like."""
+    """The example as a CSV, to see what an upload looks like (the cantilever: its snapshot file)."""
     if name not in EXAMPLES:
         raise HTTPException(404, "no such example")
+    if name == "cantilever_3d":
+        return FileResponse(CANTILEVER, filename=CANTILEVER.name)
     d = S.examples.EXAMPLES[name]()
     import pandas as pd
     cols = {n: d.X[:, i] for i, n in enumerate(d.input_names)}

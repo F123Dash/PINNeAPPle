@@ -165,3 +165,26 @@ def test_airfoil_example_is_the_zoo_campaign():
     d = S.examples.airfoil_rans()
     assert d.input_names[-1] == "alpha_deg" and d.output_names == ["Cl", "Cd"]
     assert d.groups is not None and len(np.unique(d.groups)) == 100 and (d.Y[:, 1] > 0).all()
+
+
+def test_snapshots_on_a_node_lattice_become_a_field_and_back():
+    from pinneapple_analysis.surrogate.data import from_snapshots, lattice_order, snapshot_values
+    from pinneapple_analysis.surrogate.heldout import heldout_report, region_rel_l2
+    from pinneapple_data.snapshots import snapshots_from_arrays
+    rng = np.random.default_rng(0)
+    g = np.stack(np.meshgrid(np.linspace(0, 2, 5), [0.0, 1.0], [0.0, 0.5, 1.0], indexing="ij"), -1).reshape(-1, 3)
+    perm = rng.permutation(len(g))                                # any node order
+    P = rng.uniform(0, 1, (30, 2))
+    u = np.stack([np.outer(P[:, 0], g[perm, 0]), np.outer(P[:, 1], g[perm, 2]), np.zeros((30, len(g)))], -1)
+    s = snapshots_from_arrays({"u": u, "T": P[:, :1] * g[perm, 0][None]}, params=P, param_names=["a", "b"],
+                              locations={"point": g[perm]})
+    shape, order = lattice_order(g[perm])
+    assert shape == (5, 2, 3) and np.allclose(g[perm][order], g)
+    d = from_snapshots(s)
+    assert d.kind == "field" and d.grid_shape == (5, 2, 3, 4) and d.meta["channels"] == ["u[0]", "u[1]", "u[2]", "T"]
+    assert np.allclose(snapshot_values(s, d, d.Y), s.X)          # exact round trip to the snapshot layout
+    assert lattice_order(rng.uniform(0, 1, (12, 3))) is None
+    exact = type("Exact", (), {"predict_array": lambda self, X: d.Y[[int(np.argmin(np.abs(P - x).sum(1))) for x in X]]})()
+    rep = heldout_report(s, d, exact, [3, 7])                   # a perfect model: every error is zero
+    assert rep["fields"]["u"]["rel_l2"] == 0 and rep["qois"][0]["rel_error_max"] == 0
+    assert region_rel_l2(np.ones((2, 4)), np.ones((2, 4)) * 2, {"all": [0, 1, 2, 3]}) == {"all": 0.5}
