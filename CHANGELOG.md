@@ -14,6 +14,17 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- 3-D view of a held-out snapshot in the Reduced Order Model Lab (day 19): the FEM field, the ROM prediction and
+  |ROM − FEM| on the deformed body, the clamp and load regions, the error hotspots and where the error concentrates
+  against the study's numbers. `pinneapple_neural.architectures.rom.views.reconstruction_view` builds it.
+  `pinneapple_data.snapshots` keeps a mesh with the snapshots (`cells_<type>`, `snapshot_points`, `node_sets`;
+  `SnapshotSet.mesh(i)`), also for VTU/VTK/FRD series; the cantilever example carries its mesh.
+- 3-D field views for the apps: `pp.viz.field_view` (`pinneapple_tools.visualization.studio.fieldview`) turns a
+  mesh with values, errors, nodal displacements and marked regions into a glTF and a description (colour ranges, one
+  scale per group, errors from 0 to their 99th percentile, decimation above 250 k triangles). The shared page module
+  `apps/_shared/static/shared/fieldview3d.js` shows it with the vendored three.js: field switch, colour bar, deformed
+  shape with a scale factor, labelled regions, probe. `pinneapple_analysis.validation.error_map` gives the pointwise
+  error, its hotspots, its share per named region and a short summary; `studio-core.js` gains the error scale `ERR`.
 - Zoo dataset `cylinder_wake_lbm` (Hub-only): 720 vorticity snapshots of a confined cylinder wake at Re 20–100
   (D2Q9 lattice Boltzmann, blockage 0.2), labelled by regime, Strouhal number and wake amplitude. It is split by
   Reynolds number, and every shedding run is saturated. The card carries a channel-flow check and a D = 20/30/40
