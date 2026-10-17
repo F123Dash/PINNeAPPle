@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- `train_gnn` (`pinneapple_design.aero.train`) gains `checkpoint_dir` and `checkpoint_every`. Every few epochs it
+  saves the full training state (weights, optimiser, epoch, elapsed time, history, shuffling RNG). A later call with
+  the same settings resumes from it to the same weights as an uninterrupted run, and a checkpoint written with other
+  settings is refused (#780). `scripts/zoo/train_airfoil_gnn.py` trains the airfoil graph network on the regenerated
+  campaign with checkpoints, and `build_assets.py --airfoil-gnn` gates and packages it. The first such network was
+  rejected by the gate: its coefficients pass, but its field errors and stagnation pressure fail (see the inventory).
 - Meshless Method Lab app (day 26, `apps/meshless_lab`, meshless.pinneapple.org, port 8109): a Poisson, Helmholtz or
   heat problem (manufactured solution or source + boundary value) on a preset, polygon or point-cloud domain, solved
   by Kansa, RBF-FD, embedded finite differences, linear FEM and a PINN in a queued refinement study on the shared
