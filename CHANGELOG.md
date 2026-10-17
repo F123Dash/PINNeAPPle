@@ -27,6 +27,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
     and validates on held-out or extrapolated rows.
   - `compare_methods` / `solve_inverse` run least squares, adjoint, autodiff, Bayesian and PINN on the same data.
   - Ten presets with known answers.
+  - `inverse_problems.contracts` maps parameters, reports, calibrations and comparisons to the shared app contracts
+    (`ParameterSpace`, a `StudyResult` of type identifiability, calibration or inverse, and a `ModelRef` with
+    held-out metrics). It needs `pinneapple_data.contracts`.
 - `heat_transfer.run_plate` accepts measured `readings` at `sensors_mm` and an air temperature `t_air`, so the plate
   PINN can be run on given data (the synthetic default is unchanged).
 - Zoo dataset `airfoil_rans_cst_re4e6_fields` (Hub-only, 186 MB in 5 files): the cell fields p, Ux, Uy, nut and

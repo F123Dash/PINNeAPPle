@@ -194,3 +194,28 @@ def test_model_from_spec_validates_options():
     with pytest.raises(ValueError):
         inv.model_from_spec({"type": "nope"})
     assert {p["id"] for p in inv.list_presets()} >= {"fin_h", "plate_h", "rod_h_field"}
+
+
+def test_contracts_round_trip():
+    contracts = pytest.importorskip("pinneapple_data.contracts")
+    from pinneapple_analysis.inverse_problems import contracts as ic
+
+    b = inv.get_preset("fin_h_k_flux").build()
+    space = ic.to_parameter_space(b["parameters"], "fin", groups={"h": "boundary", "k": "material"})
+    back = ic.parameters_from_space(contracts.ParameterSpace.from_json(space.to_json()))
+    assert [p.name for p in back if not p.fixed] == ["h", "k"]
+    rep = inv.analyze_identifiability(b["model"], b["observations"], b["parameters"], posterior=False)
+    st = ic.identifiability_study(rep.to_dict(), b["parameters"], model="pin_fin")
+    assert st.study_type == "identifiability" and st.passed
+    cal = inv.calibrate(b["model"], b["observations"], b["parameters"], holdout=b["validation"], bootstrap=0)
+    sc = ic.calibration_study(cal.to_dict(), b["parameters"], model="pin_fin")
+    assert sc.models and sc.models[0].metrics_split == "holdout"
+    assert contracts.from_dict(json.loads(sc.to_json())).id == sc.id
+    out = inv.compare_methods(inv.get_preset("rod_base_bc").problem(), ["least_squares", "adjoint"])
+    si = ic.inverse_study(out, inv.get_preset("rod_base_bc").build()["parameters"])
+    assert si.passed and len(si.table.columns["method"]) == 4
+    bad = ic.identifiability_study(inv.analyze_identifiability(
+        inv.get_preset("fin_h_k").build()["model"], inv.get_preset("fin_h_k").build()["observations"],
+        inv.get_preset("fin_h_k").build()["parameters"], profile=False, posterior=False).to_dict(),
+        inv.get_preset("fin_h_k").build()["parameters"])
+    assert not bad.passed
