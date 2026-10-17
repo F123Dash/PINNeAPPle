@@ -202,6 +202,28 @@ run, half the samples stayed under the flux limit.
   runs every sample of a batch was identical.
 - **Not caught:** the boundary and positivity checks, as expected, do not see either problem.
 
+## In a Veriphysics Evidence Report: scope of use
+
+An approve / reject verdict says whether to use a result, not *for what*. `python run.py report` writes a Decision
+Record and an Evidence Report PDF per model with a scope of use (`pinneapple_veriphysics.scope`): each use with its
+verdict over the test set, the share of samples that serve it, the median measured value against the limit, what
+the use needs, and the kind of evidence. The input check is a precondition of every use. The shifted regimes are
+notes, and the figure above is embedded in the PDF. For the FNO:
+
+```text
+Scope of use -- PhysicsNeMo FNO, test set
+  use for: interior field; not for: walls and fluxes; preconditions met
+  - [USABLE] interior field (99 % of samples): median interior 2.3 % (limit 5 %) [estimated]
+  - [NOT USABLE] walls and fluxes (0 % of samples): median wall 31.9 % (limit 5 %), median flux 13.3 % (limit 2 %) [estimated]
+  - [MET] inputs (95 % of samples): 95 % of samples OK [input check]
+  note: PhysicsNeMo FNO, contrast a in {1, 20}: not for: interior field, walls and fluxes; precondition not met: inputs
+  note: PhysicsNeMo FNO, 3x shorter length scale (tau 9): use for: interior field; not for: walls and fluxes; precondition not met: inputs
+```
+
+The MeshGraphNet record reads "not for: interior field, walls and fluxes; preconditions met". The use verdicts are
+estimated (no guarantee); the record says how the estimate was validated on this case. The certified profiles stay
+in the reasoning line (both models REJECT `fields` and `fluxes` on the test set).
+
 ## Limits
 
 - One problem (2-D Darcy, constant source) and one seed per model. The MeshGraphNet configuration was reduced to
