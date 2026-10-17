@@ -15,8 +15,7 @@ by reputation and find out later.
 
 - Public benchmarks: two problems run by `run_public_benchmarks.py`, plus the published results of
   pinneapple-benchmark experiment 09 (`results/external/bench09/`, unchanged, with the source commit).
-- The two arena problems They are stored in `results/` with date, hardware
-  and the dataset hash.
+- The two arena problems are stored in `results/` with date, hardware and the dataset hash:
   - The OpenFOAM airfoil campaign of the zoo: scalars, 100 shapes.
   - Exact viscous Burgers fields with a declared PDE and a finite-difference solver baseline.
 - Private benchmarks: your table of runs (CSV, Parquet, JSON, HDF5, NPZ, or a `DatasetSpec`), with:
