@@ -143,7 +143,8 @@ def run(smoke: bool = True, out_dir: str | None = None, blender: bool | None = N
                "comparison": {g: {s: {k: v for k, v in d.items() if k != "curves"} for s, d in c.items()}
                               for g, c in comps.items()},
                "best": {g: {k: v for k, v in b.items() if k not in ("run", "asm", "goal")} for g, b in best.items()},
-               "sensitivity": sens, "references": refs, "files": files, "cross_checks": checks, "notes": notes}
+               "sensitivity": sens, "references": refs, "files": {k: os.path.relpath(v, out) for k, v in files.items()},
+               "cross_checks": checks, "notes": notes}
     with open(os.path.join(out, "summary.json"), "w") as f:
         json.dump(pp.to_jsonable(summary), f, indent=1)
     print(f"report: {files['report']}")

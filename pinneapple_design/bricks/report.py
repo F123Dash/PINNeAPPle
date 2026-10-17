@@ -1,6 +1,7 @@
 """Summaries of a brick experiment: sensitivity to the joint model, the strategy comparison chart, a Markdown report."""
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 
 import numpy as np
@@ -32,8 +33,8 @@ def sensitivity(goal: Goal, asm, factors: Sequence[float] | None = None, shear_c
 
 
 def plot_comparison(summaries: dict[str, dict], path: str, *, ylabels: dict[str, str] | None = None) -> str:
-    """Best feasible score versus physics evaluations: one panel per goal, median line and min-max band per strategy
-    over the seeds."""
+    """Best feasible score versus physics evaluations: one panel per goal, median line (seeds without a feasible
+    build count as worst) and min-max band of the feasible seeds per strategy, with the feasible count at the end."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -42,18 +43,33 @@ def plot_comparison(summaries: dict[str, dict], path: str, *, ylabels: dict[str,
     axes = np.atleast_1d(axes)
     for ax, g in zip(axes, goals, strict=True):
         ax.set_facecolor(SURFACE)
+        ends = []
         for s, summ in summaries[g].items():
             C = np.asarray(summ["curves"], float)
             x = np.arange(1, C.shape[1] + 1)
-            with np.errstate(all="ignore"):
-                med = np.nanmedian(C, 0)
-                lo, hi = np.nanmin(C, 0), np.nanmax(C, 0)
-            ax.fill_between(x, lo, hi, color=SERIES.get(s, MUTED), alpha=0.16, linewidth=0)
-            ax.plot(x, med, color=SERIES.get(s, MUTED), lw=2, label=f"{s} (median, min-max of {C.shape[0]} seeds)")
+            ok = np.isfinite(C)
+            # a seed with no feasible build yet ranks below every feasible one: the median exists only where more
+            # than half of the seeds are feasible, the band spans the feasible seeds
+            med = np.median(np.where(ok, C, -np.inf), 0)
+            med[~np.isfinite(med)] = np.nan
+            with warnings.catch_warnings():                 # columns where no seed is feasible yet
+                warnings.simplefilter("ignore", RuntimeWarning)
+                lo = np.where(ok.any(0), np.nanmin(np.where(ok, C, np.nan), 0), np.nan)
+                hi = np.where(ok.any(0), np.nanmax(np.where(ok, C, np.nan), 0), np.nan)
+            col = SERIES.get(s, MUTED)
+            ax.fill_between(x, lo, hi, color=col, alpha=0.16, linewidth=0)
+            n_ok = int(ok[:, -1].sum())
+            ax.plot(x, med, color=col, lw=2, label=f"{s}: median and range of {C.shape[0]} seeds")
             last = np.where(np.isfinite(med))[0]
             if len(last):
-                ax.annotate(f"{med[last[-1]]:.0f}", (x[last[-1]], med[last[-1]]), xytext=(4, 0),
-                            textcoords="offset points", va="center", fontsize=8, color=INK)
+                ends.append([med[last[-1]], x[last[-1]], f"{med[last[-1]]:.0f} ({n_ok}/{C.shape[0]} feasible)"])
+        ends.sort()
+        span = np.ptp(ax.get_ylim())
+        for k in range(1, len(ends)):                     # keep the end labels apart
+            ends[k][0] = max(ends[k][0], ends[k - 1][0] + 0.07 * span)
+        for yv, xv, txt in ends:
+            ax.annotate(txt, (xv, yv), xytext=(4, 0), textcoords="offset points", va="center", fontsize=8,
+                        color=INK)
         ax.set_title(g, fontsize=11, color=INK, loc="left")
         ax.set_xlabel("physics evaluations", fontsize=9, color=MUTED)
         ax.set_ylabel((ylabels or {}).get(g, "best score"), fontsize=9, color=MUTED)
@@ -146,7 +162,9 @@ def write_report(path: str, *, validation: dict, comparisons: dict[str, dict], b
                          f"{_fmt(r['utilisation'])} |")
         L.append("")
     if files:
-        L += ["## Files", ""] + [f"- {k}: `{v}`" for k, v in files.items()] + [""]
+        import os
+        here = os.path.dirname(os.path.abspath(path))
+        L += ["## Files", ""] + [f"- {k}: `{os.path.relpath(v, here)}`" for k, v in files.items()] + [""]
     with open(path, "w") as f:
         f.write("\n".join(L))
     return path

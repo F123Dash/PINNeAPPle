@@ -98,4 +98,44 @@ python examples/bricks/self_modifying_bricks.py --full       # 5 seeds x 400 eva
 python -m pinneapple_lab sweep bricks -g case=cantilever,bridge,tower
 ```
 
-RESULTS
+## Results of the full run
+
+5 seeds, 400 physics evaluations per run and strategy (`examples/bricks/_out/report.md` has every number,
+`summary.json` the raw values).
+
+**Closed forms.** All nine checks pass (trust report APPROVED): the LP reproduces the harmonic stacking limit and
+the single-block limit exactly, the stud-cantilever tension and the tower tipping push to 1e-16, the beam reactions
+to 1e-15; the voxel FEA beam deflection is within 0.4 % of Timoshenko (1.4 % above Euler-Bernoulli alone, which
+leaves out shear). Newton agrees with harmonic stacking at 0.9x to 0.99x (stands) and 1.01x to 1.05x (falls). It
+disagrees at exactly 1.00x, the neutral equilibrium of the closed form, where it tips the stack.
+
+| goal | evolution (mean +- std, min-max) | surrogate-guided | best build |
+|---|---|---|---|
+| cantilever, reach past the edge with 8 parts | 115.1 +- 14.8 mm (95.9-135.9) | 102.3 +- 20.5 mm (71.9-127.9) | 135.9 mm, 34 % of the clutch |
+| bridge over 96 mm carrying 1 N, parts | 4.6 +- 0.8 (3-5), 5/5 seeds feasible | 4.7 +- 2.4 (3-8), 3/5 feasible | 3 parts, carries 1.46 N |
+| tower that survives a 10 mN push, height | 105.0 +- 32.5 mm (57.6-144.0) | 113.3 +- 30.4 mm (70.4-153.6) | 153.6 mm, 16 parts, 1.64 x the push |
+
+Neither strategy dominates: evolution is ahead on the cantilever and more reliable on the bridge, the
+surrogate-guided search is ahead on the tower; the spread over seeds is as large as the gap between them. For
+reference, unconnected blocks of the same length reach (L/2) H_8 = 86.7 mm (harmonic stacking), so the stud
+clutch buys 57 % more reach (135.9 mm), still far below the 255 mm centre-of-mass bound.
+
+**Sensitivity.** The best cantilever and tower stand over the whole assumed clutch band (0.5x to 1.5x) and with
+stud shear capped at 0.3 N; the best bridge fails at 0.5x clutch (0.49 N per stud, load factor 0.80) and stands
+from 0.75x, so its verdict depends on the joint strength.
+
+**Statics against Newton** (searched candidates, every joint intact, dt = 0.25 ms): agreement 90 % on cantilevers,
+100 % on bridges, 75 % on towers; every disagreement is a statics "mechanism" that Newton keeps standing:
+
+- cantilever (2 cases): the centre of mass is 0.2 and 0.5 mm past the inset support, inside the 0.5 mm edge inset
+  that the statics assumes and Newton's sharp boxes do not;
+- tower (5 cases): no equilibrium in the statics although the resultant is inside the support; Newton shows a
+  slow drift of 0.1 to 0.8 mm without tilting, which points to sliding at the friction limit. The single-stud
+  torsion assumption explains 2 of 40 tower mechanisms; the rest is not explained.
+
+XPBD friction creeps under a sustained sideways load: the best tower drifts 0.23 mm at dt = 1 ms and 0.03 mm at
+0.25 ms in 0.6 s while the statics says friction holds, so the cross-check uses the small step.
+
+**Limits.** The verdicts rest on the cited 0.98 N clutch, which has no published uncertainty, on rigid parts and
+the most favourable force distribution (optimistic for brittle clutch), on unbounded stud shear and on an assumed
+friction coefficient. Nothing here was compared with physical builds.

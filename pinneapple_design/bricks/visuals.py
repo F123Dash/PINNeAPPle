@@ -407,20 +407,32 @@ def blender_available() -> bool:
 
 
 def render_blender(asm: Assembly, out: str, *, values: Sequence[float] | None = None, view="iso",
-                   samples: int = 64, size=(1280, 720), title: str | None = None, **kw) -> str:
-    """Cycles render of the build in its brick colours, or coloured by ``values`` per brick (stud utilisation)."""
+                   samples: int = 64, size=(1280, 720), title: str | None = None,
+                   tables: Sequence[tuple[np.ndarray, np.ndarray]] | None = None, **kw) -> str:
+    """Cycles render of the build in its brick colours, or coloured by ``values`` per brick (stud utilisation).
+    ``tables``: table boxes [mm] drawn with the build (default: :func:`scenery` of the build; ``[]`` for none)."""
     import tempfile
 
     from pinneapple_tools.visualization.studio.blender import render
+    from pinneapple_tools.visualization.studio.scene import Surface
 
     from .mesh import studio_scene
+    tables = scenery([asm], thickness=24.0, margin=24.0) if tables is None else tables
+
+    def add_tables(sc):
+        for k, (lo, hi) in enumerate(tables):
+            V, F = box_mesh(lo, hi)
+            sc.surfaces.append(Surface(f"table_{k}", V / 1000.0, F, material="table"))
     if values is None:
         sc, mats = studio_scene(asm)
+        add_tables(sc)
+        mats["table"] = {"color": [0.62, 0.55, 0.47], "metallic": 0.0, "roughness": 0.8}
         glb = os.path.join(tempfile.mkdtemp(), "build.glb")
         with open(glb, "wb") as f:
             f.write(sc.to_glb(materials=mats))
         return render(glb, out, view=view, samples=samples, size=size, title=title, colorbar_on=False, **kw)
     sc, _ = studio_scene(asm, fields={UTIL_FIELD: values})
+    add_tables(sc)                                           # no field on the tables: drawn grey
     sc.labels[UTIL_FIELD] = "stud utilisation (tension / clutch)"
     return render(sc, out, field=UTIL_FIELD, field_range=(0.0, 1.0), view=view, samples=samples, size=size,
                   title=title or "stud utilisation", **kw)
