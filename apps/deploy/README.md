@@ -63,6 +63,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `inverse-studio` | A | `<server IPv4>` |
 | `guiagent` | A | `<server IPv4>` |
 | `optimize` | A | `<server IPv4>` |
+| `design` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -85,9 +86,9 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 
 | Variable | Meaning |
 |---|---|
-| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN`, `MDL_DOMAIN`, `ARN_DOMAIN`, `SUR_DOMAIN`, `EDO_DOMAIN` | Public hostnames (must match the DNS records) |
+| `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN`, `MDL_DOMAIN`, `ARN_DOMAIN`, `SUR_DOMAIN`, `EDO_DOMAIN`, `PDO_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR, ARN, MDL, TWIN, ANOMALY, CONTROL, EDO) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR, ARN, MDL, TWIN, ANOMALY, CONTROL, EDO, PDO) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
@@ -134,7 +135,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration models arena surrogate twin anomaly control optimize
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration models arena surrogate twin anomaly control optimize design
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -488,6 +489,17 @@ optimize.example.org {
 		}
 	}
 }
+design.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy pinneapple-design:8106 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -557,9 +569,12 @@ The zoo models and datasets ship in the image; no outbound network is needed. Bu
 Runs `pinneapple check` on uploaded predictions, results or a zoo model and reports numerical verification,
 validation against data and physical consistency separately, with an evidence record per check. Uploaded Python
 models and checkpoints are refused (they would run uploaded code); zoo models ship in the image. Each validation
-runs in a temporary folder that is deleted afterwards: nothing is stored. `VAL_MAX_HEAVY` validations run at once per
-worker (the excess gets HTTP 429), `VAL_MAX_MB` caps an upload. 1 GB of memory is enough: the examples take under a
-second.
+runs in a temporary folder that is deleted afterwards. Only the glTF of a 3-D view is kept (the prediction, reference
+and error on the mesh of a 3-D result with a reference): the newest `VAL_VIEWS_KEPT` (300) files in the app's data
+directory (`VAL_DATA_DIR`, default `/data/validate` when `/data` is writable, else the user's home), each decimated
+above `VAL_VIEW_MAX_FACES` (250,000) triangles. They are a cache: a lost file only means running the validation again.
+`VAL_MAX_HEAVY` validations run at once per worker (the excess gets HTTP 429), `VAL_MAX_MB` caps an upload. 1 GB of
+memory is enough: the examples take under a second, the 3-D one about two.
 
 ## Engineering Evidence Report (`evidence`)
 
@@ -703,6 +718,15 @@ of the shared runtime (`apps/_shared/README.md`): state, uploads and API keys ar
 `EDO_SOLVERS` (JSON) lists external solvers the operator allows as references, e.g.
 `{"cfd": {"command": ["/opt/solver/run.sh", "{inputs}", "{outputs}"], "outputs": ["t_source_c"], "timeout": 900}}`;
 users can only pick from this list, never send a command. 1 GB is enough (one worker, torch CPU).
+
+## Physics Design Optimizer (`design`)
+
+Gradient-aware design optimisation (day 23): autograd through differentiable surrogates, SLSQP, NSGA-II,
+differential evolution and Bayesian optimisation compared on the same budget, candidates verified with the heat-sink
+FVM engine, STL/STEP/CSV exports. Each study is a job of the shared runtime (`apps/_shared/README.md`): state and
+API keys are in the `design_data` volume; `PDO_MAX_JOBS` studies run at once (2 by default; more wait in the queue).
+Metered per caller and month: `PDO_FREE_EVALUATIONS` (200000), `PDO_FREE_CAMPAIGNS` (100), `PDO_FREE_SOLVER_RUNS`
+(500). A study is capped at 40000 evaluations (150 per run with Bayesian optimisation). 1 GB is enough.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
