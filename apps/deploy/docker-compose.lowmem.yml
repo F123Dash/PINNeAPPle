@@ -47,3 +47,5 @@ services:
     mem_limit: 1800m    # torch + the graph network + the stored search: ~700 MB idle, more while searching
   observatory:
     mem_limit: 1200m    # torch for the PINN surrogate (~500 MB idle); one worker by default
+  design:
+    mem_limit: 800m     # torch + the zoo models, one worker; heavy runs are jobs (PDO_MAX_JOBS)

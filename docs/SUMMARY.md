@@ -58,6 +58,7 @@
     * [Zoo catalogue](guides/zoo_catalogue.md)
     * [Geometry library](guides/geometry_library.md)
     * [Design studies: optimisers and verified candidates](guides/design_studies.md)
+    * [App: Physics Design Optimizer](guides/physics_design_optimizer.md)
     * [Colab notebooks](guides/colab_notebooks.md)
     * [PINNeAPPle from coding agents (MCP server)](guides/mcp_server.md)
     * [Physics checks in CI](guides/physics_checks_in_ci.md)

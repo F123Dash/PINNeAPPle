@@ -14,6 +14,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Physics Design Optimizer app (`apps/physics_design`, day 23, `design.pinneapple.org`, port 8106): gradient
+  optimisation through differentiable surrogates, SLSQP, NSGA-II, differential evolution and Bayesian optimisation
+  compared on the same problem, budget and seeds (hypervolume, evaluations to 95 %, convergence, wall time) on a
+  plate-fin heat sink or a CST airfoil; candidates from the best front over all methods with their verification
+  status (FVM engine for the heat sink, "only surrogate" for the airfoil), constraint margins, geometry preview and
+  STL / STEP / CSV exports. Jobs of the shared runtime. Deploy: service `design`.
+- `MethodComparison.union()`: every run's evaluations in one record with the run that produced each row.
 - Design studies in `pinneapple_design.design_optimizer` (guide: `docs/guides/design_studies.md`): one problem
   description (`DesignSpace` with continuous and integer variables, `Objective`, `Constraint` with physical,
   manufacturing and validity kinds, `DesignProblem`), evaluators for Python functions, zoo models, torch modules,
@@ -479,6 +486,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
+- **Behavior:** `BayesianDesignOptimizer` scores its acquisition on all candidate points with one GP prediction (same
+  values, several times faster) and seeds the GP hyper-parameter restarts with its own seed, so a run is reproducible.
 - **Behavior:** `EvolutionaryDesignOptimizer` in multi-objective mode now draws parents by the NSGA-II
   crowded-comparison tournament (front rank, then crowding distance) instead of by the first objective, so the
   population spreads along the front.
