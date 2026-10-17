@@ -38,6 +38,7 @@ def build_axisymmetric_helmholtz_system(
     z: np.ndarray,
     k2: np.ndarray,
     rhs_2d: np.ndarray,
+    boundary_values: Optional[np.ndarray] = None,
 ):
     """Assemble the sparse complex system M @ a = b for the axisymmetric
     operator
@@ -53,6 +54,9 @@ def build_axisymmetric_helmholtz_system(
     k2: (len(r), len(z)) complex array -- e.g. k2 = 1j*omega*mu*sigma for the
         eddy-current equation, or k2 = 0 for pure magnetostatics.
     rhs_2d: (len(r), len(z)) complex array -- e.g. rhs = -mu*J_source.
+
+    boundary_values: optional (len(r), len(z)) array; its values on the boundary nodes are imposed
+        instead of A = 0 (e.g. ``mu0 H0 r / 2`` for a uniform applied axial field).
 
     Returns (M_csr, b_dense) with flat node ordering n = i*nz + j.
     """
@@ -100,6 +104,8 @@ def build_axisymmetric_helmholtz_system(
 
     b = np.zeros(N, dtype=complex)
     b[n_base] = rhs_2d[II, JJ]
+    if boundary_values is not None:
+        b[bnd_n] = np.asarray(boundary_values, dtype=complex).ravel()[bnd_n]
 
     return M, b
 
@@ -151,12 +157,14 @@ def solve_axisymmetric_eddy_current(
     mu: np.ndarray,
     sigma: np.ndarray,
     source_current_density: np.ndarray,
+    boundary_values: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Solve for the azimuthal vector potential A_theta(r,z) at angular
     frequency `omega` (rad/s), given material maps mu(r,z) [H/m] and
     sigma(r,z) [S/m] and a source current density J_source(r,z) [A/m^2],
     all as (len(r), len(z)) arrays matching the r,z grids. `omega=0` solves
-    the magnetostatic limit (no eddy currents).
+    the magnetostatic limit (no eddy currents). `boundary_values` (same shape)
+    sets A on the outer boundary instead of 0.
 
     Returns A, shape (len(r), len(z)), complex (purely real when omega=0).
     """
@@ -164,7 +172,7 @@ def solve_axisymmetric_eddy_current(
 
     k2 = (1j * omega * mu * sigma).astype(complex)
     rhs_2d = (-mu * source_current_density).astype(complex)
-    M, b = build_axisymmetric_helmholtz_system(r, z, k2, rhs_2d)
+    M, b = build_axisymmetric_helmholtz_system(r, z, k2, rhs_2d, boundary_values)
     a_vec = spsolve(M, b)
     return a_vec.reshape(len(r), len(z))
 
@@ -190,6 +198,25 @@ def axial_flux_density(A: np.ndarray, r: np.ndarray, z: np.ndarray) -> np.ndarra
     on_axis = RR == 0.0
     A_over_r = np.where(on_axis, dAdr, A / np.where(on_axis, 1.0, RR))
     return A_over_r + dAdr
+
+
+def eddy_current_power(A: np.ndarray, r: np.ndarray, z: np.ndarray, omega: float, sigma: np.ndarray) -> float:
+    """Time-averaged Joule power ``int |J|^2 / (2 sigma) 2 pi r dr dz`` (W) of the eddy currents
+    ``J = -i omega sigma A`` (peak phasors), integrated cell by cell over the cells whose four corner nodes are all in
+    a conductor (``sigma > 0``), each with the mean of its corner values (second order for conductor boundaries on
+    grid lines).
+
+    Pass the conductor's own ``sigma`` on every node of the conductor, its surface nodes included. For the solve
+    itself, nodes that lie exactly on a conductor surface should carry the mean of the two conductivities: with the
+    jump placed on a node the solution is first order, with the mean it is second order (measured on a billet in a
+    uniform axial field, ``pinneapple_simulation.electromagnetics.verification``)."""
+    J = eddy_current_density(A, omega, sigma)
+    cond = sigma > 0
+    q = np.where(cond, np.abs(J) ** 2 / (2 * np.where(cond, sigma, 1.0)), 0.0) * 2 * np.pi * r[:, None]
+    cell = cond[:-1, :-1] & cond[1:, :-1] & cond[:-1, 1:] & cond[1:, 1:]
+    mean = 0.25 * (q[:-1, :-1] + q[1:, :-1] + q[:-1, 1:] + q[1:, 1:])
+    area = np.diff(r)[:, None] * np.diff(z)[None, :]
+    return float(np.sum(np.where(cell, mean * area, 0.0)))
 
 
 @SolverRegistry.register(

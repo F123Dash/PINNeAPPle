@@ -28,7 +28,7 @@ import numpy as np
 from .materials import MU0
 
 __all__ = ["wire_field", "coax_field", "magnetized_cylinder", "skin_effect_wire", "Layer",
-           "RadialLayers", "round_conductor_eddy_loss_low_freq"]
+           "RadialLayers", "round_conductor_eddy_loss_low_freq", "cylinder_in_axial_field"]
 
 
 def wire_field(r, current: float, radius: float, R_outer: float):
@@ -75,6 +75,26 @@ def skin_effect_wire(r, current: complex, radius: float, sigma: float, omega: fl
     J = k * current * jv(0, k * np.asarray(r)) / (2.0 * math.pi * radius * jv(1, k * radius))
     Z = k * jv(0, k * radius) / (2.0 * math.pi * radius * sigma * jv(1, k * radius))
     return J, Z
+
+
+def cylinder_in_axial_field(r, a: float, sigma: float, omega: float, H0: complex = 1.0, mu: float = MU0):
+    """A long conducting cylinder (radius ``a``) in a uniform axial AC field ``H0`` (peak phasor, ``exp(+j omega t)``),
+    the induction-heating billet of a long coil. Inside ``H_z = H0 J0(k r) / J0(k a)`` with ``k^2 = -j omega mu
+    sigma``; ``A_theta = mu H0 J1(k r) / (k J0(k a))`` inside and ``(Phi(a) + mu0 H0 pi (r^2 - a^2)) / (2 pi r)``
+    outside (flux continuity). Returns ``(A_theta(r), P)`` with ``P`` the time-averaged power per metre,
+    ``P = pi a |H0|^2 Re(-k J1(ka) / (sigma J0(ka)))`` from the Poynting flux through the surface
+    (Jackson sec. 5.18; E. J. Davies, *Conduction and Induction Heating*, IEE 1990, ch. 4)."""
+    from scipy.special import jv
+
+    r = np.asarray(r, float)
+    k = np.sqrt(-1j * omega * mu * sigma)
+    j0a = jv(0, k * a)
+    A_in = mu * H0 * jv(1, k * r) / (k * j0a)
+    Phi_a = 2 * math.pi * a * mu * H0 * jv(1, k * a) / (k * j0a)
+    rr = np.maximum(r, 1e-300)
+    A_out = (Phi_a + MU0 * H0 * math.pi * (r * r - a * a)) / (2 * math.pi * rr)
+    P = math.pi * a * abs(H0) ** 2 * float(np.real(-k * jv(1, k * a) / (sigma * j0a)))
+    return np.where(r <= a, A_in, A_out), P
 
 
 def round_conductor_eddy_loss_low_freq(B_peak: float, omega: float, sigma: float, a: float) -> float:

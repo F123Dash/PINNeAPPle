@@ -55,6 +55,21 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   - `pinneapple_tools.visualization.electromagnetics`: field maps with Poynting arrows, GIF / MP4 field movies,
     radiation patterns; `examples/electrodynamics/08_fdtd_gallery.py` (scattering movie, field map, dipole
     pattern, each with its check). Catalog items S40-S41.
+  - `nedelec`: lowest-order edge (Whitney) elements on triangles and tetrahedra for the frequency-domain vector
+    wave equation, with tensor and complex materials and the stretched-coordinate PML (`pml_tensors`):
+    - a divergence-constrained eigensolver (cavities, waveguide cut-offs; no spurious modes) and `waveguide_modes`
+      (TE edge plus TM nodal);
+    - driven solves with loads from functions, point dipoles or current sheets and inhomogeneous PEC values;
+    - edge averages and L2 error norms;
+    - structured box tetrahedra and conforming extrusion of triangle meshes.
+    
+    `backends` adds the optional scikit-fem assembly (`ElementTriN1` / `ElementTetN0`), which gives the same spectrum
+    to 1e-14. Nine verification cases, all at the expected order: rectangular and circular guides, 3-D box,
+    slab-loaded and cylindrical cavities, manufactured solutions, a PML-terminated line, the scikit-fem cross-check
+    and an induction-heated billet.
+  - `eddy_current_fdm`: `boundary_values` (an applied field) and `eddy_current_power`;
+    `analytic.cylinder_in_axial_field` (billet in a long coil); `examples/electrodynamics/09_edge_fem_gallery.py`.
+    Catalog items S42-S43.
 - Surrogate Studio app (day 14, `apps/surrogate_studio`, surrogate.pinneapple.org, port 8097). It turns uploaded
   simulation results (CSV, Parquet, JSON, HDF5, NPZ or a `DatasetSpec`) into a surrogate:
   - an equal-budget comparison of every applicable method on held-out and distribution-shift splits;

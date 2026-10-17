@@ -890,3 +890,247 @@ def _fdtd_mie(quick: bool) -> CaseResult:
                              "wavelength: a plateau near 2 %, not a convergence order (harmonic/arithmetic sub-cell "
                              "averaging is not the full anisotropic smoothing an oblique surface needs; arithmetic "
                              "averaging alone gives 9.7 % at 10 cells)")
+
+
+# ============================================================================================ edge elements
+@case("Edge FEM: rectangular waveguide TE cut-offs (2-D)")
+def _ned_rect(quick: bool) -> CaseResult:
+    from .mesh import rect_mesh
+    from .nedelec import EdgeSpace, eigenmodes
+
+    a, b = 1.0, 0.5
+    ex = np.array(sorted([(math.pi * m / a) ** 2 + (math.pi * n / b) ** 2 for m in range(6) for n in range(6)
+                          if m + n > 0])[:5])
+    errs = []
+    for n in ((5, 9, 17) if quick else (5, 9, 17, 33)):
+        m = rect_mesh(np.linspace(0, a, 2 * n - 1), np.linspace(0, b, n))
+        errs.append(float(np.max(np.abs(eigenmodes(EdgeSpace.of(m.points, m.tris), 5) / ex - 1))))
+    return CaseResult("Edge FEM: rectangular waveguide TE cut-offs (2-D)", "k_c^2 of the 5 lowest TE modes",
+                      "(m pi/a)^2 + (n pi/b)^2", errs[-1], 5e-3, observed_orders(errs), 2.0)
+
+
+@case("Edge FEM + P1: circular waveguide TE and TM cut-offs")
+def _ned_circ(quick: bool) -> CaseResult:
+    from .constants import C0
+    from .mesh import Ring, polar_mesh
+    from .nedelec import waveguide_modes
+    from .waves import circular_waveguide_modes
+
+    R = 1.0
+    ex = []
+    for f, kind, m, _ in circular_waveguide_modes(R, 10):
+        ex += [(2 * math.pi * f / C0, kind)] * (2 if m > 0 else 1)
+    ex = sorted(ex)[:8]
+    errs, labels_ok = [], True
+    for n in ((16, 32) if quick else (16, 32, 64)):
+        rings = [Ring(0.0, 1)] + [Ring(R * k / (n // 4), max(6, int(round(n * k / (n // 4))))) for k in range(1, n // 4 + 1)]
+        m = polar_mesh(rings, lambda ly, r, p: "air")
+        modes = waveguide_modes(m.points, m.tris, 8)
+        labels_ok &= [k for _, k in modes] == [k for _, k in ex]
+        errs.append(float(np.max(np.abs(np.array([k for k, _ in modes]) / np.array([k for k, _ in ex]) - 1))))
+    return CaseResult("Edge FEM + P1: circular waveguide TE and TM cut-offs", "k_c of the 8 lowest modes (with "
+                      "multiplicity)", "Bessel zeros (TE11, TM01, TE21, TE01, TM11)", errs[-1] if labels_ok else 1.0,
+                      2e-2, observed_orders(errs), 2.0, "mode order and TE/TM labels match the analytic list"
+                      if labels_ok else "MODE ORDER OR LABELS DIFFER")
+
+
+@case("Edge FEM: rectangular cavity resonances (3-D tetrahedra)")
+def _ned_box(quick: bool) -> CaseResult:
+    from .constants import C0
+    from .nedelec import EdgeSpace, eigenmodes, tet_box_mesh
+    from .waves import rect_cavity_modes
+
+    a, b, d = 1.0, 0.5, 0.75
+    ex = np.array(sorted(sum([[f] * len(lab) for f, lab in rect_cavity_modes(a, b, d, 6)], []))[:4])
+    errs = []
+    for n in ((5, 9) if quick else (3, 5, 9)):
+        tm = tet_box_mesh(np.linspace(0, a, 2 * n - 1), np.linspace(0, b, n), np.linspace(0, d, int(1.5 * (n - 1)) + 1))
+        f = np.sqrt(eigenmodes(EdgeSpace.of(tm.points, tm.tets), 4)) * C0 / (2 * math.pi)
+        errs.append(float(np.max(np.abs(f / ex - 1))))
+    return CaseResult("Edge FEM: rectangular cavity resonances (3-D tetrahedra)", "4 lowest resonances incl. a "
+                      "degenerate pair", "c/2 sqrt((m/a)^2 + (n/b)^2 + (p/d)^2)", errs[-1], 1e-2, observed_orders(errs),
+                      2.0, "no spurious modes: the divergence constraint removes the gradient null space")
+
+
+@case("Edge FEM: dielectric-slab-loaded cavity")
+def _ned_slab(quick: bool) -> CaseResult:
+    import cmath
+
+    from scipy.optimize import brentq
+
+    from .nedelec import EdgeSpace, eigenmodes, tet_box_mesh
+
+    a, b, c, d, er = 1.0, 0.4, 0.8, 0.4, 4.0
+    kz = math.pi / c
+
+    def f(k):  # TE^y_101-type mode, E_y(x) sin(pi z / c): continuity of E_y and dE_y/dx at x = d
+        k1, k2 = cmath.sqrt(k * k * er - kz * kz), cmath.sqrt(k * k - kz * kz)
+        return (k1 / cmath.tan(k1 * d) + k2 / cmath.tan(k2 * (a - d))).real
+
+    ks = np.linspace(2.0, 4.5, 2000)
+    v = [f(k) for k in ks]
+    root = next(brentq(f, ks[i], ks[i + 1]) for i in range(len(ks) - 1)
+                if np.sign(v[i]) != np.sign(v[i + 1]) and abs(v[i]) < 50 and abs(v[i + 1]) < 50)
+    errs = []
+    for n in ((6, 11) if quick else (6, 11, 21)):
+        tm = tet_box_mesh(np.linspace(0, a, n), np.linspace(0, b, int(round(b / a * (n - 1))) + 1),
+                          np.linspace(0, c, int(round(c / a * (n - 1))) + 1))
+        eps = np.where(tm.centroids()[:, 0] < d, er, 1.0)
+        errs.append(abs(math.sqrt(eigenmodes(EdgeSpace.of(tm.points, tm.tets), 1, eps_r=eps)[0]) / root - 1))
+    return CaseResult("Edge FEM: dielectric-slab-loaded cavity", "lowest resonance k (eps = 4 slab, x < 0.4 a)",
+                      "transcendental equation k1 cot(k1 d) = -k2 cot(k2 (a - d))", errs[-1], 3e-3,
+                      observed_orders(errs), 2.0)
+
+
+@case("Edge FEM: cylindrical cavity (extruded tetrahedra)")
+def _ned_cyl(quick: bool) -> CaseResult:
+    from .constants import C0
+    from .mesh import Ring, polar_mesh
+    from .nedelec import EdgeSpace, eigenmodes, extrude_to_tets
+    from .waves import cylindrical_cavity_resonance
+
+    R = L = 1.0
+    f010 = cylindrical_cavity_resonance("TM", 0, 1, 0, R, L)
+    f111 = cylindrical_cavity_resonance("TE", 1, 1, 1, R, L)
+    errs = []
+    ladder = (16, 32) if quick else (16, 32, 48)
+    for n in ladder:
+        rings = [Ring(0.0, 1)] + [Ring(R * k / (n // 4), max(6, int(round(n * k / (n // 4))))) for k in range(1, n // 4 + 1)]
+        m = polar_mesh(rings, lambda ly, r, p: "air")
+        tm = extrude_to_tets(m.points, m.tris, np.linspace(0, L, n // 4 + 1))
+        f = np.sqrt(eigenmodes(EdgeSpace.of(tm.points, tm.tets), 3)) * C0 / (2 * math.pi)
+        errs.append(float(np.max(np.abs(f / np.array([f010, f111, f111]) - 1))))
+    orders = [math.log(errs[i] / errs[i + 1]) / math.log(ladder[i + 1] / ladder[i]) for i in range(len(errs) - 1)]
+    return CaseResult("Edge FEM: cylindrical cavity (extruded tetrahedra)", "TM010 and the TE111 pair",
+                      "Bessel zeros (Pozar 6.4)", errs[-1], 1.5e-2, orders, 2.0,
+                      f"errors {', '.join(f'{e:.1e}' for e in errs)} at {', '.join(map(str, ladder))} nodes per ring")
+
+
+@case("Edge FEM: manufactured solutions (2-D and 3-D driven)")
+def _ned_mms(quick: bool) -> CaseResult:
+    from .constants import C0
+    from .mesh import rect_mesh
+    from .nedelec import EdgeSpace, errors, load_from_function, solve_driven, tet_box_mesh
+
+    k0 = 3.0
+    w = k0 * C0
+    E2 = lambda X: np.column_stack([np.sin(np.pi * X[:, 1]), np.sin(np.pi * X[:, 0])])  # noqa: E731
+    c2 = lambda X: np.pi * np.cos(np.pi * X[:, 0]) - np.pi * np.cos(np.pi * X[:, 1])  # noqa: E731
+    e2 = []
+    for n in ((5, 9, 17) if quick else (5, 9, 17, 33)):
+        m = rect_mesh(np.linspace(0, 1, n), np.linspace(0, 1, n))
+        s = EdgeSpace.of(m.points, m.tris)
+        x = solve_driven(s, w, load_from_function(s, lambda X: (np.pi ** 2 - k0 ** 2) * E2(X)))
+        e2.append(errors(s, x, E2, c2))
+
+    def E3(X):
+        x, y, z = X.T
+        return np.column_stack([np.sin(np.pi * y) * np.sin(np.pi * z), np.sin(np.pi * z) * np.sin(np.pi * x),
+                                np.sin(np.pi * x) * np.sin(np.pi * y)])
+
+    e3 = []
+    for n in ((3, 5, 9) if quick else (3, 5, 9, 17)):
+        tm = tet_box_mesh(*(np.linspace(0, 1, n),) * 3)
+        s = EdgeSpace.of(tm.points, tm.tets)
+        x = solve_driven(s, w, load_from_function(s, lambda X: (2 * np.pi ** 2 - k0 ** 2) * E3(X)))
+        e3.append(errors(s, x, E3)[0])
+    o2 = observed_orders([e[0] for e in e2])
+    return CaseResult("Edge FEM: manufactured solutions (2-D and 3-D driven)", "L2 error of E (and of curl E in 2-D)",
+                      "manufactured smooth fields with PEC walls", e3[-1], 0.2, observed_orders(e3), 1.0,
+                      f"2-D: E errors {', '.join(f'{e[0]:.1e}' for e in e2)} (orders {', '.join(f'{o:.2f}' for o in o2)}), "
+                      f"curl E {', '.join(f'{e[1]:.1e}' for e in e2)}; 3-D E errors {', '.join(f'{e:.1e}' for e in e3)}"
+                      "; first order is the rate of the lowest-order Nedelec space")
+
+
+@case("Edge FEM: driven line with PML (2-D)")
+def _ned_pml(quick: bool) -> CaseResult:
+    from .constants import C0, ETA0, MU0
+    from .mesh import rect_mesh
+    from .nedelec import EdgeSpace, edge_averages, pml_tensors, solve_driven
+
+    f0 = 1e9
+    lam = C0 / f0
+    w = 2 * math.pi * f0
+    k = w / C0
+    b = 0.2 * lam
+    refl, amp, disp = [], [], []
+    for ncl in ((10, 20, 40) if quick else (10, 20, 40, 80)):
+        h = lam / ncl
+        Li, tp = lam, 0.5 * lam
+        x = np.linspace(-Li - tp, Li + tp, int(round(2 * (Li + tp) / h)) + 1)
+        y = np.linspace(0, b, max(3, int(round(b / h)) + 1))
+        m = rect_mesh(x, y)
+        s = EdgeSpace.of(m.points, m.tris)
+        eps, mu = pml_tensors(m.centroids(), [(-Li, Li), (-1, 1)], tp, w)
+        P, e = s.points, s.edges
+        on = (np.abs(P[e[:, 0], 0]) < 1e-12) & (np.abs(P[e[:, 1], 0]) < 1e-12)
+        load = np.where(on, -1j * w * MU0 * 1.0, 0.0)                     # current sheet K = 1 A/m at x = 0
+        xs = solve_driven(s, w, load, eps_r=eps, mu_r=mu)
+        mid, t, Et = edge_averages(s, xs)
+        ymid = 0.5 * (y[len(y) // 2 - 1] + y[len(y) // 2])
+        sel = (np.abs(t[:, 0]) < 1e-12) & (np.abs(mid[:, 1] - ymid) < 1e-9) & (mid[:, 0] > 0.1 * lam) & \
+            (mid[:, 0] < 0.9 * lam)
+        xp, Ey = mid[sel, 0], Et[sel]
+        best = None
+        for kap in np.linspace(0.97 * k, 1.03 * k, 3001):
+            A = np.column_stack([np.exp(-1j * kap * xp), np.exp(1j * kap * xp)])
+            c, *_ = np.linalg.lstsq(A, Ey, rcond=None)
+            r = np.linalg.norm(A @ c - Ey)
+            if best is None or r < best[0]:
+                best = (r, kap, c)
+        _, kap, c = best
+        refl.append(abs(c[1] / c[0]))
+        amp.append(abs(abs(c[0]) / (ETA0 / 2) - 1))
+        disp.append(abs(kap / k - 1))
+    return CaseResult("Edge FEM: driven line with PML (2-D)", "amplitude of the wave launched by a current sheet",
+                      "|E| = eta K / 2", amp[-1], 1e-2, observed_orders(amp), 2.0,
+                      f"PML reflection {', '.join(f'{v:.1e}' for v in refl)}; numerical wavenumber error "
+                      f"{', '.join(f'{v:.1e}' for v in disp)} (10/20/40/80 elements per wavelength, PML 0.5 lambda)")
+
+
+@case("Edge FEM: in-house assembly vs scikit-fem")
+def _ned_skfem(quick: bool) -> CaseResult:
+    from .backends import HAVE_SKFEM, skfem_eigenmodes
+    from .nedelec import EdgeSpace, eigenmodes, tet_box_mesh
+
+    if not HAVE_SKFEM:
+        return CaseResult("Edge FEM: in-house assembly vs scikit-fem", "cavity spectrum", "scikit-fem ElementTetN0",
+                          float("nan"), 1e-10, detail="scikit-fem not installed: not run")
+    tm = tet_box_mesh(np.linspace(0, 1, 7), np.linspace(0, 0.5, 4), np.linspace(0, 0.75, 6))
+    eps = np.where(tm.centroids()[:, 0] < 0.4, 4.0, 1.0)
+    a = eigenmodes(EdgeSpace.of(tm.points, tm.tets), 6, eps_r=eps)
+    b = skfem_eigenmodes(tm.points, tm.tets, 6, eps_r=eps)
+    import skfem
+
+    return CaseResult("Edge FEM: in-house assembly vs scikit-fem", "6 lowest k^2 of a slab-loaded cavity",
+                      f"scikit-fem {skfem.__version__} ElementTetN0, same mesh", float(np.max(np.abs(a / b - 1))), 1e-10)
+
+
+@case("Induction heating: billet in a uniform AC field (FDM)")
+def _billet(quick: bool) -> CaseResult:
+    from pinneapple_simulation.numerical_solvers.eddy_current_fdm import (
+        MU0,
+        eddy_current_power,
+        solve_axisymmetric_eddy_current,
+    )
+
+    from .analytic import cylinder_in_axial_field
+
+    a, sigma, H0 = 0.02, 1e6, 1e4
+    w = 2 * math.pi * 5e3
+    _, P = cylinder_in_axial_field(0.0, a, sigma, w, H0)
+    errs, eA = [], []
+    for n in ((41, 81, 161) if quick else (41, 81, 161, 321)):
+        r = np.linspace(0, 0.04, n)
+        z = np.linspace(0, 0.04, n // 2 + 1)
+        RR = np.repeat(r[:, None], len(z), axis=1)
+        Ar, _ = cylinder_in_axial_field(r, a, sigma, w, H0)
+        sig = np.where(RR < a - 1e-12, sigma, 0.0) + np.where(np.abs(RR - a) < 1e-12, 0.5 * sigma, 0.0)
+        A = solve_axisymmetric_eddy_current(r, z, w, MU0 * np.ones_like(RR), sig, np.zeros_like(RR),
+                                            np.repeat(Ar[:, None], len(z), axis=1))
+        eA.append(float(np.max(np.abs(A - Ar[:, None])) / np.max(np.abs(Ar))))
+        errs.append(abs(eddy_current_power(A, r, z, w, np.where(RR <= a + 1e-12, sigma, 0.0)) / (P * z[-1]) - 1))
+    return CaseResult("Induction heating: billet in a uniform AC field (FDM)", "Joule power, a / delta = 2.8",
+                      "Bessel solution, P = pi a H0^2 Re(-k J1/(sigma J0))", errs[-1], 5e-3, observed_orders(errs), 2.0,
+                      f"A_theta errors {', '.join(f'{e:.1e}' for e in eA)}; surface nodes carry the mean "
+                      "conductivity (a jump on a node is first order)")

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-__all__ = ["field_map", "field_movie", "radiation_pattern"]
+__all__ = ["field_map", "field_movie", "radiation_pattern", "mesh_vector_field"]
 
 
 def _limits(data, symmetric: bool, clip: float):
@@ -128,6 +128,37 @@ def radiation_pattern(theta, values, path=None, *, reference=None, labels: Seque
     ax.set_title(title)
     ax.legend(loc="lower right", fontsize=8)
     if path is not None:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(path, dpi=130, bbox_inches="tight")
+    return fig
+
+
+def mesh_vector_field(points, tris, vectors, path=None, *, title: str = "", label: str = "|E|", ax=None,
+                      arrows: int = 400, cmap: str = "viridis"):
+    """A vector field given at the element centroids of a triangle mesh: ``|v|`` per element and arrows on a
+    subset of elements (e.g. a waveguide mode from :mod:`pinneapple_simulation.electromagnetics.nedelec`)."""
+    import matplotlib.pyplot as plt
+    import matplotlib.tri as mtri
+
+    pts = np.asarray(points, float)
+    t = np.asarray(tris)
+    v = np.asarray(vectors)
+    v = np.real(v * np.exp(-1j * np.angle(v[np.argmax(np.abs(v).sum(1))].sum()))) if np.iscomplexobj(v) else v
+    own = ax is None
+    if own:
+        fig, ax = plt.subplots(figsize=(5.4, 5.0))
+    else:
+        fig = ax.figure
+    tri = mtri.Triangulation(pts[:, 0], pts[:, 1], t)
+    mag = np.hypot(v[:, 0], v[:, 1])
+    pc = ax.tripcolor(tri, facecolors=mag, cmap=cmap)
+    c = pts[t].mean(1)
+    step = max(1, len(t) // arrows)
+    ax.quiver(c[::step, 0], c[::step, 1], v[::step, 0], v[::step, 1], color="w", pivot="mid", scale_units="xy")
+    fig.colorbar(pc, ax=ax, label=label, shrink=0.8)
+    ax.set_aspect("equal")
+    ax.set_title(title)
+    if path is not None and own:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(path, dpi=130, bbox_inches="tight")
     return fig

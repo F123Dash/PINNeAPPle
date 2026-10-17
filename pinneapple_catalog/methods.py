@@ -248,6 +248,15 @@ METHODS: List[Method] = [
     _m("S41", "Near-to-far-field transform on a closed box (FDTD radiation patterns)", [EM + "fdtd.py"],
        ["NearToFarField("], refs_in_code=[TAFLOVE, "Balanis, Advanced Engineering Electromagnetics, 2nd ed., "
                                                    "Wiley, 2012"]),
+    _m("S42", "Edge (Nedelec / Whitney) finite elements, 2-D and 3-D: divergence-constrained eigenmodes, driven "
+              "solves, PML, waveguide modes; scikit-fem cross-check", [EM + "nedelec.py", EM + "backends.py"],
+       ["ned.eigenmodes(", "ned.solve_driven(", "waveguide_modes("],
+       refs_added=[JIN, "Nedelec, Mixed finite elements in R3, Numer. Math. 35 (1980) 315-341",
+                   "Kikuchi, Mixed and penalty formulations for finite element analysis of an eigenvalue problem in "
+                   "electromagnetism, Comput. Methods Appl. Mech. Eng. 64 (1987) 509-521"]),
+    _m("S43", "Induction heating of an axisymmetric billet (eddy-current FDM with applied field, Joule power)",
+       [NS + "eddy_current_fdm.py", EM + "analytic.py"], ["eddy_current_power(", "cylinder_in_axial_field("],
+       refs_added=[JACKSON, "Davies, Conduction and Induction Heating, IEE, 1990"]),
     # ── B. Training ──────────────────────────────────────────────────────
     _m("T1", "Base trainer: AMP, gradient accumulation, auto batch size, CUDA graphs, profiler",
        [TR + "trainer.py", TR + "hpc.py"], ["trainer.trainer", "from pinneapple_neural.trainer import", "Trainer("],

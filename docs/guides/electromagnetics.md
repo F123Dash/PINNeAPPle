@@ -182,6 +182,40 @@ patterns). `examples/electrodynamics/08_fdtd_gallery.py` writes `results/fdtd_cy
 the cylinder's field against the series of cylinder functions (1.7 % at 30 cells per wavelength), the snapshots
 through `maxwell_trust_report` (APPROVED), and the dipole pattern and power against the closed forms.
 
+## Frequency domain: edge (Nedelec) finite elements
+
+`pp.em.nedelec` solves `curl(mu_r^-1 curl E) - k0^2 eps_r E = -j omega mu0 J`. It uses lowest-order Whitney edge
+elements on triangles (in-plane E, the TE polarisation) and on tetrahedra (Nedelec 1980; Jin, *The Finite Element
+Method in Electromagnetics*, 3rd ed., ch. 8-9; Monk 2003).
+
+The unknowns are line integrals of E along the edges, so tangential E is continuous and normal E may jump at a
+material interface. Gradients of nodal functions lie exactly in the space (`S G = 0` to round-off, tested), which
+is why the method has no spurious modes.
+
+* **Materials** are per element, scalar or 3x3 tensors, complex allowed. `pml_tensors` builds the
+  stretched-coordinate PML as anisotropic `eps` and `mu`.
+* **Meshes.** `tet_box_mesh` is a structured Kuhn split of a box. `extrude_to_tets` extrudes any triangle mesh,
+  splitting the prisms by the minimum-vertex-index rule of Dompierre et al. (1999), so neighbours agree. Any
+  external mesh can be passed as points and cells.
+* **Eigenvalues** (cavities, waveguide cut-offs). The null space of gradients is removed by the discrete divergence
+  constraint in mixed form (Kikuchi 1987), so shift-invert returns physical modes only, with their multiplicity.
+  `waveguide_modes` combines TE (edge elements) and TM (P1 nodes) cut-offs of a cross-section.
+* **Driven problems.**
+  - `solve_driven` takes a load (`load_from_function`, `dipole_load`, or the exact edge loads of a current sheet)
+    and inhomogeneous PEC values (`edge_dofs` of an incident field).
+  - `edge_averages` gives the most accurate point data of the space: second order, where point values inside an
+    element are first order.
+  - `errors` gives L2 norms of E and curl E.
+* **scikit-fem backend** (`pp.em.backends`, optional). The same matrices assembled with scikit-fem's `ElementTriN1`
+  / `ElementTetN0` give the same spectrum to 1e-14, a cross-check of the element integrals.
+
+Induction heating uses the axisymmetric eddy-current solver (`eddy_current_fdm`). It now takes boundary values
+(a uniform applied field `A = mu0 H0 r / 2`), and `eddy_current_power` integrates the Joule power. A conductor
+surface that lies on a node should carry the mean conductivity there: a jump on the node is first order, the mean is
+second order (measured). `analytic.cylinder_in_axial_field` is the Bessel solution of a billet in a long coil.
+`examples/electrodynamics/09_edge_fem_gallery.py` plots the circular-guide modes and the billet's power density, and
+sweeps the power against the Bessel solution from a/delta = 0.9 to 5.6 (within 0.2 %).
+
 ## Electric machines
 
 The A_z solver includes a polar ring mesher with a moving band, magnets, coils, (anti-)periodic constraints,
@@ -282,6 +316,10 @@ Notes from the same run:
 
 * The FEM solvers are 2-D (planar or axisymmetric for `eddy_current_fdm`), first order (P1), and resolve
   geometry on the mesh (polar grids are staircased in angle).
+* Edge FEM: lowest order. Eigenvalues converge at second order, but E and curl E converge only at first order.
+  The PML is a material (element-wise constant stretching), and its reflection falls at second order with the
+  mesh (1.1e-3 at 20 elements per wavelength, 0.5 wavelength thick). Direct sparse solves bound the problem size:
+  about 1e5 edges in a few seconds to a minute.
 * FDTD: uniform grids only. The sub-cell averaging is not the full anisotropic smoothing: curved surfaces with E
   normal to them keep an error of a few percent that does not converge (2 % on the Mie sphere below). The CPML is tuned for vacuum; inside
   dispersive or negative-permittivity media its reflection is not measured. Surface plasmon polaritons are
