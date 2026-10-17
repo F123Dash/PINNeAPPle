@@ -93,3 +93,6 @@ services:
   control:
     command: ["uvicorn", "control_lab.api:app", "--host", "0.0.0.0", "--port", "8112", "--workers", "1"]
     mem_limit: 900m
+  optimize:
+    command: ["uvicorn", "engineering_optimizer.api:app", "--host", "0.0.0.0", "--port", "8100", "--workers", "1"]
+    mem_limit: 800m     # torch + the zoo models; heavy runs are jobs (EDO_MAX_JOBS)

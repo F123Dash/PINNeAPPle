@@ -610,6 +610,28 @@ services:
     expose: ["8112"]
     mem_limit: ${CONTROL_MEM_LIMIT:-1g}
 
+  # Engineering Design Optimizer (day 17): jobs, API keys and usage live in the optimize_data volume
+  optimize:
+    build:
+      context: ../..
+      dockerfile: apps/engineering_optimizer/Dockerfile
+    image: pinneapple/engineering-optimizer:latest
+    restart: unless-stopped
+    environment:
+      EDO_USER: ${EDO_USER:-}
+      EDO_PASSWORD: ${EDO_PASSWORD:-}
+      EDO_MAX_JOBS: ${EDO_MAX_JOBS:-2}
+      EDO_ADMIN_TOKEN: ${EDO_ADMIN_TOKEN:-}
+      EDO_REQUIRE_API_KEY: ${EDO_REQUIRE_API_KEY:-0}
+      EDO_FREE_EVALUATIONS: ${EDO_FREE_EVALUATIONS:-}
+      EDO_FREE_CAMPAIGNS: ${EDO_FREE_CAMPAIGNS:-}
+      EDO_FREE_REFERENCE_RUNS: ${EDO_FREE_REFERENCE_RUNS:-}
+      EDO_SOLVERS: ${EDO_SOLVERS:-}
+    volumes:
+      - optimize_data:/data          # jobs, uploads, API keys and usage (SQLite): keep this volume
+    expose: ["8100"]
+    mem_limit: ${EDO_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -649,12 +671,13 @@ services:
       TWIN_DOMAIN: ${TWIN_DOMAIN:-twin.localhost}
       ANOMALY_DOMAIN: ${ANOMALY_DOMAIN:-anomaly.localhost}
       CONTROL_DOMAIN: ${CONTROL_DOMAIN:-control.localhost}
+      EDO_DOMAIN: ${EDO_DOMAIN:-optimize.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate, arena, models, twin, anomaly, control]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate, arena, models, twin, anomaly, control, optimize]
 
 volumes:
   surrogate_data:
@@ -675,6 +698,7 @@ volumes:
   rom_data:
   meshless_data:
   runner_data:
+  optimize_data:
   obs_cache:
   caddy_data:
   caddy_config:
