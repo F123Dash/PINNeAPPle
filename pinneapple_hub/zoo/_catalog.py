@@ -591,6 +591,41 @@ THERMAL_CHANNEL_DATASETS = {
     },
 }
 DATASETS.update(THERMAL_CHANNEL_DATASETS)
+
+CYLINDER_DATASETS = {
+    "cylinder_wake_lbm": {
+        "version": "1.0.0",
+        "hub_only": True,
+        "title": "Confined cylinder wake, lattice-Boltzmann, Re 20-120 (11 runs, 880 vorticity snapshots, 240 x 100)",
+        "description": (
+            "2-D flow past a cylinder (diameter D = 20 lattice cells) 3 D downstream of a uniform inlet in a channel "
+            "5 D high and 12 D long (blockage 0.2), no-slip walls, pressure outlet; D2Q9 BGK lattice-Boltzmann, "
+            "inlet velocity 0.1 (Mach 0.17), no turbulence model. Each run covers 80 convective units (t U / D); "
+            "the second half is stored, a vorticity snapshot (normalised by U/D, 0 inside the cylinder) every 0.5 "
+            "units, labelled by Reynolds number, wake regime (steady or shedding), Strouhal number and wake "
+            "amplitude. For regime classification, interpolation in Re and wake forecasting. The channel is far "
+            "shorter than the entrance length, so the cylinder sees a nearly uniform inflow with thin wall boundary "
+            "layers. Grid: x = i, y = j lattice cells, cylinder centre and solid cells in meta.json."),
+        "license": "cc-by-4.0",
+        "source": ("python scripts/zoo/cylinder_data.py generate --out DIR; "
+                   "pinneapple_simulation.numerical_solvers.cylinder_wake (the lab experiment cylinder_lbm runs the "
+                   "same function)"),
+        "verification": "@CYLVERIFY@",
+        "splits": {"train": "8 runs, Re 20, 30, 50, 60, 80, 90, 110, 120 (80 snapshots each)",
+                   "test": "3 held-out Reynolds numbers, Re 40, 70, 100 (80 snapshots each)"},
+        "split_rule": "by Reynolds number: every snapshot of a run is in the same split",
+        "columns": {"Re": ("-", "Reynolds number U D / nu"),
+                    "t": ("D/U", "convective time of the snapshot"),
+                    "vorticity": ("U/D", "vorticity on the 240 x 100 lattice (x along the channel), 0 in the cylinder"),
+                    "regime": ("-", "wake regime of the run: steady or shedding"),
+                    "strouhal": ("-", "Strouhal number f D / U of the run (0 for a steady wake)"),
+                    "wake_amplitude": ("-", "rms transverse velocity / U, 2 D behind the cylinder")},
+        "tags": ["CFD", "lattice Boltzmann", "vortex shedding", "flow regimes", "vision", "forecasting"],
+        "citation": ("Cylinder wake dataset generated with PINNeAPPle (pinneapple_simulation.numerical_solvers."
+                     "cylinder_wake, D2Q9 lattice Boltzmann); PINNeAPPle, Zenodo DOI 10.5281/zenodo.23343062."),
+    },
+}
+DATASETS.update(CYLINDER_DATASETS)
 # Black-hole weather (issue #399): density frames of whole simulated trajectories, Hub-only (scripts/zoo/build_blackhole.py)
 BLACKHOLE_DATASETS = {
     "blackhole_riaf_density_256": {
