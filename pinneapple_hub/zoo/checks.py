@@ -239,6 +239,11 @@ def _rover(zm: ZooModel):
 _BUILDERS = {"airfoil_mlp": _airfoil, "heatsink_forced": _heatsink, "rover_contact": _rover}
 
 
+def has_query_checks(zm: ZooModel) -> bool:
+    """Whether the model has per-query checks (:func:`query_checks`); otherwise only ``in_range`` applies."""
+    return zm.adapter in _BUILDERS
+
+
 def _build(zm: ZooModel):
     cached = getattr(zm, "_query_checks", None)
     if cached is None:
