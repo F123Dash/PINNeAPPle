@@ -59,3 +59,12 @@ services:
   evidence:
     command: ["uvicorn", "evidence_report.api:app", "--host", "0.0.0.0", "--port", "8113", "--workers", "1"]
     mem_limit: 900m     # torch for the example study (~450 MB while it trains)
+  calibration:
+    command: ["uvicorn", "calibration_lab.api:app", "--host", "0.0.0.0", "--port", "8101", "--workers", "1"]
+    mem_limit: 1g
+  identifiability:
+    command: ["uvicorn", "identifiability_lab.api:app", "--host", "0.0.0.0", "--port", "8108", "--workers", "1"]
+    mem_limit: 1g
+  inverse-studio:
+    command: ["uvicorn", "inverse_studio.api:app", "--host", "0.0.0.0", "--port", "8104", "--workers", "1"]
+    mem_limit: 1g

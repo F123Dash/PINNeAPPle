@@ -31,13 +31,14 @@ time). Otherwise the report prints "not run", with the source's claim next to it
 ## Automate it
 
 `POST /api/report` returns JSON and HTML, `/api/report.pdf` the PDF and `/api/package` the zip. Each takes files
-plus `meta` (JSON) and `urls` (JSON: file name → URL). The interactive docs are at `/docs`.
+plus `meta` (JSON) and `urls` (JSON: file name → URL). The interactive docs are at `/docs`. API keys and usage
+metering (reports and downloads per caller and month) come from the shared app runtime.
 
 ## Limits
 
 - The report checks that records exist and are intact; it does not re-run tests.
 - Baseline and candidate are matched by run name, and units are not converted.
-- Contracts are read from JSON until the shared data contracts are on `main`.
+- Contracts are validated against `pinneapple_data.contracts`; each report is also exported as a StudyResult.
 - Nothing is stored: keep the package.
 
 Monetization: reports, campaigns and private projects.
