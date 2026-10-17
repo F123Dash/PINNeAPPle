@@ -337,6 +337,7 @@ def analyze_identifiability(model: ForwardModel, obs: Observations,
                             "information_share": {n: float(share[m, k].sum()) for k, n in enumerate(names)}}
     order = np.argsort(-lev)
     rows = [{"index": int(i), "label": _label(data, i), "leverage": float(lev[i]),
+             "inputs": {k: float(v[i]) for k, v in data.inputs.items()}, "observable": str(data.observable[i]),
              "sensitivity": {n: float(J[i, k]) for k, n in enumerate(names)}} for i in range(data.n)]
     observations = {"rows": rows, "ranking": [int(i) for i in order], "by_observable": by_obs,
                     "note": "leverage = share of the identifiable information carried by each measurement "
