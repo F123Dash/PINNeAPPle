@@ -334,3 +334,15 @@
 		}
 	}
 }
+
+{$ARN_DOMAIN} {
+	import common
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy arena:8105 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}

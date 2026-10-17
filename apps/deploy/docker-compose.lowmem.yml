@@ -80,3 +80,5 @@ services:
     environment:
       SUR_MAX_JOBS: 1           # one training at a time
     mem_limit: 1g               # one worker already (torch ~400 MB idle, a study adds ~300 MB)
+  arena:
+    mem_limit: 1g               # one worker, one benchmark at a time (ARN_MAX_JOBS=1)

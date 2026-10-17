@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Physics AI Benchmark Arena app (day 22, `apps/benchmark_arena`, arena.pinneapple.org, port 8105):
+  - rankings of physics-AI methods per data regime (interpolation, few data, extrapolation, geometry change, steep
+    fronts) under one protocol: equal data and compute, the same stopping rule, several seeds;
+  - cost, physics violations, solver baselines and an audit of the splits;
+  - public results from runs stored with their date and hardware (`run_public_benchmarks.py`);
+  - private benchmarks on uploaded data as jobs, with `StudyResult` and Markdown reports.
 - Surrogate Studio app (day 14, `apps/surrogate_studio`, surrogate.pinneapple.org, port 8097). It turns uploaded
   simulation results (CSV, Parquet, JSON, HDF5, NPZ or a `DatasetSpec`) into a surrogate:
   - an equal-budget comparison of every applicable method on held-out and distribution-shift splits;
