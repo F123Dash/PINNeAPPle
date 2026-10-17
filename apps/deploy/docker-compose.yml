@@ -248,6 +248,28 @@ services:
     expose: ["8094"]
     mem_limit: ${OBS_MEM_LIMIT:-1500m}
 
+  surrogate:
+    build:
+      context: ../..
+      dockerfile: apps/surrogate_studio/Dockerfile
+    image: pinneapple/surrogate-studio:latest
+    restart: unless-stopped
+    environment:
+      SUR_USER: ${SUR_USER:-}
+      SUR_PASSWORD: ${SUR_PASSWORD:-}
+      SUR_ADMIN_TOKEN: ${SUR_ADMIN_TOKEN:-}
+      SUR_REQUIRE_API_KEY: ${SUR_REQUIRE_API_KEY:-0}
+      SUR_MAX_JOBS: ${SUR_MAX_JOBS:-2}
+      SUR_MAX_BUDGET_S: ${SUR_MAX_BUDGET_S:-30}
+      SUR_MAX_SEEDS: ${SUR_MAX_SEEDS:-3}
+      SUR_FREE_TRAININGS: ${SUR_FREE_TRAININGS:-}
+      SUR_FREE_INFERENCES: ${SUR_FREE_INFERENCES:-}
+      SUR_FREE_HOSTED_MODELS: ${SUR_FREE_HOSTED_MODELS:-}
+    volumes:
+      - surrogate_data:/data      # jobs, uploads, hosted models, usage, API keys
+    expose: ["8097"]
+    mem_limit: ${SUR_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -269,15 +291,17 @@ services:
       LAB_DOMAIN: ${LAB_DOMAIN:-lab.localhost}
       OBS_DOMAIN: ${OBS_DOMAIN:-observatory.localhost}
       PLG_DOMAIN: ${PLG_DOMAIN:-playground.localhost}
+      SUR_DOMAIN: ${SUR_DOMAIN:-surrogate.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, surrogate]
 
 volumes:
   lab_data:
+  surrogate_data:
   obs_cache:
   caddy_data:
   caddy_config:

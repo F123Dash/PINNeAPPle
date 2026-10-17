@@ -14,6 +14,14 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Surrogate Studio app (day 14, `apps/surrogate_studio`, surrogate.pinneapple.org, port 8097). It turns uploaded
+  simulation results (CSV, Parquet, JSON, HDF5, NPZ or a `DatasetSpec`) into a surrogate:
+  - an equal-budget comparison of every applicable method on held-out and distribution-shift splits;
+  - the chosen model hosted at `/v1/models/<name>/predict` (the Model Gateway API) with its OOD gate;
+  - a limitations report and a trust decision;
+  - downloads as contracts (`StudyResult`, `ModelRef`, `DatasetSpec`), a report, ONNX and TorchScript.
+  It runs on the shared job queue, API keys and usage metering. Two offline examples run in about 10 s. Deployed with
+  `docker-compose.yml` (service `surrogate`), the Caddyfile and `.env.example`.
 - Data contracts shared by the apps (`pinneapple_data.contracts`): `ParameterSpace` (bounds, units, log scale,
   integer and categorical parameters, constants, safe constraint expressions, unit-hypercube mapping, feasibility),
   `DatasetSpec` (columns with roles and units, files with SHA-256, splits, provenance), `ModelRef` (held-out metrics
