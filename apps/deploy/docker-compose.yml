@@ -353,6 +353,134 @@ services:
     expose: ["8113"]
     mem_limit: ${EVR_MEM_LIMIT:-1g}
 
+  calibration:
+    build:
+      context: ../..
+      dockerfile: apps/calibration_lab/Dockerfile
+    image: pinneapple/calibration-lab:latest
+    restart: unless-stopped
+    environment:
+      CALIB_USER: ${CALIB_USER:-}
+      CALIB_PASSWORD: ${CALIB_PASSWORD:-}
+      CALIB_MAX_JOBS: ${CALIB_MAX_JOBS:-2}
+      CALIB_ADMIN_TOKEN: ${CALIB_ADMIN_TOKEN:-}
+      CALIB_IDENTIFIABILITY_URL: ${CALIB_IDENTIFIABILITY_URL:-https://identifiability.pinneapple.org}
+      CALIB_FREE_CALIBRATIONS: ${CALIB_FREE_CALIBRATIONS:-}
+      CALIB_FREE_METHOD_RUNS: ${CALIB_FREE_METHOD_RUNS:-}
+      CALIB_FREE_PINN_RUNS: ${CALIB_FREE_PINN_RUNS:-}
+    volumes:
+      - calibration_data:/data          # jobs, API keys, usage, uploads (SQLite): keep this volume
+    expose: ["8101"]
+    mem_limit: ${CALIB_MEM_LIMIT:-1g}
+
+  identifiability:
+    build:
+      context: ../..
+      dockerfile: apps/identifiability_lab/Dockerfile
+    image: pinneapple/identifiability-lab:latest
+    restart: unless-stopped
+    environment:
+      IDENT_USER: ${IDENT_USER:-}
+      IDENT_PASSWORD: ${IDENT_PASSWORD:-}
+      IDENT_MAX_JOBS: ${IDENT_MAX_JOBS:-2}
+      IDENT_ADMIN_TOKEN: ${IDENT_ADMIN_TOKEN:-}
+      IDENT_FREE_ANALYSES: ${IDENT_FREE_ANALYSES:-}
+      IDENT_FREE_PARAMETERS: ${IDENT_FREE_PARAMETERS:-}
+      IDENT_FREE_SCENARIOS: ${IDENT_FREE_SCENARIOS:-}
+    volumes:
+      - identifiability_data:/data          # jobs, API keys, usage, uploads (SQLite): keep this volume
+    expose: ["8108"]
+    mem_limit: ${IDENT_MEM_LIMIT:-1g}
+
+  inverse-studio:
+    build:
+      context: ../..
+      dockerfile: apps/inverse_studio/Dockerfile
+    image: pinneapple/inverse-studio:latest
+    restart: unless-stopped
+    environment:
+      INVS_USER: ${INVS_USER:-}
+      INVS_PASSWORD: ${INVS_PASSWORD:-}
+      INVS_MAX_JOBS: ${INVS_MAX_JOBS:-2}
+      INVS_ADMIN_TOKEN: ${INVS_ADMIN_TOKEN:-}
+      INVS_HEAT_LAB_URL: ${INVS_HEAT_LAB_URL:-https://inverse.pinneapple.org}
+      INVS_FREE_PROBLEMS: ${INVS_FREE_PROBLEMS:-}
+      INVS_FREE_METHOD_RUNS: ${INVS_FREE_METHOD_RUNS:-}
+      INVS_FREE_PINN_RUNS: ${INVS_FREE_PINN_RUNS:-}
+    volumes:
+      - inverse-studio_data:/data          # jobs, API keys, usage, uploads (SQLite): keep this volume
+    expose: ["8104"]
+    mem_limit: ${INVS_MEM_LIMIT:-1g}
+
+  # Engineering GUI Agent: a separate, optional heavy image (FreeCAD + CfdOF + OpenFOAM + ParaView, about 5.5 GB).
+  # Not started by a plain `up`: name it (`... up -d --build guiagent`) or use `--profile guiagent`.
+  guiagent:
+    build:
+      context: ../..
+      dockerfile: apps/guiagent/Dockerfile
+    image: pinneapple/guiagent:latest
+    profiles: ["guiagent"]
+    restart: unless-stopped
+    environment:
+      GUIAGENT_USER: ${GUIAGENT_USER:-}
+      GUIAGENT_PASSWORD: ${GUIAGENT_PASSWORD:-}
+      GUIAGENT_MODE: ${GUIAGENT_MODE:-public}         # public: committed workflows only; selfhosted: uploads too
+      GUIAGENT_MAX_JOBS: ${GUIAGENT_MAX_JOBS:-1}         # runs at once; further runs wait in the shared job queue
+      GUIAGENT_ADMIN_TOKEN: ${GUIAGENT_ADMIN_TOKEN:-}   # X-Admin-Token for API keys when there is no login
+      GUIAGENT_FREE_RUNS: ${GUIAGENT_FREE_RUNS:-}       # free use per caller and month (defaults 20 runs,
+      GUIAGENT_FREE_COMPUTE_SECONDS: ${GUIAGENT_FREE_COMPUTE_SECONDS:-}   # 1800 s, 500 MB)
+      GUIAGENT_FREE_STORAGE_MB: ${GUIAGENT_FREE_STORAGE_MB:-}
+      GUIAGENT_KEEP_RUNS: ${GUIAGENT_KEEP_RUNS:-40}
+      GUIAGENT_OLLAMA_URL: ${GUIAGENT_OLLAMA_URL:-http://ollama:11434}
+      GUIAGENT_OLLAMA_MODEL: ${GUIAGENT_OLLAMA_MODEL:-}  # empty = rule-based reading of tasks
+    volumes:
+      - guiagent_data:/data       # runs and their evidence, job queue, API keys, usage: keep this volume
+    expose: ["8115"]
+    mem_limit: ${GUIAGENT_MEM_LIMIT:-2g}
+    shm_size: 256m
+
+  rom:
+    build:
+      context: ../..
+      dockerfile: apps/rom_lab/Dockerfile
+    image: pinneapple/rom-lab:latest
+    restart: unless-stopped
+    environment:
+      ROM_USER: ${ROM_USER:-}
+      ROM_PASSWORD: ${ROM_PASSWORD:-}
+      ROM_MAX_JOBS: ${ROM_MAX_JOBS:-2}
+      ROM_MAX_MB: ${ROM_MAX_MB:-200}
+      ROM_MAX_BUDGET_S: ${ROM_MAX_BUDGET_S:-30}
+      ROM_ADMIN_TOKEN: ${ROM_ADMIN_TOKEN:-}
+      ROM_FREE_STUDIES: ${ROM_FREE_STUDIES:-}
+      ROM_FREE_EXPORTS: ${ROM_FREE_EXPORTS:-}
+      ROM_FREE_QUERIES: ${ROM_FREE_QUERIES:-}
+    volumes:
+      - rom_data:/data          # jobs, uploads, usage (shared runtime): keep this volume
+    expose: ["8102"]
+    mem_limit: ${ROM_MEM_LIMIT:-1g}
+
+  meshless:
+    build:
+      context: ../..
+      dockerfile: apps/meshless_lab/Dockerfile
+    image: pinneapple/meshless-lab:latest
+    restart: unless-stopped
+    environment:
+      MESHLESS_USER: ${MESHLESS_USER:-}
+      MESHLESS_PASSWORD: ${MESHLESS_PASSWORD:-}
+      MESHLESS_MAX_JOBS: ${MESHLESS_MAX_JOBS:-2}
+      MESHLESS_MAX_NODES: ${MESHLESS_MAX_NODES:-20000}
+      MESHLESS_MAX_PINN_S: ${MESHLESS_MAX_PINN_S:-30}
+      MESHLESS_ADMIN_TOKEN: ${MESHLESS_ADMIN_TOKEN:-}
+      MESHLESS_FREE_RUNS: ${MESHLESS_FREE_RUNS:-}
+      MESHLESS_FREE_UNKNOWNS: ${MESHLESS_FREE_UNKNOWNS:-}
+      MESHLESS_FREE_REPORTS: ${MESHLESS_FREE_REPORTS:-}
+    volumes:
+      - meshless_data:/data          # jobs, uploads, usage (shared runtime): keep this volume
+    expose: ["8109"]
+    mem_limit: ${MESHLESS_MEM_LIMIT:-1g}
+
   anomaly:
     build:
       context: ../..
@@ -396,20 +524,32 @@ services:
       SEN_DOMAIN: ${SEN_DOMAIN:-sensitivity.localhost}
       VAL_DOMAIN: ${VAL_DOMAIN:-validate.localhost}
       EVR_DOMAIN: ${EVR_DOMAIN:-evidence.localhost}
+      CALIB_DOMAIN: ${CALIB_DOMAIN:-calibration.localhost}
+      IDENT_DOMAIN: ${IDENT_DOMAIN:-identifiability.localhost}
+      INVS_DOMAIN: ${INVS_DOMAIN:-inverse-studio.localhost}
+      GUIAGENT_DOMAIN: ${GUIAGENT_DOMAIN:-guiagent.localhost}
+      ROM_DOMAIN: ${ROM_DOMAIN:-rom.localhost}
+      MESHLESS_DOMAIN: ${MESHLESS_DOMAIN:-meshless.localhost}
       ANOMALY_DOMAIN: ${ANOMALY_DOMAIN:-anomaly.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, anomaly]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, anomaly]
 
 volumes:
   anomaly_data:
+  calibration_data:
   evidence_data:
+  identifiability_data:
+  inverse-studio_data:
+  guiagent_data:
   lab_data:
-  runner_data:
   campaign_data:
+  rom_data:
+  meshless_data:
+  runner_data:
   obs_cache:
   caddy_data:
   caddy_config:
