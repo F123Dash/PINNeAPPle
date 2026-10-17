@@ -44,6 +44,8 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `runner` | A | `<server IPv4>` |
+| `campaign` | A | `<server IPv4>` |
 | `inverse-studio` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
@@ -72,7 +74,7 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 | `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, INVS) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
-| `INVS_MAX_JOBS`, `INVS_FREE_<UNIT>`, `INVS_ADMIN_TOKEN`, `INVS_MEM_LIMIT` | Apps on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Their state lives on a `<service>_data` volume. |
+| `INVS_MAX_JOBS`, `INVS_FREE_<UNIT>`, `INVS_ADMIN_TOKEN`, `INVS_MEM_LIMIT` | Inverse Model Studio, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `inverse-studio_data` volume. |
 | `IHL_MAX_JOBS` | Inverse Heat Lab: trainings running at the same time (default 2, each uses one CPU core). Any excess gets HTTP 429. The app runs one worker because jobs live in its memory. |
 | `UDR_FORM_PDF` | Path inside the `udr` container to your copy of the fillable Form U-DR-1 (put the file in `apps/deploy/forms/`). Optional: users can upload it instead. |
 | `UDR_OLLAMA_MODEL` | Optional. Enables local-LLM extraction in the Form Compiler with this Ollama model (pull it first). Every value it returns is checked against the document text; documents never leave your network. |
@@ -106,7 +108,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground inverse-studio
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground runner campaign inverse-studio
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -260,6 +262,28 @@ playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
 }
+runner.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy pinneapple-runner:8110 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+campaign.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy pinneapple-campaign:8096 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+}
 inverse-studio.example.org {
 	encode zstd gzip
 	request_body {
@@ -287,6 +311,30 @@ A static site: the zoo models run in the visitor's browser (ONNX), so the contai
 `docker build -f apps/playground/Dockerfile -t pinneapple-playground . && docker run -p 8095:8095 pinneapple-playground`.
 The same build can go to GitHub Pages instead: set the repository variable `PLAYGROUND_PAGES=true` and the docs
 workflow publishes it under `<docs site>/playground/` (see `apps/playground/README.md`).
+
+## Simulation Workflow Runner (`runner`, day 27)
+
+Runs simulation campaigns as DAGs of steps (`pinneapple_core.workflows`) through the shared job queue. The public
+image runs **only the built-in templates** (Python slab heating; the CalculiX beam and OpenFOAM cavity show as
+"needs solver" because the image has neither solver), as an unprivileged user, with case values checked against each
+template's parameter ranges. The Slurm executor only writes sbatch scripts there. Runs, step files, the queue, API
+keys and usage live in the `runner_data` volume (keep it; delete old runs under `/data/runner/workflows/runs/` to
+free space).
+
+Self-hosted (your own machine or cluster head node, behind your own login): set `RUNNER_SELF_HOSTED=1` to accept
+custom workflows (commands, scripts, Docker steps, Slurm submission with `dry_run: false`). That runs whatever the
+caller sends, so never set it on a public server. Install OpenFOAM / CalculiX in the image (or use the Docker
+executor) for the solver templates. Limits: `RUNNER_MAX_JOBS` runs at once, `RUNNER_MAX_CASES` cases per run,
+`RUNNER_FREE_JOBS_RUN` / `RUNNER_FREE_COMPUTE_SECONDS` / `RUNNER_FREE_STORAGE_MB` per principal and month
+(`/api/usage`); API keys via `/api/keys` with `RUNNER_ADMIN_TOKEN` (see `apps/_shared/README.md`).
+## Simulation Campaign Planner (`campaign`)
+
+Day 13, port 8096. It plans campaigns as jobs in the shared runtime queue (`apps/_shared`). Jobs, the files of
+each campaign, API keys, usage and uploads live in the `campaign_data` volume; keep it. The airfoil preset reads
+the 436 OpenFOAM runs shipped inside the library, so the app needs no network. It writes the solver cases but does
+not run them, so neither OpenFOAM nor CalculiX is installed in the image. `CAMPAIGN_FREE_CAMPAIGNS` /
+`CAMPAIGN_FREE_CASES_PLANNED` set the monthly free use per API key, login or IP (`/api/usage`). Keys are created by
+the login user, or with `X-Admin-Token: $CAMPAIGN_ADMIN_TOKEN` (`POST /api/keys`).
 
 ## Inverse Model Studio (`inverse-studio`)
 
