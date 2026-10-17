@@ -174,40 +174,64 @@ published curve, cogging, back-EMF), `10_pmsm_mtpa.png` (MTPA locus, L_d and L_q
 
 Results of that run (magnets at 20 degC, 1.24 T):
 
-| Peak current (A) | MTPA angle (deg from q) | Mean torque (N m) | Ripple pk-pk | L_d (mH) | L_q (mH) | psi_pm (Wb) |
-|---|---|---|---|---|---|---|
-| 50 | 26.9 | 70.4 | 24.9 % | 1.948 | 4.870 | 0.2141 |
-| 100 | 36.5 | 147.8 | 25.6 % | 1.744 | 3.698 | 0.2184 |
-| 150 | 42.4 | 221.3 | 22.4 % | 1.627 | 3.103 | 0.2217 |
-| 200 | 46.5 | 287.9 | 22.8 % | 1.515 | 2.731 | 0.2201 |
-| 250 | 49.5 | 345.6 | 22.9 % | 1.392 | 2.428 | 0.2138 |
+| Peak current (A) | MTPA angle (deg from q) | Mean torque (N m) | Ripple pk-pk | L_d (mH) | L_q (mH) |
+|---|---|---|---|---|---|
+| 50 | 27.6 | 70.4 | 24.9 % | 1.945 | 4.871 |
+| 100 | 37.1 | 147.8 | 25.5 % | 1.741 | 3.697 |
+| 150 | 43.1 | 221.3 | 22.5 % | 1.623 | 3.101 |
+| 200 | 47.1 | 287.9 | 22.8 % | 1.511 | 2.729 |
+| 250 | 50.3 | 345.6 | 22.9 % | 1.386 | 2.435 |
 
-L_d, L_q and psi_pm are the apparent frozen-permeability values at each MTPA point (saturation lowers L_q from 4.87
-to 2.43 mH). No load: cogging 1.38 N m peak to peak, magnet flux linkage 0.209 Wb peak per phase, back-EMF 107.7 V
-line-to-line rms at 1000 rpm (THD 8.8 %). Losses at 1500 rpm (100 Hz), 250 A MTPA: stator iron 391 W, rotor iron
-29 W with the catalogue table (332 W and 32 W with the Bertotti fit), magnet eddy loss 37.9 W (resistance limited,
-one piece per magnet). The Bertotti fit to the M400-50A table up to 1 kHz has 8.2 % rms and 22 % maximum relative
-error; the table model is the default. Mesh convergence of the torque is not monotone (480, 960, 1920 gap nodes:
-343.20, 345.50, 344.08 N m): treat the FEA torque as converged to about 0.4 %.
+L_d and L_q are the apparent frozen-permeability values at each MTPA point (saturation lowers L_q from 4.87 to
+2.44 mH). The d-axis is the fundamental of the magnet flux linkage, from the winding layout (`pm_flux_angle`): a single
+no-load solution's flux vector carries the slot harmonics and sits 0.79 electrical degrees off, which shifted the
+torque at pure negative d-axis current by -12 N m; with the fundamental the mean torque at Phi0 = 180 deg is 0.0
+N m, as the rotor's mirror symmetry requires.
+
+Torque against current angle at 250 A, against Yang et al. (2013):
+
+| Phi0 (deg) | 60 | 70 | 80 | 90 | 100 | 110 | 120 | 130 | 140 | 150 | 160 | 170 | 180 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| this FEA (N m) | 92.0 | 133.6 | 175.8 | 217.3 | 256.0 | 289.9 | 318.2 | 338.1 | 345.6 | 330.1 | 267.1 | 151.4 | 0.0 |
+| published (N m) | 79 | 125 | 160 | 192 | 237 | 281 | 319 | 343 | 353 | 332 | 266 | 164 | 22 |
+| difference | +13.0 | +8.6 | +15.8 | +25.3 | +19.0 | +8.9 | -0.8 | -4.9 | -7.4 | -1.9 | +1.1 | -12.6 | -22.0 |
+
+The peak agrees within 2.1 %; the largest deviation is +25.3 N m (+13 %) at 90 deg (pure q-axis current), the rms
+deviation 13.3 N m. Shifting the curve in angle does not remove it: the best-fitting offset (-1.32 deg) lowers the
+rms over 70 to 170 deg only from 12.2 to 9.7 N m. The differences are in magnitude where the magnet torque dominates
+(low Phi0, more torque here) and at 180 deg, where a machine symmetric about its d-axis has no mean torque but the
+published curve gives 22 N m (an angle convention or an asymmetry of their model). Plausible causes, not
+resolved here: magnet remanence or temperature of the published model, its steel curve, the centre post (W1 = 0 in
+pyleecan's file).
+
+No load: cogging 1.38 N m peak to peak (antisymmetric, zero mean), magnet flux linkage 0.209 Wb peak per phase.
+Back-EMF from the flux linkage at 120 rotor angles per electrical period (spectral derivative): 87.6 V phase peak
+fundamental at 1000 rpm (107.3 V line-to-line rms fundamental, 0.1073 V/rpm), THD 9.3 % phase and 8.5 % line;
+largest harmonics 11th 6.5 %, 5th 4.2 %, 7th 3.6 %, 3rd 2.4 % of the fundamental (the 3rd cancels between phases).
+No published Prius back-EMF constant could be retrieved here to compare with. Losses at 1500 rpm (100 Hz), 250 A
+MTPA: stator iron 391 W, rotor iron 29 W with the catalogue table (332 W and 32 W with the Bertotti fit), magnet eddy
+loss 37.9 W (resistance limited, one piece per magnet). The Bertotti fit to the M400-50A table up to 1 kHz has
+8.2 % rms and 22 % maximum relative error; the table model is the default. Mesh convergence of the torque is not
+monotone (480, 960, 1920 gap nodes: 343.42, 345.65, 344.22 N m): treat the FEA torque as converged to about 0.4 %.
 
 <!-- machine-verification:start -->
 | Case | Quantity | Reference | Error (finest) | Observed order | Status |
 |---|---|---|---|---|---|
 | Magnetised ring, sector mesher + P1 FEM | relative L2 error of A_z, h halved | closed form (two magnetised cylinders + harmonic) | 1.91e-04 | 1.89, 1.91, 1.99 (expected 2) | pass |
 | Machine sector geometry (Prius slot and magnet areas) | slot area, gap nodes doubled | exact area (trapezoid + half disc) | 5.70e-05 | 1.99, 1.81, 1.90 (expected 2) | pass |
-| Prius IPM: Maxwell stress vs co-energy torque | Arkkio torque at 250 A, 3 rotor angles | virtual work dW'/dtheta (4th-order differences) | 1.92e-03 | - | pass |
-| Prius IPM: dq power balance and frozen permeability | mean Maxwell-stress torque over 60 el. deg | 1.5 p (psi_d i_q - psi_q i_d) | 2.37e-04 | - | pass |
-| Prius IPM: torque vs current angle (Yang et al. 2013) | mean torque, 250 A, Phi0 = 60..180 deg | published FEA (IEMDC 2013), 13 angles | 2.12e-02 | - | pass |
-| Prius IPM: mesh convergence of the peak torque | mean torque at 250 A, 50 deg, gap nodes doubled | successive differences | 4.13e-03 | - | pass |
+| Prius IPM: Maxwell stress vs co-energy torque | Arkkio torque at 250 A, 3 rotor angles | virtual work dW'/dtheta (4th-order differences) | 1.96e-03 | - | pass |
+| Prius IPM: dq power balance and frozen permeability | mean Maxwell-stress torque over 60 el. deg | 1.5 p (psi_d i_q - psi_q i_d) | 1.96e-04 | - | pass |
+| Prius IPM: torque vs current angle (Yang et al. 2013) | mean torque, 250 A, Phi0 = 60..180 deg | published FEA (IEMDC 2013), 13 angles | 2.08e-02 | - | pass |
+| Prius IPM: mesh convergence of the peak torque | mean torque at 250 A, 50 deg, gap nodes doubled | successive differences | 4.15e-03 | - | pass |
 
 Notes from the same run:
 
 - Magnetised ring, sector mesher + P1 FEM: 8 sector copies, magnet edges on mesh edges
 - Machine sector geometry (Prius slot and magnet areas): magnet area (straight edges) exact to 4.4e-16
 - Prius IPM: Maxwell stress vs co-energy torque: max relative difference over the angles
-- Prius IPM: dq power balance and frozen permeability: frozen-permeability superposition error 3.1e-10; L_d = 1.393 mH, L_q = 2.453 mH, psi_pm = 0.2142 Wb at this point
-- Prius IPM: torque vs current angle (Yang et al. 2013): peak 345.5 N m at Phi0 = 140 deg (published 353 N m at 140 deg); rms deviation 5.0 % of the peak
-- Prius IPM: mesh convergence of the peak torque: 480: 343.20 N m, 960: 345.50 N m, 1920: 344.08 N m; difference ratio 1.62
+- Prius IPM: dq power balance and frozen permeability: frozen-permeability superposition error 4.1e-11; L_d = 1.386 mH, L_q = 2.420 mH, psi_pm = 0.2140 Wb at this point
+- Prius IPM: torque vs current angle (Yang et al. 2013): peak 345.6 N m at Phi0 = 140 deg (published 353 N m at 140 deg); largest deviation +25.3 N m at 90 deg; rms 13.3 N m; an angle offset of -1.32 deg fits best (rms 12.2 -> 9.7 N m over 70..170 deg)
+- Prius IPM: mesh convergence of the peak torque: 480: 343.42 N m, 960: 345.65 N m, 1920: 344.22 N m; difference ratio 1.56
 <!-- machine-verification:end -->
 
 ## Verification

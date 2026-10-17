@@ -24,7 +24,7 @@ from .geometry import Polygon, SectorGeometry, arc, prius_2004
 from .mesher import mesh_sector, replicate_sector
 from .pmsm import IPMMachine
 
-__all__ = ["CASES", "run", "YANG_2013_PHI0_DEG", "YANG_2013_TORQUE_NM", "prius_torque_curve"]
+__all__ = ["CASES", "run", "YANG_2013_PHI0_DEG", "YANG_2013_TORQUE_NM", "prius_torque_curve", "yang_comparison"]
 
 CASES: dict[str, Callable[[bool], CaseResult]] = {}
 
@@ -152,19 +152,42 @@ def _dq(quick: bool) -> CaseResult:
                              f"psi_pm = {ind['psi_pm_d']:.4f} Wb at this point")
 
 
+def yang_comparison(curve: dict) -> dict:
+    """Per-point errors of a torque-angle curve against Yang et al. 2013, and the angle offset ``delta`` (deg) that
+    minimises the rms error of ``T(Phi0 + delta)`` (cubic interpolation of the curve)."""
+    from scipy.interpolate import CubicSpline
+    from scipy.optimize import minimize_scalar
+
+    phi, T = curve["phi0_deg"], curve["torque"]
+    ref = YANG_2013_TORQUE_NM
+    err = T - ref
+    sp = CubicSpline(phi, T)
+    inner = (phi >= phi[0] + 5) & (phi <= phi[-1] - 5)  # keep the shifted samples inside the computed range
+    res = minimize_scalar(lambda d: float(np.sqrt(np.mean((sp(phi[inner] + d) - ref[inner]) ** 2))),
+                          bounds=(-5.0, 5.0), method="bounded")
+    k = int(np.argmax(np.abs(err)))
+    return {"phi0_deg": phi.tolist(), "torque": T.tolist(), "reference": ref.tolist(), "error_Nm": err.tolist(),
+            "relative_error": (err / ref).tolist(), "max_abs_error_Nm": float(np.abs(err).max()),
+            "max_abs_error_at_deg": float(phi[k]), "rms_error_Nm": float(np.sqrt(np.mean(err ** 2))),
+            "best_offset_deg": float(res.x), "rms_at_best_offset_Nm": float(res.fun),
+            "rms_no_offset_inner_Nm": float(np.sqrt(np.mean(err[inner] ** 2)))}
+
+
 @case("Prius IPM: torque vs current angle (Yang et al. 2013)")
 def _yang(quick: bool) -> CaseResult:
     n = 480 if quick else 960
     c = prius_torque_curve(n, n_positions=12)
     T = c["torque"]
     k = int(np.argmax(T))
-    rms = float(np.sqrt(np.mean((T - YANG_2013_TORQUE_NM) ** 2)) / YANG_2013_TORQUE_NM.max())
+    y = yang_comparison(c)
     peak = float((T.max() - YANG_2013_TORQUE_NM.max()) / YANG_2013_TORQUE_NM.max())
     return CaseResult("Prius IPM: torque vs current angle (Yang et al. 2013)",
                       "mean torque, 250 A, Phi0 = 60..180 deg", "published FEA (IEMDC 2013), 13 angles",
                       abs(peak), 0.05, detail=(
                           f"peak {T.max():.1f} N m at Phi0 = {c['phi0_deg'][k]:.0f} deg (published 353 N m at 140 deg); "
-                          f"rms deviation {100 * rms:.1f} % of the peak"))
+                          f"largest deviation {y['max_abs_error_Nm']:+.1f} N m at {y['max_abs_error_at_deg']:.0f} deg; "
+                          f"rms {y['rms_error_Nm']:.1f} N m; an angle offset of {y['best_offset_deg']:+.2f} deg fits best "
+                          f"(rms {y['rms_no_offset_inner_Nm']:.1f} -> {y['rms_at_best_offset_Nm']:.1f} N m over 70..170 deg)"))
 
 
 @case("Prius IPM: mesh convergence of the peak torque")

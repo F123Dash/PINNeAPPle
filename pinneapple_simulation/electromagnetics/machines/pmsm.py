@@ -149,10 +149,23 @@ class IPMMachine:
 
     # ------------------------------------------------------------------ dq frame
     def pm_flux_angle(self) -> float:
-        """Electrical angle phi0 of the no-load flux-linkage vector at theta = 0."""
+        """Electrical angle ``phi0`` of the d-axis (pole 0, on +x at ``theta = 0``) in the frame of the winding.
+
+        The fundamental of the magnet flux-linkage vector of a rotor symmetric about its pole axis lies at
+        ``arg(conj(W_A)) + 90 deg`` with ``W_A = sum_s c_s exp(j p phi_s)`` the winding phasor of phase A (conductors
+        ``c_s`` per slot at ``phi_s``); its sign (``+ 180 deg``) is taken from one no-load solution. A single solution's
+        flux vector would carry the slot harmonics: on the Prius it is 0.79 electrical degrees off the fundamental,
+        which moves the torque at pure negative d-axis current by about 12 N m."""
         if self._phi0 is None:
             psi = self.flux_linkage(self.solve(0.0))
-            self._phi0 = float(np.angle((2 / 3) * (psi[0] + _A * psi[1] + _A * _A * psi[2])))
+            snap = float(np.angle((2 / 3) * (psi[0] + _A * psi[1] + _A * _A * psi[2])))
+            S = self.geometry.stator.slots
+            W = sum(cs.sign * cs.turns * np.exp(1j * self.pole_pairs * TWO_PI * k / S)
+                    for k, cs in enumerate(self.coil_sides()) if cs.phase == 0)
+            geo = float(np.angle(np.conj(W))) + 0.5 * math.pi
+            if math.cos(geo - snap) < 0:
+                geo += math.pi
+            self._phi0 = float(np.angle(np.exp(1j * geo)))
         return self._phi0
 
     def theta_e(self, theta: float) -> float:
@@ -258,10 +271,11 @@ class IPMMachine:
         return g, -f(g)
 
     # ------------------------------------------------------------------ no load
-    def no_load(self, n: int = 24) -> dict:
-        """Cogging torque over one cogging period and phase flux linkages over one electrical period."""
+    def no_load(self, n: int = 24, n_flux: int | None = None) -> dict:
+        """Cogging torque at ``n`` angles over one cogging period and phase flux linkages at ``n_flux`` (default ``n``)
+        angles over one electrical period (for a back-EMF waveform, >= 120: the EMF carries the slot harmonics)."""
         th_c = self.positions(n, period=self.cogging_period)
-        th_e = self.positions(n, period=TWO_PI / self.pole_pairs)
+        th_e = self.positions(n_flux or n, period=TWO_PI / self.pole_pairs)
         cog = []
         A0 = None
         for th in th_c:
@@ -281,13 +295,17 @@ class IPMMachine:
         (spectral derivative); also the fundamental and line-to-line rms values."""
         from ..postprocess import back_emf
 
-        e = back_emf(psi, theta, rpm * TWO_PI / 60.0) * 1.0
+        e = back_emf(psi, theta, rpm * TWO_PI / 60.0)
         F = np.fft.rfft(e[:, 0]) / len(e)
-        e1 = 2 * abs(F[1])
+        amp = 2 * np.abs(F)
+        e1 = amp[1]
         ell = e[:, 0] - e[:, 1]
+        Fl = np.fft.rfft(ell) / len(ell)
         return {"e": e, "fundamental_peak": float(e1), "phase_rms": float(np.sqrt(np.mean(e[:, 0] ** 2))),
-                "line_rms": float(np.sqrt(np.mean(ell ** 2))),
-                "thd": float(np.sqrt(np.sum(np.abs(2 * F[2:]) ** 2)) / e1)}
+                "line_rms": float(np.sqrt(np.mean(ell ** 2))), "line_fundamental_rms": float(2 * abs(Fl[1]) / math.sqrt(2)),
+                "harmonics_phase": amp[1:].tolist(),
+                "thd": float(np.sqrt(np.sum(amp[2:] ** 2)) / e1),
+                "thd_line": float(np.sqrt(np.sum(np.abs(2 * Fl[2:]) ** 2)) / (2 * abs(Fl[1])))}
 
     # ------------------------------------------------------------------ losses
     def _period(self, i_d: float, i_q: float, steps: int):

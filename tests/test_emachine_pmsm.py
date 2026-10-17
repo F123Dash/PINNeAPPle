@@ -89,8 +89,12 @@ def test_frozen_permeability_superposition_is_exact(prius):
 
 
 def test_no_load_flux_is_on_the_d_axis_and_cogging_is_periodic(prius):
-    d, q = prius.park(prius.flux_linkage(prius.solve(0.0)), 0.0)
-    assert abs(q) < 1e-9 * abs(d) and d > 0
+    """The fundamental of the magnet flux linkage over an electrical period lies on the d-axis; with pure d-axis
+    current the mean torque vanishes (the rotor is symmetric about its pole axis)."""
+    th = prius.positions(24, period=2 * math.pi / prius.pole_pairs)
+    dq = np.array([prius.park(prius.flux_linkage(prius.solve(t)), t) for t in th])
+    assert abs(dq[:, 1].mean()) < 1e-6 * dq[:, 0].mean() and dq[:, 0].mean() > 0
+    assert abs(prius.operating_point(i_d=-250.0, i_q=0.0, n_positions=12)["torque_mean"]) < 1e-6
     T0 = prius.torque(prius.solve(0.0))
     T1 = prius.torque(prius.solve(prius.cogging_period))
     assert T1 == pytest.approx(T0, abs=1e-6 * max(1.0, abs(T0)))
