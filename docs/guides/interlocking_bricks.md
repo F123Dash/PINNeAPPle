@@ -109,14 +109,18 @@ to 1e-15; the voxel FEA beam deflection is within 0.4 % of Timoshenko (1.4 % abo
 leaves out shear). Newton agrees with harmonic stacking at 0.9x to 0.99x (stands) and 1.01x to 1.05x (falls). It
 disagrees at exactly 1.00x, the neutral equilibrium of the closed form, where it tips the stack.
 
-| goal | evolution (mean +- std, min-max) | surrogate-guided | best build |
-|---|---|---|---|
-| cantilever, reach past the edge with 8 parts | 115.1 +- 14.8 mm (95.9-135.9) | 102.3 +- 20.5 mm (71.9-127.9) | 135.9 mm, 34 % of the clutch |
-| bridge over 96 mm carrying 1 N, parts | 4.6 +- 0.8 (3-5), 5/5 seeds feasible | 4.7 +- 2.4 (3-8), 3/5 feasible | 3 parts, carries 1.46 N |
-| tower that survives a 10 mN push, height | 105.0 +- 32.5 mm (57.6-144.0) | 113.3 +- 30.4 mm (70.4-153.6) | 153.6 mm, 16 parts, 1.64 x the push |
+Statistic: the median of the best score over the 5 seeds, a seed that found no feasible build counted as the
+worst, and in brackets the range over the feasible seeds (the same rule as `comparison.png` and the report).
 
-Neither strategy dominates: evolution is ahead on the cantilever and more reliable on the bridge, the
-surrogate-guided search is ahead on the tower; the spread over seeds is as large as the gap between them. For
+| goal | evolution | surrogate-guided | best build |
+|---|---|---|---|
+| cantilever, reach past the edge with 8 parts | 111.9 mm (95.9 to 135.9), 5/5 feasible | 103.9 mm (71.9 to 127.9), 5/5 | 135.9 mm, 34 % of the clutch |
+| bridge over 96 mm carrying 1 N, parts | 5 (3 to 5), 5/5 feasible | 8 (3 to 8), 3/5 feasible | 3 parts, carries 1.46 N |
+| tower that survives a 10 mN push, height | 118.4 mm (57.6 to 144.0), 5/5 | 115.2 mm (70.4 to 153.6), 5/5 | 153.6 mm, 16 parts, 1.64 x the push |
+
+Evolution has the better median on all three goals and is the more reliable on the bridge (the surrogate-guided
+search found no bridge in 2 of 5 seeds), but the margins are smaller than the range over seeds and the
+surrogate-guided search found the tallest tower, so 5 seeds do not separate the two strategies. For
 reference, unconnected blocks of the same length reach (L/2) H_8 = 86.7 mm (harmonic stacking), so the stud
 clutch buys 57 % more reach (135.9 mm), still far below the 255 mm centre-of-mass bound.
 

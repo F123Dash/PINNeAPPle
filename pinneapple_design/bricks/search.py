@@ -341,8 +341,10 @@ def _rank_by_surrogate(goal, ev_, pool, k, sur, meta):
 def compare(goal_factory: Callable[[], Goal], *, budget: int = 200, seeds=(0, 1, 2, 3, 4),
             strategies=("evolution", "surrogate"), progress=None, surrogate_kw: dict | None = None, **kw) -> dict:
     """Run every strategy with every seed at the same evaluation budget. ``kw`` (mu, lam) go to both strategies,
-    ``surrogate_kw`` (pool, kappa, warmup) to the surrogate one. Returns the runs and a summary with the mean,
-    standard deviation, min and max of the best feasible score, and the success rate."""
+    ``surrogate_kw`` (pool, kappa, warmup) to the surrogate one. Returns the runs and a summary per strategy:
+    ``best_median`` over all seeds with a seed that found no feasible build counted as the worst (nan when most
+    seeds found none), min and max over the feasible seeds, mean and standard deviation over the feasible seeds,
+    and the success rate."""
     runs = {s: [] for s in strategies}
     for s in strategies:
         for sd in seeds:
@@ -357,7 +359,9 @@ def compare(goal_factory: Callable[[], Goal], *, budget: int = 200, seeds=(0, 1,
         ok = np.isfinite(best)
         curves = np.array([np.pad(r.best_curve, (0, budget - len(r.best_curve)), mode="edge") if len(r.best_curve)
                            else np.full(budget, np.nan) for r in rs])
-        summary[s] = {"best_mean": float(np.nanmean(best)) if ok.any() else float("nan"),
+        med = float(np.median(np.where(ok, best, -np.inf)))       # a seed without a feasible build ranks worst
+        summary[s] = {"best_median": med if np.isfinite(med) else float("nan"),
+                      "best_mean": float(np.nanmean(best)) if ok.any() else float("nan"),
                       "best_std": float(np.nanstd(best)) if ok.any() else float("nan"),
                       "best_min": float(np.nanmin(best)) if ok.any() else float("nan"),
                       "best_max": float(np.nanmax(best)) if ok.any() else float("nan"),

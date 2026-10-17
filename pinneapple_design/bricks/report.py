@@ -32,24 +32,29 @@ def sensitivity(goal: Goal, asm, factors: Sequence[float] | None = None, shear_c
     return rows
 
 
-def plot_comparison(summaries: dict[str, dict], path: str, *, ylabels: dict[str, str] | None = None) -> str:
-    """Best feasible score versus physics evaluations: one panel per goal, median line (seeds without a feasible
-    build count as worst) and min-max band of the feasible seeds per strategy, with the feasible count at the end."""
+def plot_comparison(summaries: dict[str, dict], path: str, *, ylabels: dict[str, str] | None = None,
+                    display: dict[str, dict] | None = None) -> str:
+    """Best feasible score versus physics evaluations: one panel per goal, per strategy the median over the seeds (a
+    seed without a feasible build counts as the worst, so the line starts once most seeds are feasible) and the range
+    of the feasible seeds, with the feasible count at the end. ``display[goal]``: ``{"scale": -1, "invert": True}``
+    to plot e.g. a part count stored as a negative score on an inverted axis (fewer is up)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     goals = list(summaries)
-    fig, axes = plt.subplots(1, len(goals), figsize=(4.2 * len(goals), 3.4), facecolor=SURFACE)
+    fig, axes = plt.subplots(1, len(goals), figsize=(4.2 * len(goals), 3.7), facecolor=SURFACE)
     axes = np.atleast_1d(axes)
+    n_seeds = 0
     for ax, g in zip(axes, goals, strict=True):
         ax.set_facecolor(SURFACE)
+        disp = (display or {}).get(g, {})
+        k = float(disp.get("scale", 1.0))
         ends = []
         for s, summ in summaries[g].items():
             C = np.asarray(summ["curves"], float)
+            n_seeds = C.shape[0]
             x = np.arange(1, C.shape[1] + 1)
             ok = np.isfinite(C)
-            # a seed with no feasible build yet ranks below every feasible one: the median exists only where more
-            # than half of the seeds are feasible, the band spans the feasible seeds
             med = np.median(np.where(ok, C, -np.inf), 0)
             med[~np.isfinite(med)] = np.nan
             with warnings.catch_warnings():                 # columns where no seed is feasible yet
@@ -57,16 +62,20 @@ def plot_comparison(summaries: dict[str, dict], path: str, *, ylabels: dict[str,
                 lo = np.where(ok.any(0), np.nanmin(np.where(ok, C, np.nan), 0), np.nan)
                 hi = np.where(ok.any(0), np.nanmax(np.where(ok, C, np.nan), 0), np.nan)
             col = SERIES.get(s, MUTED)
-            ax.fill_between(x, lo, hi, color=col, alpha=0.16, linewidth=0)
+            ax.fill_between(x, k * lo, k * hi, color=col, alpha=0.16, linewidth=0)
+            ax.plot(x, k * med, color=col, lw=2, label=s)
             n_ok = int(ok[:, -1].sum())
-            ax.plot(x, med, color=col, lw=2, label=f"{s}: median and range of {C.shape[0]} seeds")
             last = np.where(np.isfinite(med))[0]
             if len(last):
-                ends.append([med[last[-1]], x[last[-1]], f"{med[last[-1]]:.0f} ({n_ok}/{C.shape[0]} feasible)"])
-        ends.sort()
+                ends.append([k * med[last[-1]], x[last[-1]], f"{k * med[last[-1]]:.0f} ({n_ok}/{C.shape[0]} feasible)"])
+        if disp.get("invert"):
+            ax.invert_yaxis()
+        top_first = disp.get("invert", False)
+        ends.sort(reverse=top_first)
         span = np.ptp(ax.get_ylim())
-        for k in range(1, len(ends)):                     # keep the end labels apart
-            ends[k][0] = max(ends[k][0], ends[k - 1][0] + 0.07 * span)
+        for j in range(1, len(ends)):                     # keep the end labels apart
+            step = 0.07 * span
+            ends[j][0] = (min if top_first else max)(ends[j][0], ends[j - 1][0] + (-step if top_first else step))
         for yv, xv, txt in ends:
             ax.annotate(txt, (xv, yv), xytext=(4, 0), textcoords="offset points", va="center", fontsize=8,
                         color=INK)
@@ -79,8 +88,12 @@ def plot_comparison(summaries: dict[str, dict], path: str, *, ylabels: dict[str,
         for sp in ("left", "bottom"):
             ax.spines[sp].set_color("#c9c8c2")
         ax.tick_params(colors=MUTED, labelsize=8)
-    axes[0].legend(fontsize=8, frameon=False, loc="lower right")
-    fig.tight_layout()
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=len(labels), frameon=False, fontsize=9,
+               bbox_to_anchor=(0.5, 1.0))
+    fig.text(0.5, 0.005, f"Lines: median over {n_seeds} seeds (a seed without a feasible build counts as the worst); "
+             "bands: range of the feasible seeds.", ha="center", va="bottom", fontsize=8, color=MUTED)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     fig.savefig(path, dpi=150, facecolor=SURFACE)
     plt.close(fig)
     return path
@@ -97,7 +110,7 @@ def _fmt(v, nd=3):
 def write_report(path: str, *, validation: dict, comparisons: dict[str, dict], best: dict[str, dict],
                  sensitivities: dict[str, list[dict]], references: dict | None = None, files: dict | None = None,
                  joint: JointModel | None = None, cross_checks: dict[str, dict] | None = None,
-                 notes: Sequence[str] = ()) -> str:
+                 notes: Sequence[str] = (), display: dict[str, dict] | None = None) -> str:
     """Markdown report: what was measured, the closed-form checks (and where they disagree), the strategy comparison
     with its spread over seeds, the best builds, the sensitivity to the joint model and its limits."""
     joint = joint or JointModel()
@@ -138,19 +151,26 @@ def write_report(path: str, *, validation: dict, comparisons: dict[str, dict], b
     if notes:
         L += ["", "Where the simulations disagree with each other or with the closed forms:", ""] + [f"- {n}" for n in notes]
     L += ["", "## Search strategies at equal evaluation budget", ""]
+    L += ["Statistic: per strategy, the median of the best score over the seeds, a seed that found no feasible build "
+          "counted as the worst (the same rule as the chart), and the range over the feasible seeds.", ""]
     for g, comp in comparisons.items():
-        L += [f"### {g}", "", "| strategy | best (mean +- std) | min | max | feasible runs | per seed |",
-              "|---|---|---|---|---|---|"]
+        disp = (display or {}).get(g, {})
+        k, unit = float(disp.get("scale", 1.0)), disp.get("unit", "")
+        L += [f"### {g}", "", f"| strategy | median{unit} | range of feasible seeds | feasible seeds | per seed |",
+              "|---|---|---|---|---|"]
         for s, summ in comp.items():
-            per = ", ".join("-" if not np.isfinite(v) else f"{v:.1f}" for v in summ["per_seed"])
-            L.append(f"| {s} | {summ['best_mean']:.1f} +- {summ['best_std']:.1f} | {summ['best_min']:.1f} | "
-                     f"{summ['best_max']:.1f} | {summ['success_rate']:.0%} | {per} |")
+            per = ", ".join("-" if v is None or not np.isfinite(v) else f"{k * v:.1f}" for v in summ["per_seed"])
+            med = summ.get("best_median", float("nan"))
+            lo, hi = sorted((k * summ["best_min"], k * summ["best_max"]))
+            n_ok = round(summ["success_rate"] * len(summ["seeds"]))
+            L.append(f"| {s} | {'-' if not np.isfinite(med) else f'{k * med:.1f}'} | {lo:.1f} to {hi:.1f} | "
+                     f"{n_ok}/{len(summ['seeds'])} | {per} |")
         L.append(f"\nBudget {next(iter(comp.values()))['budget']} physics evaluations per run, seeds "
                  f"{next(iter(comp.values()))['seeds']}.")
         if g in best:
             b = best[g]
-            L += ["", f"Best build ({b['strategy']}, seed {b['seed']}): {b['n_bricks']} parts, score "
-                      f"{b['score']:.1f}. {b['explanation']}"]
+            L += ["", f"Best build ({b['strategy']}, seed {b['seed']}): {b['n_bricks']} parts, "
+                      f"{k * b['score']:.1f}{unit}. {b['explanation']}"]
         if references and g in references:
             L.append("Closed-form references: " + ", ".join(f"{k} {v:.1f} mm" for k, v in references[g].items()) + ".")
         if g in sensitivities:

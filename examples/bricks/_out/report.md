@@ -58,16 +58,18 @@ Where the simulations disagree with each other or with the closed forms:
 
 ## Search strategies at equal evaluation budget
 
+Statistic: per strategy, the median of the best score over the seeds, a seed that found no feasible build counted as the worst (the same rule as the chart), and the range over the feasible seeds.
+
 ### cantilever
 
-| strategy | best (mean +- std) | min | max | feasible runs | per seed |
-|---|---|---|---|---|---|
-| evolution | 115.1 +- 14.8 | 95.9 | 135.9 | 100% | 127.9, 135.9, 95.9, 111.9, 103.9 |
-| surrogate | 102.3 +- 20.5 | 71.9 | 127.9 | 100% | 103.9, 127.9, 119.9, 71.9, 87.9 |
+| strategy | median [mm] | range of feasible seeds | feasible seeds | per seed |
+|---|---|---|---|---|
+| evolution | 111.9 | 95.9 to 135.9 | 5/5 | 127.9, 135.9, 95.9, 111.9, 103.9 |
+| surrogate | 103.9 | 71.9 to 127.9 | 5/5 | 103.9, 127.9, 119.9, 71.9, 87.9 |
 
 Budget 400 physics evaluations per run, seeds [0, 1, 2, 3, 4].
 
-Best build (evolution, seed 1): 8 parts, score 135.9. stands: peak stud tension 0.333 N = 34% of the 0.98 N clutch
+Best build (evolution, seed 1): 8 parts, 135.9 [mm]. stands: peak stud tension 0.333 N = 34% of the 0.98 N clutch
 Closed-form references: single_block 31.9 mm, harmonic_unconnected 86.7 mm, com_bound 255.2 mm.
 
 Sensitivity of the best build to the joint model:
@@ -92,14 +94,14 @@ Sensitivity of the best build to the joint model:
 
 ### bridge
 
-| strategy | best (mean +- std) | min | max | feasible runs | per seed |
-|---|---|---|---|---|---|
-| evolution | -4.6 +- 0.8 | -5.0 | -3.0 | 100% | -5.0, -3.0, -5.0, -5.0, -5.0 |
-| surrogate | -4.7 +- 2.4 | -8.0 | -3.0 | 60% | -3.0, -, -8.0, -, -3.0 |
+| strategy | median [parts] | range of feasible seeds | feasible seeds | per seed |
+|---|---|---|---|---|
+| evolution | 5.0 | 3.0 to 5.0 | 5/5 | 5.0, 3.0, 5.0, 5.0, 5.0 |
+| surrogate | 8.0 | 3.0 to 8.0 | 3/5 | 3.0, -, 8.0, -, 3.0 |
 
 Budget 400 physics evaluations per run, seeds [0, 1, 2, 3, 4].
 
-Best build (evolution, seed 1): 3 parts, score -3.0. carries 1.462 N at mid-span (1.46 x the 1.0 N load)
+Best build (evolution, seed 1): 3 parts, 3.0 [parts]. carries 1.462 N at mid-span (1.46 x the 1.0 N load)
 
 Sensitivity of the best build to the joint model:
 
@@ -123,14 +125,14 @@ Sensitivity of the best build to the joint model:
 
 ### tower
 
-| strategy | best (mean +- std) | min | max | feasible runs | per seed |
-|---|---|---|---|---|---|
-| evolution | 105.0 +- 32.5 | 57.6 | 144.0 | 100% | 118.4, 57.6, 76.8, 128.0, 144.0 |
-| surrogate | 113.3 +- 30.4 | 70.4 | 153.6 | 100% | 153.6, 115.2, 70.4, 89.6, 137.6 |
+| strategy | median [mm] | range of feasible seeds | feasible seeds | per seed |
+|---|---|---|---|---|
+| evolution | 118.4 | 57.6 to 144.0 | 5/5 | 118.4, 57.6, 76.8, 128.0, 144.0 |
+| surrogate | 115.2 | 70.4 to 153.6 | 5/5 | 153.6, 115.2, 70.4, 89.6, 137.6 |
 
 Budget 400 physics evaluations per run, seeds [0, 1, 2, 3, 4].
 
-Best build (surrogate, seed 0): 16 parts, score 153.6. 153.6 mm tall, survives 16.4 mN at the top (1.64 x the push); stands: peak stud tension 0.202 N = 21% of the 0.98 N clutch
+Best build (surrogate, seed 0): 16 parts, 153.6 [mm]. 153.6 mm tall, survives 16.4 mN at the top (1.64 x the push); stands: peak stud tension 0.202 N = 21% of the 0.98 N clutch
 
 Sensitivity of the best build to the joint model:
 

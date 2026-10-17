@@ -366,3 +366,21 @@ def test_cross_check_and_compound_clusters():
     r = evolve(g, 30, seed=0)
     cc = cross_check(g, r.history, max_n=4, duration=0.3, dt=1e-3, iterations=16)
     assert len(cc["rows"]) == 4 and cc["agreement"] == 1.0
+
+
+def test_summary_median_counts_infeasible_seeds_as_worst(tmp_path):
+    from pinneapple_design.bricks import report
+    curves = np.array([[np.nan, -5, -3], [np.nan, np.nan, np.nan], [-8, -8, -8], [np.nan, np.nan, np.nan],
+                       [np.nan, -3, -3]], float)
+    summ = {"surrogate": {"curves": curves, "per_seed": [-3.0, None, -8.0, None, -3.0], "best_median": -8.0,
+                          "best_min": -8.0, "best_max": -3.0, "success_rate": 0.6, "seeds": [0, 1, 2, 3, 4],
+                          "budget": 3}}
+    assert float(np.median(np.where(np.isfinite(curves[:, -1]), curves[:, -1], -np.inf))) == -8.0
+    png = report.plot_comparison({"bridge": summ}, str(tmp_path / "b.png"),
+                                 display={"bridge": {"scale": -1, "invert": True}})
+    assert os.path.getsize(png) > 0
+    v = {"rows": [], "harmonic_newton": [], "report": type("R", (), {"decisao": "APPROVED", "score": 1.0,
+                                                                      "cobertura": 1.0})()}
+    md = open(report.write_report(str(tmp_path / "r.md"), validation=v, comparisons={"bridge": summ}, best={},
+                                  sensitivities={}, display={"bridge": {"scale": -1, "unit": " [parts]"}})).read()
+    assert "| surrogate | 8.0 | 3.0 to 8.0 | 3/5 | 3.0, -, 8.0, -, 3.0 |" in md

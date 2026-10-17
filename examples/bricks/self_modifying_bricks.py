@@ -41,7 +41,10 @@ GOALS = {
     "bridge": lambda: BridgeGoal(gap=12, load_n=1.0),
     "tower": lambda: TowerGoal(max_bricks=16, push_n=0.01, base=6),
 }
-METRIC = {"cantilever": "reach past the edge [mm]", "bridge": "- parts (higher is fewer)", "tower": "height [mm]"}
+METRIC = {"cantilever": "reach past the edge [mm]", "bridge": "parts (fewer is better)", "tower": "height [mm]"}
+# the bridge score is minus the part count: show the count, fewest at the top
+DISPLAY = {"cantilever": {"unit": " [mm]"}, "bridge": {"scale": -1, "invert": True, "unit": " [parts]"},
+           "tower": {"unit": " [mm]"}}
 
 
 def run(smoke: bool = True, out_dir: str | None = None, blender: bool | None = None) -> dict:
@@ -70,9 +73,10 @@ def run(smoke: bool = True, out_dir: str | None = None, blender: bool | None = N
                       "run": run_, "asm": b.asm, "goal": goal}
         sens[name] = report.sensitivity(goal, b.asm)
         for k, s in comps[name].items():
-            print(f"{name:10s} {k:9s} best {s['best_mean']:.1f} +- {s['best_std']:.1f} "
-                  f"(min {s['best_min']:.1f}, max {s['best_max']:.1f}) over seeds {s['seeds']}")
-    files["comparison chart"] = report.plot_comparison(comps, os.path.join(out, "comparison.png"), ylabels=METRIC)
+            print(f"{name:10s} {k:9s} median best {s['best_median']:.1f} (feasible {s['success_rate']:.0%}, "
+                  f"range {s['best_min']:.1f} to {s['best_max']:.1f}) over seeds {s['seeds']}")
+    files["comparison chart"] = report.plot_comparison(comps, os.path.join(out, "comparison.png"), ylabels=METRIC,
+                                                       display=DISPLAY)
 
     # statics against Newton on the searched candidates, and the two known sources of disagreement, measured
     checks, notes = {}, []
@@ -137,7 +141,7 @@ def run(smoke: bool = True, out_dir: str | None = None, blender: bool | None = N
     refs = {"cantilever": reference_cantilever(8)}
     files["report"] = report.write_report(os.path.join(out, "report.md"), validation=val, comparisons=comps,
                                           best=best, sensitivities=sens, references=refs, files=files,
-                                          cross_checks=checks, notes=notes)
+                                          cross_checks=checks, notes=notes, display=DISPLAY)
     summary = {"validation": val["rows"], "harmonic_newton": val["harmonic_newton"],
                "trust_decision": val["report"].decisao, "budget": budget, "seeds": list(seeds),
                "comparison": {g: {s: {k: v for k, v in d.items() if k != "curves"} for s, d in c.items()}

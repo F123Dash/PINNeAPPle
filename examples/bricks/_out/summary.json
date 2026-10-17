@@ -178,6 +178,7 @@
  "comparison": {
   "cantilever": {
    "evolution": {
+    "best_median": 111.9,
     "best_mean": 115.1,
     "best_std": 14.837789592793126,
     "best_min": 95.9,
@@ -200,6 +201,7 @@
     ]
    },
    "surrogate": {
+    "best_median": 103.9,
     "best_mean": 102.3,
     "best_std": 20.489997559785117,
     "best_min": 71.9,
@@ -224,6 +226,7 @@
   },
   "bridge": {
    "evolution": {
+    "best_median": -5.0,
     "best_mean": -4.6,
     "best_std": 0.7999999999999999,
     "best_min": -5.0,
@@ -246,6 +249,7 @@
     ]
    },
    "surrogate": {
+    "best_median": -8.0,
     "best_mean": -4.666666666666667,
     "best_std": 2.357022603955158,
     "best_min": -8.0,
@@ -270,6 +274,7 @@
   },
   "tower": {
    "evolution": {
+    "best_median": 118.4,
     "best_mean": 104.96,
     "best_std": 32.4701462885525,
     "best_min": 57.6,
@@ -292,6 +297,7 @@
     ]
    },
    "surrogate": {
+    "best_median": 115.2,
     "best_mean": 113.28000000000002,
     "best_std": 30.39831574281707,
     "best_min": 70.4,
