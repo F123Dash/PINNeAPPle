@@ -86,8 +86,9 @@ The app composes library calls only: `pp.uncertainty.uncertainty_study`, which r
   only in "with model error".
 - A high-fidelity solver is wired for the heat-sink model only. For other models the routed cases are listed for your
   own solver (OpenFOAM, CalculiX). The runner app (day 27) will close that loop.
-- Studies run synchronously in the request, limited by `UQL_MAX_HEAVY` and the size caps below. They move to the
-  shared job queue once the shared runtime is merged.
+- Studies run as jobs in the shared queue (`UQL_MAX_JOBS` at once), within the size caps below. A `ParameterSpace`
+  given as the uncertain inputs is uniform on its bounds unless its `metadata["distributions"]` says otherwise;
+  categorical and log-scaled parameters are refused.
 
 ## Integrations
 
@@ -95,7 +96,10 @@ The app composes library calls only: `pp.uncertainty.uncertainty_study`, which r
 - Any tool that exports ONNX (PyTorch, scikit-learn via skl2onnx, Keras, MATLAB).
 - Reference data from any solver or test rig as CSV, Parquet or JSON. Parquet files from the Interoperability Hub
   work directly.
-- The JSON result carries a `study_result` block (`kind: uncertainty_study`) for the other apps.
+- **The shared contracts** (`pinneapple_data.contracts`): a `ModelRef` for the model (`model_ref`: `zoo:<name>`, or an
+  ONNX graph uploaded with it; `GET /api/model/{name}` returns one), a `ParameterSpace` for the uncertain inputs
+  (`parameter_space`), and a `StudyResult` (`study_type: uncertainty`, with the checks that ran: held-out coverage,
+  coverage per group, high-fidelity agreement, chaos Q²) in every result, for the other apps.
 
 ## Run
 
@@ -104,10 +108,12 @@ pip install -e . -r apps/uncertainty_lab/requirements.txt          # from the re
 cd apps/uncertainty_lab && uvicorn uncertainty_lab.api:app --port 8098
 ```
 
-Environment variables:
+Environment variables (the shared runtime ones are in [`apps/_shared/README.md`](../_shared/README.md)):
 
-- `UQL_USER` / `UQL_PASSWORD`: HTTP Basic login.
-- `UQL_MAX_HEAVY`: concurrent studies (default 2).
+- `UQL_USER` / `UQL_PASSWORD`: HTTP Basic login; `UQL_ADMIN_TOKEN` for API-key management without a login.
+- `UQL_MAX_JOBS`: studies running at once (default 2); `UQL_MAX_HEAVY`: concurrent synchronous examples.
+- `UQL_FREE_STUDIES`, `UQL_FREE_SCENARIOS`, `UQL_FREE_PROPAGATION_SAMPLES`, `UQL_FREE_HF_RUNS`: free use per caller
+  and month (defaults 200, 20,000, 2,000,000 and 500; `unlimited` lifts a limit).
 - `UQL_MAX_MB`: largest upload in MB (default 50).
 - `UQL_MAX_CASES`: cases screened per study (default 2000).
 - `UQL_MAX_PROPAGATION`: Monte-Carlo samples per study (default 20000).
@@ -118,7 +124,9 @@ Docker: `docker build -f apps/uncertainty_lab/Dockerfile -t uncertainty-lab .`. 
 
 ## API
 
-- `POST /api/study`: multipart `config` (JSON) plus the optional files `model` (.onnx), `reference` and `cases`.
+- `POST /api/study`: runs a study as a job. Multipart `config` (JSON) plus the optional files `model` (.onnx),
+  `reference` and `cases` (or `*_upload` ids from `/api/uploads`); `?wait=<s>` waits for the job.
+- `GET /api/jobs/{id}`: status, progress and result (shared runtime; also `/logs`, `/cancel`, `/retry`, `/api/usage`).
 - `GET /api/example/{heatsink|airfoil}`: runs an example; `/config` returns its configuration.
 - `GET /api/model/{name}`: inputs, units, validity range and nominal point.
 - `GET /api/template/{name}.csv`: a reference-data template.
@@ -144,5 +152,5 @@ Billed on three things:
 - **Scenarios**: the cases screened.
 - **Study size**: propagation samples, and uploads above the free caps.
 
-A free tier covers the examples and small studies. The meters are the `usage` block of every response; they move to
-the shared metering once the shared runtime lands.
+Metered per caller and month by the shared runtime (`GET /api/usage`, units `studies`, `scenarios`,
+`propagation_samples`, `hf_runs`), with a free tier and HTTP 429 past it; the examples are free.
