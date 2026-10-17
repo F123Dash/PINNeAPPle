@@ -139,7 +139,8 @@ class FreeCADAdapter(Adapter):
         (ctx.step_dir / "macro_result.json").write_text(json.dumps(result, indent=1))
         res.artifacts.append(ctx.step_dir / "macro_result.json")
         res.outputs.update(result)
-        res.actions.append(f"ran macro {macro.name} with {json.dumps(params.get('args') or {})}")
+        res.actions.append(f"ran macro {macro.name} with parameters "
+                           f"{json.dumps((params.get('args') or {}).get('parameters', {}))}")
         for c in result.get("checks", []):
             res.checks.append(Check(c["name"], bool(c["passed"]), c.get("detail", ""), c.get("value"),
                                     c.get("threshold"), source=macro.name))
