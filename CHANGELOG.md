@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Physics AI Model Gateway app (day 31, `apps/model_gateway`, models.pinneapple.org, port 8114):
+  - zoo models, ONNX graphs and Surrogate Studio models (by `ModelRef` or `model.zip`) served behind one `/v1` API;
+  - versions and stages, with an OOD policy per version (warn or refuse) that callers can only tighten;
+  - a run log, latency / count / error metrics and exports;
+  - publishing guarded by the admin token, or an API key for ONNX;
+  - metering of inferences and hosted models on the shared runtime.
 - Observatory: space journey from your place to the target (#723). `pinneapple_physics.astro.journey`: heliocentric
   ICRS positions of the observer (Earth from the JPL ephemeris plus the site), the Solar System bodies at the date and
   the stars from their parallax (Hipparcos 2007 for the brightest); galactic coordinates (IAU 1958 on J2000 axes);
