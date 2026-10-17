@@ -20,6 +20,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `pinneapple_tools.visualization.studio.solver_view` builds it, with `pinneapple_data.cae.inp.deck_conditions`
   (`*BOUNDARY`, `*CLOAD`, `*DLOAD` as node sets) and `pinneapple_data.cae.foam.boundary_conditions` (patch conditions);
   `WorkflowRunner.step_workdir` gives where a (possibly reused) step's files are.
+- 3-D view in the Physics Validation Lab (day 24): for a 3-D result on a mesh with a reference (OpenFOAM case,
+  VTU/VTK), the prediction, the reference and the pointwise error on the mesh, exactly the values PC701 compared, with
+  the declared boundary conditions and a list of the regions with the largest error
+  (`pinneapple_veriphysics.mesh_views`). New example: a reduced model against the FEM it replaces, on a 3-D cantilever.
 - Engineering Design Optimizer app (`apps/engineering_optimizer`, day 17, `optimize.pinneapple.org`, port 8100):
   black-box optimisation (NSGA-II, pymoo, SciPy differential evolution, Bayesian optimisation) on the heat-sink
   example, a table of your evaluated designs (GP surrogate with held-out error) or a zoo model; candidates re-evaluated

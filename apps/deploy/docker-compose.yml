@@ -347,6 +347,8 @@ services:
       VAL_PASSWORD: ${VAL_PASSWORD:-}
       VAL_MAX_HEAVY: ${VAL_MAX_HEAVY:-2}
       VAL_MAX_MB: ${VAL_MAX_MB:-200}
+      VAL_VIEW_MAX_FACES: ${VAL_VIEW_MAX_FACES:-250000}
+      VAL_VIEWS_KEPT: ${VAL_VIEWS_KEPT:-300}
     expose: ["8107"]
     mem_limit: ${VAL_MEM_LIMIT:-1g}
 
