@@ -90,11 +90,12 @@ EXAMPLES = {
               "spec": {"results": [{"path": "heat_plate.npz", "physics": "heat",
                                     "parameters": {"k": "10 W/(m*K)", "q": "1000 W/m3"}, "units": {"T": "K"},
                                     "bounds": {"T": [250, 400]}, "bc": {"x=max": {"T": "300 + 25*(1 - y**2)"}}}]}},
-    "cantilever3d": {"title": "A reduced model against the FEM it replaces, in 3-D",
-                     "note": "Displacement and von Mises stress of a solid cantilever (H 0.289 m, W 0.173 m, load "
-                             "4.8° from vertical): the POD + GPR model of the ROM Lab at a held-out design near the edge "
-                             "of its training box, against a fresh FEM solve. The clamp holds; the reference check fails "
-                             "(21 % and 28 %), and the 3-D view shows where.",
+    "cantilever3d": {"title": "A reduced model at its worst design, against the FEM, in 3-D",
+                     "note": "Chosen to fail: the ROM Lab's POD + GPR model (4.4 % mean error over its 20 held-out "
+                             "designs) at the one held-out design where it is worst, near the edge of its training box "
+                             "(H 0.289 m, W 0.173 m, load 4.8° from vertical), against a fresh FEM solve. The clamp "
+                             "holds; the reference check fails (21 % displacement, 28 % stress). This is not the ROM's "
+                             "typical quality; the 3-D view shows where it breaks down.",
                      "files": [APP_EXAMPLES / "cantilever_rom.vtu", APP_EXAMPLES / "cantilever_fem.vtu"],
                      "spec": {"results": [{"path": "cantilever_rom.vtu", "units": {"D": "m", "von_mises": "MPa"},
                                            "bounds": {"von_mises": [0, 500]}, "bc": {"x=min": {"D": [0, 0, 0]}},

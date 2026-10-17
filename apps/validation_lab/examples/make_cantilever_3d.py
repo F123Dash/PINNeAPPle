@@ -7,7 +7,9 @@ A reduced-order model checked against the finite-element solution it replaces, o
 * ``cantilever_rom.vtu``: the POD + GPR model of the Reduced Order Model Lab (rank 8; height and width in log scale;
   trained on 80 of the 100 FEM cantilever designs of ``apps/rom_lab/examples/cantilever_designs.npz``, the same random
   split, seed 0) evaluated at held-out design 6: H = 0.289 m, W = 0.173 m, load at 4.8° from -z, near the edge of
-  the training box. Point data ``D`` (displacement, m) and ``von_mises`` (MPa).
+  the training box. Point data ``D`` (displacement, m) and ``von_mises`` (MPa). Design 6 is chosen on purpose: of the
+  20 held-out designs it is the one where this model is worst (21 % / 28 %, against a 4.4 % mean), so the example
+  shows a failing reference check.
 * ``cantilever_fem.vtu``: the solid FEM of that design solved now (``pinneapple_lab.experiments.rom.cantilever``,
   30 x 3 x 6 hexahedra, clamped at x = 0, 10 kN on the face x = 2 m): the reference.
 

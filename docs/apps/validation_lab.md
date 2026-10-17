@@ -37,7 +37,10 @@ share of the squared error and the faces of the domain they touch. Click a row t
 is the PC701 number. 2-D results, tables and models keep the current views. Library:
 `pinneapple_veriphysics.mesh_views`, `pinneapple_analysis.validation.error_map`, `pp.viz.field_view`.
 
-![A reduced model against the FEM it replaces: |prediction − reference| of the von Mises stress on the deformed cantilever, with the five regions of largest error at the clamp](../assets/apps/d24-validate-3d-stress.jpg)
+The 3-D example is chosen to fail: the ROM Lab's POD + GPR model (4.4 % mean held-out error) at its worst held-out
+design, near the edge of its training box. It shows a failing reference check, not the ROM's typical quality.
+
+![The ROM Lab's model at its worst held-out design against the FEM: |prediction − reference| of the von Mises stress on the deformed cantilever, with the regions of largest error at the clamp](../assets/apps/d24-validate-3d-stress.jpg)
 
 ![The displacement error of the same model: one region, at the loaded tip](../assets/apps/d24-validate-3d-displacement.jpg)
 

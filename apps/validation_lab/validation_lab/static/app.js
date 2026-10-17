@@ -158,6 +158,7 @@ function render() {
   </div>
   ${(r.views3d || []).length ? `<div class="panel">
     <h2 style="margin-top:0">On the mesh: prediction, reference and error (3-D)</h2>
+    ${r.example && r.example.id === "cantilever3d" ? `<p class="hint"><b>Example:</b> ${esc(r.example.note)}</p>` : ""}
     <p class="hint">The values compared by the reference check (PC701), at the same points: switch between the prediction, the reference and |prediction − reference|. Declared boundary conditions and the regions with the largest error are marked.</p>
     ${r.views3d.length > 1 ? `<label class="v3pick">Result <select id="v3t">${r.views3d.map((v, i) => `<option value="${i}">${esc(v.target)}</option>`).join("")}</select></label>` : ""}
     <div class="v3wrap"><div id="v3d"></div><div class="v3side" id="v3sum"></div></div></div>` : ""}

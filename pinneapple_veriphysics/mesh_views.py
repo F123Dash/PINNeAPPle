@@ -149,7 +149,8 @@ def mesh_views(workdir: str | Path, config: str | Path | None = None, *, report:
                         "note": f"relative L2 {100 * em.rel_l2:.2f} %"}]
             for k, h in enumerate(em.hotspots):
                 markers.append({"name": f"R{k + 1}", "kind": "hotspot", "points": locs[h["indices"]], "centre": h["at"],
-                                "fields": keys, "detail": f"|error| up to {h['max']:.3g} {unit}"})
+                                "fields": keys, "detail": f"|error| up to {h['max']:.3g} {unit}",
+                                "label": k < 3})              # the first three are labelled; all are in the table
         if not fields:
             continue
         markers = _bc_markers(t, fd, mesh, locs) + markers

@@ -94,6 +94,8 @@ def test_vtu_example_views_match_pc701_and_deform_with_the_displacement(tmp_path
     hs = v["errors"]["von_mises"]["hotspots"]
     assert len(hs) >= 3 and hs[0]["name"] == "R1" and hs[0]["max"] == pytest.approx(v["errors"]["von_mises"]["max"])
     assert "x=min" in hs[2]["touches"] or "x=min" in hs[3]["touches"]   # stress errors sit at the clamp
+    labelled = [m["name"] for m in meta["markers"] if m["kind"] == "hotspot" and m["label"] and m["fields"][0] == "von_mises:pred"]
+    assert labelled == ["R1", "R2", "R3"]                               # the rest are in the table, points only
 
 
 def test_openfoam_3d_case_cell_values_and_patch_markers(tmp_path):
