@@ -163,6 +163,9 @@
     "PINNeAPPle/tests/pinneapple_core/test_module.py::test_any_pp_solve_method_is_a_component",
     "PINNeAPPle/tests/pinneapple_core/test_transforms.py::test_problem_level_refusals_are_explicit",
     "PINNeAPPle/tests/pinneapple_core/test_transforms.py::test_scale_rewrites_conditions_selectors_and_sources",
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_bad_requests_are_refused",
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_point_cloud_study",
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_polygon_study_with_contract_and_downloads",
     "PINNeAPPle/tests/test_arena_graph_no_target_leak.py::test_dataset_path_node_features_are_inputs_only",
     "PINNeAPPle/tests/test_codegen.py::test_classify_physics_shape_on_real_presets",
     "PINNeAPPle/tests/test_codegen.py::test_fenics_diffusion_script_is_valid_and_has_expected_api",
@@ -303,7 +306,9 @@
    "status": "validated"
   },
   "E3": {
-   "other_tests": [],
+   "other_tests": [
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_health_meta_page_and_preview"
+   ],
    "reference_tests": [
     "PINNeAPPle/tests/test_manufactured_solutions_batch2.py::test_helmholtz_eigenfunction",
     "PINNeAPPle/tests/test_meshless.py::test_helmholtz_on_the_disk_and_heat_on_the_plate_with_a_hole"
@@ -502,7 +507,10 @@
   },
   "E44": {
    "other_tests": [
+    "PINNeAPPle/tests/test_app_identifiability_lab.py::test_design_stage_without_values_and_validation",
+    "PINNeAPPle/tests/test_app_identifiability_lab.py::test_page_meta_and_presets",
     "PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_advection_dispersion_reaction_solver",
+    "PINNeAPPle/tests/test_inverse_core.py::test_one_temperature_kinetics_is_ambiguous_two_are_not",
     "PINNeAPPle/tests/test_reaction_kinetics.py::test_arrhenius_rate_constant_increases_with_temperature_for_positive_activation_energy",
     "PINNeAPPle/tests/test_reaction_kinetics.py::test_arrhenius_requires_temperature",
     "PINNeAPPle/tests/test_reaction_kinetics.py::test_integrate_network_clamps_negative_overshoot_and_stays_nonnegative",
@@ -647,8 +655,10 @@
     "PINNeAPPle/tests/test_fitmesh.py::test_parse_portuguese_and_english",
     "PINNeAPPle/tests/test_twin3d_gallery.py::test_wind_turbine_dimensions_and_loads"
    ],
-   "reference_tests": [],
-   "status": "tested"
+   "reference_tests": [
+    "PINNeAPPle/tests/test_design_studies.py::test_heatsink_geometry_matches_library_closed_forms"
+   ],
+   "status": "validated"
   },
   "E56": {
    "other_tests": [
@@ -751,8 +761,10 @@
     "PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_root_stress_matches_ridetune_ai_baseline",
     "PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_thickness_is_exactly_twice_as_sensitive_as_width_to_fatigue_life"
    ],
-   "reference_tests": [],
-   "status": "tested"
+   "reference_tests": [
+    "PINNeAPPle/tests/test_design_studies.py::test_heatsink_geometry_matches_library_closed_forms"
+   ],
+   "status": "validated"
   },
   "E66": {
    "other_tests": [],
@@ -1598,6 +1610,10 @@
    "other_tests": [
     "PINNeAPPle/tests/pinneapple_core/test_module.py::test_any_pp_solve_method_is_a_component",
     "PINNeAPPle/tests/pinneapple_physics/test_turbulence_selector.py::test_unknown_solver_family_raises",
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_corner_example_runs_offline",
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_health_meta_page_and_preview",
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_point_cloud_study",
+    "PINNeAPPle/tests/test_app_meshless_lab.py::test_polygon_study_with_contract_and_downloads",
     "PINNeAPPle/tests/test_mcp_server.py::test_benchmark_job_and_timeout",
     "PINNeAPPle/tests/test_mcp_server.py::test_mcp_server_in_process",
     "PINNeAPPle/tests/test_mcp_server.py::test_solve_job_fem_with_checks",
@@ -1658,6 +1674,7 @@
     "PINNeAPPle/tests/test_digital_twin_streams_scada_live.py::test_modbus_stream_reads_real_registers_from_a_real_server",
     "PINNeAPPle/tests/test_digital_twin_streams_scada_live.py::test_modbus_stream_respects_field_names_filter",
     "PINNeAPPle/tests/test_digital_twin_streams_scada_live.py::test_opcua_stream_values_actually_change_over_time",
+    "PINNeAPPle/tests/test_operations_anomaly_control.py::test_mqtt_broker_round_trip_with_paho",
     "PINNeAPPle/tests/test_orchestration.py::test_flow_digital_twin_prep_gated_on_stage",
     "PINNeAPPle/tests/test_physicsnemo_bridge.py::test_build_digital_twin_for_model_predicts_at_coords",
     "PINNeAPPle/tests/test_physicsnemo_bridge.py::test_build_digital_twin_for_model_with_plain_tensor_model",
@@ -1726,6 +1743,10 @@
     "PINNeAPPle/tests/test_aero_optimizer.py::test_surrogate_matches_openfoam_on_naca2412",
     "PINNeAPPle/tests/test_aero_optimizer_3d.py::test_api_3d",
     "PINNeAPPle/tests/test_app_helpers_in_library.py::test_worst_cells_follow_the_metric_direction",
+    "PINNeAPPle/tests/test_automation.py::test_committed_example_is_valid_and_complete",
+    "PINNeAPPle/tests/test_automation.py::test_guiagent_is_a_step_kind_of_the_workflow_runner",
+    "PINNeAPPle/tests/test_automation.py::test_patch_fluxes_on_an_openfoam_result",
+    "PINNeAPPle/tests/test_automation.py::test_patch_sums_accepts_boundary_or_all_faces",
     "PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_fenics_bridge_graceful_degradation",
     "PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_fenics_workflow_solve_and_package_bug",
     "PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_matlab_engine_missing_dependency",
@@ -1849,8 +1870,12 @@
    "status": "validated"
   },
   "S3": {
-   "other_tests": [],
+   "other_tests": [
+    "PINNeAPPle/tests/test_design_studies.py::test_heatsink_optimum_beats_baseline_and_is_confirmed_by_fvm",
+    "PINNeAPPle/tests/test_design_studies.py::test_parameter_space_contract_round_trip_and_study_result"
+   ],
    "reference_tests": [
+    "PINNeAPPle/tests/test_design_studies.py::test_heatsink_fidelities_agree_and_torch_matches_numpy",
     "PINNeAPPle/tests/test_solver_exact_solutions_batch3.py::test_fvm_diffusion_decays_the_first_mode_at_the_exact_rate"
    ],
    "status": "validated"
@@ -2084,6 +2109,7 @@
     "PINNeAPPle/tests/test_mc_dropout_reference.py::test_output_is_never_dropped",
     "PINNeAPPle/tests/test_mc_dropout_reference.py::test_seed_makes_sampling_reproducible",
     "PINNeAPPle/tests/test_mc_dropout_reference.py::test_train_eval_flags_and_global_rng_are_restored",
+    "PINNeAPPle/tests/test_operations_anomaly_control.py::test_pid_anti_windup_and_limits",
     "PINNeAPPle/tests/test_physicsnemo_bridge.py::test_wrap_for_uq_plain_model_produces_uncertainty",
     "PINNeAPPle/tests/test_trust_gate.py::test_residual_score_low_for_trained_model_high_error_for_random",
     "PINNeAPPle/tests/test_uq_aleatoric_decomposition_model_output.py::test_decompose_uncertainty_via_aleatoric_head_and_mc_dropout_wrapper",
@@ -2227,6 +2253,6 @@
   }
  },
  "rule": "validated = a test exercising the item compares against an independent reference (closed form, manufactured solution, published/tabulated value)",
- "test_files_scanned": 339,
- "test_functions_scanned": 3038
+ "test_files_scanned": 354,
+ "test_functions_scanned": 3157
 }

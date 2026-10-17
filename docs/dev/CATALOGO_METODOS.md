@@ -10,7 +10,7 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 |---|---|---|---|
 | A. Solvers (S) | 29 | 8 | 2 |
 | B. Métodos de treino (T) | 2 | 12 | 8 |
-| C. Equações físicas (E) | 48 | 20 | 3 |
+| C. Equações físicas (E) | 50 | 18 | 3 |
 | D. Problemas físicos (P) | 27 | 9 | 30 |
 
 ## A. Solvers (S)
@@ -29,7 +29,7 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 
 ### S3 — Finite volumes
 - **Estado:** ✅ validado
-- **Evidência:** `PINNeAPPle/tests/test_solver_exact_solutions_batch3.py::test_fvm_diffusion_decays_the_first_mode_at_the_exact_rate`
+- **Evidência:** `PINNeAPPle/tests/test_design_studies.py::test_heatsink_fidelities_agree_and_torch_matches_numpy`; `PINNeAPPle/tests/test_solver_exact_solutions_batch3.py::test_fvm_diffusion_decays_the_first_mode_at_the_exact_rate`
 - **Código:** `pinneapple_simulation/numerical_solvers/fvm.py`
 - **Referências adicionadas:** Versteeg & Malalasekera, An Introduction to Computational Fluid Dynamics: The Finite Volume Method, 2nd ed., Pearson, 2007 · LeVeque, Finite Volume Methods for Hyperbolic Problems, Cambridge University Press, 2002
 
@@ -331,7 +331,7 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 
 ### T13 — Uncertainty: heteroscedastic, B-PINN, MC Dropout, deep ensembles
 - **Estado:** 🟡 testado, sem referência
-- **Evidência:** `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_deep_ensemble`; `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_edge_runtime`; `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_mc_dropout_standalone` (+16)
+- **Evidência:** `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_deep_ensemble`; `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_edge_runtime`; `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_mc_dropout_standalone` (+17)
 - **Código:** `pinneapple_neural/trainer/heteroscedastic.py`, `pinneapple_neural/architectures/pinns/bpinn.py`, `pinneapple_systems/component_modeling/`
 - **Referências no código:** Yang, Meng & Karniadakis, B-PINNs, J. Comput. Phys. 425 (2021), arXiv:2003.06097
 - **Referências adicionadas:** Gal & Ghahramani, Dropout as a Bayesian approximation, ICML 2016, arXiv:1506.02142 · Lakshminarayanan, Pritzel & Blundell, Deep ensembles, NeurIPS 2017, arXiv:1612.01474 · Kendall & Gal, What uncertainties do we need in Bayesian deep learning, NeurIPS 2017, arXiv:1703.04977
@@ -651,7 +651,7 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 
 ### E44 — Reaction network / Arrhenius / mass action
 - **Estado:** 🟡 testado, sem referência
-- **Evidência:** `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_advection_dispersion_reaction_solver`; `PINNeAPPle/tests/test_reaction_kinetics.py::test_arrhenius_rate_constant_increases_with_temperature_for_positive_activation_energy`; `PINNeAPPle/tests/test_reaction_kinetics.py::test_arrhenius_requires_temperature` (+4)
+- **Evidência:** `PINNeAPPle/tests/test_app_identifiability_lab.py::test_design_stage_without_values_and_validation`; `PINNeAPPle/tests/test_app_identifiability_lab.py::test_page_meta_and_presets`; `PINNeAPPle/tests/test_breadth_six_packages.py::test_breadth_advection_dispersion_reaction_solver` (+7)
 - **Código:** `pinneapple_physics/pinn_solver/compiler/compile.py`, `pinneapple_systems/process_components/reaction_kinetics.py`
 - **Referências adicionadas:** Fogler, Elements of Chemical Reaction Engineering, 5th ed., Prentice Hall, 2016
 
@@ -715,8 +715,8 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 - **Referências adicionadas:** Timoshenko & Gere, Theory of Elastic Stability, 2nd ed., McGraw-Hill, 1961
 
 ### E55 — S-N curve + Goodman + Miner
-- **Estado:** 🟡 testado, sem referência
-- **Evidência:** `PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_allowable_stress_round_trips_with_fatigue_life`; `PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_position_profile_matches_root_at_x0_and_zero_at_tip`; `PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_root_stress_matches_ridetune_ai_baseline` (+11)
+- **Estado:** ✅ validado
+- **Evidência:** `PINNeAPPle/tests/test_design_studies.py::test_heatsink_geometry_matches_library_closed_forms`
 - **Código:** `pinneapple_systems/process_components/fatigue_analysis.py`, `pinneapple_physics/closed_form/cantilever_fatigue.py`
 - **Referências adicionadas:** Miner, Cumulative damage in fatigue, J. Appl. Mech. 12 (1945) A159-A164 · Budynas & Nisbett, Shigley's Mechanical Engineering Design, 10th ed., McGraw-Hill, 2015
 
@@ -776,8 +776,8 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 - **Referências adicionadas:** Crank, The Mathematics of Diffusion, 2nd ed., Oxford University Press, 1975
 
 ### E65 — Cantilever fatigue
-- **Estado:** 🟡 testado, sem referência
-- **Evidência:** `PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_allowable_stress_round_trips_with_fatigue_life`; `PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_position_profile_matches_root_at_x0_and_zero_at_tip`; `PINNeAPPle/tests/pinneapple_physics/closed_form/test_cantilever_fatigue.py::test_root_stress_matches_ridetune_ai_baseline` (+1)
+- **Estado:** ✅ validado
+- **Evidência:** `PINNeAPPle/tests/test_design_studies.py::test_heatsink_geometry_matches_library_closed_forms`
 - **Código:** `pinneapple_physics/closed_form/cantilever_fatigue.py`
 - **Referências adicionadas:** Budynas & Nisbett, Shigley's Mechanical Engineering Design, 10th ed., McGraw-Hill, 2015
 

@@ -253,3 +253,84 @@
 		}
 	}
 }
+
+{$CALIB_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy calibration:8101 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$IDENT_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy identifiability:8108 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$INVS_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy inverse-studio:8104 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$GUIAGENT_DOMAIN} {
+	import common
+	reverse_proxy guiagent:8115 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$ROM_DOMAIN} {
+	import common
+	request_body {
+		max_size 220MB
+	}
+	reverse_proxy rom:8102 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
+
+{$MESHLESS_DOMAIN} {
+	import common
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy meshless:8109 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
+
+{$SUR_DOMAIN} {
+	import common
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy surrogate:8097 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
