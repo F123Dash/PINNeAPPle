@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Digital Twin Runtime app (day 20, `apps/twin_runtime`, twin.pinneapple.org, port 8103): a lumped model or a
+  reduced-order surrogate (`ModelRef`) next to live data over MQTT (embedded broker or external), REST or OPC UA
+  (experimental); EnKF state and parameter estimation, forecasts with bands, rule-based alerts, drift monitoring and
+  revalidation, history in SQLite/Postgres, a state endpoint for other systems, replay of recorded tables, and the
+  series flow campaign -> surrogate -> uncertainty -> optimizer -> twin through the data contracts.
 - Operations library (`pinneapple_systems.operations`) for running validated models next to plant data: a
   heated-tank plant with mass and energy balances, sensors and six fault kinds (`plant`); operator inference with
   inputs fitted on whole trajectories with held-out rollout errors, also as CasADi expressions (`rom`); a digital

@@ -248,6 +248,26 @@ services:
     expose: ["8094"]
     mem_limit: ${OBS_MEM_LIMIT:-1500m}
 
+  twin:
+    build:
+      context: ../..
+      dockerfile: apps/twin_runtime/Dockerfile
+    image: pinneapple/twin-runtime:latest
+    restart: unless-stopped
+    environment:
+      TWIN_USER: ${TWIN_USER:-}
+      TWIN_PASSWORD: ${TWIN_PASSWORD:-}
+      TWIN_MAX_JOBS: ${TWIN_MAX_JOBS:-2}
+      TWIN_MAX_ASSETS: ${TWIN_MAX_ASSETS:-4}
+      TWIN_DB_URL: ${TWIN_DB_URL:-}
+      TWIN_MQTT_URL: ${TWIN_MQTT_URL:-}
+      TWIN_MQTT_HOST: ${TWIN_MQTT_HOST:-}
+      TWIN_MQTT_PORT: ${TWIN_MQTT_PORT:-}
+    volumes:
+      - twin_data:/data          # jobs, uploads, usage, twin history (SQLite): keep this volume
+    expose: ["8103"]
+    mem_limit: ${TWIN_MEM_LIMIT:-1g}
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -269,14 +289,16 @@ services:
       LAB_DOMAIN: ${LAB_DOMAIN:-lab.localhost}
       OBS_DOMAIN: ${OBS_DOMAIN:-observatory.localhost}
       PLG_DOMAIN: ${PLG_DOMAIN:-playground.localhost}
+      TWIN_DOMAIN: ${TWIN_DOMAIN:-twin.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, twin]
 
 volumes:
+  twin_data:
   lab_data:
   obs_cache:
   caddy_data:

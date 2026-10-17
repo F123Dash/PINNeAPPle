@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `twin` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -104,7 +105,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground twin
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -258,6 +259,17 @@ playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
 }
+twin.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy pinneapple-twin:8103 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -274,6 +286,18 @@ A static site: the zoo models run in the visitor's browser (ONNX), so the contai
 `docker build -f apps/playground/Dockerfile -t pinneapple-playground . && docker run -p 8095:8095 pinneapple-playground`.
 The same build can go to GitHub Pages instead: set the repository variable `PLAYGROUND_PAGES=true` and the docs
 workflow publishes it under `<docs site>/playground/` (see `apps/playground/README.md`).
+
+## Digital Twin Runtime (`twin`)
+
+Runs a validated model next to live data: EnKF state estimation, forecasts, alerts, drift monitoring and
+revalidation (day 20). One worker by design: live twins, their threads and the embedded MQTT broker live in its
+memory, and a restart stops them (the history stays in the `twin_data` volume, SQLite by default). `TWIN_MAX_ASSETS`
+caps live twins, `TWIN_MAX_JOBS` replays and series flows running at once (the shared job queue). `TWIN_DB_URL`
+takes a `postgresql://` URL when `psycopg[binary]` is added to the image. The embedded broker listens on
+127.0.0.1 only; to accept external publishers set `TWIN_MQTT_HOST=0.0.0.0`, `TWIN_MQTT_PORT=1883` and publish the
+port (`ports: ["1883:1883"]` in an override), or set `TWIN_MQTT_URL=mqtt://user:pass@broker:1883` for your own
+broker. OPC UA (`TWIN_OPCUA_URL`, `TWIN_OPCUA_NODES`) is experimental and needs `asyncua` in the image. 1 GB of
+memory is enough (about 400 MB idle).
 
 ## PINNeAPPle Lab catalogue (`lab`)
 

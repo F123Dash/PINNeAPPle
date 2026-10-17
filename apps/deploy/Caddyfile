@@ -181,3 +181,15 @@
 	import common
 	reverse_proxy playground:8095
 }
+
+{$TWIN_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy twin:8103 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
