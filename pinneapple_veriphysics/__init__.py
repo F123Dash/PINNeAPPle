@@ -7,6 +7,7 @@ of its own):
 ``decision``               ``DecisionRecord``: recommendation, trust score and coverage, per-check evidence, alternatives
 ``evidence_report``        the Evidence Report as a PDF (needs the optional ``reportlab``)
 ``applicability``          the applicability map: evidence chain, 8-item checklist and the variable envelope that was tested
+``scope``                  the scope of use: which uses a result serves, where it fails and why (beyond approve / reject)
 ``robustness``             measured robustness studies (does the verdict survive perturbing the problem?)
 ``recommend``              formulate a problem and recommend a solver family and architecture from the verification catalog
 ``execution_log``          a collector for what each step did (shown next to the result)
@@ -23,7 +24,7 @@ from __future__ import annotations
 
 import importlib as _importlib
 
-__all__ = ["decision", "evidence_report", "applicability", "robustness", "recommend", "execution_log", "example_cases",
+__all__ = ["decision", "evidence_report", "applicability", "scope", "robustness", "recommend", "execution_log", "example_cases",
            "ledger", "validation_lab", "evidence_package"]
 
 
