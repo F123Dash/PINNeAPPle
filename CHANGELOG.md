@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Parameter Identifiability Lab app (day 25, `apps/identifiability_lab`, identifiability.pinneapple.org, port 8108).
+  Before an experiment or a calibration, it checks which parameters a measurement plan can determine. It reports the
+  Fisher rank and conditioning, the ambiguous combinations, local sensitivity and leverage, profile likelihood,
+  posterior correlations, and D-optimal extra measurements. It runs on the shared job queue and usage metering, reads
+  tables and a `ParameterSpace`, and exports a `StudyResult`. Shared page pieces are in
+  `apps/_shared/static/shared/inverse.js`; the docs page is `docs/apps/identifiability_lab.md`.
 - Identifiability, calibration and inverse-problem core in `pinneapple_analysis.inverse_problems` (one core for the
   Parameter Identifiability Lab, Model Calibration Lab and Inverse Model Studio apps; guide
   `docs/guides/identifiability_calibration_inversion.md`). It provides forward models (`ExpressionModel`,
