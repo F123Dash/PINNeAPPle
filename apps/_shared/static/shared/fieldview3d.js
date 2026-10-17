@@ -78,10 +78,12 @@ export class FieldView3D {
       pts.userData.vertices = m.vertices;
       const p = new THREE.Points(pts, new THREE.PointsMaterial({ color: MARK[m.kind] || MARK.region, size: m.kind === "hotspot" ? 5 : 4, sizeAttenuation: false, depthTest: false, transparent: true, opacity: 0.9 }));
       p.renderOrder = 3; p.userData.fields = m.fields; this.marks.add(p);
+      if (m.label === false) continue;                    // points only (e.g. hotspots beyond the first few)
       const el = document.createElement("div"); el.className = `fv3-label ${m.kind}`; el.textContent = m.name; el.title = m.detail || m.name;
       this.stage.appendChild(el);
-      this.labels.push({ el, pos: toV3(m.centre), on: true, fields: m.fields, anchor: m.anchor });
+      this.labels.push({ el, pos: toV3(m.centre), on: true, fields: m.fields, anchor: m.anchor, rank: m.kind === "hotspot" ? 2 : m.kind === "region" ? 1 : 0 });
     }
+    this.labels.sort((a, b) => a.rank - b.rank);         // conditions and loads first, then hotspots in their order
     this.setField(this.field.name); this.view(this.opts.view || "iso"); this.resize();
   }
   measure() {                                           // bounds of the shape as drawn (deformed or not)
@@ -163,11 +165,21 @@ export class FieldView3D {
     this.renderer.setSize(w, h); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
   }
   placeLabels() {
-    const w = this.stage.clientWidth, h = this.stage.clientHeight;
+    // labels never cover each other: in priority order, each takes its anchor or the nearest free slot above or
+    // below it, else it is hidden (its points stay marked)
+    const w = this.stage.clientWidth, h = this.stage.clientHeight, placed = [];
     for (const l of this.labels) {
-      const p = l.pos.clone().project(this.camera), vis = l.on && this.shows(l.fields) && p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
+      const p = l.pos.clone().project(this.camera);
+      let vis = l.on && this.shows(l.fields) && p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
+      if (vis) {
+        l.el.style.display = "block";
+        const bw = l.el.offsetWidth + 4, bh = l.el.offsetHeight + 2, x = ((p.x + 1) / 2) * w, y = ((1 - p.y) / 2) * h;
+        const slot = [0, -1, 1, -2, 2, -3, 3].map((k) => y + k * bh).find((yy) => !placed.some((q) =>
+          Math.abs(q.x - x) < (q.w + bw) / 2 && Math.abs(q.y - yy) < (q.h + bh) / 2));
+        if (slot === undefined) vis = false;
+        else { placed.push({ x, y: slot, w: bw, h: bh }); l.el.style.left = `${x}px`; l.el.style.top = `${slot}px`; }
+      }
       l.el.style.display = vis ? "block" : "none";
-      if (vis) { l.el.style.left = `${((p.x + 1) / 2) * w}px`; l.el.style.top = `${((1 - p.y) / 2) * h}px`; }
     }
   }
   hover(e) {

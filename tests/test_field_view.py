@@ -139,6 +139,7 @@ def test_field_view_ranges_deformation_markers_and_glb():
     assert d["auto_scale"] == pytest.approx(0.1 * 2.0 / d["max"])
     assert meta["markers"][0]["kind"] == "bc" and meta["markers"][0]["n"] == 12
     mk = meta["markers"][0]                                       # snapped to surface vertices on the clamp face
+    assert mk["label"] is True
     assert len(mk["vertices"]) == 12 and np.allclose(fv.scene.surfaces[0].vertices[mk["vertices"], 0], 0)
     assert not meta["decimated"] and meta["faces"] == meta["faces_original"]
     js = _glb_json(fv.glb())
