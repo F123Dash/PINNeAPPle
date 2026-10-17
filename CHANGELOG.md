@@ -20,6 +20,82 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   - a run log, latency / count / error metrics and exports;
   - publishing guarded by the admin token, or an API key for ONNX;
   - metering of inferences and hosted models on the shared runtime.
+- Validation gallery (`examples/validation/`, #705): 12 CPU examples covering PINN, FNO / DeepONet, MeshGraphNet,
+  POD / DMD / OpInf, MLP / Gaussian process / least squares, neural ODE vs Hamiltonian network, a diffusion model and
+  external models (ONNX, PhysicsNeMo), on heat, Darcy, reaction-diffusion, elasticity, a cylinder wake, advection,
+  molecular dynamics, magnetostatics and cantilever modes. Each ends in `pp.validate`, a trust card and
+  `pinneapple check` outputs (`validation.gallery.conclude`), and catches one real failure on a broken variant. CI
+  workflow `validation-gallery.yml` runs them at smoke size. Also new: `pp.validate(sampler, {"generative": ...})`
+  (per-sample physics, diversity and memorisation of a generative model), state-vector rollouts (`ndim = 0`) with
+  user invariants, `numerical_solvers.reaction_diffusion` (Allen-Cahn, Fisher-KPP) and
+  `pinneapple_neural.utils.fit_supervised`.
+- Physics checks during training (`pinneapple_neural.callbacks`, #704): `PhysicsMonitor` runs the checks of
+  `pp.validate` on a validation batch every N steps, warns or stops when a physics metric worsens for K checks while
+  the loss improves, and writes the report and trust card at the end; adapters for PyTorch Lightning
+  (`PhysicsValidationCallback`), PhysicsNeMo training loops (`PhysicsNeMoHook`, `LaunchLogger`) and the Hugging Face
+  Trainer (`PhysicsTrainerCallback`), none of them a dependency. `residual_bound.ResidualLoss`: a differentiable
+  physics loss in the reference discretisation. CI workflow `training-callbacks.yml` runs them against the real
+  frameworks.
+- PINN validation (`pinneapple_analysis.validation.pinn`, #703): residual at fresh grid, random and adaptive points;
+  detectors for a near-trivial solution, propagation failure in time, boundary / initial conditions traded off
+  against the residual and spectral bias; exact-solution gates (Burgers by Cole-Hopf, manufactured Poisson,
+  Kovasznay); `PINNMonitor` runs the checks during training and stops on a failure mode. Checks `pinn.*` in
+  `pp.validate` with `problem={"pinn": ...}`.
+- Rollout validation of autoregressive surrogates (`pinneapple_analysis.validation.rollout`, #701): invariant
+  drift, high-band energy over the horizon, divergence time (trust horizon) and, for chaotic systems, long-run
+  statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
+  `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
+  (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Validation report as an artifact (`pinneapple_analysis.validation.report_artifact`, #706): JSON schema
+  `validation-report/v1` with provenance hashes, `pp.validate.diff(old, new)` (lost / gained checks, moved metrics,
+  validity-envelope changes), a model-card section, an SVG badge and a shields.io endpoint, signatures with
+  `pinneapple_security.signing`. Stored reports for the zoo models (`pinneapple_hub.zoo.validation_reports`,
+  `scripts/zoo/validation_reports.py build|check`), shown in their Hub cards; the zoo publishing workflow refuses a
+  model version that loses a check the stored report passed.
+- `pp.validate(model, problem, data=None, reference=None, level="standard", query=None)` (#696): one validation
+  report for a zoo model, a PyTorch / PhysicsNeMo module, an ONNX file or a callable. It composes the applicability
+  envelope, the guaranteed residual bound and the calibrated error bound, flux balance, reference error, spectral
+  fidelity, metamorphic relations, the data audit, the zoo gate and robustness; reports pass / warn / fail /
+  not-applicable per check, a credibility level per factor (modelled on NASA-STD-7009A and ASME V&V 40) and a deploy
+  decision; outputs JSON (`validation-report/v1`), HTML, text, the trust report and `pinneapple check` formats
+  (SARIF, JUnit). Statuses, factors and check IDs live in `pinneapple_analysis.validation.schema`.
+  `pp.validate.<name>` still resolves the names of `pinneapple_analysis.validation`.
+- `pinneapple_neural.architectures.neural_operators.fno_export`: ONNX export of FNOs (spectral convolutions in real
+  arithmetic, checked against PyTorch with onnxruntime).
+- Metamorphic tests for surrogates (`pinneapple_analysis.validation.metamorphic`, #698): symmetry, similarity
+  scaling, invariance, monotonicity, superposition and resolution consistency as declarative relations with a
+  tolerance and a sampler; random and (with `hypothesis`) property-based search; the worst violation is returned as a
+  counterexample. `pinneapple_hub.zoo.relations.check_zoo_relations` runs the relations of the airfoil and forced
+  heat-sink zoo models. `pinneapple check`: new rule PC303 `metamorphic-relation` and a `relations` key on
+  `[[model]]`. Docs: "Metamorphic tests".
+- Dataset physics audit (`pinneapple_data.audit`, `pp.datasets.audit`, #700): per-sample consistency with the stated
+  PDE in the dataset's own discretisation (built in for Darcy, reusing `operator_benchmarks.darcy_2d`), declared
+  column constraints, diversity (effective sample count and input spectrum against the stated generator, exact and
+  near duplicates), train/test leakage by nearest neighbour, units and missing values; an audit card (JSON,
+  markdown) stored for the bundled zoo datasets and shown in their Hub card. `pinneapple check`: `[[dataset]]` targets
+  and rules PC451 (physics), PC452 (diversity), PC453 (leakage). Docs: "Dataset physics audit".
+- Residual-to-error calibration (`pinneapple_analysis.uncertainty.residual_bound`, #699): a guaranteed a-posteriori
+  bound `||u_h - u||_A <= ||r||_{L^-1} / sqrt(min k)` for Darcy and steady heat conduction in the discretisation of
+  the reference solver, and a split-conformal map residual -> error (`ResidualErrorCalibrator`, `coverage_study`)
+  whose coverage is measured and reported as broken under an input shift; `to_check` for trust reports.
+  `operator_benchmarks.darcy_matrix` exposes the finite-volume matrix of `darcy_2d`. Docs: "From residual to error
+  bound".
+- FMI import compatibility: `check_fmus` / `check_fmu` (`pinneapple_simulation.external_solvers.modelica.fmi_compat`)
+  run FMUs through `simulate_fmu` in every interface they offer and tabulate what passed; `FMUSimConfig.fmi_type`
+  selects Co-Simulation or Model Exchange. The new "FMI import compatibility" page, regenerated by
+  `examples/modelica/fmi_compatibility.py`, lists the Modelica Reference-FMUs 0.0.39 (FMI 1.0, 2.0 and 3.0, CS and
+  ME) and a pythonfmu FMU: 38 of 38 runs pass on x86_64-linux.
+- Engineering Evidence Report app (day 30, `apps/evidence_report`, evidence.pinneapple.org, port 8113). It
+  turns the outputs of a study into a report (HTML, PDF) with methodology, conditions, baseline comparison,
+  tests, limitations and artifact references by SHA-256 and URL, and into an evidence package (zip with a SHA-256
+  manifest). A test is printed as passed only when its own evidence record shows it ran; otherwise it reads "not
+  run". The example runs a real FEM-vs-PINN study. Deployed with `apps/deploy` (service `evidence`).
+- Physics Validation Lab app (day 24, `apps/validation_lab`, validate.pinneapple.org, port 8107). Give it
+  predictions or results with a form, a `pinneapple check` configuration or a zoo ModelRef. It reports numerical
+  verification, validation against data and physical consistency separately, lists the groups that did not run,
+  keeps an evidence record per check and produces a reproducible report (JSON, HTML, configuration, ledger). It
+  has a REST API and a GitHub Action recipe; uploaded code is refused. Deployed with `apps/deploy` (service
+  `validate`).
 - ROM study (`pinneapple_neural.architectures.rom.study`): `rom_study(snapshots)` holds out later times,
   interleaved times or unseen parameter points, fits POD + RBF, POD + GPR, the nearest snapshot, DMD, Operator
   Inference and a neural surrogate trained within the same wall-clock budget (`train_within_budget`) at several
@@ -604,6 +680,25 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Form Compiler (`pinneapple_data.formfill`): vendor datasheets laid out as one grid now compile. A unit in its own
+  column ("Design pressure | 1.5 | MPa g") is attached to the value; a label naming a pair ("(Int/Ext)", "Max/Min")
+  splits "1.5 / NA" or "60 / 10" into both items and drops the "NA" part; a nozzle schedule printed beside the other
+  data is read as the nozzle table and its header is no longer taken as an answer (it filled Service with "Qty");
+  "label: value" inside one cell, "Shell inside diameter" (longest label wins), notes such as "NB registration is not
+  required" and "Wind loads shall be as per UBC97" are read; a bare yes/no is no longer a text answer. New U-DR-1
+  labels: TL-TL length, temperature (int/ext), corrosion allowance (internal), operating "internal pressure" and
+  "temperature max/min", location, supports; `Field.reject` lists values that are not an answer to an item.
+- `pp.validate` on Darcy audits the training data with the problem's own source `f` (it assumed `f = 1`), and
+  records callables in the provenance by name (a rollout spec with an invariant function could not be saved).
+- Rollout validation: a user invariant named like a built-in (`energy`) is no longer replaced by the built-in or
+  scaled like it; the spectral band ignores shells below 1e-6 of the peak energy (round-off, not content).
+- `pp.validate` runs PhysicsNeMo field models given without a channel axis (PhysicsNeMo raises `ValueError`).
+- MC dropout (`pinneapple_analysis.uncertainty.mc_dropout`): `MCDropoutWrapper` applied dropout after every
+  `nn.Linear`, including the output layer, so about `p` of the samples were exactly zero and the reported std was
+  `|mean| sqrt(p / (1 - p))` whatever the model. Dropout now acts on the input of every `nn.Linear` but the first
+  (the hidden activations, Gal & Ghahramani 2016), and the sampled mean and std match the closed-form moments of a
+  two-layer network. Sampling no longer leaves the model in eval mode or resets the caller's global torch RNG when a
+  seed is given, and `n_samples = 1` (a NaN std) now raises a `ValueError`.
 - Quantile regression (`pinneapple_analysis.uncertainty.quantile`): `QuantileLoss` scored the first `Q` outputs
   when the model produced more outputs than levels and raised a bare `IndexError` when it produced fewer; the pinball
   loss broadcast a `(B, 1)` target against `(B, H)` predictions; a level outside (0, 1) such as 1.5 was accepted and
