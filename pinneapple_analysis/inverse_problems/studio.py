@@ -296,7 +296,11 @@ def compare_methods(problem: InverseProblem, methods: Sequence[str] = ("least_sq
             sols.append({"method": m, "label": METHODS.get(m, m), "status": "error", "reason": str(exc)})
     done = [s for s in sols if s["status"] == "done"]
     key = "validation" if problem.validation is not None and problem.validation.n else "fit"
-    ranking = sorted(done, key=lambda s: s[key]["rmse"] if s.get(key) else math.inf)
+    def rank(s):                     # RMSE to 3 significant digits; a tie goes to the cheaper method
+        r = s[key]["rmse"] if s.get(key) else math.inf
+        return (float(f"{r:.3g}") if math.isfinite(r) else math.inf, s.get("forward_evaluations") or 0)
+
+    ranking = sorted(done, key=rank)
     table = [{"method": s["method"], "label": s["label"], "status": s["status"],
               "fit_rmse": s.get("fit", {}).get("rmse") if s["status"] == "done" else None,
               "validation_rmse": (s.get("validation") or {}).get("rmse") if s["status"] == "done" else None,
@@ -308,5 +312,5 @@ def compare_methods(problem: InverseProblem, methods: Sequence[str] = ("least_sq
                                     "observations": problem.observations.to_dict(),
                                     "validation": None if problem.validation is None else problem.validation.to_dict()},
                         "identifiability": None if rep is None else rep.to_dict(), "solutions": sols, "table": table,
-                        "ranked_by": f"{key} RMSE", "best": ranking[0]["method"] if ranking else None,
+                        "ranked_by": f"{key} RMSE (ties to 3 significant digits go to fewer model runs)", "best": ranking[0]["method"] if ranking else None,
                         "available": available_methods(problem), "seconds": time.time() - t0})
