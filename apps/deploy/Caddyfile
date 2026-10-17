@@ -370,3 +370,15 @@
 		}
 	}
 }
+
+{$ANOMALY_DOMAIN} {
+	import common
+	request_body {
+		max_size 120MB
+	}
+	reverse_proxy anomaly:8111 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}

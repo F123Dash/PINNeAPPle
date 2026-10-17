@@ -19,6 +19,29 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   Reynolds number, and every shedding run is saturated. The card carries a channel-flow check and a D = 20/30/40
   resolution study (St within 0.7 %). The recipe is `pinneapple_simulation.numerical_solvers.cylinder_wake`, and the
   command line is `scripts/zoo/cylinder_data.py`.
+- The zoo on the Hugging Face Hub works with the Hub's own tools:
+  - `pinneapple_hub.zoo.parquet`: deterministic Parquet copies of every zoo dataset for the dataset viewer and
+    `datasets.load_dataset` (`write_dataset`, `read_parquet`, `read_npz`, `plan_split`, `features_yaml`). Scalar
+    columns stay columns, arrays become fixed-size list columns of their shape, samples over 512 KiB with a leading
+    time axis are stored one row per step (`sample`, `step`), shards stay under 256 MiB and row groups under 16 MiB,
+    and splits with other columns become separate configs. The npz files and their SHA-256 stay the library's
+    format; the round trip npz -> Parquet -> arrays is exact.
+  - `pinneapple_hub.zoo.hub_cards`: dataset cards with the YAML the Hub reads (`configs` / `data_files`,
+    `dataset_info`, licence, task and size categories, tags) and the columns, units, provenance and loading code;
+    model cards with `pipeline_tag: tabular-regression`, `inference: false` (and why), the training dataset, a
+    "How to use" example whose printed numbers come from the model, the ONNX usage, the files with their SHA-256, and
+    a link to the demo Space.
+  - `pinneapple_hub.zoo.export.export_safetensors` / `load_safetensors`; `export_onnx` now also exports
+    `heatsink_natural_mlp`. Each model repo gets `model.safetensors`, `model.onnx` and `example.json`.
+  - `pinneapple_hub.zoo.demo` and the Gradio Space `PINNeAPPle-Labs/zoo-demo` (`apps/zoo_space/app.py`): every
+    zoo model loaded from the Hub, its prediction along a sweep of one input with the spread or conformal bound, the
+    query checks shaded and listed, and the trust decision.
+  - `pinneapple_hub.zoo.publish`: the publishing logic (from `scripts/zoo/publish_to_hub.py`, now its command line)
+    with the checks after an upload: datasets-server `is-valid` / `splits` / `first-rows` of every dataset, every
+    model downloaded anonymously (card metrics, example reproduced by PyTorch, safetensors and ONNX, "How to use"
+    code run), and the Space's build stage. The **Publish zoo** workflow runs them and fails when the viewer of a
+    dataset is not valid; Hub-only datasets that are not staged are converted from their copy on the Hub.
+  - `pinneapple_hub.zoo.checks.has_query_checks`.
 - Physics AI Model Gateway app (day 31, `apps/model_gateway`, models.pinneapple.org, port 8114):
   - zoo models, ONNX graphs and Surrogate Studio models (by `ModelRef` or `model.zip`) served behind one `/v1` API;
   - versions and stages, with an OOD policy per version (warn or refuse) that callers can only tighten;
@@ -208,6 +231,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   statistics (value histogram, decorrelation time, band energies) against the noise floor of the reference. Checks
   `rollout.*` in `pp.validate` with `problem={"rollout": {...}}`. Kuramoto–Sivashinsky solver
   (`pinneapple_simulation.numerical_solvers.kuramoto_sivashinsky`).
+- Physics Anomaly Detector app (day 28, `apps/anomaly_detector`, anomaly.pinneapple.org, port 8111): sensor time
+  series (CSV / Parquet / JSON) checked with robust statistics, AR + CUSUM, conservation balances written as formulas
+  over the columns and physical-model residuals; events with severity, variables and explanations; precision / recall
+  against a label column; a benchmark on labelled synthetic runs; `StudyResult` export.
 - Digital Twin Runtime app (day 20, `apps/twin_runtime`, twin.pinneapple.org, port 8103): a lumped model or a
   reduced-order surrogate (`ModelRef`) next to live data over MQTT (embedded broker or external), REST or OPC UA
   (experimental); EnKF state and parameter estimation, forecasts with bands, rule-based alerts, drift monitoring and
@@ -873,6 +900,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ### Changed
 - Lab experiment `cylinder_lbm` v2 runs `cylinder_wake.simulate` and measures the Strouhal number from the
   Hann-windowed, peak-refined spectrum. v1 took the raw FFT bin, which read 0.25 for every run (bins 0.025 apart).
+- **Behavior:** every zoo item's Hub `revision` is now `v<version>.post1` (same files, republished with the
+  Parquet / safetensors / ONNX copies and the new cards). The `v<version>` tags are unchanged, so code pinned to them
+  keeps working; the loader falls back to `v<version>` until the new tag exists. The `[hub]` extra now also
+  installs `pyarrow`, `safetensors`, `onnx` and `onnxruntime`.
 - **Behavior:** `BayesianDesignOptimizer` scores its acquisition on all candidate points with one GP prediction (same
   values, several times faster) and seeds the GP hyper-parameter restarts with its own seed, so a run is reproducible.
 - **Behavior:** `EvolutionaryDesignOptimizer` in multi-objective mode now draws parents by the NSGA-II
