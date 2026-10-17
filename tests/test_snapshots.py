@@ -69,3 +69,38 @@ def test_openfoam_case_with_several_time_directories():
 def test_one_time_directory_is_not_a_snapshot_set():
     with pytest.raises(FormatError, match="fewer than two"):
         load_snapshots([("c.zip", open(CAVITY, "rb").read())])
+
+
+def test_mesh_round_trip_with_own_points_per_snapshot_and_node_sets():
+    pts = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], float)
+    own = np.stack([pts * (1 + 0.1 * k) for k in range(4)])
+    s = snapshots_from_arrays({"u": np.arange(32.0).reshape(4, 8)}, params=np.arange(4.0)[:, None],
+                              param_names=["k"], locations={"point": pts}, cells=[("hexahedron", [list(range(8))])],
+                              snapshot_points=own,
+                              meta={"node_sets": {"clamp": {"nodes": [0, 3, 4, 7], "kind": "bc"}}, "full_order": "FEM"})
+    back = load_snapshots([("s.npz", s.to_npz_bytes())])
+    assert [f["name"] for f in back.fields] == ["u"]                 # mesh arrays are not fields
+    assert back.summary()["mesh"] == {"cells": 1, "types": ["hexahedron"], "own_points": True, "node_sets": ["clamp"]}
+    assert back.meta["full_order"] == "FEM"
+    m = back.mesh(2)
+    np.testing.assert_allclose(m.points, own[2])
+    assert m.n_cells == 1 and m.node_sets["clamp"].tolist() == [0, 3, 4, 7]
+    np.testing.assert_allclose(back.select([3]).mesh(0).points, own[3])
+    assert snapshots_from_arrays({"u": np.zeros((2, 8))}, params=[[0], [1]]).mesh(0) is None
+    with pytest.raises(FormatError, match="cells refer to point 9"):
+        snapshots_from_arrays({"u": np.zeros((2, 8))}, params=[[0], [1]], locations={"point": pts},
+                              cells=[("hexahedron", [[0, 1, 2, 3, 4, 5, 6, 9]])])
+
+
+def test_series_of_vtu_files_keeps_the_cells_and_moving_points(tmp_path):
+    meshio = pytest.importorskip("meshio")
+    pts = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], float)
+    files = []
+    for k in range(3):
+        p = tmp_path / f"r_{k}.vtu"
+        meshio.write(str(p), meshio.Mesh(pts * (1 + k), [("tetra", np.array([[0, 1, 2, 3]]))],
+                                         point_data={"T": np.full(4, float(k))}))
+        files.append((p.name, p.read_bytes()))
+    s = load_snapshots(files)
+    assert s.cells[0][0] == "tetra" and s.snapshot_points.shape == (3, 4, 3)
+    np.testing.assert_allclose(s.mesh(2).points, pts * 3)

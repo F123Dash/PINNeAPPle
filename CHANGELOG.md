@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- 3-D view of a held-out snapshot in the Reduced Order Model Lab (day 19): the FEM field, the ROM prediction and
+  |ROM − FEM| on the deformed body, the clamp and load regions, the error hotspots and where the error concentrates
+  against the study's numbers. `pinneapple_neural.architectures.rom.views.reconstruction_view` builds it.
+  `pinneapple_data.snapshots` keeps a mesh with the snapshots (`cells_<type>`, `snapshot_points`, `node_sets`;
+  `SnapshotSet.mesh(i)`), also for VTU/VTK/FRD series; the cantilever example carries its mesh.
 - 3-D field views for the apps: `pp.viz.field_view` (`pinneapple_tools.visualization.studio.fieldview`) turns a
   mesh with values, errors, nodal displacements and marked regions into a glTF and a description (colour ranges, one
   scale per group, errors from 0 to their 99th percentile, decimation above 250 k triangles). The shared page module
