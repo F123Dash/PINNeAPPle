@@ -582,6 +582,11 @@ class EvolutionaryDesignOptimizer:
             idx = self._nsga2_select(combined_obj, combined_pen, mu)
             self._obj_vecs = combined_obj[idx].tolist()
             self._penalties = combined_pen[idx].tolist()
+            self._population = [combined_x[i] for i in idx]
+            # parents are drawn by the crowded-comparison tournament of NSGA-II (rank, then crowding distance),
+            # not by the first objective alone
+            self._fitness = self._crowded_scores(combined_obj[idx], combined_pen[idx]).tolist()
+            return
         else:
             idx = np.argsort(combined_y)[:mu]
             self._obj_vecs = None
@@ -589,6 +594,28 @@ class EvolutionaryDesignOptimizer:
 
         self._population = [combined_x[i] for i in idx]
         self._fitness = [combined_y[i] for i in idx]
+
+    @staticmethod
+    def _crowded_scores(objectives: np.ndarray, penalties: np.ndarray) -> np.ndarray:
+        """Lower is better: front rank among the feasible (constrained domination: every infeasible design ranks
+        after them, by violation), minus a crowding bonus in [0, 1) inside the front."""
+        n = len(objectives)
+        score = np.zeros(n)
+        feas = np.where(penalties <= 0.0)[0]
+        infeas = np.where(penalties > 0.0)[0]
+        n_fronts = 0
+        if len(feas):
+            for rank, front in enumerate(fast_non_dominated_sort(objectives[feas])):
+                g = feas[front]
+                cd = crowding_distance(objectives[g])
+                fin = np.where(np.isinf(cd), 0.0, cd)
+                bonus = np.where(np.isinf(cd), 0.999, fin / (1.0 + fin))
+                score[g] = rank + 1.0 - bonus
+                n_fronts = rank + 1
+        if len(infeas):
+            order = np.argsort(np.argsort(penalties[infeas]))
+            score[infeas] = n_fronts + 1.0 + order
+        return score
 
     @staticmethod
     def _nsga2_select(objectives: np.ndarray, penalties: np.ndarray, mu: int) -> np.ndarray:

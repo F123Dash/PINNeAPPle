@@ -14,6 +14,17 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Design studies in `pinneapple_design.design_optimizer` (guide: `docs/guides/design_studies.md`): one problem
+  description (`DesignSpace` with continuous and integer variables, `Objective`, `Constraint` with physical,
+  manufacturing and validity kinds, `DesignProblem`), evaluators for Python functions, zoo models, torch modules,
+  external solvers run as commands and model references (`from_model_ref`), and `run(problem, method, budget=...)`
+  for `random`, `nsga2`, `pymoo-nsga2` (optional pymoo), `scipy-de`, `scipy-slsqp`, `bayesian` and `gradient`
+  (autograd) under one evaluation budget. `compare_methods` tabulates hypervolume, cost and convergence on the same
+  budget; `verify_candidates` re-evaluates chosen designs with a reference and reports surrogate errors and a
+  verification status; `surrogate_assisted` runs GP active learning against a reference; `feasibility_report` lists
+  active constraints and margins; `hypervolume` is exact in 2-D. Presets: plate-fin heat sink (zoo MLP, closed
+  form, FVM reference) and CST airfoil (zoo ensemble), with STL/STEP design files.
+- `pinneapple_design.geometry_library.exporters.stl_bytes`: the binary STL writer for any triangle mesh.
 - Zoo dataset `airfoil_rans_cst_re4e6_fields` (Hub-only, 186 MB in 5 files): the cell fields p, Ux, Uy, nut and
   cell centres of the 436 OpenFOAM runs of `airfoil_rans_cst_re4e6`, with the same splits. The campaign was
   regenerated, and its coefficients reproduce the published table. `write_field_dataset`
@@ -391,6 +402,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
+- **Behavior:** `EvolutionaryDesignOptimizer` in multi-objective mode now draws parents by the NSGA-II
+  crowded-comparison tournament (front rank, then crowding distance) instead of by the first objective, so the
+  population spreads along the front.
 - `pp.benchmark`: adding entries to `budget_study` or `ablations` reuses an existing `out_dir` (they only add jobs); changing
   or removing an entry is still refused. Before, any change to them was refused.
 - **Behavior:** `pinneapple_analysis.cost.measure` now counts FLOPs of code that calls `torch.autograd.grad` with

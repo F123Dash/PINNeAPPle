@@ -1,0 +1,313 @@
+"""Design studies: problem description, methods under one budget, verification, active learning, presets."""
+from __future__ import annotations
+
+import sys
+import textwrap
+
+import numpy as np
+import pytest
+
+from pinneapple_design.design_optimizer import (
+    CommandEvaluator,
+    Constraint,
+    DesignProblem,
+    DesignSpace,
+    FunctionEvaluator,
+    Objective,
+    Variable,
+    available_methods,
+    compare_methods,
+    feasibility_report,
+    from_model_ref,
+    hypervolume,
+    presets,
+    run,
+    select_candidates,
+    surrogate_assisted,
+    verify_candidates,
+)
+
+
+# --------------------------------------------------------------------------- an analytic bi-objective problem
+def _fn(X):
+    x, y = X[:, 0], X[:, 1]
+    return {"f1": x ** 2 + y ** 2, "f2": (x - 2) ** 2 + y ** 2, "g": x + y}
+
+
+def _torch_fn(X):
+    x, y = X[:, 0], X[:, 1]
+    return {"f1": x ** 2 + y ** 2, "f2": (x - 2) ** 2 + y ** 2, "g": x + y}
+
+
+def schaffer(differentiable=True, fidelity="model"):
+    """Unconstrained Pareto set: y = 0, 0 <= x <= 2. With x + y <= 1.5 it is y = 0 for 0 <= x <= 1.5, then the
+    constraint boundary x = 1.5 - y down to y = -1/4 (where d f2 / dy = 0 along it)."""
+    space = DesignSpace([Variable("x", -1.0, 3.0), Variable("y", -1.0, 1.0)])
+    ev = FunctionEvaluator(_fn, ["f1", "f2", "g"], torch_fn=_torch_fn if differentiable else None, fidelity=fidelity)
+    return DesignProblem("schaffer", space, [Objective("f1"), Objective("f2")], [Constraint("g", upper=1.5)], ev)
+
+
+def _true_set(n=20001):
+    a = np.linspace(0, 1.5, n)
+    b = np.linspace(-0.25, 0, n)
+    return np.r_[np.c_[a, 0 * a], np.c_[1.5 - b, b]]
+
+
+def _exact_hv(ref=(5.0, 5.0)):
+    # the hypervolume of a dense sampling of the true Pareto set (the staircase error is O(1/n))
+    P = _true_set()
+    return hypervolume(np.c_[P[:, 0] ** 2 + P[:, 1] ** 2, (P[:, 0] - 2) ** 2 + P[:, 1] ** 2], np.array(ref))
+
+
+def _distance_to_true_set(X):
+    P = _true_set(2001)
+    return np.sqrt(((X[:, None, :] - P[None]) ** 2).sum(-1)).min(1)
+
+
+def test_space_repair_sample_and_parameter_space():
+    s = DesignSpace([Variable("a", 0, 1), Variable("n", 2, 9, kind="integer")])
+    X = s.repair([[1.7, 3.4], [-1, 8.6]])
+    assert X.tolist() == [[1.0, 3.0], [0.0, 9.0]]
+    S = s.sample(32, seed=1)
+    assert S.shape == (32, 2) and np.all(S[:, 1] == np.round(S[:, 1])) and S[:, 0].min() >= 0
+    ps = {"parameters": [{"name": "a", "low": 0, "high": 2, "unit": "m"}, {"name": "n", "bounds": [1, 4],
+                                                                          "type": "int"}]}
+    s2 = DesignSpace.from_parameter_space(ps)
+    assert s2.names == ["a", "n"] and s2.integer.tolist() == [False, True] and s2.variables[0].unit == "m"
+    assert DesignSpace.from_dict(s2.to_dict()).bounds.tolist() == [[0, 2], [1, 4]]
+    with pytest.raises(ValueError):
+        Variable("bad", 1, 1)
+
+
+def test_constraint_violation_margin_slack():
+    c = Constraint("t", upper=80.0)
+    assert c.violation(np.array([70.0, 88.0])).tolist() == [0.0, 0.1]
+    assert c.margin(np.array([70.0])).tolist() == [10.0]
+    assert np.isclose(c.slack(70.0), 0.125)
+    lo = Constraint("gap", lower=1.5)
+    assert np.isclose(lo.violation(np.array([1.2]))[0], 0.2)
+    assert np.isinf(c.violation(np.array([np.nan]))[0])
+
+
+def test_hypervolume_exact_and_monte_carlo():
+    F = np.array([[1.0, 3.0], [2.0, 2.0], [3.0, 1.0], [3.5, 3.5]])
+    assert hypervolume(F, np.array([4.0, 4.0])) == pytest.approx(3 + 2 + 1)
+    cube = hypervolume(np.array([[0.5, 0.5, 0.5]]), np.ones(3), n_mc=40000)
+    assert cube == pytest.approx(0.125, rel=1e-9)          # one point: the MC box is exactly its dominated box
+    two = hypervolume(np.array([[0.0, 0.5, 0.5], [0.5, 0.0, 0.5]]), np.ones(3), n_mc=40000)
+    assert two == pytest.approx(0.25 + 0.25 - 0.125, rel=0.03)
+
+
+@pytest.mark.parametrize("method", ["random", "nsga2", "scipy-de", "scipy-slsqp", "gradient", "pymoo-nsga2"])
+def test_methods_respect_budget_and_find_the_front(method):
+    p = schaffer()
+    r = run(p, method, budget=240, seed=0)
+    if r.status == "skipped":
+        pytest.skip(r.message)
+    assert r.status == "ok", r.message
+    assert r.n_evals <= 240
+    ev = r.evaluations
+    front = r.pareto()
+    assert len(front) >= 1
+    assert np.all(ev.feasible[front]) and np.all(ev.Y["g"][front] <= 1.5 + 1e-12)
+    if method != "random":
+        # the front found within 240 evaluations lies near the true Pareto set
+        d = _distance_to_true_set(ev.X[front])
+        assert np.median(d) < 0.09 and d.max() < 0.4
+
+
+def test_nsga2_hypervolume_close_to_exact():
+    p = schaffer()
+    r = run(p, "nsga2", budget=1200, seed=0)
+    hv = hypervolume(r.evaluations.F[r.pareto()], np.array([5.0, 5.0]))
+    assert hv == pytest.approx(_exact_hv(), rel=0.01)
+    assert hv <= _exact_hv() * (1 + 1e-9)                    # nothing beats the true front
+
+
+def test_bayesian_runs_within_budget():
+    r = run(schaffer(), "bayesian", budget=24, seed=0)
+    assert r.status == "ok" and r.n_evals == 24 and len(r.pareto()) >= 1
+
+
+def test_gradient_skipped_without_autograd_and_relaxed_integers():
+    r = run(schaffer(differentiable=False), "gradient", budget=50)
+    assert r.status == "skipped" and "not differentiable" in r.message
+    assert not available_methods(schaffer(differentiable=False))["gradient"]["available"]
+    # integer variable on a relaxable differentiable evaluator: iterates are relaxed, end points are integers
+    space = DesignSpace([Variable("x", 0.0, 4.0), Variable("n", 1, 6, kind="integer")])
+    f = lambda X: {"f": (X[:, 0] - 1.3) ** 2 + (X[:, 1] - 2.6) ** 2}  # noqa: E731
+    ev = FunctionEvaluator(f, ["f"], torch_fn=f, relaxable=True)
+    p = DesignProblem("int", space, [Objective("f")], [], ev)
+    r = run(p, "gradient", budget=120, seed=0)
+    e = r.evaluations
+    assert e.relaxed.any()
+    best = r.best()
+    assert best is not None and e.X[best, 1] == 3.0 and not e.relaxed[best]
+
+
+def test_initial_designs_are_evaluated_first():
+    p = schaffer()
+    r = run(p, "nsga2", budget=60, initial=np.array([[1.0, 0.0]]))
+    assert r.evaluations.X[0].tolist() == [1.0, 0.0] and r.evaluations.tag[0] == "initial designs"
+
+
+def test_feasibility_report_active_and_violated():
+    p = schaffer()
+    ev = p.evaluate(np.array([[1.49, 0.0], [0.5, 0.0], [2.0, 0.0]]))
+    rep = feasibility_report(p, ev, [0, 1, 2])
+    assert rep[0]["active"] == ["g"] and rep[0]["feasible"]
+    assert rep[1]["active"] == [] and rep[1]["constraints"][0]["status"] == "inactive"
+    assert rep[1]["constraints"][0]["margin"] == pytest.approx(1.0)
+    assert rep[2]["violated"] == ["g"] and not rep[2]["feasible"]
+
+
+def test_verification_statuses_and_errors():
+    p = schaffer(fidelity="surrogate")
+    r = run(p, "nsga2", budget=300, seed=0)
+    chosen = select_candidates(r.evaluations, r.pareto(), 4)
+    # a reference whose g is 10 % larger: designs with g in (1.364, 1.5] are rejected by it
+    ref = FunctionEvaluator(lambda X: {**_fn(X), "f1": _fn(X)["f1"] * 1.02, "g": _fn(X)["g"] * 1.1},
+                            ["f1", "f2", "g"], fidelity="reference")
+    rep = verify_candidates(p, r.evaluations, chosen, ref)
+    assert {x["status"] for x in rep.rows} <= {"verified", "rejected by reference"}
+    assert rep.errors["f1"]["max_rel"] == pytest.approx(0.02 / 1.02, rel=1e-6)
+    for x in rep.rows:
+        g_ref = x["reference"]["g"]
+        assert (x["status"] == "verified") == (g_ref <= 1.5)
+    bad = FunctionEvaluator(lambda X: (_ for _ in ()).throw(RuntimeError("solver crashed")), ["f1", "f2", "g"],
+                            fidelity="reference")
+    rep2 = verify_candidates(p, r.evaluations, chosen, bad)
+    assert all(x["status"] == "reference failed" and "solver crashed" in x["message"] for x in rep2.rows)
+
+
+def test_surrogate_assisted_front_is_reference_verified():
+    pytest.importorskip("sklearn")
+    p = schaffer(fidelity="surrogate")
+    ref = FunctionEvaluator(_fn, ["f1", "f2", "g"], fidelity="reference")
+    al = surrogate_assisted(p, ref, n_initial=12, rounds=2, n_verify=4, surrogate_budget=300)
+    assert al.n_reference <= 12 + 2 * 4
+    assert all(f == "reference" for f in al.reference_evals.fidelity)
+    front = al.final.pareto()
+    assert len(front) >= 2
+    assert np.all(al.reference_evals.Y["g"][front] <= 1.5)
+    # the GP prediction at designs it had not seen is within 1 of the reference (f spans 0-9 on the domain); the
+    # pessimistic constraint keeps every verified design feasible
+    abs_err = [abs(r["surrogate"][k] - r["reference"][k]) for r in al.verification.rows for k in ("f1", "f2")]
+    assert max(abs_err) < 1.0
+    assert all(r["status"] == "verified" for r in al.verification.rows)
+    assert set(al.rounds[-1]["held_out_error"]) >= {"f1", "f2", "g"}
+
+
+def test_compare_methods_same_budget():
+    c = compare_methods(schaffer(), ["random", "nsga2", "gradient"], budget=150, seeds=(0, 1))
+    t = {r["method"]: r for r in c.table()}
+    assert set(t) == {"random", "nsga2", "gradient"}
+    assert all(r["n_evals"] <= 150 for r in c.rows)
+    assert t["nsga2"]["hv_mean"] > t["random"]["hv_mean"]
+    assert c.winner() in t
+    assert all(0 < r["hv_fraction_of_union"] <= 1 + 1e-9 for r in c.rows)
+    assert c.to_dict()["curves"]
+
+
+def test_command_evaluator_runs_an_external_program(tmp_path):
+    script = tmp_path / "solver.py"
+    script.write_text(textwrap.dedent("""
+        import csv, sys
+        rows = list(csv.DictReader(open(sys.argv[1])))
+        with open(sys.argv[2], "w", newline="") as f:
+            w = csv.writer(f); w.writerow(["f1", "f2", "g"])
+            for r in rows:
+                x, y = float(r["x"]), float(r["y"])
+                w.writerow([x * x + y * y, (x - 2) ** 2 + y * y, x + y])
+    """))
+    space = schaffer().space
+    ev = CommandEvaluator([sys.executable, str(script), "{inputs}", "{outputs}"], space, ["f1", "f2", "g"])
+    X = np.array([[1.0, 0.5], [0.0, 0.0]])
+    out = ev(X)
+    for k, v in _fn(X).items():
+        assert np.allclose(out[k], v)
+    ref = from_model_ref({"uri": f"cmd:{sys.executable} {script} {{inputs}} {{outputs}}",
+                          "outputs": ["f1", "f2", "g"]}, space)
+    assert np.allclose(ref(X)["g"], [1.5, 0.0]) and ref.fidelity == "reference"
+
+
+# --------------------------------------------------------------------------- presets built from library physics
+def test_heatsink_geometry_matches_library_closed_forms():
+    from pinneapple_design.thermal.heatsink.engine import DesignInput
+    from pinneapple_physics.closed_form.cantilever_fatigue import stress_from_moment_pa
+
+    p = presets.heatsink_problem("closed_form")
+    b = presets.heatsink_baseline()
+    ev = p.evaluate(p.space.from_dicts([b]))
+    d = DesignInput(**b)
+    assert ev.Y["mass_g"][0] == pytest.approx(d.geometry().mass_kg() * 1e3, rel=1e-12)
+    op = p.evaluator.op
+    H, t, D = b["fin_height_mm"] * 1e-3, b["fin_thickness_mm"] * 1e-3, b["base_depth_mm"] * 1e-3
+    moment = 2700.0 * t * D * op.shock_g * 9.80665 * H ** 2 / 2
+    assert ev.Y["fin_stress_mpa"][0] == pytest.approx(stress_from_moment_pa(D, t, moment) * 1e-6, rel=1e-12)
+    assert ev.Y["fin_gap_mm"][0] == pytest.approx(d.geometry().fin_gap * 1e3)
+
+
+def test_heatsink_fidelities_agree_and_torch_matches_numpy():
+    import torch
+    b = presets.heatsink_baseline()
+    vals = {}
+    for f in presets.HEATSINK_FIDELITIES:
+        p = presets.heatsink_problem(f)
+        vals[f] = p.evaluate(p.space.from_dicts([b]))
+        assert vals[f].feasible[0]
+    t_ref = vals["fvm"].Y["t_source_c"][0]
+    # surrogate card: R error p95 about 1 %; the closed form uses the circular-equivalent spreading model
+    assert vals["surrogate"].Y["t_source_c"][0] == pytest.approx(t_ref, rel=0.02)
+    assert vals["closed_form"].Y["t_source_c"][0] == pytest.approx(t_ref, rel=0.05)
+    sur = presets.heatsink_problem("surrogate").evaluator
+    X = presets.heatsink_problem().space.sample(16, seed=3)
+    out_t = sur.torch(torch.tensor(X))
+    out_n = sur(X)
+    ok = out_n["fin_gap_mm"] > 0                             # fins that do not fit are not sent to the model
+    assert ok.sum() >= 8
+    for k in ("t_source_c", "pressure_drop_pa", "mass_g", "cost", "fin_stress_mpa"):
+        assert np.allclose(out_t[k].detach().numpy()[ok], out_n[k][ok], rtol=1e-5), k
+    assert np.array_equal(out_t["_valid"].numpy(), out_n["_valid"])
+
+
+def test_heatsink_optimum_beats_baseline_and_is_confirmed_by_fvm():
+    p = presets.heatsink_problem("surrogate")
+    x0 = p.space.from_dicts([presets.heatsink_baseline()])
+    r = run(p, "nsga2", budget=600, seed=0, initial=x0)
+    best = r.best(0)
+    assert r.evaluations.Y["mass_g"][best] < 0.5 * r.evaluations.Y["mass_g"][0]
+    rep = verify_candidates(p, r.evaluations, [best], presets.HeatsinkEvaluator("fvm"))
+    row = rep.rows[0]
+    assert row["status"] in ("verified", "rejected by reference")
+    assert row["rel_error"]["t_source_c"] < 0.03
+
+
+def test_airfoil_preset_gradient_and_exports():
+    import torch
+    p = presets.airfoil_problem()
+    x0 = p.space.from_dicts([presets.airfoil_baseline()])
+    ev = p.evaluate(x0)
+    assert ev.feasible[0] and 0.005 < ev.Y["Cd"][0] < 0.02
+    X = torch.tensor(x0, requires_grad=True)
+    p.evaluator.torch(X)["Cd"].sum().backward()
+    assert torch.isfinite(X.grad).all() and X.grad.abs().sum() > 0
+    out_n = p.evaluator(x0)
+    out_t = p.evaluator.torch(torch.tensor(x0))
+    for k in ("Cd", "Cl", "spar_depth", "aft_thickness", "thickness"):
+        assert np.allclose(out_t[k].detach().numpy(), out_n[k], rtol=1e-5), k
+    stl = presets.design_file(presets.airfoil_bodies(presets.airfoil_baseline()), "stl", "naca2412")
+    n_tri = int.from_bytes(stl[80:84], "little")
+    assert len(stl) == 84 + 50 * n_tri and n_tri == 4 * (2 * 81 - 1)
+    bodies = presets.plate_fin_bodies(presets.heatsink_baseline())
+    assert len(bodies) == 21
+    step = presets.design_file(bodies, "step", "heatsink").decode()
+    assert step.startswith("ISO-10303-21;") and step.count("FACETED_BREP(") == 21
+
+
+def test_zoo_model_reference_evaluator():
+    space = DesignSpace([Variable("alpha_deg", 0.0, 8.0)])
+    fixed = dict(zip(("T0", "T1", "T2", "M0", "M1", "M2"), presets.airfoil_baseline().values(), strict=False))
+    ev = from_model_ref({"uri": "zoo:airfoil_cst_rans_mlp"}, space, fixed=fixed)
+    out = ev(np.array([[4.0]]))
+    assert out["Cl"][0] == pytest.approx(0.66, abs=0.02) and out["_valid"][0]
