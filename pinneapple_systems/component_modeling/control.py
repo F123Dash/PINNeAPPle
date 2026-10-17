@@ -18,18 +18,28 @@ as ``observer`` below instead of adding a third parallel implementation.
 """
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
 
 class PIDController:
-    """Standard discrete-time PID: u = Kp*e + Ki*integral(e) + Kd*de/dt,
-    e = setpoint - measurement."""
+    """Standard discrete-time PID: u = bias + Kp*e + Ki*integral(e) + Kd*de/dt,
+    e = setpoint - measurement.
 
-    def __init__(self, kp: float, ki: float, kd: float, setpoint: float):
+    ``output_limits=(lo, hi)`` saturates the action like a real actuator and
+    turns on anti-windup by conditional integration (the integral is frozen
+    while the output is saturated in the direction the error pushes;
+    Astrom & Hagglund, "Advanced PID Control", 2006, sec. 3.5). ``bias`` is
+    the feed-forward / manual-reset term. Without them the controller is the
+    textbook unbounded law, as before."""
+
+    def __init__(self, kp: float, ki: float, kd: float, setpoint: float,
+                 output_limits: Optional[Tuple[float, float]] = None, bias: float = 0.0):
         self.kp, self.ki, self.kd = kp, ki, kd
         self.setpoint = setpoint
+        self.output_limits = output_limits
+        self.bias = bias
         self._integral = 0.0
         self._prev_error: Optional[float] = None
 
@@ -39,10 +49,18 @@ class PIDController:
 
     def update(self, measurement: float, dt: float) -> float:
         error = self.setpoint - measurement
-        self._integral += error * dt
         derivative = 0.0 if self._prev_error is None else (error - self._prev_error) / dt
         self._prev_error = error
-        return self.kp * error + self.ki * self._integral + self.kd * derivative
+        integral = self._integral + error * dt
+        u = self.bias + self.kp * error + self.ki * integral + self.kd * derivative
+        if self.output_limits is None:
+            self._integral = integral
+            return u
+        lo, hi = self.output_limits
+        saturated = (u > hi and error > 0) or (u < lo and error < 0)
+        if not saturated:
+            self._integral = integral
+        return float(min(max(u, lo), hi))
 
 
 def run_closed_loop(
