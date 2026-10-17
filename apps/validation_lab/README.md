@@ -31,10 +31,24 @@ No single test guarantees that the model represents reality, and neither does th
 report both say so. A pass means only that the listed checks ran on these inputs, with these tolerances, and held.
 A check that did not run is shown as **not run**, never as a pass.
 
+## On the mesh: 3-D results
+
+When a result is 3-D and lives on a mesh (an OpenFOAM case zip, a VTU/VTK file with cells) and has a reference, the
+report adds a 3-D view of what the reference check (PC701) compared: the prediction, the reference and
+|prediction − reference| on the mesh, each with a colour bar. A displacement field deforms the body (scale factor,
+true scale). Declared boundary conditions are marked (OpenFOAM patches, planes such as `x=min`). A list gives the
+regions with the largest error: connected points in the top 10 % of the error, with their maximum and mean, size,
+share of the squared error and the faces of the domain they touch. Click a row to zoom to it. The relative L2 shown
+is the PC701 number. 2-D results, tables and models keep the current views. Library:
+`pinneapple_veriphysics.mesh_views`, `pinneapple_analysis.validation.error_map`, `pp.viz.field_view`.
+
+![A reduced model against the FEM it replaces: |prediction − reference| of the von Mises stress on the deformed cantilever](../../docs/assets/apps/d24-validate-3d-stress.jpg)
+
 ## Integrations
 
 - **REST API** (`/docs`): `POST /api/validate` takes files plus a `config` (TOML) or a `spec` (JSON). It returns
-  the report (`pinneapple-validation-lab/v1`). `POST /api/report.html` renders it; `POST /api/config` turns a spec
+  the report (`pinneapple-validation-lab/v1`), plus `views3d` for 3-D results with a reference (not part of the hashed
+  report; the glTF is at `/api/views/{id}.glb`). `POST /api/report.html` renders it; `POST /api/config` turns a spec
   into a `pinneapple-check.toml`.
 - **CI:** the GitHub Action at the root of this repository (`uses: PINNeAPPle-Labs/PINNeAPPle@main`) runs the same
   checks on every pull request, with annotations, SARIF and a job summary. The API tab gives a workflow that also
@@ -56,13 +70,14 @@ The validation of each rule is in `tests/test_physics_check.py`: on the fixtures
 rule fails exactly where a defect was planted and passes on the clean twin. The ledger and grouping are tested in
 `tests/pinneapple_veriphysics/test_evidence_ledger.py`, the app in `tests/test_app_validation_lab.py`.
 
-## Try with example (offline, under a second each)
+## Try with example (offline, seconds each)
 
 | Example | What it shows |
 |---|---|
 | Fifteen results and models that hold | The 135 checks of the clean fixtures: OpenFOAM cavity and channel, conduction, elasticity, a 1-D conservation law, a PINN, a surrogate, a Darcy dataset, signed artefacts |
 | The same targets, one defect each | 32 errors and 9 warnings, each in its group (leaking outlet, wrong BC, residual, unit mismatch, out-of-range query, regression, tampered file...) |
 | Temperature predictions from a form | `heat_plate.npz` against k∇²T + q = 0, its boundary value, units and bounds: 12 checks; the validation group reads "not run" because no reference was given |
+| A reduced model against the FEM it replaces, in 3-D | A solid cantilever (H 0.289 m, W 0.173 m, load 4.8° from vertical): the POD + GPR model of the ROM Lab (rank 8, trained on 80 FEM designs) at a held-out design near the edge of its training box, against a fresh FEM solve of that design (`examples/make_cantilever_3d.py`). The clamp condition holds (PC201); the reference check fails, 21.2 % on the displacement and 27.8 % on the von Mises stress (PC701). The 3-D view shows the stress error at the clamp corners and the displacement error at the tip |
 | Zoo heat-sink model at three operating points | `heatsink_forced_mlp` at three designs: the third (20 m/s air, trained on 0.5–6 m/s) fails PC601 |
 
 ## Run
@@ -76,7 +91,9 @@ Environment variables:
 
 - `VAL_USER` / `VAL_PASSWORD`: HTTP Basic login on everything except `/health`;
 - `VAL_MAX_MB`: largest upload, default 200;
-- `VAL_MAX_HEAVY`: validations at once per worker, default 2; the excess gets HTTP 429.
+- `VAL_MAX_HEAVY`: validations at once per worker, default 2; the excess gets HTTP 429;
+- `VAL_VIEW_MAX_FACES`: triangles of a 3-D view before it is decimated, default 250,000;
+- `VAL_VIEWS_KEPT`: 3-D views (glTF) kept on disk, newest first, default 300; `VAL_DATA_DIR`: where.
 
 Docker: `docker build -f apps/validation_lab/Dockerfile -t validation-lab .`. Deployment with the other apps is in
 [`apps/deploy`](../deploy) (service `validate`).

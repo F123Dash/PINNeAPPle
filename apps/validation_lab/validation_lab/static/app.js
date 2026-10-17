@@ -111,8 +111,9 @@ function download(name, text, type) {
   a.href = URL.createObjectURL(new Blob([text], { type }));
   a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+const report = ({ views3d, ...rest }) => rest;            // the 3-D views are not part of the hashed report
 async function downloadHtml() {
-  const r = await fetch("/api/report.html", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(RES) });
+  const r = await fetch("/api/report.html", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(report(RES)) });
   download("validation.html", await r.text(), "text/html");
 }
 
@@ -155,6 +156,11 @@ function render() {
     ${notes}
     <div class="cols">${Object.entries(r.categories).map(([k, c]) => catCard(k, c)).join("")}</div>
   </div>
+  ${(r.views3d || []).length ? `<div class="panel">
+    <h2 style="margin-top:0">On the mesh: prediction, reference and error (3-D)</h2>
+    <p class="hint">The values compared by the reference check (PC701), at the same points: switch between the prediction, the reference and |prediction − reference|. Declared boundary conditions and the regions with the largest error are marked.</p>
+    ${r.views3d.length > 1 ? `<label class="v3pick">Result <select id="v3t">${r.views3d.map((v, i) => `<option value="${i}">${esc(v.target)}</option>`).join("")}</select></label>` : ""}
+    <div class="v3wrap"><div id="v3d"></div><div class="v3side" id="v3sum"></div></div></div>` : ""}
   <div class="panel">
     <h2 style="margin-top:0">Every check</h2>
     <div class="filters">Group <select id="flt-cat"><option value="">all</option>${Object.entries(r.categories).map(([k, c]) => `<option value="${k}">${esc(c.title)}</option>`).join("")}</select>
@@ -176,10 +182,34 @@ function render() {
     ${window.renderScope ? renderScope(r.scope) : ""}
   </div>`;
   $("#flt-cat").onchange = $("#flt-st").onchange = () => ($("#checks").innerHTML = checksTable());
-  $("#dl-json").onclick = () => download("validation.json", JSON.stringify(r, null, 1), "application/json");
+  $("#dl-json").onclick = () => download("validation.json", JSON.stringify(report(r), null, 1), "application/json");
   $("#dl-html").onclick = downloadHtml;
+  if ((r.views3d || []).length) { if ($("#v3t")) $("#v3t").onchange = (e) => view3d(+e.target.value); view3d(0); }
   $("#dl-toml").onclick = () => download("pinneapple-check.toml", r.config, "application/toml");
   $("#dl-ledger").onclick = () => download("evidence-ledger.json", JSON.stringify(r.ledger, null, 1), "application/json");
+}
+
+// ------------------------------------------------------------------ 3-D view (shared viewer /shared/fieldview3d.js)
+let V3 = null;
+const whenViewer = () => new Promise((res) => window.FieldView3D ? res() : window.addEventListener("fieldview3d-ready", res, { once: true }));
+async function view3d(i) {
+  const v = RES.views3d[i];
+  await whenViewer();
+  const err = v.meta.fields.find((f) => f.kind === "error" && /mises|stress/i.test(f.name)) || v.meta.fields.find((f) => f.kind === "error");
+  V3 = new FieldView3D($("#v3d"), { meta: v.meta, glb: v.glb, field: err.name, height: 480, onField: (f) => regions3d(v, f) });
+}
+function regions3d(v, f) {
+  const n = f.name.replace(/:(pred|ref|error)$/, ""), e = v.errors[n];
+  if (!e) return;
+  const u = e.unit ? ` ${esc(e.unit)}` : "";
+  $("#v3sum").innerHTML = `<h4>${esc(v.target)} · ${esc(n)} against ${esc(v.reference)}</h4>${e.summary.map((t) => `<p>${esc(t)}</p>`).join("")}
+    ${v.notes.map((t) => `<p class="hint">${esc(t)}</p>`).join("")}
+    <h4>Regions with the largest error</h4>
+    ${e.hotspots.length ? `<table class="regions"><tr><th>#</th><th class="num">max${u ? ` [${esc(e.unit)}]` : ""}</th><th class="num">mean</th><th class="num">points</th><th class="num">share of squared error</th><th>where</th></tr>
+      ${e.hotspots.map((h, k) => `<tr data-k="${k}"><td><b>${esc(h.name)}</b></td><td class="num">${fmt(h.max)}</td><td class="num">${fmt(h.mean)}</td><td class="num">${h.n}</td><td class="num">${(100 * h.share).toFixed(1)} %</td>
+        <td>(${h.at.map((x) => +x.toPrecision(3)).join(", ")})${h.touches.length ? `<div class="hint">touches ${esc(h.touches.join(", "))}</div>` : ""}</td></tr>`).join("")}</table>
+      <p class="hint">Connected points in the top 10 % of |error|, largest first; click a row to zoom to it.</p>` : `<p class="hint">The error is zero.</p>`}`;
+  $$("#v3sum tr[data-k]").forEach((tr) => tr.addEventListener("click", () => { const h = e.hotspots[+tr.dataset.k]; V3.focus(h.at, Math.max(...h.bbox_max.map((x, q) => x - h.bbox_min[q]))); }));
 }
 
 (async function init() {

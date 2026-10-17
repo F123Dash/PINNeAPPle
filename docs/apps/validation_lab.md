@@ -26,6 +26,21 @@ that the listed checks ran and held on these inputs, with these tolerances.
 
 ![A zoo model queried outside its training range: the validation group fails](../assets/apps/d24-validate-zoo-ood.jpg)
 
+## On the mesh (3-D results)
+
+When a result is 3-D and lives on a mesh (an OpenFOAM case zip, a VTU/VTK file with cells) and has a reference, the
+report adds a 3-D view of what the reference check (PC701) compared: the prediction, the reference and
+|prediction − reference| on the mesh, each with a colour bar. A displacement field deforms the body (scale factor,
+true scale). Declared boundary conditions are marked (OpenFOAM patches, planes such as `x=min`). A list gives the
+regions with the largest error: connected points in the top 10 % of the error, with their maximum and mean, size,
+share of the squared error and the faces of the domain they touch. Click a row to zoom to it. The relative L2 shown
+is the PC701 number. 2-D results, tables and models keep the current views. Library:
+`pinneapple_veriphysics.mesh_views`, `pinneapple_analysis.validation.error_map`, `pp.viz.field_view`.
+
+![A reduced model against the FEM it replaces: |prediction − reference| of the von Mises stress on the deformed cantilever, with the five regions of largest error at the clamp](../assets/apps/d24-validate-3d-stress.jpg)
+
+![The displacement error of the same model: one region, at the loaded tip](../assets/apps/d24-validate-3d-displacement.jpg)
+
 ## Automate it
 
 - `POST /api/validate` takes files plus `config` (TOML) or `spec` (JSON) and returns the report. The interactive

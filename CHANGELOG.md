@@ -14,6 +14,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- 3-D view in the Physics Validation Lab (day 24): for a 3-D result on a mesh with a reference (OpenFOAM case,
+  VTU/VTK), the prediction, the reference and the pointwise error on the mesh, exactly the values PC701 compared, with
+  the declared boundary conditions and a list of the regions with the largest error
+  (`pinneapple_veriphysics.mesh_views`). New example: a reduced model against the FEM it replaces, on a 3-D cantilever.
 - 3-D field views for the apps: `pp.viz.field_view` (`pinneapple_tools.visualization.studio.fieldview`) turns a
   mesh with values, errors, nodal displacements and marked regions into a glTF and a description (colour ranges, one
   scale per group, errors from 0 to their 99th percentile, decimation above 250 k triangles). The shared page module
