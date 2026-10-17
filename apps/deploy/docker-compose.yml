@@ -409,6 +409,7 @@ services:
     depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration]
 
 volumes:
+  calibration_data:
   evidence_data:
   lab_data:
   campaign_data:
