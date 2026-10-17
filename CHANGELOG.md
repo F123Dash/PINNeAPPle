@@ -20,7 +20,6 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   plate-fin heat sink or a CST airfoil; candidates from the best front over all methods with their verification
   status (FVM engine for the heat sink, "only surrogate" for the airfoil), constraint margins, geometry preview and
   STL / STEP / CSV exports. Jobs of the shared runtime. Deploy: service `design`.
-- `MethodComparison.union()`: every run's evaluations in one record with the run that produced each row.
 - Design studies in `pinneapple_design.design_optimizer` (guide: `docs/guides/design_studies.md`): one problem
   description (`DesignSpace` with continuous and integer variables, `Objective`, `Constraint` with physical,
   manufacturing and validity kinds, `DesignProblem`), evaluators for Python functions, zoo models, torch modules,
