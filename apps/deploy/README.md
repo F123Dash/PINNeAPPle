@@ -44,6 +44,7 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `lab` | A | `<server IPv4>` |
 | `sky` | A | `<server IPv4>` |
 | `playground` | A | `<server IPv4>` |
+| `guiagent` | A | `<server IPv4>` |
 
 If the zone is on Cloudflare, set both records to **DNS only** (grey cloud) for the first start, so
 Let's Encrypt can reach Caddy. Check propagation with `dig +short heatsink.example.org`.
@@ -76,6 +77,10 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 | `UDR_OLLAMA_MODEL` | Optional. Enables local-LLM extraction in the Form Compiler with this Ollama model (pull it first). Every value it returns is checked against the document text; documents never leave your network. |
 | `UDR_OLLAMA_URL` | Ollama server: `http://ollama:11434` (the optional `ollama` service, `--profile llm`) or `http://host.docker.internal:11434` (Ollama on the host). |
 | `UDR_OLLAMA_TIMEOUT` | Seconds per LLM request (default 600; local models on CPU are slow). |
+| `GUIAGENT_DOMAIN`, `GUIAGENT_USER` / `GUIAGENT_PASSWORD`, `GUIAGENT_MEM_LIMIT` | Engineering GUI Agent (optional heavy image): hostname, HTTP Basic login, memory cap (default 2g) |
+| `GUIAGENT_MODE` | `public` (default): only the committed workflows run. `selfhosted`: `POST /api/workflows` also adds your own workflows, FreeCAD projects and macros. Macros are code, so never enable this on a public server. |
+| `GUIAGENT_MAX_JOBS`, `GUIAGENT_KEEP_RUNS` | Runs at the same time (default 1; any excess gets HTTP 429) and runs kept on disk (default 40; the oldest are deleted first) |
+| `GUIAGENT_OLLAMA_MODEL`, `GUIAGENT_OLLAMA_URL` | Optional local LLM that reads free-form tasks. Without it, tasks are read by rules, and the demo works either way. |
 
 ## 5. Start
 
@@ -258,6 +263,14 @@ playground.example.org {
 	encode zstd gzip
 	reverse_proxy pinneapple-playground:8095
 }
+guiagent.example.org {
+	encode zstd gzip
+	reverse_proxy pinneapple-guiagent:8115 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -274,6 +287,30 @@ A static site: the zoo models run in the visitor's browser (ONNX), so the contai
 `docker build -f apps/playground/Dockerfile -t pinneapple-playground . && docker run -p 8095:8095 pinneapple-playground`.
 The same build can go to GitHub Pages instead: set the repository variable `PLAYGROUND_PAGES=true` and the docs
 workflow publishes it under `<docs site>/playground/` (see `apps/playground/README.md`).
+
+## Engineering GUI Agent (`guiagent`)
+
+A **separate, optional heavy image** (about IMAGE_SIZE). It contains:
+
+- FreeCAD 1.0.2: the AppImage, extracted;
+- the CfdOF 1.37.3 workbench;
+- OpenFOAM v1912 (the Ubuntu package, as elsewhere in the repository);
+- ParaView 5.11 with `pvpython`;
+- Xvfb and xdotool.
+
+It has the compose profile `guiagent`, so a plain `docker compose up -d` does not build or start it. Name it instead:
+
+```bash
+docker compose up -d --build guiagent                     # with this project's Caddy
+PROXY_NETWORK=<network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
+  up -d --build --no-deps guiagent                         # behind an existing proxy (pinneapple-guiagent:8115)
+```
+
+The service runs one uvicorn worker with `mem_limit` 2g and one run at a time (`GUIAGENT_MAX_JOBS=1`). A full run of
+the example takes about 30 s of 1-4 CPU cores. Runs and their evidence are kept in the `guiagent_data` volume; the
+oldest are deleted beyond `GUIAGENT_KEEP_RUNS`. On a public server, keep `GUIAGENT_MODE=public`: only the committed
+workflows run, with their inputs inside the workflow's bounds, and no uploads are accepted. Building the image
+downloads the FreeCAD AppImage from GitHub (about 800 MB) and CfdOF from GitHub.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
@@ -295,7 +332,7 @@ Set `LAB_USER` / `LAB_PASSWORD` in `.env` to require a login (`/health` stays op
 | Task | Command (in `apps/deploy`) |
 |---|---|
 | Update to the latest code | `git pull && docker compose up -d --build` |
-| Logs | `docker compose logs -f heatsink` (or `pcb`, `caddy`) |
+| Logs | `docker compose logs -f heatsink` (or `pcb`, `caddy`, `guiagent`) |
 | Change a password | edit `.env`, then `docker compose up -d` |
 | Restart | `docker compose restart` |
 | Stop | `docker compose down` (certificates stay in the `caddy_data` volume) |

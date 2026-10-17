@@ -33,8 +33,17 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from pinneapple_tools.automation import (RunRecord, Runner, Toolchain, Workflow, WorkflowError, catalog, interpret,
-                                         known_actions, plan)
+from pinneapple_tools.automation import (
+    Runner,
+    RunRecord,
+    Toolchain,
+    Workflow,
+    WorkflowError,
+    catalog,
+    interpret,
+    known_actions,
+    plan,
+)
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
 from appkit import install  # noqa: E402
@@ -329,7 +338,7 @@ def bundle(run_id: str):
 
 
 @app.post("/api/workflows")
-async def upload_workflow(file: UploadFile = File(...)):
+async def upload_workflow(file: UploadFile = File(...)):  # noqa: B008  (FastAPI idiom)
     """Self-hosted mode only: add a workflow (a zip with workflow.yaml and the files it uses, e.g. your FreeCAD
     project and macro). A public server refuses: macros are code."""
     if MODE != "selfhosted":

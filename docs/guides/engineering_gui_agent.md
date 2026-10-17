@@ -64,6 +64,24 @@ These are the reasons the checks exist; each was found by a real run and is now 
 * **A bug in `pinneapple check`'s per-patch fluxes.** `FV.patch_sums` read past the end of the boundary arrays the
   balances pass it, so every patch total was 0 (only the net balance was right). Fixed, with a test.
 
+## The app: guiagent.pinneapple.org
+
+`apps/guiagent` (port 8115) puts the library behind a web page and a REST API. You:
+
+1. type a task, or pick the workflow and its inputs;
+2. watch the step timeline fill with checks and screenshots;
+3. approve or decline the solver step;
+4. download the evidence report, the StudyResult and the run as a zip.
+
+The public server runs only the committed workflows, one at a time. Uploading your own workflows, projects and macros
+is for self-hosted mode (`GUIAGENT_MODE=selfhosted`), because a macro is code. The Docker image is separate and
+optional (FreeCAD, CfdOF, OpenFOAM, ParaView, Xvfb); see [apps/deploy/README.md](../../apps/deploy/README.md).
+
+| Waiting for approval before the solver | A finished run (80 mm obstacle, rejected by the pressure-drop limit) |
+|---|---|
+| ![gate](../assets/apps/d27-guiagent-gate.jpg) | ![done](../assets/apps/d27-guiagent-run.jpg) |
+
+
 ## Building blocks
 
 | Module | What it does |

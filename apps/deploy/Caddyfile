@@ -181,3 +181,12 @@
 	import common
 	reverse_proxy playground:8095
 }
+
+{$GUIAGENT_DOMAIN} {
+	import common
+	reverse_proxy guiagent:8115 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}

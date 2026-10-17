@@ -248,6 +248,29 @@ services:
     expose: ["8094"]
     mem_limit: ${OBS_MEM_LIMIT:-1500m}
 
+  # Engineering GUI Agent: a separate, optional heavy image (FreeCAD + CfdOF + OpenFOAM + ParaView, about 4 GB).
+  # Not started by a plain `up`: name it (`... up -d --build guiagent`) or use `--profile guiagent`.
+  guiagent:
+    build:
+      context: ../..
+      dockerfile: apps/guiagent/Dockerfile
+    image: pinneapple/guiagent:latest
+    profiles: ["guiagent"]
+    restart: unless-stopped
+    environment:
+      GUIAGENT_USER: ${GUIAGENT_USER:-}
+      GUIAGENT_PASSWORD: ${GUIAGENT_PASSWORD:-}
+      GUIAGENT_MODE: ${GUIAGENT_MODE:-public}         # public: committed workflows only; selfhosted: uploads too
+      GUIAGENT_MAX_JOBS: ${GUIAGENT_MAX_JOBS:-1}
+      GUIAGENT_KEEP_RUNS: ${GUIAGENT_KEEP_RUNS:-40}
+      GUIAGENT_OLLAMA_URL: ${GUIAGENT_OLLAMA_URL:-http://ollama:11434}
+      GUIAGENT_OLLAMA_MODEL: ${GUIAGENT_OLLAMA_MODEL:-}  # empty = rule-based reading of tasks
+    volumes:
+      - guiagent_data:/data       # runs and their evidence (oldest deleted beyond GUIAGENT_KEEP_RUNS)
+    expose: ["8115"]
+    mem_limit: ${GUIAGENT_MEM_LIMIT:-2g}
+    shm_size: 256m
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -269,6 +292,7 @@ services:
       LAB_DOMAIN: ${LAB_DOMAIN:-lab.localhost}
       OBS_DOMAIN: ${OBS_DOMAIN:-observatory.localhost}
       PLG_DOMAIN: ${PLG_DOMAIN:-playground.localhost}
+      GUIAGENT_DOMAIN: ${GUIAGENT_DOMAIN:-guiagent.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -278,6 +302,7 @@ services:
 
 volumes:
   lab_data:
+  guiagent_data:
   obs_cache:
   caddy_data:
   caddy_config:

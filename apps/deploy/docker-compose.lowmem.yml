@@ -47,3 +47,5 @@ services:
     mem_limit: 1800m    # torch + the graph network + the stored search: ~700 MB idle, more while searching
   observatory:
     mem_limit: 1200m    # torch for the PINN surrogate (~500 MB idle); one worker by default
+  guiagent:                    # already one worker and one run at a time; FreeCAD + simpleFoam peak below 1.5 GB
+    mem_limit: 2g
