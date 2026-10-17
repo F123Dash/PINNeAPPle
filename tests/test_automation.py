@@ -272,6 +272,7 @@ def test_guiagent_is_a_step_kind_of_the_workflow_runner(tmp_path, monkeypatch):
     rs.register(Toolchain())                                    # nothing installed: the runner says what is missing
     ok, why = get_adapter("guiagent").available(Step(id="x", kind="guiagent", params={"workflow": "channel_obstacle"}))
     assert not ok and "freecad" in why and "openfoam" in why
+    assert not get_adapter("guiagent").available()[0]            # the runner's step-kind list says so too
 
 
 # --------------------------------------------------------------------------------------- criteria on a real result

@@ -50,14 +50,13 @@ class GuiAgentStep(Adapter):
         return self._toolchain
 
     def available(self, step=None) -> tuple[bool, str]:
+        """Without a step: whether every committed workflow can run here. With one: whether its workflow can."""
         wid = (getattr(step, "params", None) or {}).get("workflow") if step is not None else None
         cat = catalog()
-        if wid is None:
-            return True, ""
-        if wid not in cat:
+        if wid is not None and wid not in cat:
             return False, f"no committed workflow {wid!r}"
         missing = set()
-        for s in cat[wid].steps:
+        for s in (st for w in ([cat[wid]] if wid else cat.values()) for st in w.steps):
             missing |= set(self.toolchain.missing(list(get_adapter(s.adapter).requires) + list(s.requires)))
         return (not missing, "needs " + ", ".join(sorted(missing)) if missing else "")
 
