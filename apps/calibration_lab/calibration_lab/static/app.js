@@ -48,6 +48,8 @@ async function loadPreset(id) {
   ED.set(p);
   const meta = META.presets.find((x) => x.id === id);
   $("#preset-note").innerHTML = `${esc(p.summary)}<br><i>${esc(meta?.lesson || "")}</i>`;
+  $("#o-prior").value = p.prior_std || 1;
+  $("#o-boot").value = (META.models[p.model_spec.type] || {}).cost === "moderate" ? 30 : 100;
   $("#h-mode").value = p.validation ? "validation" : "last";
   holdUI(); refreshMethods();
   document.querySelectorAll("#o-cmp input:not(:disabled)").forEach((x) => { x.checked = x.value === "bayesian"; });
@@ -62,7 +64,8 @@ async function run() {
   if (mode === "validation" && !body.validation) { $("#status").innerHTML = `<span class="err">no held-out measurements: add some or choose another validation</span>`; return; }
   body.holdout = { mode, fraction: +$("#h-frac").value, by: $("#h-by").value };
   body.options = { loss: $("#o-loss").value, bootstrap: +$("#o-boot").value, absolute_sigma: $("#o-abs").checked,
-    compare: [...document.querySelectorAll("#o-cmp input:checked")].map((x) => x.value), pinn_steps: +$("#o-pinn").value };
+    compare: [...document.querySelectorAll("#o-cmp input:checked")].map((x) => x.value), pinn_steps: +$("#o-pinn").value,
+    prior_std: +$("#o-prior").value };
   $("#run").disabled = true;
   $("#status").innerHTML = `<div>queued…</div><div class="progress"><div></div></div>`;
   try {
@@ -150,7 +153,7 @@ function renderField(el, F) {
   let h = "";
   names.forEach((n, k) => {
     const a = F.after[n], b = F.before[n];
-    if (Array.isArray(a.values[0])) h += `<div><canvas class="field" id="fc-${k}" width="${a.x.length}" height="${a.y.length}"></canvas><div class="fcap">${esc(n)} (${esc(a.unit)}), calibrated: min ${fmt(Math.min(...a.values.flat()))}, max ${fmt(Math.max(...a.values.flat()))} (start values: max ${fmt(Math.max(...b.values.flat()))})</div></div>`;
+    if (Array.isArray(a.values[0])) h += `<div><canvas class="field" id="fc-${k}" width="${a.x.length}" height="${a.y.length}"></canvas><div class="fbar"><span>${fmt(Math.min(...a.values.flat()), 4)}</span><i></i><span>${fmt(Math.max(...a.values.flat()), 4)} ${esc(a.unit)}</span></div><div class="fcap">${esc(n)} (${esc(a.unit)}) over the plate (x right, y up), calibrated: min ${fmt(Math.min(...a.values.flat()))}, max ${fmt(Math.max(...a.values.flat()))} (start values: max ${fmt(Math.max(...b.values.flat()))})</div></div>`;
     else h += `<div id="fl-${k}"></div>`;
   });
   el.innerHTML = `<div class="grid2">${h}</div>`;

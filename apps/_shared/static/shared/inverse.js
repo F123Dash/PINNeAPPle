@@ -137,7 +137,7 @@
       for (let j = 0; j < n; j++) {
         const v = m[i][j];
         g += `<rect x="${L + j * c}" y="${T + i * c}" width="${c - 2}" height="${c - 2}" rx="4" fill="${col(v)}"><title>${esc(labels[i])} / ${esc(labels[j])}: ${fmt(v, 3)}</title></rect>`;
-        g += `<text x="${L + j * c + c / 2 - 1}" y="${T + i * c + c / 2 + 3}" text-anchor="middle" style="fill:${Math.abs(v) > 0.6 ? "#fff" : "#172033"}">${v === null ? "—" : (+v).toFixed(2)}</text>`;
+        g += `<text x="${L + j * c + c / 2 - 1}" y="${T + i * c + c / 2 + 3}" text-anchor="middle" style="fill:${Math.abs(v) > 0.6 ? "#fff" : "#172033"}">${v === null ? "—" : Math.abs(v) > 0.99 && Math.abs(v) < 1 ? (+v).toFixed(3) : (+v).toFixed(2)}</text>`;
       }
     }
     g += `<text x="${L}" y="${H - 8}">−1</text><rect x="${L + 18}" y="${H - 18}" width="60" height="10" fill="url(#ivg)"/><text x="${L + 84}" y="${H - 8}">+1</text>`;
@@ -308,7 +308,11 @@
     obsEditor(q("obsed"), "obs", "measurements");
     if (opts.validation) obsEditor(q("valed"), "val", "held-out measurements");
 
-    const num = (v) => (v === "" || v === null || v === undefined ? null : +v);
+    const num = (v) => {                       // a sensor export may write 94,1 for 94.1
+      if (v === "" || v === null || v === undefined) return null;
+      if (typeof v === "string" && /^\s*-?\d+,\d+\s*$/.test(v)) v = v.replace(",", ".");
+      const x = +v; return isFinite(x) ? x : null;
+    };
     function obsJSON(rows, needValues) {
       if (!rows.length) return null;
       const inputs = {}; st.inputs.forEach((k) => (inputs[k] = rows.map((r) => num(r[k]))));
