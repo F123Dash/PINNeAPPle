@@ -323,6 +323,66 @@
 	}
 }
 
+{$SUR_DOMAIN} {
+	import common
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy surrogate:8097 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$ARN_DOMAIN} {
+	import common
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy arena:8105 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$MDL_DOMAIN} {
+	import common
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy models:8114 {
+		transport http {
+			read_timeout 60s
+		}
+	}
+}
+
+{$TWIN_DOMAIN} {
+	import common
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy twin:8103 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+
+{$ANOMALY_DOMAIN} {
+	import common
+	request_body {
+		max_size 120MB
+	}
+	reverse_proxy anomaly:8111 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
+
 {$CONTROL_DOMAIN} {
 	import common
 	request_body {

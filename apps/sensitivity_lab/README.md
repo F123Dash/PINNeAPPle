@@ -93,8 +93,9 @@ The API tests are in `tests/test_sensitivity_lab_app.py`.
   data. Check the model first, for example in the Engineering Uncertainty Lab.
 - **Runs done elsewhere.** Every run of the design is needed, and a missing run is named. The freeze recommendation
   is not re-checked there, because the model is not available to the app.
-- **Execution.** Studies run synchronously in the request, limited by `SEN_MAX_HEAVY`, `SEN_MAX_EVALS` and
-  `SEN_MAX_PARAMS`. They move to the shared job queue once the shared runtime is merged.
+- **Execution.** Studies run as jobs in the shared queue (`SEN_MAX_JOBS` at once), capped by `SEN_MAX_EVALS` and
+  `SEN_MAX_PARAMS`; integer parameters of a `ParameterSpace` are sampled as continuous values, categorical and
+  log-scaled ones are refused unless a distribution is given in its `metadata`.
 
 ## Integrations
 
@@ -103,6 +104,10 @@ The API tests are in `tests/test_sensitivity_lab_app.py`.
 - **OpenFOAM and CalculiX**, through the design and results round trip: the Campaign Planner / Runner apps can
   execute `sobol_design.csv` and return `run_id` plus responses.
 - Experimental or historical data as CSV, Parquet or JSON.
+- **The shared contracts** (`pinneapple_data.contracts`): a `ParameterSpace` for the parameters (`parameter_space`;
+  distributions other than uniform in its `metadata["distributions"]`), a `ModelRef` for the model (`model_ref`,
+  `zoo:<name>` or an ONNX graph uploaded with it), and a `StudyResult` (`study_type: sensitivity`, with the checks
+  that ran) in every result. `/api/model/...` and `/api/design` also return the parameters as a `ParameterSpace`.
 
 ## Run
 
@@ -111,10 +116,12 @@ pip install -e . -r apps/sensitivity_lab/requirements.txt          # from the re
 cd apps/sensitivity_lab && uvicorn sensitivity_lab.api:app --port 8099
 ```
 
-Environment variables:
+Environment variables (the shared runtime ones are in [`apps/_shared/README.md`](../_shared/README.md)):
 
-- `SEN_USER` / `SEN_PASSWORD`: HTTP Basic login.
-- `SEN_MAX_HEAVY`: concurrent studies (default 2).
+- `SEN_USER` / `SEN_PASSWORD`: HTTP Basic login; `SEN_ADMIN_TOKEN` for API-key management without a login.
+- `SEN_MAX_JOBS`: studies running at once (default 2); `SEN_MAX_HEAVY`: concurrent synchronous examples.
+- `SEN_FREE_STUDIES`, `SEN_FREE_EVALUATIONS`, `SEN_FREE_PARAMETERS`: free use per caller and month (defaults 200,
+  5,000,000 and 2,000; `unlimited` lifts a limit).
 - `SEN_MAX_EVALS`: model evaluations per study (default 400000).
 - `SEN_MAX_PARAMS`: varied parameters (default 30).
 - `SEN_MAX_MB`: largest upload in MB (default 50).
@@ -126,11 +133,13 @@ Docker: `docker build -f apps/sensitivity_lab/Dockerfile -t sensitivity-lab .`. 
 
 | Endpoint | What it does |
 |---|---|
-| `POST /api/study` | Model study: multipart `config` JSON, plus `model` (.onnx) if needed |
+| `POST /api/study` | Model study as a job: multipart `config` JSON, plus `model` (.onnx) or `model_upload`; `?wait=<s>` |
+| `GET /api/jobs/{id}` | Job status, progress and result (shared runtime; also `/logs`, `/cancel`, `/retry`) |
 | `POST /api/cost` | Evaluations a study would take |
 | `POST /api/design` | Saltelli design CSV; its first line is the spec |
-| `POST /api/runs` | Indices from solver results: `spec` + `runs` table |
-| `POST /api/given-data` | First-order indices from data: `config` + `data` table |
+| `POST /api/runs` | Indices from solver results, as a job: `spec` + `runs` table |
+| `POST /api/given-data` | First-order indices from data, as a job: `config` + `data` table (or `data_upload`) |
+| `POST /api/uploads`, `GET /api/usage`, `/api/keys` | Shared runtime: uploads, metered use, API keys |
 | `GET /api/example/{ishigami\|heatsink\|dataset}` | Runs an example (`/config` returns its configuration) |
 | `GET /api/model/{builtin\|zoo}/{name}` | Inputs, units and a default parameter space |
 
@@ -139,5 +148,6 @@ Interactive documentation is at `/docs`.
 ## Monetization
 
 Billed on **parameters** (varied parameters per study) and **computational evaluations** (model evaluations or solver
-runs, both reported in `usage`; the cost is shown before running). A free tier covers the examples and studies up to
-about 10 parameters at N = 1024. The meters move to the shared metering once the shared runtime lands.
+runs; the cost is shown before running). Both are metered per caller and month by the shared runtime (`GET
+/api/usage`, units `studies`, `evaluations`, `parameters`), with a free tier (200 studies, 5 million evaluations,
+2,000 parameters a month by default) and HTTP 429 past it; the examples are free.
