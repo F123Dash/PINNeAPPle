@@ -44,6 +44,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   - Example `examples/vs_physicsnemo/07_physicsnemo_trains_pinneapple_checks` and the guide
     `docs/guides/physicsnemo_trust.md`. The `darcy-trust` job of the physics-check workflow runs the GitHub Action
     on the exported predictions.
+- Veriphysics scope of use (`pinneapple_veriphysics.scope`): `ScopeOfUse` lists which uses a result can serve,
+  where it fails and why (measured value against the limit, what the use needs, and whether the evidence is
+  certified, estimated, a reference comparison or an input check). Input checks are preconditions, not uses.
+  `scope_from_verdicts` and `scope_from_batch` build it from per-use verdicts such as `darcy_checks.use_verdicts`.
+  `DecisionRecord.scope_of_use` carries it into the Decision Record and the Evidence Report PDF, which gains a
+  "Where this result can be used" section with the figure. The PhysicsNeMo Darcy example writes one per model
+  (`python run.py report`).
 - Zoo dataset `airfoil_rans_cst_re4e6_fields` (Hub-only, 186 MB in 5 files): the cell fields p, Ux, Uy, nut and
   cell centres of the 436 OpenFOAM runs of `airfoil_rans_cst_re4e6`, with the same splits. The campaign was
   regenerated, and its coefficients reproduce the published table. `write_field_dataset`
