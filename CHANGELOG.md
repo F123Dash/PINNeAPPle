@@ -20,6 +20,74 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   - a run log, latency / count / error metrics and exports;
   - publishing guarded by the admin token, or an API key for ONNX;
   - metering of inferences and hosted models on the shared runtime.
+- ROM study (`pinneapple_neural.architectures.rom.study`): `rom_study(snapshots)` holds out later times,
+  interleaved times or unseen parameter points, fits POD + RBF, POD + GPR, the nearest snapshot, DMD, Operator
+  Inference and a neural surrogate trained within the same wall-clock budget (`train_within_budget`) at several
+  ranks, and reports the held-out error, the POD projection floor, fit and inference time, speed-up over the
+  full-order model, the singular values and the rank / error / speed Pareto front. Every fitted model is a
+  `ReducedModel` with `predict(times=...)` / `predict(params=...)` and a portable `.npz` form (arrays + JSON
+  manifest, no pickle). `ParametricPOD.to_arrays` / `from_arrays` rebuild an identical predictor.
+- Snapshot matrices (`pinneapple_data.snapshots`): `load_snapshots` stacks OpenFOAM time directories, series of
+  VTU/VTK/FRD/meshio results, `.npz`/`.npy`/HDF5 arrays and CSV/Parquet tables (a row per snapshot) into a
+  `SnapshotSet` that keeps the field layout, times or parameters, and locations.
+- Meshless study (`pinneapple_simulation.meshless`): Kansa (global multiquadric collocation), RBF-FD (PHS r³ +
+  polynomials), finite differences on an embedded grid (Shortley-Weller), P1 finite elements on the Delaunay mesh of
+  the nodes and a PINN on the same nodes, for Poisson, Helmholtz and heat problems with Dirichlet conditions on 2-D
+  domains (square, disk, L-shape, annulus, plate with a hole, polygons, point clouds). `meshless_study` reports the
+  error against a manufactured solution (sympy) or a fine FEM reference with its own error estimate, setup and solve
+  time, condition number, noise amplification, observed order, a Kansa shape-parameter sweep and the winner of each
+  criterion.
+- `pinneapple_lab.experiments.rom.cylinder_wake` and `cantilever`: the wake and cantilever generators of
+  `rom_study`, now public.
+- Surrogates from simulation results (`pinneapple_analysis.surrogate`): `run_study` trains every applicable method
+  (polynomial ridge, Gaussian process, gradient-boosted trees, MLP, FNO, DeepONet, and a PINN when a PDE is
+  declared) on the same splits and `ComputeBudget`, measures them on a held-out split and a distribution-shift split
+  (held-out groups, the edge of the input space, or one end of an input), selects by validation error and packages
+  the result as a `SurrogateModel` (predict with an OOD gate, save / load with a sha256 check, TorchScript and ONNX
+  export, ModelRef fields). The limitations report gives validity bounds, the OOD gate, where the errors concentrate
+  and the PDE residual of predicted fields; a `TrustReport` decides. Readers for CSV, Parquet, JSON, HDF5 and NPZ;
+  examples that need no download (the OpenFOAM airfoil campaign, exact Burgers fields and an FDM baseline);
+  `surrogate.contracts` converts data, models, studies and arena results to and from the shared contracts
+  (`DatasetSpec`, `ModelRef`, `StudyResult` of `pinneapple_data.contracts`). Guide:
+  `docs/guides/surrogates_arena_gateway.md`.
+- Regime arena (`pinneapple_arena.regimes.run_regime_arena`): ranks methods per regime (interpolation, few data,
+  extrapolation, geometry change, steep fronts) over several seeds with equal data, budget and stopping rule, with
+  training and inference cost, model size, physics violations of declared constraints, numerical-solver baselines
+  and an audit of the splits by `pinneapple_data.audit`.
+- Model gateway (`pinneapple_registry.ModelGateway`, on `ModelStore`): versioned endpoints for surrogates, zoo
+  models and ONNX graphs, one `predict` that enforces each version's OOD policy (warn or refuse; callers may only
+  tighten it), a run log, operational metrics (calls, rows, errors, OOD rows, latency p50 / p95) and exports.
+  `pinneapple_registry.gateway_api.gateway_router` is its REST shape (`/v1/models/...`), shared by the apps that
+  serve models. `GatewayClient` calls it from Python with the standard library only. A `remote` kind serves another
+  app's model through this gateway, with local validity bounds, policy, logging and metering. `publish_ref` publishes
+  from a `ModelRef` (`zoo:<name>` or an http(s) gateway URI).
+- `pinneapple_data.audit.constraint_mask`: the evaluator of declared constraints, public for checking predictions.
+- Engineering Sensitivity Lab (`apps/sensitivity_lab`, day 16, sensitivity.pinneapple.org, port 8099): Sobol indices
+  with bootstrap intervals, Morris screening, interactions, PDP/ICE curves, autodiff derivatives and the freeze
+  recommendation with its re-run check, for a model, runs done in a solver (design CSV round trip) or a dataset.
+  Deployed as service `sensitivity` (`SEN_*` variables).
+- Engineering Uncertainty Lab (`apps/uncertainty_lab`, day 15, uncertainty.pinneapple.org, port 8098): split-conformal
+  intervals with coverage measured on held-out data, applicability alerts, a routing rule checked against the heat-sink
+  physics engine, and propagation of uncertain inputs, for zoo models or uploaded ONNX graphs. Deployed as service
+  `uncertainty` (`UQL_*` variables).
+- Sensitivity analysis package `pinneapple_analysis.sensitivity` (`pp.sensitivity`, `pp.sobol_indices`): first-order,
+  total and second-order Sobol indices with bootstrap intervals (Saltelli 2010 / Jansen 1999 / Saltelli 2002
+  estimators, checked against the exact Ishigami and Sobol' G indices), indices from runs done elsewhere
+  (`saltelli_design` + `sobol_from_runs`), given-data first-order indices, Morris elementary effects, partial
+  dependence and ICE curves, local derivatives by autodiff or central differences, and a freeze recommendation that
+  uses the upper confidence bound plus a direct re-run check (`verify_freeze`); `sensitivity_study` runs them
+  together on one model and `study_cost` gives its number of evaluations beforehand.
+- Uncertainty-study helpers in `pp.uncertainty`: input distributions (uniform, normal, truncated normal, lognormal,
+  triangular) sampled by MC, LHS or Sobol (`distributions`); `propagate_space` (`pp.propagate_uncertainty`);
+  least-squares polynomial chaos with leave-one-out Q2 and Sobol indices (`polynomial_chaos`); split-conformal
+  intervals on any model's predictions with the coverage measured on held-out data, reliability across levels and
+  per-group coverage (`conformal_study`, `pp.conformal_study`); a range + k-NN density applicability gate
+  (`ApplicabilityDomain`) and the rule that routes cases to the high-fidelity solver (`route_cases`);
+  `uncertainty_study` runs them together for one model output.
+- `pinneapple_analysis.study_models.StudyModel` (`pp.StudyModel`): one interface for zoo models (with their torch
+  module for autodiff, ensemble spread and reference splits), ONNX graphs and Python callables.
+- `pinneapple_design.thermal.heatsink.surrogate.reference_solve`: the heat-sink physics engine on one design given in
+  the dataset's columns (the high-fidelity answer the zoo surrogates approximate), and `reference_solve_batch`.
 - Simulation workflows (`pinneapple_core.workflows`). A workflow is a DAG of steps (dependencies, cycle check,
   per-case expansion with `workflow_from_cases`) run by `WorkflowRunner`, which provides:
   - per-step states, logs, attempts and outputs in SQLite;
@@ -117,41 +185,6 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   names and label points), stars keep their IAU names. Library checks and validation rows carry a stable `id` for
   translation. Tests: catalogue parity and a lint for hard-coded text (`tests/test_observatory_i18n.py`), and a
   Playwright test that switches to Portuguese and back (`apps/observatory/tests/e2e`). Screenshots in both languages.
-- Data contracts shared by the apps (`pinneapple_data.contracts`): `ParameterSpace` (bounds, units, log scale,
-  integer and categorical parameters, constants, safe constraint expressions, unit-hypercube mapping, feasibility),
-  `DatasetSpec` (columns with roles and units, files with SHA-256, splits, provenance), `ModelRef` (held-out metrics
-  only, validity range) and `StudyResult` (table, metrics, checks that need a record, artifacts, stated limits).
-  JSON/YAML load and save, validation with readable errors, JSON Schema export (`schemas/`), and CSV / Parquet /
-  HDF5 tables with a `.contract.json` sidecar (embedded in Parquet and HDF5 too).
-- App server runtime (`pinneapple_core.service`, standard library only): a persistent job queue (SQLite; thread or
-  process workers; progress, logs, cancel, retry, automatic retries, time limit, max concurrent jobs across server
-  workers, resume after a worker dies), hashed API keys, usage metering with monthly free limits from
-  `<PREFIX>_FREE_<UNIT>`, and an upload store with size and type limits. `apps/_shared/appkit.py`
-  `install_runtime` exposes them under `/api` (`/api/jobs`, `/api/keys`, `/api/usage`, `/api/uploads`) and accepts
-  `X-API-Key` alongside the per-app login; documented in `apps/_shared/README.md`.
-- Surrogates from simulation results (`pinneapple_analysis.surrogate`): `run_study` trains every applicable method
-  (polynomial ridge, Gaussian process, gradient-boosted trees, MLP, FNO, DeepONet, and a PINN when a PDE is
-  declared) on the same splits and `ComputeBudget`, measures them on a held-out split and a distribution-shift split
-  (held-out groups, the edge of the input space, or one end of an input), selects by validation error and packages
-  the result as a `SurrogateModel` (predict with an OOD gate, save / load with a sha256 check, TorchScript and ONNX
-  export, ModelRef fields). The limitations report gives validity bounds, the OOD gate, where the errors concentrate
-  and the PDE residual of predicted fields; a `TrustReport` decides. Readers for CSV, Parquet, JSON, HDF5 and NPZ;
-  examples that need no download (the OpenFOAM airfoil campaign, exact Burgers fields and an FDM baseline);
-  `surrogate.contracts` converts data, models, studies and arena results to and from the shared contracts
-  (`DatasetSpec`, `ModelRef`, `StudyResult` of `pinneapple_data.contracts`). Guide:
-  `docs/guides/surrogates_arena_gateway.md`.
-- Regime arena (`pinneapple_arena.regimes.run_regime_arena`): ranks methods per regime (interpolation, few data,
-  extrapolation, geometry change, steep fronts) over several seeds with equal data, budget and stopping rule, with
-  training and inference cost, model size, physics violations of declared constraints, numerical-solver baselines
-  and an audit of the splits by `pinneapple_data.audit`.
-- Model gateway (`pinneapple_registry.ModelGateway`, on `ModelStore`): versioned endpoints for surrogates, zoo
-  models and ONNX graphs, one `predict` that enforces each version's OOD policy (warn or refuse; callers may only
-  tighten it), a run log, operational metrics (calls, rows, errors, OOD rows, latency p50 / p95) and exports.
-  `pinneapple_registry.gateway_api.gateway_router` is its REST shape (`/v1/models/...`), shared by the apps that
-  serve models. `GatewayClient` calls it from Python with the standard library only. A `remote` kind serves another
-  app's model through this gateway, with local validity bounds, policy, logging and metering. `publish_ref` publishes
-  from a `ModelRef` (`zoo:<name>` or an http(s) gateway URI).
-- `pinneapple_data.audit.constraint_mask`: the evaluator of declared constraints, public for checking predictions.
 - Zoo dataset `airfoil_rans_cst_re4e6_fields` (Hub-only, 186 MB in 5 files): the cell fields p, Ux, Uy, nut and
   cell centres of the 436 OpenFOAM runs of `airfoil_rans_cst_re4e6`, with the same splits. The campaign was
   regenerated, and its coefficients reproduce the published table. `write_field_dataset`
