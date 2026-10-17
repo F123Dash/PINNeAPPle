@@ -34,11 +34,12 @@ from pydantic import BaseModel, Field
 import pinneapple as pp
 from pinneapple_data.contracts import read_table
 from pinneapple_design.design_optimizer import (
+    DESIGN_FILES,
     CommandEvaluator,
     DesignProblem,
     DesignSpace,
-    FunctionEvaluator,
     available_methods,
+    chart_points,
     designs_frame,
     feasibility_report,
     model_ref_for_surrogate,
@@ -49,10 +50,11 @@ from pinneapple_design.design_optimizer import (
     select_candidates,
     study_result,
     surrogate_assisted,
-    table_evaluator,
-    verify_candidates,
+    verify_front,
+    verify_uploaded_results,
+    write_design_files,
 )
-from pinneapple_design.design_optimizer.spec import SpecError
+from pinneapple_design.design_optimizer.spec import SpecError, constraints_from, objectives_from
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
 from appkit import install, install_runtime  # noqa: E402
@@ -63,8 +65,7 @@ STATIC = os.path.join(os.path.dirname(__file__), "static")
 SEARCH_METHODS = ("nsga2", "pymoo-nsga2", "scipy-de", "bayesian", "random")
 MAX_BUDGET = {"bayesian": 150}
 MAX_BUDGET_DEFAULT = 6000
-FILES = ("evaluations.csv", "candidates.csv", "candidates_to_run.csv", "study.json", "parameter_space.json",
-         "model_ref.json", "verification_uploaded.json")
+FILES = (*DESIGN_FILES, "study.json", "model_ref.json", "verification_uploaded.json")
 
 app = FastAPI(title="Engineering Design Optimizer", version=VERSION,
               description="Find better designs within physical and manufacturing constraints: NSGA-II, pymoo, SciPy "
@@ -135,18 +136,6 @@ def _reference(spec: dict, verify_with: str | None, problem: DesignProblem):
                             name=f"solver: {verify_with}")
 
 
-def _chart_points(problem: DesignProblem, ev, front: set[int], limit: int = 2000) -> list[dict[str, Any]]:
-    keys = list(dict.fromkeys([o.name for o in problem.objectives] + [c.name for c in problem.constraints]))
-    idx = np.arange(len(ev))
-    if len(idx) > limit:
-        idx = np.unique(np.r_[np.linspace(0, len(ev) - 1, limit).astype(int), sorted(front)])
-    out = []
-    for i in idx:
-        out.append({"i": int(i), "f": bool(ev.feasible[i]), "p": int(i) in front, "r": bool(ev.relaxed[i]),
-                    **{k: (float(ev.Y[k][i]) if np.isfinite(ev.Y[k][i]) else None) for k in keys}})
-    return out
-
-
 def optimize_job(params: dict[str, Any], ctx) -> dict[str, Any]:
     t0 = time.time()
     spec = params["spec"]
@@ -186,24 +175,16 @@ def optimize_job(params: dict[str, Any], ctx) -> dict[str, Any]:
         if result.status != "ok":
             raise SpecError(f"{method}: {result.message}")
         rp = problem
-        cand = select_candidates(result.evaluations, result.pareto(), n_verify)
-        ver = None
-        if reference is not None and cand:
-            ctx.progress(0.82, f"verifying {len(cand)} candidates with {reference.name}")
-            ver = verify_candidates(problem, result.evaluations, cand, reference)
+        if reference is not None:
+            ctx.progress(0.82, f"verifying candidates with {reference.name}")
+        cand, ver, status = verify_front(problem, result.evaluations, result.pareto(), n_verify, reference)
+        if ver is not None:
             ctx.log(f"verification: {[r['status'] for r in ver.rows]} in {ver.wall_s:.1f} s")
-        status = {r["index"]: r["status"] for r in ver.rows} if ver is not None else {}
     ev = result.evaluations
     front = [int(i) for i in result.pareto()]
     ctx.progress(0.95, "writing files")
     wd = Path(ctx.workdir)
-    designs_frame(rp, ev).to_csv(wd / "evaluations.csv", index=False)
-    cdf = designs_frame(rp, ev, cand, status)
-    cdf.to_csv(wd / "candidates.csv", index=False)
-    cdf[rp.space.names].to_csv(wd / "candidates_to_run.csv", index=False)
-    from pinneapple_design.design_optimizer import to_parameter_space
-    to_parameter_space(rp.space, rp.name, rp.description).save(wd / "parameter_space.json")
-    files = ["evaluations.csv", "candidates.csv", "candidates_to_run.csv", "parameter_space.json"]
+    files = write_design_files(wd, rp, ev, cand, status)
     if fit is not None:
         model_ref_for_surrogate(fit, f"{NAME}-gp-{ctx.job_id}", f"app:{NAME}/jobs/{ctx.job_id}",
                                 params.get("table_name", "")).save(wd / "model_ref.json")
@@ -219,7 +200,7 @@ def optimize_job(params: dict[str, Any], ctx) -> dict[str, Any]:
         baseline = ev.rows(rp.space, [0])[0] | {"feasibility": feasibility_report(rp, ev, [0])[0]}
     return {
         "problem": rp.to_dict(), "summary": result.summary(), "mode": params.get("mode", "direct"),
-        "points": _chart_points(rp, ev, set(front)), "pareto": ev.rows(rp.space, front),
+        "points": chart_points(rp, ev, front), "pareto": ev.rows(rp.space, front),
         "candidates": [r | {"verification": status.get(r["index"], "only surrogate" if r["fidelity"] == "surrogate"
                                                        else "reference")}
                        for r in ev.rows(rp.space, cand)],
@@ -261,10 +242,7 @@ def meta():
                                                               if m in SEARCH_METHODS},
             "max_budget": {**{m: MAX_BUDGET_DEFAULT for m in SEARCH_METHODS}, **MAX_BUDGET},
             "solvers": {k: {"outputs": v.get("outputs", [])} for k, v in _solvers().items()},
-            "heatsink": {"variables": [v.__dict__ for v in presets.HEATSINK_VARIABLES],
-                         "operating": presets.HeatsinkOperating().__dict__,
-                         "limits": presets._process_limits().__dict__, "cost": presets.CostModel().__dict__,
-                         "objectives": list(presets._HEATSINK_OBJECTIVES), "baseline": presets.heatsink_baseline()},
+            "heatsink": presets.preset_info("heatsink"),
             "runtime": rt.describe()}
 
 
@@ -374,40 +352,26 @@ def download(request: Request, job_id: str, name: str):
 def verify_upload(request: Request, job_id: str, body: dict[str, Any]):
     """Verify a run's candidates with solver results you ran offline: upload a table with the design variables and
     the outputs (rows matched by the variable values of candidates_to_run.csv)."""
+    import pandas as pd
     job = rt.job_for(request, job_id)
-    cand = _job_file(request, job_id, "candidates.csv")
+    cdf = pd.read_csv(_job_file(request, job_id, "candidates.csv"))
     space = DesignSpace.from_parameter_space(json.loads(_job_file(request, job_id, "parameter_space.json")
                                                         .read_text()))
     res_path = rt.upload_path(request, str(body.get("upload_id", "")))
-    import pandas as pd
-    cdf = pd.read_csv(cand)
     try:
         rdf, _ = read_table(res_path)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(422, f"cannot read the results: {e}") from e
     spec = job["params"]["spec"]
-    from pinneapple_design.design_optimizer.spec import constraints_from, objectives_from
     objs = objectives_from(spec.get("objectives") or [{"name": n} for n in ("mass_g", "cost")])
     cons = constraints_from(spec.get("constraints") or [])
     if not cons and spec.get("source", "preset") == "preset":
         cons = problem_from_spec(spec)[0].constraints
-    outs = [c for c in rdf.columns if c not in space.names]
-    shared = [k for k in outs if k in cdf.columns]
-    if not shared:
-        raise HTTPException(422, "the results share no output column with the candidates")
-    stub = DesignProblem("uploaded", space, [o for o in objs if o.name in cdf.columns],
-                         [c for c in cons if c.name in cdf.columns],
-                         FunctionEvaluator(lambda X: {}, list(cdf.columns), fidelity="surrogate"))
-    X = cdf[space.names].to_numpy(dtype=float)
-    num = [k for k in cdf.columns if k not in space.names and k not in ("index", "feasible", "relaxed")
-           and pd.api.types.is_numeric_dtype(cdf[k]) and not pd.api.types.is_bool_dtype(cdf[k])]
-    ev = stub.record(X, {k: cdf[k].to_numpy(dtype=float) for k in num}, fidelity="surrogate")
     try:
-        ref = table_evaluator(space, rdf, shared)
+        rep = verify_uploaded_results(space, cdf, rdf, objs, cons)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
-    rep = verify_candidates(stub, ev, list(range(len(ev))), ref)
-    rt.consume(request, "reference_runs", len(ev), ref=job_id)
+    rt.consume(request, "reference_runs", len(cdf), ref=job_id)
     out = rep.to_dict()
     (rt.jobs.workdir / job_id / "verification_uploaded.json").write_text(json.dumps(out, indent=1, default=str))
     return out

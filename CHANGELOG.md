@@ -103,6 +103,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `model_ref_for_surrogate`, `table_evaluator` (offline solver results as a reference), and a `progress` callback on
   `run`, `compare_methods` and `surrogate_assisted` (an exception from it, e.g. a cancelled job, stops the run).
 - `MethodComparison.union()`: every run's evaluations in one record with the run that produced each row.
+- `pinneapple_design.design_optimizer`: what the design apps show and export after a run, called by the Engineering
+  and Physics Design Optimizers: `verify_front` (candidates along the front, verified when there is a reference),
+  `write_design_files` (evaluations, candidates with their verification status, `candidates_to_run.csv` and the
+  `ParameterSpace`), `chart_points` (a thinned trade-off plot that keeps the front), `verify_uploaded_results`
+  (exported candidates verified against your offline solver results), `MethodComparison.union_result()` and
+  `.fronts()`, `presets.preset_info` (a preset's variables, defaults, objectives, baseline and reference) and
+  `presets.preset_bodies` (its solids for STL / STEP).
 - `pinneapple_design.geometry_library.exporters.stl_bytes`: the binary STL writer for any triangle mesh.
 - Inverse Model Studio app (day 21, `apps/inverse_studio`, inverse-studio.pinneapple.org, port 8104). It is a new app,
   separate from the Inverse Heat Lab, which is unchanged.
