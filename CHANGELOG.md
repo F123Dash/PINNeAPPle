@@ -14,6 +14,24 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Identifiability, calibration and inverse-problem core in `pinneapple_analysis.inverse_problems` (one core for the
+  Parameter Identifiability Lab, Model Calibration Lab and Inverse Model Studio apps; guide
+  `docs/guides/identifiability_calibration_inversion.md`). It provides forward models (`ExpressionModel`,
+  `CallableModel`, `TabulatedModel` for simulated results, and `PinFinModel`, `RodModel` with zone-wise h(x), exact
+  sensitivities and a one-solve adjoint, `PlateModel`, `LumpedCoolingModel`, `ArrheniusModel`), `Parameter` and
+  `Observations` (read from CSV, Excel, Parquet or JSON tables).
+  - `analyze_identifiability` combines Fisher rank and conditioning, the ambiguous combinations, measurement
+    leverage, profile likelihood, an adaptive-Metropolis posterior, and D-optimal suggestions for extra
+    measurements.
+  - `calibrate` gives Jacobian and bootstrap intervals only for identifiable parameters ("not estimable" otherwise)
+    and validates on held-out or extrapolated rows.
+  - `compare_methods` / `solve_inverse` run least squares, adjoint, autodiff, Bayesian and PINN on the same data.
+  - Ten presets with known answers.
+  - `inverse_problems.contracts` maps parameters, reports, calibrations and comparisons to the shared app contracts
+    (`ParameterSpace`, a `StudyResult` of type identifiability, calibration or inverse, and a `ModelRef` with
+    held-out metrics). It needs `pinneapple_data.contracts`.
+- `heat_transfer.run_plate` accepts measured `readings` at `sensors_mm` and an air temperature `t_air`, so the plate
+  PINN can be run on given data (the synthetic default is unchanged).
 - PhysicsNeMo trains, PINNeAPPle checks (2-D Darcy):
   - `pinneapple_physics.darcy_checks`: physics checks of a predicted Darcy field `-div(a grad u) = f`. They use
     the reference solver's own finite-volume discretisation and need no reference solution. `residual_error_bound`
@@ -729,6 +747,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- `pinneapple_analysis.inverse_problems.heat_transfer.__all__` listed an undefined `FinInput`, so
+  `from ... import *` failed.
 - App job queue (`pinneapple_core.service.jobs`): the final log line of a job is written before its final status, so
   a caller that sees `done`, `failed` or `cancelled` also sees the whole log (a race made
   `test_job_runs_with_progress_logs_and_workdir` fail intermittently).
