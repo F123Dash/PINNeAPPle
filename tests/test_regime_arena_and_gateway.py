@@ -41,6 +41,8 @@ def test_regime_arena_scalar():
     assert o["audit"]["decision"] in ("pass", "warn", "fail") and o["audit"]["checks"]
     assert o["protocol"]["budget"]["steps"] == 60 and o["hardware"] and o["created"]
     assert set(NOT_IN_LIBRARY) <= set(o["not_run"])
+    md = r.to_markdown("demo")
+    assert md.startswith("# demo") and "## Rankings" in md and "steep fronts" in md and "R-OAMS" in md
 
 
 def test_regime_arena_fields_with_baseline():
@@ -107,6 +109,21 @@ def test_gateway_zoo_model(tmp_path):
     assert r["ood"][1]["outside"] == ["alpha_deg"]
 
 
+def test_gateway_zoo_model_with_derived_validity(tmp_path):
+    """The heatsink card bounds derived quantities (fin gap), not n_fins: the zoo model's own check decides."""
+    import pinneapple as pp
+    g = ModelGateway(str(tmp_path / "gw"))
+    g.publish("hs", "heatsink_forced_mlp", kind="pinneapple.zoo", ood_policy="refuse")
+    zm = pp.zoo.load("heatsink_forced_mlp")
+    row = {k: float(np.mean(v)) for k, v in zm.bounds().items()}
+    row.update(n_fins=12.0, source_width_mm=0.5 * row["base_width_mm"], source_depth_mm=0.5 * row["base_depth_mm"])
+    ok = g.predict("hs", row)
+    assert ok["ood"][0]["ood"] == (not bool(zm.in_range({k: [v] for k, v in row.items()})[0]))
+    crowded = g.predict("hs", {**row, "n_fins": 400.0})            # fins far too dense for the base width
+    assert crowded["ood"][0]["ood"] and crowded["outputs"][zm.output_names[0]] == [None]
+    assert crowded["ood"][0]["reasons"]
+
+
 def test_gateway_rest_routes(tmp_path, model):
     pytest.importorskip("fastapi")
     from fastapi import FastAPI
@@ -130,3 +147,60 @@ def test_gateway_rest_routes(tmp_path, model):
     assert c.get("/v1/metrics").json()["calls"] == 2
     assert c.get(f"/v1/models/demo/versions/{v}/export/onnx").status_code == 409     # ridge: no export
     assert count_rows([{"a": 1}, {"a": 2}]) == 2 and count_rows([1.0, 2.0]) == 1
+
+
+@pytest.fixture()
+def served(tmp_path, model):
+    """A second gateway serving ``model`` over real HTTP (uvicorn in a thread)."""
+    pytest.importorskip("uvicorn")
+    import socket
+    import threading
+    import time
+
+    import uvicorn
+    from fastapi import FastAPI
+
+    from pinneapple_registry.gateway_api import gateway_router
+    src = ModelGateway(str(tmp_path / "src"))
+    src.publish("demo", model[0])
+    app = FastAPI()
+    app.include_router(gateway_router(src))
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    th = threading.Thread(target=server.run, daemon=True)
+    th.start()
+    while not server.started:
+        time.sleep(0.05)
+    yield f"http://127.0.0.1:{port}", src
+    server.should_exit = True
+    th.join(5)
+
+
+def test_client_remote_kind_and_publish_ref(tmp_path, served):
+    from pinneapple_registry.gateway_client import GatewayClient, GatewayError
+    base, src = served
+    c = GatewayClient(base)
+    assert [m["name"] for m in c.models()] == ["demo"]
+    r = c.predict("demo", {"a": [0.0, 9.0], "b": 0.0})
+    assert r["ood"][1]["ood"] and r["outputs"]["f"][0] is not None
+    with pytest.raises(GatewayError) as e:
+        c.predict("nope", {"a": 0})
+    assert e.value.status == 404
+    gw = ModelGateway(str(tmp_path / "front"))
+    v = gw.publish("proxied", f"{base}/v1/models/demo", kind="remote", ood_policy="refuse")
+    out = gw.predict("proxied", {"a": [0.0, 9.0], "b": 0.0})
+    direct = src.predict("demo", {"a": 0.0, "b": 0.0})
+    assert out["outputs"]["f"][0] == pytest.approx(direct["outputs"]["f"][0]) and out["outputs"]["f"][1] is None
+    assert gw.metadata("proxied", v)["remote"]["model"] == "demo" and gw.metrics()["calls"] == 1
+    ref = {"name": "from-ref", "version": "1", "uri": f"{base}/v1/models/demo", "trust_decision": "REVIEW",
+           "inputs": [{"name": "a", "low": -0.5, "high": 0.5}, {"name": "b", "low": -1, "high": 1}]}
+    v2 = gw.publish_ref(ref)
+    m = gw.metadata("from-ref", v2)
+    assert m["validity_bounds"]["a"] == [-0.5, 0.5] and m["trust"] == "REVIEW" and m["stage"] == "production"
+    assert gw.predict("from-ref", {"a": 0.8, "b": 0.0})["ood"][0]["outside"] == ["a"]   # the ref's tighter range
+    z = gw.publish_ref({"name": "zoo-airfoil", "uri": "zoo:airfoil_cst_rans_mlp"})
+    assert gw.metadata("zoo-airfoil", z)["kind"] == "pinneapple.zoo"
+    with pytest.raises(ValueError, match="publish_ref takes"):
+        gw.publish_ref({"name": "x", "uri": "/tmp/model"})
