@@ -290,7 +290,7 @@ workflow publishes it under `<docs site>/playground/` (see `apps/playground/READ
 
 ## Engineering GUI Agent (`guiagent`)
 
-A **separate, optional heavy image** (about IMAGE_SIZE). It contains:
+A **separate, optional heavy image** (about 5.4 GB uncompressed, 1.8 GB compressed). It contains:
 
 - FreeCAD 1.0.2: the AppImage, extracted;
 - the CfdOF 1.37.3 workbench;
@@ -307,7 +307,7 @@ PROXY_NETWORK=<network> docker compose -f docker-compose.yml -f docker-compose.e
 ```
 
 The service runs one uvicorn worker with `mem_limit` 2g and one run at a time (`GUIAGENT_MAX_JOBS=1`). A full run of
-the example takes about 30 s of 1-4 CPU cores. Runs and their evidence are kept in the `guiagent_data` volume; the
+the example took 42 s in the image (2 GB limit, 0.9 GB in use after the run). Runs and their evidence are kept in the `guiagent_data` volume; the
 oldest are deleted beyond `GUIAGENT_KEEP_RUNS`. On a public server, keep `GUIAGENT_MODE=public`: only the committed
 workflows run, with their inputs inside the workflow's bounds, and no uploads are accepted. Building the image
 downloads the FreeCAD AppImage from GitHub (about 800 MB) and CfdOF from GitHub.

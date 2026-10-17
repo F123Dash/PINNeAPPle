@@ -38,14 +38,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=apps /opt/freecad /opt/freecad
 COPY --from=apps /opt/freecad-mods /opt/freecad-mods
 
-# The app's own Python, separate from the system Python that pvpython uses. PINNeAPPle is installed without
-# PyTorch: the agent, the OpenFOAM readers and the checks do not use it.
+# The app's own Python, separate from the system Python that pvpython uses. PINNeAPPle depends on PyTorch (imported
+# by pinneapple_tools); the CPU wheel keeps the image small.
+RUN python3 -m venv /opt/app \
+    && /opt/app/bin/pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 WORKDIR /srv
 COPY . .
-RUN python3 -m venv /opt/app \
-    && /opt/app/bin/pip install --no-cache-dir numpy scipy pandas pyyaml tqdm typing-extensions pydantic \
-         "matplotlib>=3.8" pillow -r apps/guiagent/requirements.txt \
-    && /opt/app/bin/pip install --no-cache-dir --no-deps . \
+RUN /opt/app/bin/pip install --no-cache-dir . -r apps/guiagent/requirements.txt \
     && useradd -m -u 10001 agent \
     && mkdir -p /home/agent/.local/share/FreeCAD/Mod /data "$XDG_RUNTIME_DIR" \
     && ln -s /opt/freecad-mods/CfdOF /home/agent/.local/share/FreeCAD/Mod/CfdOF \

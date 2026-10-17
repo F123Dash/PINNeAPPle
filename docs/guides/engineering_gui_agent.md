@@ -31,7 +31,7 @@ Measured on FreeCAD 1.0.2, CfdOF 1.37.3, OpenFOAM v1912, gmsh 4.13.1, ParaView 5
 |---|---|---|---|---|---|---|
 | 25 mm | 20 193 | 119 | 1.000e-4 | 1e-8 | 1.9 mPa | ACCEPTED |
 | 55 mm (default) | 19 370 | 162 | 1.000e-4 | 5e-9 | 3.5 mPa | ACCEPTED |
-| 80 mm | 18 618 | 223 | 1.000e-4 | 7e-9 | 14.1 mPa | REJECTED by the 0.01 Pa limit |
+| 80 mm | 18 618 | 223 | 1.000e-4 | 7e-9 | 14.1 mPa (14.3 in the Docker run) | REJECTED by the 0.01 Pa limit |
 
 The whole workflow takes about 30 s (FreeCAD start-up included). gmsh meshes with several threads, so the cell
 count changes by a few hundred between runs of the same input (19 370 and 19 588 for 55 mm); the decisions did not.

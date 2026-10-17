@@ -61,9 +61,9 @@ Measured on this image at 20 mm/s:
 |---|---|---|---|
 | 25 mm | 119 | 1.9 mPa | accepted |
 | 55 mm | 162 | 3.5 mPa | accepted |
-| 80 mm | 223 | 14.1 mPa | rejected |
+| 80 mm | 223 | 14.1 mPa (14.3 in the Docker run, 212 iterations) | rejected |
 
-A run takes about 30 s. While building the example, the agent's checks caught a mesh left in millimetres, a
+A run takes 30-45 s (about 42 s in the Docker image with its 2 GB limit, using 0.9 GB after the run). While building the example, the agent's checks caught a mesh left in millimetres, a
 diverging initialisation and an inlet that delivered 6 % less flow than prescribed. All three now come from real runs,
 are handled, and are recorded in the evidence (see the guide).
 
@@ -102,7 +102,7 @@ are handled, and are recorded in the evidence (see the guide).
 ## Run
 
 ```bash
-docker build -f apps/guiagent/Dockerfile -t guiagent .          # from the repository root; about IMAGE_SIZE
+docker build -f apps/guiagent/Dockerfile -t guiagent .          # from the repository root; about 5.4 GB uncompressed, 1.8 GB compressed
 docker run -p 8115:8115 guiagent                                 # http://localhost:8115, API at /docs
 ```
 
