@@ -146,7 +146,12 @@ def run_series_flow(workdir: str | Path, *, seed: int = 0, n_runs: int = 12, ste
         splits=Splits(test=test_runs, id_column="run_id", seed=seed),
         provenance=Provenance(app="campaign", source="LHS over the operating box, executed on the lumped tank "
                                                       "model (noise-free)"))
-    path = write_table(table, wd / "campaign_runs.parquet", ds)
+    try:                                    # Parquet when pyarrow is installed, else CSV with its contract sidecar
+        import pyarrow  # noqa: F401
+        table_name = "campaign_runs.parquet"
+    except ImportError:
+        table_name = "campaign_runs.csv"
+    path = write_table(table, wd / table_name, ds)
     ds.files = [FileRef.of(path, root=wd)]
     ds.save(wd / "campaign_runs.dataset.json")
     camp = StudyResult(id=new_id("campaign"), study_type="campaign", app="campaign", title="Operating campaign",
@@ -158,7 +163,7 @@ def run_series_flow(workdir: str | Path, *, seed: int = 0, n_runs: int = 12, ste
                        limits=["noise-free simulated runs; a real campaign adds measurement noise"])
     camp.save(wd / "campaign.study.json")
     out["campaign"] = {"contract": "StudyResult + DatasetSpec", "files": ["operating.space.json",
-                       "campaign_runs.parquet", "campaign_runs.dataset.json", "campaign.study.json"],
+                       table_name, "campaign_runs.dataset.json", "campaign.study.json"],
                        "summary": f"{n_runs} runs x {steps_per_run} LHS operating points ({len(table)} rows)"}
 
     # 2. surrogate ------------------------------------------------------------------------------------------------
