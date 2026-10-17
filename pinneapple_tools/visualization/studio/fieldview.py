@@ -108,7 +108,7 @@ def field_view(mesh, fields: Sequence[Mapping[str, Any]], *, deform: Mapping[str
     ``kind`` ("value" or "error"), ``group`` (shared colour range), ``deform`` (a key of ``deform``) and ``note``.
     ``deform``: key -> nodal displacement (n_points, 3) in the mesh's length unit. ``length_unit``: the mesh's length unit (shown with the displacements). ``markers``: dicts with ``name``,
     ``kind`` ("bc", "load", "hotspot", "region"), ``points`` (k, 3), optional ``detail``, ``centre`` (where the label
-    goes; default: the member nearest the mean) and ``fields`` (names of the fields it belongs to; default: shown with every field)."""
+    goes; default: the member nearest the mean), ``label`` (False: points only) and ``fields`` (names of the fields it belongs to; default: shown with every field)."""
     from .scene import scalar_of
     n_pts, n_cells = int(mesh.n_points), int(mesh.n_cells)
     spec: dict[str, Any] = {}
@@ -169,7 +169,8 @@ def field_view(mesh, fields: Sequence[Mapping[str, Any]], *, deform: Mapping[str
                    # nearest surface vertex of each point and of the label: the page moves them with the deformed shape
                    "vertices": tree.query(sub)[1].astype(int).tolist(), "anchor": int(tree.query(centre)[1]),
                    "bbox_min": _r(P.min(0)), "bbox_max": _r(P.max(0)),
-                   "fields": [str(x) for x in m["fields"]] if m.get("fields") else None})
+                   "fields": [str(x) for x in m["fields"]] if m.get("fields") else None,
+                   "label": bool(m.get("label", True))})
     meta = {"schema": "pinneapple-field-view/v1", "title": sc.title, "axes": axes, "fields": names,
             "deform": dkeys, "markers": mk, "bounds": {"min": _r(lo), "max": _r(hi), "size": size},
             "faces": sc.n_faces(), "faces_original": n0, "decimated": sc.n_faces() < n0, "max_faces": max_faces,
