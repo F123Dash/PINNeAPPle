@@ -57,6 +57,8 @@ At your DNS provider, create two **A** records (and AAAA records if you use IPv6
 | `evidence` | A | `<server IPv4>` |
 | `calibration` | A | `<server IPv4>` |
 | `identifiability` | A | `<server IPv4>` |
+| `twin` | A | `<server IPv4>` |
+| `anomaly` | A | `<server IPv4>` |
 | `inverse-studio` | A | `<server IPv4>` |
 | `guiagent` | A | `<server IPv4>` |
 
@@ -83,7 +85,7 @@ nano .env        # domains, ACME e-mail, logins (use long passwords)
 |---|---|
 | `HSS_DOMAIN`, `PCB_DOMAIN`, `EDH_DOMAIN`, `EDS_DOMAIN`, `SMD_DOMAIN`, `UDR_DOMAIN`, `IHL_DOMAIN`, `PFL_DOMAIN`, `MQA_DOMAIN`, `CMP_DOMAIN`, `LIN_DOMAIN`, `IOP_DOMAIN`, `ADO_DOMAIN`, `OBS_DOMAIN`, `PLG_DOMAIN`, `INVS_DOMAIN`, `IDENT_DOMAIN`, `CALIB_DOMAIN`, `EVR_DOMAIN`, `VAL_DOMAIN`, `SEN_DOMAIN`, `UQL_DOMAIN`, `MDL_DOMAIN`, `ARN_DOMAIN`, `SUR_DOMAIN` | Public hostnames (must match the DNS records) |
 | `ACME_EMAIL` | Let's Encrypt account / expiry notices |
-| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR, ARN, MDL) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
+| `<APP>_USER` / `<APP>_PASSWORD` (HSS, PCB, EDH, EDS, SMD, UDR, IHL, PFL, MQA, CMP, LIN, IOP, ADO, OBS, UQL, SEN, VAL, EVR, CALIB, IDENT, INVS, ROM, MESHLESS, SUR, ARN, MDL, TWIN, ANOMALY) | HTTP Basic login per app. If either is empty, that app is public. `/health` is always public. |
 | `HSS_MAX_SIZING`, `PCB_MAX_HEAVY`, `EDH/EDS/SMD/UDR/PFL/MQA/CMP/LIN/IOP/ADO/UQL/SEN/VAL/EVR_MAX_HEAVY` | Concurrent heavy runs per app. Any excess gets HTTP 429. |
 | `HSS_MEM_LIMIT`, `PCB_MEM_LIMIT` | Container memory caps |
 | `CALIB_MAX_JOBS`, `CALIB_FREE_<UNIT>`, `CALIB_ADMIN_TOKEN`, `CALIB_MEM_LIMIT` | Model Calibration Lab, on the shared runtime (job queue, API keys, usage metering; see `apps/_shared/README.md`): jobs running at once over all workers (the rest wait in the queue), free use per caller and month, the admin token for API keys, and the container memory cap (default 1g). Its state lives on the `calibration_data` volume. |
@@ -130,7 +132,7 @@ Caddy. Start only the apps, attached to that proxy's Docker network, and add two
 ```bash
 docker inspect <proxy container> --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
 PROXY_NETWORK=<that network> docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml \
-  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration models arena surrogate
+  up -d --build heatsink pcb datahealth standardizer simmeta udr inverse preflight mesh compare lineage interop aero lab observatory playground evidence validate sensitivity uncertainty runner campaign meshless rom inverse-studio identifiability calibration models arena surrogate twin anomaly
 ```
 
 Caddyfile blocks for the existing proxy (then `caddy validate` and `caddy reload` inside its container):
@@ -440,6 +442,28 @@ meshless.example.org {
 		}
 	}
 }
+twin.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy pinneapple-twin:8103 {
+		transport http {
+			read_timeout 120s
+		}
+	}
+}
+anomaly.example.org {
+	encode zstd gzip
+	request_body {
+		max_size 120MB
+	}
+	reverse_proxy pinneapple-anomaly:8111 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
 ```
 
 ## PINNeAPPle Observatory (`observatory`)
@@ -621,6 +645,25 @@ models. Publishing needs the login or `MDL_ADMIN_TOKEN`; API-key holders may pub
 model is published by its ModelRef (the gateway forwards to the studio and enforces the bounds itself) or as a
 `model.zip` (admin only: loading it unpickles the model). Keep the volume: it holds the models, the run log, keys and
 usage. Free use per caller and month: `MDL_FREE_INFERENCES` (50000 rows), `MDL_FREE_HOSTED_MODELS` (5).
+
+## Digital Twin Runtime (`twin`)
+
+Runs a validated model next to live data: EnKF state estimation, forecasts, alerts, drift monitoring and
+revalidation (day 20). One worker by design: live twins, their threads and the embedded MQTT broker live in its
+memory, and a restart stops them (the history stays in the `twin_data` volume, SQLite by default). `TWIN_MAX_ASSETS`
+caps live twins, `TWIN_MAX_JOBS` replays and series flows running at once (the shared job queue). `TWIN_DB_URL`
+takes a `postgresql://` URL when `psycopg[binary]` is added to the image. The embedded broker listens on
+127.0.0.1 only; to accept external publishers set `TWIN_MQTT_HOST=0.0.0.0`, `TWIN_MQTT_PORT=1883` and publish the
+port (`ports: ["1883:1883"]` in an override), or set `TWIN_MQTT_URL=mqtt://user:pass@broker:1883` for your own
+broker. OPC UA (`TWIN_OPCUA_URL`, `TWIN_OPCUA_NODES`) is experimental and needs `asyncua` in the image. 1 GB of
+memory is enough (about 400 MB idle).
+
+## Physics Anomaly Detector (`anomaly`)
+
+Finds abnormal behaviour in sensor time series with statistics, AR + CUSUM, conservation balances over the columns
+and physical-model residuals, and explains each event (day 28). Analyses and benchmarks run in the shared job queue
+(`ANOMALY_MAX_JOBS` at once); uploads, jobs and usage live in the `anomaly_data` volume. `ANOMALY_MAX_ROWS` caps a
+table (default 500,000 rows). 1 GB of memory is enough: the example and a benchmark seed take a few seconds.
 
 ## PINNeAPPle Lab catalogue (`lab`)
 
