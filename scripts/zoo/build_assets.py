@@ -6,7 +6,7 @@
     python scripts/zoo/train_heatsink_natural.py HS_DIR        # ~5 min on one CPU core
     python scripts/zoo/build_assets.py --heatsink-natural HS_DIR --only heatsink_natural_mlp
     python scripts/zoo/train_airfoil_gnn.py RUN_DIR GNN_DIR     # ~2 h on 4 CPU cores
-    python scripts/zoo/build_assets.py --airfoil-gnn GNN_DIR --only airfoil_cst_rans_gnn
+    python scripts/zoo/build_assets.py --airfoil-gnn GNN_DIR --only airfoil_cst_rans_gnn   # needs its catalog entry
     python scripts/zoo/build_assets.py --hub-only STAGING_DIR  # only (re)write the Hub-only dataset entries
 
 ``--only`` rebuilds the named models/datasets and keeps every other manifest entry as it is (their published files
@@ -17,7 +17,7 @@ SHA-256, Hub tag, the catalog's ``supersedes_reason``), so the old release stays
 Sources (all in this repository):
   airfoil_cst_rans_mlp        apps/aero_optimizer/model/surrogate.pt (MLP part) + surrogate.metrics.json
   airfoil_rans_cst_re4e6      examples/handoff_cases/airfoil_ld/results/{campaign,baseline,reference}
-  airfoil_cst_rans_gnn        scripts/zoo/train_airfoil_gnn.py output (regenerated campaign)
+  airfoil_cst_rans_gnn        scripts/zoo/train_airfoil_gnn.py output (not in the catalog: rejected, see the inventory)
   heatsink_forced_mlp         apps/heatsink_sizer/artifacts/surrogate_forced.pt
   heatsink_natural_mlp        scripts/zoo/train_heatsink_natural.py output (monotone-constrained training)
   heatsink_*_convection       apps/heatsink_sizer/artifacts/dataset_{forced,natural}.json.gz
