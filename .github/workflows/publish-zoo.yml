@@ -100,27 +100,27 @@ jobs:
           python scripts/zoo/publish_to_hub.py --hub-fallback $NO_TAGS --work "$RUNNER_TEMP/zoo-work" \
             ${STAGING_REF:+--staging _zoo_staging} ${ONLY:+--only $ONLY}
       - name: Build the wheel and publish the demo Space (skipped with a warning when HF_TOKEN is not set)
-        if: ${{ env.SPACE == 'true' }}
+        if: ${{ !cancelled() && env.SPACE == 'true' }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python -m build --wheel --outdir "$RUNNER_TEMP/wheel" .
           python scripts/zoo/publish_to_hub.py --space "$(ls "$RUNNER_TEMP"/wheel/pinneapple-*.whl)"
       - name: Verify the published files (anonymous download, SHA-256 against the manifest)
-        if: ${{ env.HAS_TOKEN == 'true' && env.NO_TAGS == '' }}
+        if: ${{ !cancelled() && env.HAS_TOKEN == 'true' && env.NO_TAGS == '' }}
         run: python scripts/zoo/publish_to_hub.py --verify ${ONLY:+--only $ONLY}
       - name: Verify the dataset viewer (datasets-server is-valid, splits, first-rows of every split)
-        if: ${{ env.HAS_TOKEN == 'true' }}
+        if: ${{ !cancelled() && env.HAS_TOKEN == 'true' }}
         run: |
           DATASETS=$(python -c "import json,os; m=json.load(open('pinneapple_hub/zoo/manifest.json')); o=os.environ.get('ONLY','').split(); print(' '.join(n for n in m['datasets'] if not o or n in o))")
           if [ -n "$DATASETS" ]; then python scripts/zoo/publish_to_hub.py --verify-viewer --only $DATASETS; fi
       - name: Verify every model as downloaded anonymously (card metrics, example, safetensors, ONNX, How to use)
-        if: ${{ env.HAS_TOKEN == 'true' && env.NO_TAGS == '' }}
+        if: ${{ !cancelled() && env.HAS_TOKEN == 'true' && env.NO_TAGS == '' }}
         run: |
           MODELS=$(python -c "import json,os; m=json.load(open('pinneapple_hub/zoo/manifest.json')); o=os.environ.get('ONLY','').split(); print(' '.join(n for n in m['models'] if not o or n in o))")
           if [ -n "$MODELS" ]; then python scripts/zoo/publish_to_hub.py --verify-models --only $MODELS; fi
       - name: Verify the demo Space builds and runs
-        if: ${{ env.HAS_TOKEN == 'true' && env.SPACE == 'true' }}
+        if: ${{ !cancelled() && env.HAS_TOKEN == 'true' && env.SPACE == 'true' }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python scripts/zoo/publish_to_hub.py --verify-space

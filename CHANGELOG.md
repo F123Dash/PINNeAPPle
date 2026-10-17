@@ -933,6 +933,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Zoo publishing: a model and a dataset with the same name (`rover_contact_grc1_viper`) no longer share a work
+  directory, so publishing the model no longer deletes the dataset's Parquet files before they are uploaded. The
+  publish workflow now runs the Space and the Hub checks even when one item failed to upload.
 - `pinneapple check`: `FV.patch_sums` (per-patch flux and heat-flow totals of the balance checks PC101/PC103) read
   the boundary arrays with the internal-face offset and returned 0 for every patch; the net balance was right.
 - `pinneapple_analysis.inverse_problems.heat_transfer.__all__` listed an undefined `FinInput`, so

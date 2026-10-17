@@ -74,6 +74,12 @@ def _workdir(work: Path | None) -> Path:
     return tmp
 
 
+def _item_dir(work: Path, it: dict) -> Path:
+    """Work directory of one item: ``<work>/<kind>/<name>`` (a model and a dataset may share a name, e.g.
+    ``rover_contact_grc1_viper``, and must not share, or clean up, each other's files)."""
+    return work / it["kind"] / it["name"]
+
+
 def plan(staging: Path | None = None, *, need_files: bool = True, hub_fallback: bool = False,
          work: Path | None = None, only: Sequence[str] = ()) -> list[dict]:
     """Every item to publish: ``kind``, ``name``, ``repo``, ``repo_type``, ``revision``, ``files`` (manifest files
@@ -111,7 +117,7 @@ def plan(staging: Path | None = None, *, need_files: bool = True, hub_fallback: 
                     print(f"  skip {kind[:-1]} {name}: Hub-only and its files are not in the staging directory"
                           + ("" if kind == "models" else " (--hub-fallback converts the copy on the Hub)"))
                 continue
-            prepare(it, work / name)
+            prepare(it, _item_dir(work, it))
             items.append(it)
     return items
 
@@ -208,7 +214,7 @@ def publish(items: Iterable[dict], token: str, *, work: Path | None = None, tags
             api.create_repo(it["repo"], repo_type=it["repo_type"], exist_ok=True)
             if cache is not None:
                 os.environ["PINNEAPPLE_ZOO_CACHE"] = str(cache)
-                prepare(it, work / it["name"])
+                prepare(it, _item_dir(work, it))
             files = {**it["files"], **it["derived"]}
             commit = _commit(api, it["repo"], it["repo_type"], files, it["readme"],
                              f"{it['name']} {it['revision']}: card, "
@@ -226,7 +232,7 @@ def publish(items: Iterable[dict], token: str, *, work: Path | None = None, tags
             if cache is not None:
                 os.environ.pop("PINNEAPPLE_ZOO_CACHE") if old is None else os.environ.update(PINNEAPPLE_ZOO_CACHE=old)
                 shutil.rmtree(cache, ignore_errors=True)
-            shutil.rmtree(work / it["name"], ignore_errors=True)
+            shutil.rmtree(_item_dir(work, it), ignore_errors=True)
     return failed
 
 

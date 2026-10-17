@@ -458,10 +458,26 @@ def test_publish_commits_parquet_card_and_tag_and_converts_hub_copies(tmp_path, 
     assert wheel_ops == ["README.md", "data.npz", "data/default/all-00000.parquet"]
     assert ("PINNeAPPle-Labs/toy-darcy", toy["revision"], "oid1") in api.tags
     assert set(revs) == {toy["revision"], f"v{toy['version']}"} or set(revs) == {toy["revision"]}
-    assert not (tmp_path / "work" / "toy_darcy").exists()       # downloads and derived files cleaned up
+    assert not (tmp_path / "work" / "datasets" / "toy_darcy").exists()   # downloads and derived files cleaned up
     api.create_commit = None                                     # a failing item is reported, the others published
     assert publish.publish(publish.plan(work=tmp_path / "w2"), "token", work=tmp_path / "w2") == ["single_wheel_tests"]
     assert "was not published" in capsys.readouterr().out
+
+
+def test_a_model_and_a_dataset_with_the_same_name_publish_in_one_run(tmp_path, monkeypatch):
+    """rover_contact_grc1_viper is both a model and a dataset: publishing the model must not delete the dataset's
+    prepared Parquet files (publish run of #800: "... is not a file on the local file system")."""
+    hub = pytest.importorskip("huggingface_hub")
+    from pinneapple_hub.zoo import publish
+    api = _FakeApi()
+    monkeypatch.setattr(hub, "HfApi", lambda token=None: api)
+    items = publish.plan(work=tmp_path / "work", only=["rover_contact_grc1_viper"])
+    assert [it["kind"] for it in items] == ["models", "datasets"]
+    assert publish.publish(items, "token", work=tmp_path / "work") == []
+    added = {c[0] + "/" + c[1]: sorted(o.path_in_repo for o in c[2] if type(o).__name__ == "CommitOperationAdd")
+             for c in api.commits}
+    assert "model.safetensors" in added["PINNeAPPle-Labs/rover-contact-grc1-viper/model"]
+    assert "data/default/train-00000.parquet" in added["PINNeAPPle-Labs/rover-contact-grc1-viper/dataset"]
 
 
 def test_verify_model_checks_what_the_card_promises(model_cards, tmp_path, monkeypatch, capsys):
