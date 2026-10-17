@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 
 from .methods import OptimizationResult, normalise_front, run
-from .study import DesignProblem, hypervolume
+from .study import DesignProblem, Evaluations, hypervolume
 
 __all__ = ["MethodComparison", "compare_methods"]
 
@@ -52,6 +52,21 @@ class MethodComparison:
                 "best": done[int(np.argmax(hv))]["best"] if done else {},
             })
         return out
+
+    def union(self) -> tuple[Evaluations | None, list[str]]:
+        """All evaluations of all runs in one record, and the run (``"<method>#<seed>"``) of each row; its
+        :meth:`~.study.Evaluations.pareto` is the best front any method found, each member labelled by who found it."""
+        evs, labels = [], []
+        for r in self.results:
+            if r.evaluations is not None and len(r.evaluations):
+                evs.append(r.evaluations)
+                labels += [f"{r.method}#{r.seed}"] * len(r.evaluations)
+        if not evs:
+            return None, []
+        out = evs[0]
+        for e in evs[1:]:
+            out = out.extend(e)
+        return out, labels
 
     def winner(self) -> str | None:
         t = [r for r in self.table() if r["hv_mean"] is not None]

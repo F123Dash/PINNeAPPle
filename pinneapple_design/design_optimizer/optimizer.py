@@ -281,6 +281,7 @@ class BayesianDesignOptimizer:
     def __init__(self, cfg: DesignOptimizerConfig, seed: int = 0) -> None:
         self.cfg = cfg
         self.rng = np.random.default_rng(int(seed))
+        self._gp_seed = int(seed)
         self.X_obs: List[np.ndarray] = []
         self.y_obs: List[float] = []
         self.Y_obs: List[np.ndarray] = []
@@ -311,6 +312,7 @@ class BayesianDesignOptimizer:
                 kernel=Matern(nu=2.5),
                 n_restarts_optimizer=3,
                 normalize_y=True,
+                random_state=self._gp_seed,     # hyper-parameter restarts: same seed, same run
             )
             gpr.fit(X, y)
             self._gp = gpr
@@ -388,8 +390,19 @@ class BayesianDesignOptimizer:
         # Random multi-start maximisation of the acquisition.
         n_candidates = max(500, 20 * len(lo))
         Xs = self.rng.uniform(lo, hi, size=(n_candidates, len(lo)))
-        acq_vals = np.array([self._acquisition(x) for x in Xs])
+        acq_vals = self._acquisition_batch(Xs)
         return Xs[int(np.argmax(acq_vals))]
+
+    def _acquisition_batch(self, X: np.ndarray) -> np.ndarray:
+        """:meth:`_acquisition` for every row of ``X`` with one GP prediction (same values, one call)."""
+        mu, sigma = self._gp_predict(X)
+        mu, sigma = np.asarray(mu, dtype=float).ravel(), np.asarray(sigma, dtype=float).ravel()
+        if self.cfg.acquisition == "ucb":
+            return -(mu - self.cfg.kappa * sigma)
+        from scipy.stats import norm  # deferred: only needed for BO
+        imp = min(self.y_obs) - mu - self.cfg.xi
+        z = imp / (sigma + 1e-9)
+        return imp * norm.cdf(z) + sigma * norm.pdf(z)
 
     def update(self, x: np.ndarray, obj_vals: "float | List[float]", penalty: float = 0.0) -> None:
         """Record a new design/objective observation.
