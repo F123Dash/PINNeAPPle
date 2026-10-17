@@ -19,7 +19,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `metadata["distributions"]`; categorical and log-scaled parameters are refused) and back exactly; a `ModelRef`
   (`zoo:<name>`, ONNX) becomes a `StudyModel` and back; `uncertainty_result` / `sensitivity_result` write a
   `StudyResult` with the checks that ran. The Engineering Sensitivity Lab runs its studies in the shared job queue
-  with metering (`studies`, `evaluations`, `parameters`) and reads and writes these contracts.
+  with metering (`studies`, `evaluations`, `parameters`) and reads and writes these contracts; so does the Engineering
+  Uncertainty Lab (`studies`, `scenarios`, `propagation_samples`, `hf_runs`; a `ModelRef` and a `ParameterSpace` in, a
+  `StudyResult` out).
 - Engineering Sensitivity Lab (`apps/sensitivity_lab`, day 16, sensitivity.pinneapple.org, port 8099): Sobol indices
   with bootstrap intervals, Morris screening, interactions, PDP/ICE curves, autodiff derivatives and the freeze
   recommendation with its re-run check, for a model, runs done in a solver (design CSV round trip) or a dataset.

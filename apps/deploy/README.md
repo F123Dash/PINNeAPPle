@@ -343,11 +343,14 @@ the login user, or with `X-Admin-Token: $CAMPAIGN_ADMIN_TOKEN` (`POST /api/keys`
 
 ## Engineering Uncertainty Lab (`uncertainty`)
 
-Day 15. One worker (`--workers 1`, 1 GB): a study runs in the request, in a thread, at most `UQL_MAX_HEAVY` at a time
-(default 2; any excess gets HTTP 429). Study size is capped by `UQL_MAX_CASES` (cases screened), `UQL_MAX_PROPAGATION`
-(Monte-Carlo samples), `UQL_MAX_HF` (heat-sink engine runs, about 0.4 s each) and `UQL_MAX_MB` (uploads). The zoo models
-and their reference datasets ship in the image; no outbound network is needed. ONNX uploads run in onnxruntime (CPU).
-Build and run it alone with
+Day 15, on the shared runtime (`apps/_shared/README.md`): studies are jobs in the queue (`UQL_MAX_JOBS` at once,
+default 2; `GET /api/jobs/{id}`), uploads go through `/api/uploads`, and use is metered per caller and month in
+`studies`, `scenarios` (cases screened), `propagation_samples` and `hf_runs` (`UQL_FREE_<UNIT>`; 429 past the limit).
+Keys: `UQL_ADMIN_TOKEN` or the app login manage `/api/keys`. Jobs, uploads, keys and usage live in the
+`uncertainty_data` volume. Study size is capped by `UQL_MAX_CASES`, `UQL_MAX_PROPAGATION`, `UQL_MAX_HF` (heat-sink
+engine runs, about 0.4 s each) and `UQL_MAX_MB`; the synchronous "Try with example" runs are capped by
+`UQL_MAX_HEAVY`. The zoo models and their reference datasets ship in the image; no outbound network is needed. ONNX
+uploads run in onnxruntime (CPU). Build and run it alone with
 `docker build -f apps/uncertainty_lab/Dockerfile -t uncertainty-lab . && docker run -p 8098:8098 uncertainty-lab`.
 
 ## Engineering Sensitivity Lab (`sensitivity`)
