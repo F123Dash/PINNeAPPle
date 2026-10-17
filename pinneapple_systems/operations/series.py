@@ -8,12 +8,14 @@ trajectory the surrogate never saw, and a physics check of the optimum against t
 
 Steps
 -----
-1. **Campaign** (day 13): a ``ParameterSpace`` of operating inputs, a Latin hypercube over it, executed as runs of
-   the heated tank (:mod:`.plant`), stored as a Parquet table with a ``DatasetSpec``.
+1. **Campaign** (day 13): a ``ParameterSpace`` of operating inputs planned with the Campaign Planner's
+   ``pinneapple_data.doe.plan_campaign`` (Latin hypercube, coverage measured), executed as runs of the heated tank
+   (:mod:`.plant`), stored as a Parquet table with a ``DatasetSpec``.
 2. **Surrogate** (day 14): a controlled operator-inference ROM (:mod:`.rom`) fitted on whole runs, others held out:
    a ``ModelRef`` with held-out metrics and validity ranges.
-3. **Uncertainty** (day 15): one-step residual spread calibrated on held-out runs, coverage of the +-2 sigma band
-   measured on a further run.
+3. **Uncertainty** (day 15): the Uncertainty Lab's ``pinneapple_analysis.uncertainty.study.uncertainty_study``:
+   split-conformal 90 % intervals of the one-step prediction calibrated on two held-out runs, coverage measured on a
+   third.
 4. **Optimizer** (day 17): Bayesian optimisation (``pinneapple_design.design_optimizer``) of the operating point
    with the surrogate, polished with SLSQP: least heater power that keeps the outlet hot enough *with margin* and
    the level safe; checked against the closed-form optimum of the physical model.
@@ -29,8 +31,9 @@ from pathlib import Path
 
 import numpy as np
 from scipy.optimize import minimize
-from scipy.stats import qmc
 
+from pinneapple_analysis.study_models import StudyModel
+from pinneapple_analysis.uncertainty.study import uncertainty_study
 from pinneapple_data.contracts import (
     Column,
     DatasetRef,
@@ -44,6 +47,7 @@ from pinneapple_data.contracts import (
     Table,
     write_table,
 )
+from pinneapple_data.doe import plan_campaign
 
 from .contracts import check, load_model, new_id, save_model, twin_study
 from .plant import (
@@ -58,11 +62,16 @@ from .plant import (
 from .rom import fit_controlled_opinf, residual_sigma
 from .twin import AlertRules, SurrogateModel, TwinRuntime
 
-STEPS = [("campaign", 13, "Simulation Campaign Planner", r"campaign(_\w+)?"),
+STEPS = [("campaign", 13, "Simulation Campaign Planner", r"(simulation_)?campaign(_\w+)?"),
          ("surrogate", 14, "Surrogate Studio", r"surrogate(_\w+)?"),
          ("uncertainty", 15, "Uncertainty Studio", r"uncertainty(_\w+)?"),
          ("optimize", 17, "Optimizer", r"optimi[sz](e|er|ation)(_\w+)?"),
          ("twin", 20, "Digital Twin Runtime", r"(digital_)?twin(_\w+)?")]
+LIBRARY = {"campaign": "pinneapple_data.doe.plan_campaign",
+           "surrogate": "pinneapple_systems.operations.rom.fit_controlled_opinf",
+           "uncertainty": "pinneapple_analysis.uncertainty.study.uncertainty_study",
+           "optimize": "pinneapple_design BayesianDesignOptimizer + SciPy SLSQP",
+           "twin": "pinneapple_systems.operations.twin.TwinRuntime"}
 
 INPUTS = ["q_in", "Q", "T_in", "T_amb"]
 STATES = ["h", "T"]
@@ -105,8 +114,9 @@ def run_series_flow(workdir: str | Path, *, seed: int = 0, n_runs: int = 12, ste
     prog(0.05, "campaign: Latin hypercube over the operating box")
     space = operating_space()
     space.save(wd / "operating.space.json")
-    unit = qmc.LatinHypercube(d=space.dim, seed=seed).random(n_runs * steps_per_run)
-    cases = space.from_unit(unit)
+    plan = plan_campaign(space, n_runs * steps_per_run, "lhs", seed=seed, name="heated-tank operating campaign")
+    cases = plan.cases[space.names].reset_index(drop=True)
+    cov = plan.summary()["coverage"]["planned"]
     frames = []
     trajectories = []
     for r in range(n_runs):
@@ -140,7 +150,8 @@ def run_series_flow(workdir: str | Path, *, seed: int = 0, n_runs: int = 12, ste
     ds.files = [FileRef.of(path, root=wd)]
     ds.save(wd / "campaign_runs.dataset.json")
     camp = StudyResult(id=new_id("campaign"), study_type="campaign", app="campaign", title="Operating campaign",
-                       parameter_space=space, dataset=ds, metrics={"n_runs": n_runs, "n_cases": len(cases)},
+                       parameter_space=space, dataset=ds, metrics={"n_runs": n_runs, "n_cases": len(cases),
+                                "discrepancy": cov.get("discrepancy"), "min_distance": cov.get("min_distance")},
                        checks=[check("cases inside the parameter space", bool(space.feasible(cases).all()),
                                      value=int(space.feasible(cases).sum()), threshold=len(cases),
                                      evidence="operating.space.json")],
@@ -164,25 +175,41 @@ def run_series_flow(workdir: str | Path, *, seed: int = 0, n_runs: int = 12, ste
                         "metrics": ref.metrics}
 
     # 3. uncertainty ----------------------------------------------------------------------------------------------
-    prog(0.4, "uncertainty: calibrate the residual spread, measure coverage on an unseen run")
+    prog(0.4, "uncertainty: split-conformal intervals of the ROM, coverage on an unseen run")
     cal, test = trajectories[-3:-1], trajectories[-1:]
     sig = residual_sigma(rom, cal)
-    X = np.column_stack([test[0][n] for n in STATES])
-    V = np.column_stack([test[0][n] for n in INPUTS])
-    err = rom.step(X[:-1], V[:-1]) - X[1:]
-    cover = {n: float(np.mean(np.abs(err[:, j]) <= 2 * sig[n])) for j, n in enumerate(STATES)}
+
+    def pairs(trs):
+        X = np.concatenate([np.column_stack([tr[n][:-1] for n in STATES + INPUTS]) for tr in trs])
+        Y = np.concatenate([np.column_stack([tr[n][1:] for n in STATES]) for tr in trs])
+        return X, Y
+
+    smodel = StudyModel(name="heated-tank ROM", kind="rom", input_names=STATES + INPUTS,
+                        output_names=[f"{n}_next" for n in STATES],
+                        predict_fn=lambda X: rom.step(X[:, :len(STATES)], X[:, len(STATES):]))
+    Xc, Yc = pairs(cal)
+    Xt, Yt = pairs(test)
+    conf = {}
+    for j, n in enumerate(STATES):
+        r = uncertainty_study(smodel, f"{n}_next", Xc, Yc[:, j], Xt, Yt[:, j], alpha=0.1, seed=seed)
+        conf[n] = r["conformal"]
     unc = StudyResult(id=new_id("uncertainty"), study_type="uncertainty", app="uncertainty",
-                      title="One-step predictive spread of the ROM", models=[ref],
+                      title="Split-conformal intervals of the ROM's one-step prediction", models=[ref],
                       metrics={**{f"sigma_{k}": v2 for k, v2 in sig.items()},
-                               **{f"coverage_2sigma_{k}": c for k, c in cover.items()}},
-                      checks=[check(f"coverage of +-2 sigma on {n} (unseen run)", c >= 0.90, value=c, threshold=0.90,
-                                    evidence=f"{len(err)} one-step predictions on run {n_runs - 1}")
-                              for n, c in cover.items()],
-                      limits=["Gaussian band from residual spread; calibrated on 2 held-out runs only"])
+                               **{f"conformal_q_{k}": c["q"] for k, c in conf.items()},
+                               **{f"coverage_{k}": c["coverage"] for k, c in conf.items()}},
+                      checks=[check(f"90 % conformal coverage on {n} (unseen run)", bool(c["meets_target"]),
+                                    value=c["coverage"], threshold=c["target_coverage"],
+                                    evidence=f"{c['n_test']} one-step predictions on run {n_runs - 1}, "
+                                             f"calibrated on {c['n_cal']}")
+                              for n, c in conf.items()],
+                      limits=["exchangeability between calibration and test runs is assumed",
+                              "calibrated on 2 held-out runs only"])
     unc.save(wd / "uncertainty.study.json")
     out["uncertainty"] = {"contract": "StudyResult", "files": ["uncertainty.study.json"],
-                          "summary": "coverage of the +-2 sigma band on an unseen run: " +
-                                     ", ".join(f"{k} {c:.1%}" for k, c in cover.items()),
+                          "summary": "90 % split-conformal intervals (pinneapple_analysis.uncertainty.study), "
+                                     "coverage on an unseen run: " +
+                                     ", ".join(f"{k} {c['coverage']:.1%}" for k, c in conf.items()),
                           "sigma": sig}
 
     # 4. optimizer ------------------------------------------------------------------------------------------------
@@ -297,8 +324,10 @@ def run_series_flow(workdir: str | Path, *, seed: int = 0, n_runs: int = 12, ste
     for key, day, title, pattern in STEPS:
         found = app_available(pattern, apps)
         steps.append({"step": key, "day": day, "app": title,
-                      "ran_as": f"app on this checkout (apps/{found}), called here through its library functions"
-                      if found else "library stand-in (the app is not on main yet)", **out[key]})
+                      "library": LIBRARY[key],
+                      "ran_as": f"app on this checkout (apps/{found}); this step calls the same library function, "
+                                f"{LIBRARY[key]}" if found else
+                                f"library stand-in ({LIBRARY[key]}): the app is not on main yet", **out[key]})
     summary = {"workdir": str(wd), "steps": steps}
     (wd / "series_flow.json").write_text(json.dumps(summary, indent=1, default=float))
     return summary
