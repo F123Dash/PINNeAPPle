@@ -71,16 +71,20 @@ Everything is a library call (`pinneapple_systems.operations`, tests in `tests/t
 The *Series flow* tab chains the series on this asset through `pinneapple_data.contracts`
 (`pinneapple_systems.operations.series`):
 
-1. A Latin hypercube over a `ParameterSpace` of operating inputs, run as 12 campaigns (`DatasetSpec`, Parquet).
+1. The Campaign Planner's `plan_campaign` (Latin hypercube with measured coverage) over a `ParameterSpace` of operating
+   inputs, run as 12 campaigns (`DatasetSpec`, Parquet).
 2. A controlled operator-inference ROM with 3 runs held out (`ModelRef` with held-out metrics).
-3. The one-step spread calibrated on 2 held-out runs, with the coverage of the ±2σ band measured on a third.
+3. The Uncertainty Lab's `uncertainty_study`: 90 % split-conformal intervals calibrated on 2 held-out runs, with
+   their coverage measured on a third.
 4. Bayesian optimisation (`pinneapple_design`) of the operating point, polished with SLSQP, then checked against
    the closed-form physics optimum.
 5. The ROM deployed in this twin at the optimum. When the inlet water drops below the training range, the twin
    requests revalidation.
 
-The campaign, surrogate, uncertainty and optimizer apps (days 13-17) are not on main yet. Those steps run as
-library stand-ins, and the result says so step by step.
+The Campaign Planner (day 13) and the Uncertainty Lab (day 15) are on main, so their steps call the same library
+functions those apps use (`pinneapple_data.doe.plan_campaign`,
+`pinneapple_analysis.uncertainty.study.uncertainty_study`). The Surrogate Studio (day 14) and the Optimizer (day 17)
+are not on main yet, so those steps run as library stand-ins. The result says which is which, step by step.
 
 ## Try with example (offline, seconds)
 

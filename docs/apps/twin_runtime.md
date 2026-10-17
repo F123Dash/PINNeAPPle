@@ -33,8 +33,9 @@ downloaded as a `StudyResult`.
 The *Series flow* tab chains the days 13-31 apps on one asset through the shared contracts. The campaign
 (`ParameterSpace`, `DatasetSpec`) feeds the surrogate (`ModelRef` with held-out metrics), then the uncertainty
 step (coverage on an unseen run), then the optimizer (checked against the closed-form physics optimum), then this
-twin. The twin requests revalidation once the inlet water leaves the surrogate's training range. Steps whose app
-is not on main yet run as library stand-ins, and the page says so.
+twin. The twin requests revalidation once the inlet water leaves the surrogate's training range. The campaign and
+uncertainty steps call the library functions of the Campaign Planner and the Uncertainty Lab. The surrogate and
+optimizer steps run as library stand-ins until those apps are on main, and the page says which is which.
 
 ![The series flow: every hand-over a contract file](../assets/apps/d20-twin-series.jpg)
 
