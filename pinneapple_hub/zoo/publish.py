@@ -74,6 +74,12 @@ def _workdir(work: Path | None) -> Path:
     return tmp
 
 
+def _item_dir(work: Path, it: dict) -> Path:
+    """Working directory of one item. Per kind, because a model and a dataset may share a name
+    (``rover_contact_grc1_viper``): publishing the model must not delete the dataset's prepared files."""
+    return work / it["kind"] / it["name"]
+
+
 def plan(staging: Path | None = None, *, need_files: bool = True, hub_fallback: bool = False,
          work: Path | None = None, only: Sequence[str] = ()) -> list[dict]:
     """Every item to publish: ``kind``, ``name``, ``repo``, ``repo_type``, ``revision``, ``files`` (manifest files
@@ -111,7 +117,7 @@ def plan(staging: Path | None = None, *, need_files: bool = True, hub_fallback: 
                     print(f"  skip {kind[:-1]} {name}: Hub-only and its files are not in the staging directory"
                           + ("" if kind == "models" else " (--hub-fallback converts the copy on the Hub)"))
                 continue
-            prepare(it, work / name)
+            prepare(it, _item_dir(work, it))
             items.append(it)
     return items
 
@@ -208,7 +214,7 @@ def publish(items: Iterable[dict], token: str, *, work: Path | None = None, tags
             api.create_repo(it["repo"], repo_type=it["repo_type"], exist_ok=True)
             if cache is not None:
                 os.environ["PINNEAPPLE_ZOO_CACHE"] = str(cache)
-                prepare(it, work / it["name"])
+                prepare(it, _item_dir(work, it))
             files = {**it["files"], **it["derived"]}
             commit = _commit(api, it["repo"], it["repo_type"], files, it["readme"],
                              f"{it['name']} {it['revision']}: card, "
@@ -226,7 +232,7 @@ def publish(items: Iterable[dict], token: str, *, work: Path | None = None, tags
             if cache is not None:
                 os.environ.pop("PINNEAPPLE_ZOO_CACHE") if old is None else os.environ.update(PINNEAPPLE_ZOO_CACHE=old)
                 shutil.rmtree(cache, ignore_errors=True)
-            shutil.rmtree(work / it["name"], ignore_errors=True)
+            shutil.rmtree(_item_dir(work, it), ignore_errors=True)
     return failed
 
 
@@ -237,12 +243,22 @@ def space_files(app_dir: Path, wheel: Path) -> dict[str, Path | bytes]:
             f"wheels/{wheel.name}": wheel}
 
 
+SPACE_PLAN = ("hosting a Gradio (or Docker) Space, even on free cpu-basic hardware, needs a Team or Enterprise plan "
+              "for the organisation; static Spaces are free. Subscribe the organisation, or run the workflow with "
+              "space=false (every other upload and check still runs).")
+
+
 def publish_space(token: str, app_dir: Path, wheel: Path) -> None:
     """Create or update the demo Space (one commit; older wheels deleted)."""
     from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
     api = HfApi(token=token)
     repo = hub_cards.SPACE_REPO
-    api.create_repo(repo, repo_type="space", space_sdk="gradio", exist_ok=True)
+    try:
+        api.create_repo(repo, repo_type="space", space_sdk="gradio", exist_ok=True)
+    except Exception as exc:
+        if getattr(getattr(exc, "response", None), "status_code", None) == 402:
+            raise SystemExit(f"::error::the Hub refused to create the Gradio Space {repo} (HTTP 402): {SPACE_PLAN}") from exc
+        raise
     files = space_files(app_dir, wheel)
     ops = [CommitOperationAdd(path_in_repo=k, path_or_fileobj=v if isinstance(v, bytes) else str(v))
            for k, v in files.items()]

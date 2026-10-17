@@ -382,3 +382,39 @@
 		}
 	}
 }
+
+{$CONTROL_DOMAIN} {
+	import common
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy control:8112 {
+		transport http {
+			read_timeout 180s
+		}
+	}
+}
+
+{$EDO_DOMAIN} {
+	import common
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy optimize:8100 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+}
+
+{$PDO_DOMAIN} {
+	import common
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy design:8106 {
+		transport http {
+			read_timeout 300s
+		}
+	}
+}

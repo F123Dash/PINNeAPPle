@@ -20,8 +20,8 @@ from pinneapple_hub.zoo import _artifacts as art  # noqa: E402
 MODELS = ["airfoil_cst_rans_mlp", "heatsink_forced_mlp", "heatsink_natural_mlp", "rover_contact_grc1_viper"]
 BUNDLED_DATASETS = ["airfoil_rans_cst_re4e6", "heatsink_forced_convection", "heatsink_natural_convection",
                     "rover_contact_grc1_viper", "single_wheel_tests"]
-HUB_ONLY_DATASETS = ["burgers_1d_li2021", "darcy_2d_li2021", "navier_stokes_2d_li2021_nu1e-3",
-                     "thermal_channel_cfd", "airfoil_rans_cst_re4e6_fields"]       # downloaded on first use, never bundled
+HUB_ONLY_DATASETS = ["burgers_1d_li2021", "darcy_2d_li2021", "navier_stokes_2d_li2021_nu1e-3",   # downloaded on first
+                     "thermal_channel_cfd", "airfoil_rans_cst_re4e6_fields", "cylinder_wake_lbm"]  # use, never bundled
 BLACKHOLE_DATASETS = ["blackhole_riaf_density_256"]                 # Hub-only too, one file per split
 DATASETS = BUNDLED_DATASETS + HUB_ONLY_DATASETS + BLACKHOLE_DATASETS
 
@@ -263,6 +263,9 @@ def test_hub_only_dataset_is_documented(name):
     elif name == "thermal_channel_cfd":                            # heated channel: solver verification and GCI
         assert sum(v["n"] for v in info.splits.values()) == 82 and info.splits["train"]["n"] == 48
         assert "Nusselt" in info.verification and "GCI" in info.verification
+    elif name == "cylinder_wake_lbm":                              # cylinder wake: resolution study
+        assert {s: v["n"] for s, v in info.splits.items()} == {"train": 480, "test": 240}
+        assert "Poiseuille" in info.verification and "D = 40" in info.verification
     else:                                                          # airfoil fields: the 436-run campaign
         assert {s: v["n"] for s, v in info.splits.items()} == {"train": 340, "test": 60, "naca_reference": 36}
         assert "reproduce" in info.verification and "GCI" in info.verification
@@ -426,6 +429,40 @@ def test_publish_script_uses_the_staging_directory(tmp_path, monkeypatch, capsys
     (staged / "test.npz").write_bytes(b"not the data")
     with pytest.raises(SystemExit, match="SHA-256"):                # a staged file must match the manifest
         mod.plan(tmp_path / "staging")
+
+
+def test_publish_keeps_the_files_of_a_dataset_named_like_a_model(tmp_path, monkeypatch):
+    """rover_contact_grc1_viper is a model and a dataset: publishing the model first must not delete the dataset's
+    Parquet copies before they are committed (one working directory per kind)."""
+    pytest.importorskip("pyarrow")
+    pytest.importorskip("safetensors")
+    import huggingface_hub
+
+    from pinneapple_hub.zoo import publish
+    committed = []
+
+    class FakeApi:
+        def __init__(self, token=None):
+            pass
+
+        def create_repo(self, *a, **k):
+            pass
+
+        def list_repo_files(self, *a, **k):
+            return []
+
+        def create_commit(self, repo, operations, **k):
+            for op in operations:
+                src = op.path_or_fileobj
+                if isinstance(src, str):
+                    assert Path(src).is_file(), (repo, op.path_in_repo)
+                committed.append((repo, op.path_in_repo))
+
+    monkeypatch.setattr(huggingface_hub, "HfApi", FakeApi)
+    items = publish.plan(work=tmp_path, only=["rover_contact_grc1_viper"])
+    assert [it["kind"] for it in items] == ["models", "datasets"]
+    assert publish.publish(items, "token", work=tmp_path, tags=False) == []
+    assert any(p.endswith(".parquet") for _, p in committed)
 
 
 def test_catalogue_page_is_up_to_date():

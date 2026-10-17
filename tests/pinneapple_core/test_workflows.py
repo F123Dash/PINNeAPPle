@@ -278,6 +278,8 @@ def test_openfoam_adapter_edits_case_and_reads_log(tmp_path, monkeypatch):
     _fake_bin(bindir, "icoFoam", "mkdir -p 5\necho 'Courant Number mean: 0.1 max: 0.8'\necho 'Time = 5'\n"
                                  "echo 'End'\n")
     monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("WM_PROJECT_DIR", str(tmp_path))          # the stand-ins' environment counts as loaded
+    monkeypatch.delenv("FOAM_BASHRC", raising=False)
     step = Step("solve", "openfoam", {"case": str(CASES_DIR / "cavity"), "solver": "icoFoam", "edits": [
         {"file": "0/U", "key": "boundaryField/movingWall/value", "value": "uniform (1.7 0 0)"}]})
     runner = WorkflowRunner(tmp_path / "r")
@@ -287,6 +289,38 @@ def test_openfoam_adapter_edits_case_and_reads_log(tmp_path, monkeypatch):
     assert "uniform (1.7 0 0)" in (case / "0" / "U").read_text()
     assert runner.steps(run["id"])[0]["outputs"]["latest_time"] == 5.0
     assert "uniform (1 0 0)" in (CASES_DIR / "cavity" / "0" / "U").read_text()   # template untouched
+
+
+def test_openfoam_bashrc_is_found_when_the_environment_is_not_loaded(tmp_path, monkeypatch):
+    """Distribution packages put blockMesh and icoFoam on PATH, but they only run with the OpenFOAM environment."""
+    from pinneapple_core.workflows import adapters
+    rc = tmp_path / "etc" / "bashrc"
+    rc.parent.mkdir()
+    rc.write_text("export WM_PROJECT_DIR=x\n")
+    own = tmp_path / "own_bashrc"
+    own.write_text("")
+    monkeypatch.delenv("WM_PROJECT_DIR", raising=False)
+    monkeypatch.delenv("FOAM_BASHRC", raising=False)
+    monkeypatch.setattr(adapters, "_FOAM_BASHRCS", (str(tmp_path / "e*" / "bashrc"),))
+    assert adapters._foam_bashrc({}) == str(rc)                           # an installation in the usual places
+    assert adapters._foam_bashrc({"bashrc": str(own)}) == str(own)        # the step's own comes first
+    monkeypatch.setenv("FOAM_BASHRC", str(own))
+    assert adapters._foam_bashrc({}) == str(own)
+    monkeypatch.delenv("FOAM_BASHRC")
+    monkeypatch.setenv("WM_PROJECT_DIR", "/loaded")
+    assert adapters._foam_bashrc({}) is None                              # already loaded: nothing to source
+
+    if os.name == "nt":
+        return
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    _fake_bin(bindir, "blockMesh", "echo End\n")
+    _fake_bin(bindir, "icoFoam", "echo End\n")
+    monkeypatch.setenv("PATH", str(bindir))
+    monkeypatch.delenv("WM_PROJECT_DIR")
+    monkeypatch.setattr(adapters, "_FOAM_BASHRCS", ())
+    ok, why = adapters.OpenFOAMAdapter().available()
+    assert not ok and "environment is not loaded" in why
 
 
 def test_unavailable_solver_fails_the_step_honestly(tmp_path, monkeypatch):
