@@ -729,6 +729,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- App job queue (`pinneapple_core.service.jobs`): the final log line of a job is written before its final status, so
+  a caller that sees `done`, `failed` or `cancelled` also sees the whole log (a race made
+  `test_job_runs_with_progress_logs_and_workdir` fail intermittently).
 - Form Compiler (`pinneapple_data.formfill`): vendor datasheets laid out as one grid now compile. A unit in its own
   column ("Design pressure | 1.5 | MPa g") is attached to the value; a label naming a pair ("(Int/Ext)", "Max/Min")
   splits "1.5 / NA" or "60 / 10" into both items and drops the "NA" part; a nozzle schedule printed beside the other
