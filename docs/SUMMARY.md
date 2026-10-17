@@ -101,6 +101,7 @@
     * [Surrogate Studio](apps/surrogate_studio.md)
     * [Physics AI Benchmark Arena](apps/benchmark_arena.md)
     * [Physics AI Model Gateway](apps/model_gateway.md)
+    * [Digital Twin Runtime (day 20)](apps/twin_runtime.md)
 * [API Reference](api/index.md)
   * [pinneapple](api/pinneapple/index.md)
   * [pinneapple_physics](api/pinneapple_physics/index.md)
