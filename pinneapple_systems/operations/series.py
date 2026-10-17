@@ -64,7 +64,7 @@ from .twin import AlertRules, SurrogateModel, TwinRuntime
 
 STEPS = [("campaign", 13, "Simulation Campaign Planner", r"(simulation_)?campaign(_\w+)?"),
          ("surrogate", 14, "Surrogate Studio", r"surrogate(_\w+)?"),
-         ("uncertainty", 15, "Uncertainty Studio", r"uncertainty(_\w+)?"),
+         ("uncertainty", 15, "Engineering Uncertainty Lab", r"uncertainty(_\w+)?"),
          ("optimize", 17, "Optimizer", r"optimi[sz](e|er|ation)(_\w+)?"),
          ("twin", 20, "Digital Twin Runtime", r"(digital_)?twin(_\w+)?")]
 LIBRARY = {"campaign": "pinneapple_data.doe.plan_campaign",
