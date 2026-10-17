@@ -38,16 +38,24 @@ def main(quick: bool, write_docs: bool) -> dict:
     m = IPMMachine(prius_2004(), n_gap=n_gap)
     res: dict = {"n_gap": n_gap, "elements": int(m.mm.n_elements)}
 
-    nl = m.no_load(12 if quick else 24)
+    nl = m.no_load(12 if quick else 24, n_flux=48 if quick else 120)
     emf = m.back_emf(nl["psi"], nl["theta"], rpm=1000.0)
     res["no_load"] = {"cogging_peak_to_peak_Nm": float(np.ptp(nl["cogging"])),
                       "psi_pm_peak_Wb": float(np.max(np.abs(nl["psi"][:, 0]))),
-                      "emf_line_rms_V_at_1000rpm": emf["line_rms"], "emf_thd": emf["thd"]}
+                      "flux_positions_per_electrical_period": len(nl["theta"]),
+                      "emf_line_rms_V_at_1000rpm": emf["line_rms"],
+                      "emf_line_fundamental_rms_V_at_1000rpm": emf["line_fundamental_rms"],
+                      "emf_phase_fundamental_peak_V_at_1000rpm": emf["fundamental_peak"],
+                      "emf_thd_phase": emf["thd"], "emf_thd_line": emf["thd_line"],
+                      "emf_phase_harmonics_V": emf["harmonics_phase"][:25]}
 
     curve = mv.prius_torque_curve(n_gap, n_positions=12)
     res["torque_vs_angle"] = {"phi0_deg": curve["phi0_deg"].tolist(), "torque_Nm": curve["torque"].tolist(),
                               "torque_dq_Nm": curve["torque_dq"].tolist(),
-                              "yang_2013_Nm": mv.YANG_2013_TORQUE_NM.tolist()}
+                              "yang_2013_Nm": mv.YANG_2013_TORQUE_NM.tolist(),
+                              "comparison": mv.yang_comparison(curve)}
+    for p_, t_, r_ in zip(curve["phi0_deg"], curve["torque"], mv.YANG_2013_TORQUE_NM, strict=True):
+        print(f"Phi0 {p_:5.0f} deg: {t_:7.1f} N m, published {r_:5.0f}, error {t_ - r_:+6.1f} N m", flush=True)
 
     mtpa = []
     for amp in ((100.0, 250.0) if quick else (50.0, 100.0, 150.0, 200.0, 250.0)):
@@ -104,22 +112,23 @@ def _figures(m, nl, emf, curve, mtpa, loss_run):
     from matplotlib.collections import PolyCollection
 
     OUT.mkdir(exist_ok=True)
-    ms = loss_run["solutions"] if "solutions" in loss_run else None
     top = mtpa[-1]
     sol = m.solve(0.0, m.currents_dq(0.0, top["i_d"], top["i_q"]))
     mesh = sol.mesh
     Bmag = np.hypot(sol.B[:, 0], sol.B[:, 1])
     fig, ax = plt.subplots(figsize=(7.5, 6.5))
-    sector = np.abs(np.arctan2(*mesh.centroids()[:, ::-1].T)) < math.pi / 4 + 0.02
-    pc = PolyCollection(mesh.points[mesh.tris[sector]] * 1e3, array=Bmag[sector], cmap="viridis", edgecolors="face",
-                        linewidths=0.1)
+    # the whole cross-section, cropped by the axes (no element selection, so no partial elements at the edges)
+    pc = PolyCollection(mesh.points[mesh.tris] * 1e3, array=Bmag, cmap="viridis", edgecolors="none")
     pc.set_clim(0, 2.2)
     ax.add_collection(pc)
-    tri = mesh.tris
-    ax.tricontour(mesh.points[:, 0] * 1e3, mesh.points[:, 1] * 1e3, tri, sol.A, levels=24, colors="w",
+    ax.tricontour(mesh.points[:, 0] * 1e3, mesh.points[:, 1] * 1e3, mesh.tris, sol.A, levels=24, colors="w",
                   linewidths=0.5)
-    ax.set_xlim(40, 140)
-    ax.set_ylim(-80, 80)
+    t = np.linspace(0, 2 * math.pi, 721)
+    g = m.geometry
+    for r in (g.rotor.r_in, g.stator.r_out):
+        ax.plot(1e3 * r * np.cos(t), 1e3 * r * np.sin(t), "k-", lw=0.8)
+    ax.set_xlim(0, 140)
+    ax.set_ylim(-70, 70)
     ax.set_aspect("equal")
     fig.colorbar(pc, ax=ax, label="|B| (T)")
     ax.set_title(f"Prius motor, MTPA at {top['I_peak_A']:.0f} A: |B| and flux lines")
@@ -127,11 +136,13 @@ def _figures(m, nl, emf, curve, mtpa, loss_run):
     ax.set_ylabel("y (mm)")
     fig.savefig(OUT / "10_pmsm_field.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
-    del ms
 
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.2))
+    fig, ax = plt.subplots(1, 4, figsize=(20, 4.2))
     ax[0].plot(curve["phi0_deg"], curve["torque"], "o-", label="this FEA (Maxwell stress)")
     ax[0].plot(curve["phi0_deg"], mv.YANG_2013_TORQUE_NM, "s--", label="Yang et al. 2013")
+    ax0b = ax[0].twinx()
+    ax0b.bar(curve["phi0_deg"], curve["torque"] - mv.YANG_2013_TORQUE_NM, width=4, alpha=0.3, color="gray")
+    ax0b.set_ylabel("difference (N m), bars")
     ax[0].set_xlabel("current angle Phi0 (deg)")
     ax[0].set_ylabel("mean torque (N m)")
     ax[0].set_title("250 A peak")
@@ -145,7 +156,15 @@ def _figures(m, nl, emf, curve, mtpa, loss_run):
         ax[2].plot(th, emf["e"][:, k], label=c)
     ax[2].set_xlabel("electrical angle (deg)")
     ax[2].set_ylabel("phase back-EMF at 1000 rpm (V)")
+    ax[2].set_title(f"{len(nl['theta'])} rotor angles per electrical period")
     ax[2].legend()
+    h = np.array(emf["harmonics_phase"][:25])
+    ax[3].bar(np.arange(1, len(h) + 1), 100 * h / h[0])
+    ax[3].set_yscale("log")
+    ax[3].set_ylim(0.01, 200)
+    ax[3].set_xlabel("harmonic order")
+    ax[3].set_ylabel("phase back-EMF harmonic (% of fundamental)")
+    ax[3].set_title(f"THD {100 * emf['thd']:.1f} % (phase), {100 * emf['thd_line']:.1f} % (line)")
     fig.tight_layout()
     fig.savefig(OUT / "10_pmsm_curves.png", dpi=130)
     plt.close(fig)
