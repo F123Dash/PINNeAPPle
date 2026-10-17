@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Zoo dataset `cylinder_wake_lbm` (Hub-only): 720 vorticity snapshots of a confined cylinder wake at Re 20–100
+  (D2Q9 lattice Boltzmann, blockage 0.2), labelled by regime, Strouhal number and wake amplitude. It is split by
+  Reynolds number, and every shedding run is saturated. The card carries a channel-flow check and a D = 20/30/40
+  resolution study (St within 0.7 %). The recipe is `pinneapple_simulation.numerical_solvers.cylinder_wake`, and the
+  command line is `scripts/zoo/cylinder_data.py`.
 - `train_gnn` (`pinneapple_design.aero.train`) gains `checkpoint_dir` and `checkpoint_every`. Every few epochs it
   saves the full training state (weights, optimiser, epoch, elapsed time, history, shuffling RNG). A later call with
   the same settings resumes from it to the same weights as an uninterrupted run, and a checkpoint written with other
@@ -819,6 +824,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   and `pinneapple_design.design_optimizer.representatives` (best per objective + balanced pick of a Pareto front).
 
 ### Changed
+- Lab experiment `cylinder_lbm` v2 runs `cylinder_wake.simulate` and measures the Strouhal number from the
+  Hann-windowed, peak-refined spectrum. v1 took the raw FFT bin, which read 0.25 for every run (bins 0.025 apart).
 - **Behavior:** `BayesianDesignOptimizer` scores its acquisition on all candidate points with one GP prediction (same
   values, several times faster) and seeds the GP hyper-parameter restarts with its own seed, so a run is reproducible.
 - **Behavior:** `EvolutionaryDesignOptimizer` in multi-objective mode now draws parents by the NSGA-II

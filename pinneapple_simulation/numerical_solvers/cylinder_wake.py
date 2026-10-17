@@ -9,7 +9,7 @@ shedding) and the Strouhal number (Hann-windowed, peak-refined spectrum of the p
 
 * :func:`verify`: the developed channel profile against plane Poiseuille flow (low Re, two grids), and a resolution
   study at Re 100 (D = 20, 30, 40 at the same physical time and sampling);
-* :data:`PLAN` / :func:`generate`: the dataset, Re 20..120 without a turbulence model, written as
+* :data:`PLAN` / :func:`generate`: the dataset, Re 20..100 without a turbulence model, written as
   ``<split>[-NN].npz`` + ``meta.json`` (split by Reynolds number).
 """
 from __future__ import annotations
@@ -27,9 +27,11 @@ __all__ = ["SETUP", "PLAN", "SPLITS", "simulate", "probe_strouhal", "verify", "g
 
 SETUP = {"D": 20, "height": 5, "length": 12, "u_in": 0.1, "conv_time": 200.0, "keep_time": 40.0, "save_dt": 0.5,
          "Cs": 0.0}
-PLAN = {"train": [20.0, 30.0, 50.0, 60.0, 80.0, 90.0, 110.0, 120.0], "test": [40.0, 70.0, 100.0]}
+# Re <= 100: at D = 20 the Strouhal number is within 0.7 % of D = 40 at Re 100, but 4.4 % below D = 30 at Re 120
+# (tau 0.55, near the BGK stability limit), so higher Reynolds numbers are left out
+PLAN = {"train": [20.0, 30.0, 50.0, 60.0, 80.0, 90.0], "test": [40.0, 70.0, 100.0]}
 SPLITS = ("train", "test")
-SHARD_ROWS = 320                       # 4 runs of 80 snapshots: ~30 MB per file
+SHARD_ROWS = 320                       # 4 runs of 80 snapshots per file
 SHEDDING_AMPLITUDE = 0.02              # rms of the probe's transverse velocity (/U) above which the wake sheds
 
 

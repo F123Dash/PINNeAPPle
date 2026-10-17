@@ -596,12 +596,12 @@ CYLINDER_DATASETS = {
     "cylinder_wake_lbm": {
         "version": "1.0.0",
         "hub_only": True,
-        "title": "Confined cylinder wake, lattice-Boltzmann, Re 20-120 (11 runs, 880 vorticity snapshots, 240 x 100)",
+        "title": "Confined cylinder wake, lattice-Boltzmann, Re 20-100 (9 runs, 720 vorticity snapshots, 240 x 100)",
         "description": (
             "2-D flow past a cylinder (diameter D = 20 lattice cells) 3 D downstream of a uniform inlet in a channel "
             "5 D high and 12 D long (blockage 0.2), no-slip walls, pressure outlet; D2Q9 BGK lattice-Boltzmann, "
-            "inlet velocity 0.1 (Mach 0.17), no turbulence model. Each run covers 80 convective units (t U / D); "
-            "the second half is stored, a vorticity snapshot (normalised by U/D, 0 inside the cylinder) every 0.5 "
+            "inlet velocity 0.1 (Mach 0.17), no turbulence model. Each run covers 200 convective units (t U / D); "
+            "the last 40 are stored (saturated wake), a vorticity snapshot (normalised by U/D, 0 inside the cylinder) every 0.5 "
             "units, labelled by Reynolds number, wake regime (steady or shedding), Strouhal number and wake "
             "amplitude. For regime classification, interpolation in Re and wake forecasting. The channel is far "
             "shorter than the entrance length, so the cylinder sees a nearly uniform inflow with thin wall boundary "
@@ -610,8 +610,19 @@ CYLINDER_DATASETS = {
         "source": ("python scripts/zoo/cylinder_data.py generate --out DIR; "
                    "pinneapple_simulation.numerical_solvers.cylinder_wake (the lab experiment cylinder_lbm runs the "
                    "same function)"),
-        "verification": "@CYLVERIFY@",
-        "splits": {"train": "8 runs, Re 20, 30, 50, 60, 80, 90, 110, 120 (80 snapshots each)",
+        "verification": (
+            "Solver checks (python scripts/zoo/cylinder_data.py verify; pinneapple_simulation.numerical_solvers."
+            "cylinder_wake.verify): developed low-Re channel flow against plane Poiseuille, max profile error 7.6 % "
+            "/ 4.3 % on the 2x coarser / dataset grid (first order, full-way bounce-back walls), centreline over "
+            "mean velocity 1.43 / 1.46 vs 1.5. Resolution study at Re 100 (D = 20, 30, 40 lattice cells, same "
+            "physical time and sampling): Strouhal 0.2444 / 0.2458 / 0.2460, so the dataset grid (D = 20) is within "
+            "0.7 % of D = 40; vorticity rms 2 D behind the cylinder within 0.3 %; transverse-velocity rms within "
+            "6.7 % (0.9 % at D = 30). At Re 120, D = 20 gives a Strouhal number 4.4 % below D = 30 (relaxation "
+            "time 0.55, near the stability limit), so the dataset stops at Re 100. Every shedding run is "
+            "saturated: the probe rms changes by at most 5 % across the stored window; below the onset (Re <= 50, "
+            "confinement delays it from the unconfined ~47) disturbances decay. Strouhal number from a "
+            "Hann-windowed, peak-refined spectrum (raw FFT bins are 0.025 apart). All fields finite."),
+        "splits": {"train": "6 runs, Re 20, 30, 50, 60, 80, 90 (80 snapshots each)",
                    "test": "3 held-out Reynolds numbers, Re 40, 70, 100 (80 snapshots each)"},
         "split_rule": "by Reynolds number: every snapshot of a run is in the same split",
         "columns": {"Re": ("-", "Reynolds number U D / nu"),

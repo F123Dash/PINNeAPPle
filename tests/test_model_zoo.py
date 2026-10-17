@@ -260,7 +260,7 @@ def test_hub_only_dataset_is_documented(name):
         assert sum(v["n"] for v in info.splits.values()) == 82 and info.splits["train"]["n"] == 48
         assert "Nusselt" in info.verification and "GCI" in info.verification
     elif name == "cylinder_wake_lbm":                              # cylinder wake: resolution study
-        assert {s: v["n"] for s, v in info.splits.items()} == {"train": 640, "test": 240}
+        assert {s: v["n"] for s, v in info.splits.items()} == {"train": 480, "test": 240}
         assert "Poiseuille" in info.verification and "D = 40" in info.verification
     else:                                                          # airfoil fields: the 436-run campaign
         assert {s: v["n"] for s, v in info.splits.items()} == {"train": 340, "test": 60, "naca_reference": 36}

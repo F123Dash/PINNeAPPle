@@ -32,6 +32,7 @@ The candidates that did not pass, and why, are listed in
 | `navier_stokes_2d_li2021_nu1e-3` | 2-D Navier–Stokes vorticity, ν = 10⁻³: 1200 runs on 64 × 64, t = 0…50 (Li et al. 2021); Hub-only, 12 shards, 919 MB |
 | `thermal_channel_cfd` | Actuated heated channel (2-D incompressible flow + heat, Re 100): 82 trajectories of u, v, p, T on 128 × 32 × 101 snapshots, with two unseen actuation families for testing; Hub-only, 8 shards, 360 MB |
 | `airfoil_rans_cst_re4e6_fields` | The cell fields (p, Ux, Uy, nut on the 20064-cell O-grid) of the 436 OpenFOAM runs of `airfoil_rans_cst_re4e6`, same splits; Hub-only, 5 files, 186 MB |
+| `cylinder_wake_lbm` | Confined cylinder wake (lattice Boltzmann, blockage 0.2): 720 vorticity snapshots of 9 saturated runs at Re 20–100, labelled by regime, Strouhal number and wake amplitude; Hub-only, 3 files, 64 MB |
 
 ## Quickstart
 
