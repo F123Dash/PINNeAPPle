@@ -336,6 +336,10 @@ METHODS: List[Method] = [
                      "Zaheer et al., Deep Sets, NeurIPS 2017, arXiv:1703.06114",
                      "Lakshminarayanan, Pritzel & Blundell, Deep ensembles, NeurIPS 2017, arXiv:1612.01474"],
        refs_added=["Milne-Thomson, Theoretical Hydrodynamics, §9.61 (ellipse potential flow, benchmark reference)"]),
+    _m("T23", "MultiAdam: per-loss-term Adam moments for multi-term PINN losses", [TR + "multiadam.py"],
+       ["MultiAdam", "multiadam"],
+       refs_in_code=["Yao, Su, Hao, Liu, Su & Zhu, MultiAdam: Parameter-wise Scale-invariant Optimizer for "
+                     "Multiscale Training of PINNs, ICML 2023, arXiv:2306.02816"]),
     # ── C. Equations (PINN compiler kinds + closed forms) ────────────────
     _m("E1", "Laplace", [COMPILE], ['"laplace"', "laplace_2d"], refs_added=[EVANS]),
     _m("E2", "Poisson", [COMPILE], ['"poisson"', "poisson_2d"], refs_added=[EVANS]),

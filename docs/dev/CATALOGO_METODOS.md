@@ -9,7 +9,7 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 | Categoria | ✅ | 🟡 | ⚪ |
 |---|---|---|---|
 | A. Solvers (S) | 31 | 8 | 2 |
-| B. Métodos de treino (T) | 2 | 12 | 8 |
+| B. Métodos de treino (T) | 3 | 12 | 8 |
 | C. Equações físicas (E) | 50 | 18 | 3 |
 | D. Problemas físicos (P) | 27 | 9 | 30 |
 
@@ -400,6 +400,12 @@ Referências: "no código" = já citadas no docstring do módulo; "adicionadas" 
 - **Código:** `pinneapple_neural/lpm.py`
 - **Referências no código:** Luminary, Vocabulary of Physics AI / How Large Physics Models gain spatial context (2026) · Tancik et al., Fourier features let networks learn high frequency functions, NeurIPS 2020, arXiv:2006.10739 · Zaheer et al., Deep Sets, NeurIPS 2017, arXiv:1703.06114 · Lakshminarayanan, Pritzel & Blundell, Deep ensembles, NeurIPS 2017, arXiv:1612.01474
 - **Referências adicionadas:** Milne-Thomson, Theoretical Hydrodynamics, §9.61 (ellipse potential flow, benchmark reference)
+
+### T23 — MultiAdam: per-loss-term Adam moments for multi-term PINN losses
+- **Estado:** ✅ validado
+- **Evidência:** `PINNeAPPle/tests/test_multiadam.py::test_poisson_with_badly_balanced_boundary_term_beats_adam`
+- **Código:** `pinneapple_neural/trainer/multiadam.py`
+- **Referências no código:** Yao, Su, Hao, Liu, Su & Zhu, MultiAdam: Parameter-wise Scale-invariant Optimizer for Multiscale Training of PINNs, ICML 2023, arXiv:2306.02816
 
 
 ## C. Equações físicas (E)

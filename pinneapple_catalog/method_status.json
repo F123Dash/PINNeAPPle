@@ -2222,6 +2222,17 @@
    "reference_tests": [],
    "status": "tested"
   },
+  "T23": {
+   "other_tests": [
+    "PINNeAPPle/tests/test_multiadam.py::test_changing_the_number_of_terms_raises",
+    "PINNeAPPle/tests/test_multiadam.py::test_rescaling_one_term_does_not_change_the_step",
+    "PINNeAPPle/tests/test_multiadam.py::test_single_term_matches_adam"
+   ],
+   "reference_tests": [
+    "PINNeAPPle/tests/test_multiadam.py::test_poisson_with_badly_balanced_boundary_term_beats_adam"
+   ],
+   "status": "validated"
+  },
   "T3": {
    "other_tests": [],
    "reference_tests": [],

@@ -38,6 +38,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
 
 ### Added
+- `MultiAdam` trainer: Adam with separate moments per loss term, `opt.step([loss_pde, loss_bc])` (Yao et al.
+  2023, arXiv:2306.02816). On Poisson with the boundary term weighted 1e-3 it beats plain Adam on 3 seeds (#573).
 - Animated showcase panel (`pinneapple_lab.showcase.panel`, `python -m pinneapple_lab showcase --lang en,pt`):
   1080 x 1350 on #090C14, a Ken Burns hero, a 3 x 3 grid of Tier A tiles and a row of two Tier B tiles, each with
   its seal and its curation headline; animated figures play once per 8 s loop; MP4 (H.264, faststart), GIF (720
