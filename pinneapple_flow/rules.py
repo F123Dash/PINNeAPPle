@@ -123,6 +123,31 @@ RULES: dict[str, Rule] = {r.id: r for r in [
     Rule("inverse.calibration", "least-squares calibration with the classical solver, identifiability",
          cites=("ljung1999sysid", "raue2009identifiability"), topic="method", evidence=(_EX_INV,)),
     # ---- validation
+    Rule("verification.richardson", "grid convergence: three nested grids (ratio 2), observed order, Richardson "
+         "extrapolation and the grid convergence index", cites=("roache1998verification", "oberkampf2010vv"),
+         topic="validation"),
+    Rule("assimilation.kalman", "sequential state estimation with a Kalman filter (EKF) or its ensemble form (EnKF)",
+         cites=("kalman1960filter", "evensen1994enkf"), topic="twin"),
+    Rule("uq.propagation", "forward propagation of input uncertainty: Latin hypercube Monte Carlo or polynomial chaos",
+         cites=("mckay1979lhs",), topic="hyperparameters"),
+    Rule("rom.methods", "reduced-order models compared at equal budget: POD (+ interpolation), DMD, operator "
+         "inference", cites=("berkooz1993pod", "schmid2010dmd", "peherstorfer2016opinf"), topic="method"),
+    Rule("gnn.meshgraphnet", "a MeshGraphNet (encode-process-decode message passing) for fields on meshes",
+         cites=("pfaff2021meshgraphnet", "battaglia2018graphnets"), topic="architecture"),
+    Rule("meta.reptile", "meta-learned initialisation over a family of problems (Reptile or MAML), compared with a "
+         "random initialisation after the same adaptation steps", cites=("nichol2018reptile", "finn2017maml"),
+         topic="method"),
+    Rule("transfer.finetune", "transfer learning: start the target problem from a trained network and fine-tune, "
+         "compared with training from scratch", uncited="a standard practice; the comparison in the node is the "
+         "evidence for this problem", topic="method",
+         evidence=(("test", "tests/test_flow_methods.py", "transfer node against training from scratch"),)),
+    Rule("optimization.nsga2", "multi-objective search with NSGA-II (non-dominated sorting, crowding distance)",
+         cites=("deb2002nsga2",), topic="method"),
+    Rule("control.mpc", "model predictive control compared with PID and rule-based baselines on the same plant",
+         cites=("rawlings2017mpc",), topic="method"),
+    Rule("benchmark.arena", "the same problems, budget and metric for every model (PINN arena)",
+         uncited="a project convention: equal budget per model; no single literature source", topic="method",
+         evidence=(("test", "tests/test_breadth_six_packages.py", "PINNArenaBenchmark run"),)),
     Rule("validation.reference", "measure every candidate against an exact solution or a reference solution",
          cites=("oberkampf2010vv",), topic="validation", evidence=(_EX_HEAT, _EX_POI)),
     Rule("validation.threshold", "pass at relative L2 <= 2 % (the PINN validation default)",

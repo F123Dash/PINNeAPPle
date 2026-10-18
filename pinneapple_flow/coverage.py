@@ -32,16 +32,15 @@ REASONS: dict[str, str] = {
     "pinneapple_perception": "image / video / audio inputs: no media port type in the flow schema yet",
     "pinneapple_blender": "needs Blender's bpy; viz.render uses it when installed",
     "pinneapple_twin3d": "3-D twin scene server; viz.field3d gives the in-studio 3-D view",
-    "pinneapple_hub": "Hugging Face Hub transfers (network); the zoo is reachable through lib.zoo.* nodes",
+    "pinneapple_hub": "Hugging Face Hub transfers (network access and credentials, not a computation step)",
     "pinneapple_catalog": "method / resource catalogue with license gates (read by the planner and docs)",
     "pinneapple_decision": "experiment-selection loop driven by an LLM backend; the planner covers routing",
-    "pinneapple_arena": "YAML benchmark campaigns (long runs); single benchmarks are lib.benchmark.* nodes",
+    "pinneapple_arena": "YAML benchmark campaigns (long runs); single benchmark runs are benchmark.arena nodes",
     "pinneapple_pdb": "dataset builder for benchmark publication (sharding, upload)",
     "pinneapple_veriphysics": "report layer over results; decision records + export.report cover it here",
     "pinneapple_check": "the CI physics linter (runs on files in a repository, not in a flow)",
     "pinneapple_lab": "covered by validate.lab (run, curation tiers, seal)",
     "pinneapple_llm": "LLM drafting: used by the LLM planner, problem.generic and twin.auto",
-    "pinneapple_adaptation": "covered by train.finetune (transfer); meta-learning needs task families",
     "pinneapple_app": "a separate web application (not a library package)",
 }
 

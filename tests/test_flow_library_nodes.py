@@ -9,7 +9,7 @@ from pinneapple_flow.libcalls import CALLS, custom_spec, introspect
 def test_every_allowlisted_call_resolves_and_has_a_form():
     for key, call in CALLS.items():
         assert call.target.split(":")[0].startswith("pinneapple"), key
-        spec = pf.REGISTRY[f"lib.{key}"]
+        spec = pf.REGISTRY[call.node_type or f"lib.{key}"]
         ok, why = spec.available()
         if ok:
             params, _skipped = introspect(call)

@@ -422,3 +422,39 @@ ljung1999sysid:
   venue: "Prentice Hall"
   kind: book
   topics: [system_identification, calibration, control]
+
+nichol2018reptile:
+  title: "On First-Order Meta-Learning Algorithms"
+  authors: [A. Nichol, J. Achiam, J. Schulman]
+  year: 2018
+  venue: "arXiv preprint"
+  url: "https://arxiv.org/abs/1803.02999"
+  kind: preprint
+  topics: [meta_learning]
+
+finn2017maml:
+  title: "Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks"
+  authors: [C. Finn, P. Abbeel, S. Levine]
+  year: 2017
+  venue: "Proceedings of the 34th International Conference on Machine Learning (ICML), PMLR 70, 1126-1135"
+  url: "https://arxiv.org/abs/1703.03400"
+  kind: conference
+  topics: [meta_learning]
+
+rawlings2017mpc:
+  title: "Model Predictive Control: Theory, Computation, and Design (2nd ed.)"
+  authors: [J. B. Rawlings, D. Q. Mayne, M. M. Diehl]
+  year: 2017
+  venue: "Nob Hill Publishing"
+  url: "https://sites.engineering.ucsb.edu/~jbraw/mpc/"
+  kind: book
+  topics: [control]
+
+roache1998verification:
+  title: "Verification and Validation in Computational Science and Engineering"
+  authors: [P. J. Roache]
+  year: 1998
+  venue: "Hermosa Publishers"
+  url: "https://isbnsearch.org/isbn/0913478083"
+  kind: book
+  topics: [verification, grid_convergence]

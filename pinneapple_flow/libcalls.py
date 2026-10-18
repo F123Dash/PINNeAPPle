@@ -46,6 +46,7 @@ class LibCall:
     init: dict[str, Any] = field(default_factory=dict)          # constructor arguments for Class.method targets
     requires: tuple[str, ...] = ()
     output: str = "auto"                             # auto | dataset | series
+    node_type: str = ""                              # a first-class node type name instead of lib.<key>
 
 
 # -------------------------------------------------------------------------------------------- input adapters
@@ -309,7 +310,7 @@ def spec_for(call: LibCall, *, type_: str | None = None, title: str | None = Non
     outs = [Port("result", "metrics")] + ([Port("series", "series", required=False)] if call.output == "series"
                                          else [])
     desc = call.description + (f" (not exposed: {', '.join(skipped)})" if skipped else "")
-    return NodeSpec(type=type_ or f"lib.{call.key}", title=title or call.title, category=call.category,
+    return NodeSpec(type=type_ or call.node_type or f"lib.{call.key}", title=title or call.title, category=call.category,
                     fn=_runner(call, fixed), inputs=ins, outputs=outs, params=out, description=desc,
                     calls=" ".join([call.target, *wrapped(call)]), available_fn=_available(call))
 
