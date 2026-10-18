@@ -35,10 +35,12 @@ def _plt():
 
 
 def plot_skill_vs_horizon(results: Sequence[dict], path: str, *, lyapunov: dict[str, float] | None = None,
-                          ncols: int = 4, floor: float = -0.5, titles: dict[str, str] | None = None) -> str:
-    """One panel per series: RMSE skill vs persistence of each family's representative (chosen on the validation
-    block) against the horizon; filled markers where the Holm-adjusted Diebold-Mariano test against persistence is
-    significant at 5 %. The horizon is in Lyapunov times when ``lyapunov[series]`` (exponent per unit time) is
+                          ncols: int = 4, floor: float = -0.5, titles: dict[str, str] | None = None,
+                          reference: str = "best_baseline") -> str:
+    """One panel per series: RMSE skill of each family's representative (chosen on the validation block) against
+    the horizon, relative to ``reference`` -- ``"best_baseline"`` (at each horizon the baseline with the lowest
+    validation RMSE) or ``"persistence"``; filled markers where the Holm-adjusted one-sided Diebold-Mariano test
+    against that reference is significant at 5 %. The horizon is in Lyapunov times when ``lyapunov[series]`` (exponent per unit time) is
     given. Skill below ``floor`` is drawn at the floor."""
     plt = _plt()
     n = len(results)
@@ -55,8 +57,10 @@ def plot_skill_vs_horizon(results: Sequence[dict], path: str, *, lyapunov: dict[
             if fam == "baseline":
                 continue
             m = res["models"][name]
-            sk = np.maximum(np.asarray(m["test"]["skill_rmse"], float), floor)
-            p = np.array([(d or {}).get("p_holm", np.nan) for d in m["dm_vs_persistence"]], float)
+            key = "skill_vs_best_baseline" if reference == "best_baseline" else None
+            sk = np.maximum(np.asarray(m[key] if key else m["test"]["skill_rmse"], float), floor)
+            dm = m["dm_vs_best_baseline"] if key else m["dm_vs_persistence"]
+            p = np.array([(d or {}).get("p_holm", np.nan) for d in dm], float)
             c = FAMILY_COLORS[fam]
             ax.plot(x, sk, color=c, lw=2, label=f"{fam}: {name}")
             sig = p < 0.05
@@ -66,7 +70,7 @@ def plot_skill_vs_horizon(results: Sequence[dict], path: str, *, lyapunov: dict[
         ax.set_ylim(floor - 0.05, 1.02)
         ax.set_title((titles or {}).get(res["series"], res["series"]), fontsize=9, color=_INK)
         ax.set_xlabel("horizon [Lyapunov times]" if lam else "horizon [samples]", fontsize=8, color=_MUTED)
-        ax.set_ylabel("RMSE skill vs persistence", fontsize=8, color=_MUTED)
+        ax.set_ylabel("RMSE skill vs " + ("best baseline" if key else "persistence"), fontsize=8, color=_MUTED)
         ax.legend(fontsize=6, frameon=False, loc="lower left")
     for ax in axes.ravel()[n:]:
         ax.axis("off")
