@@ -37,11 +37,13 @@ On Colab: the notebooks in [`notebooks/colab/`](notebooks/colab/README.md) insta
 | Deploy decision from your own checks | `pinneapple_analysis.trust.TrustReport`, `Check` |
 | Which methods are validated | `pinneapple_catalog.validated_methods()`, `pinneapple_catalog.methods.method_status()` |
 | Equal-budget benchmark | `pp.compare` with the same epochs / collocation / seeds per method (below); `pp.benchmark.run(...)` where installed |
+| A field, a prediction against its reference, or a deformed shape on its mesh in an app | `pp.viz.field_view(mesh, fields, deform=..., markers=...)` + `pinneapple_analysis.validation.error_map.error_map(points, pred, ref, regions=...)`; page module `/shared/fieldview3d.js` ([docs](docs/core_concepts/studio.md)) |
 | Animations with synced charts | `pp.dashboard.Dashboard(...)`: `.to_png`, `.to_html`, `.to_video(gif=...)` |
 | Lint results and models for physics in CI | `pinneapple check [paths]` (conservation, BCs, residual, units, OOD, regression; [docs](docs/guides/physics_checks_in_ci.md)) |
 | Helpers that used to live in apps and examples | `pp.to_jsonable`, `pp.as_tensor`, `pp.dominant_frequency`, `pp.closed_form` (pipe flow, compressible, heat), `pp.uncertainty` (resampling, drift, tolerances), `pp.assess_drift`, `pp.propagate_tolerances`, `pp.score_against_reference`, `pp.excitation`, `pp.reporting.paperkit` ([inventory](docs/dev/LIBRARY_CONSOLIDATION.md)) |
 | Electromagnetics: references, materials, solvers, physics checks of any field | `pp.em` (statics, waves, Mie, media, FEM), `pp.maxwell.maxwell_checks(grid, fields, ...)`, `pinneapple check` with `physics = "maxwell"`, `pp.em.verification.run()` ([docs](docs/guides/electromagnetics.md)) |
 | Run FreeCAD / CfdOF / OpenFOAM / ParaView and keep the evidence | `pinneapple_tools.automation`: `Workflow.load(...)`, `Runner(wf, folder, inputs).run(approve=[...])`, `interpret(task, catalog())` ([guide](docs/guides/engineering_gui_agent.md)) |
+| Interlocking-brick builds: statics with stud clutch, Newton replay, self-modifying search | `pinneapple_design.bricks`: `Assembly`, `analyse_assembly`, `CantileverGoal` / `BridgeGoal` / `TowerGoal`, `evolve`, `surrogate_search`, `compare`, `visuals` ([docs](docs/guides/interlocking_bricks.md)) |
 | Everything from an agent tool call | the MCP server `pinneapple-mcp` ([docs](docs/guides/mcp_server.md)) |
 
 Check the zoo before training a surrogate: a zoo model comes with its held-out errors, physics checks and validity

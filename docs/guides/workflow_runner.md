@@ -28,6 +28,23 @@ the tools you already have (OpenFOAM, CalculiX, Python, Docker, Slurm); it does 
 
 ![The dataset of a run, with its DatasetSpec](../assets/apps/d27-runner-dataset.jpg)
 
+## View a solver step's result in 3-D
+
+A finished CalculiX or OpenFOAM step has a **View result in 3-D** button, a check before its numbers are used. It
+shows the mesh, the selected field and, for CalculiX, the deformed shape with a scale factor. The regions where the
+case defines its boundary conditions and loads are marked:
+
+- CalculiX: the `*BOUNDARY`, `*CLOAD` and `*DLOAD` sets of the deck;
+- OpenFOAM: the patches, with their conditions from the first time directory.
+
+Large meshes are decimated above 250 k triangles (`RUNNER_VIEW_MAX_FACES`, from the size guide in
+[the studio page](../core_concepts/studio.md)). In Python:
+`pinneapple_tools.visualization.studio.solver_view.solver_result_view(step_folder)`.
+
+![A CalculiX cantilever step: von Mises stress on the deformed beam, the clamp and the tip load from the deck](../assets/apps/d27-runner-3d-calculix.jpg)
+
+![An OpenFOAM cavity step: velocity magnitude, the moving lid as the driving wall, the fixed walls](../assets/apps/d27-runner-3d-openfoam.jpg)
+
 ## The same engine in Python
 
 ```python
@@ -71,4 +88,7 @@ This is how the Engineering GUI Agent adds GUI-driven steps.
   own login.
 - **Solvers.** The public image has no OpenFOAM or CalculiX. Those templates show "needs solver" there instead of
   pretending.
+- **OpenFOAM environment.** OpenFOAM steps source the step's `bashrc`, else `FOAM_BASHRC`, else the first installation
+  found in `/usr/share/openfoam`, `/usr/lib/openfoam/openfoam*`, `/opt/openfoam*` or `/opt/OpenFOAM-*`, unless the
+  environment is loaded already (`WM_PROJECT_DIR` set).
 - **Skip-done hashes only what a step declares.** Undeclared input files and solver versions are not seen.

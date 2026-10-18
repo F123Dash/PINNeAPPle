@@ -32,6 +32,34 @@ folders that someone has to turn into a training table by hand.
   - **Skip-done:** a step whose content hash is unchanged is reused instead of recomputed. The hash covers the step
     definition, its parameters, its declared input files and the hashes of the steps it needs.
 
+## View result: the solver's output in 3-D
+
+A finished CalculiX or OpenFOAM step (also one reused by skip-done) has a **View result in 3-D** button. It opens the
+step's result on its mesh as a sanity check before its numbers go into the dataset:
+
+- **The mesh and a field.** Switch between the fields: CalculiX DISP, STRESS as von Mises, strain, forces and the
+  error estimate; OpenFOAM's volume fields at the latest time, vectors as magnitude.
+- **The deformed shape (CalculiX).** The displacement is drawn with a scale factor: automatic (the largest
+  displacement shown as 10 % of the body), typed, or `1×`. The undeformed shape stays as a grey wire.
+- **Where the case acts.** The regions where the case defines its boundary conditions and loads are marked and
+  listed with the line they come from:
+  - CalculiX: `*BOUNDARY` supports and `*CLOAD` / `*DLOAD` loads, from the `.inp` next to the `.frd`; point loads
+    are summed per direction.
+  - OpenFOAM: every non-empty patch, with its conditions from the first time directory. A patch with a non-zero
+    fixed vector, such as the cavity's moving lid, is a boundary condition with the role "driving wall". A note
+    gives its value: the colours are cell-centre values, so the lid's 1.84 m/s sits above the largest cell value.
+- **Light.** Above `RUNNER_VIEW_MAX_FACES` triangles (250,000, from the size guide in `docs/core_concepts/studio.md`)
+  the surface is decimated, and the panel says so. The glTF is built once per step and cached.
+
+It reads the step's files only: `pinneapple_tools.visualization.studio.solver_view`, with
+`pinneapple_data.cae.inp.deck_conditions` and `pinneapple_data.cae.foam.boundary_conditions`, shown by the shared
+viewer `apps/_shared/static/shared/fieldview3d.js`. `GET /api/runs/{run}/steps/{step}/view3d` returns the description
+and `/view3d.glb` the glTF.
+
+![A CalculiX cantilever step: von Mises stress on the deformed beam, the clamped nodes and the tip load from the deck](../../docs/assets/apps/d27-runner-3d-calculix.jpg)
+
+![An OpenFOAM cavity step: velocity magnitude, the moving lid marked as the driving wall, the fixed walls](../../docs/assets/apps/d27-runner-3d-openfoam.jpg)
+
 ## Integrations
 
 | Piece | What it is | How |
@@ -101,7 +129,11 @@ reused steps count zero) and `storage_mb` per principal and month. Free limits c
   (numbers only) before anything runs, so request text never reaches a shell or a solver dictionary. The container
   runs as an unprivileged user. The public image has neither OpenFOAM nor CalculiX, so those two templates show
   "needs solver" there; their Slurm scripts can still be generated (dry run). The CalculiX screenshot comes from a
-  runner with `ccx` installed.
+  runner with `ccx` installed, and the 3-D screenshots from one with CalculiX 2.21 and OpenFOAM v1912.
+- **The 3-D view is a sanity check, not a post-processor.** It shows the last increment (CalculiX) or the latest time
+  (OpenFOAM), one side of a 2-D OpenFOAM case, cell values averaged to the surface vertices, and markers where the
+  deck or the case files place conditions (node sets, patches); conditions defined in other ways (equations,
+  `*INCLUDE` files not in the step folder, coded boundary conditions) are not marked.
 - **Self-hosted mode runs what the caller sends.** Set `RUNNER_SELF_HOSTED=1` only behind your own login, on your own
   machine or cluster. It enables custom workflows (commands, scripts, Docker steps, Slurm submission).
 - **Skip-done sees only what is declared.** Files a step reads without listing them in `inputs` are not in its hash,
@@ -118,5 +150,6 @@ docker build -f apps/simulation_runner/Dockerfile -t simulation-runner . && dock
 ```
 
 Environment: `RUNNER_USER` / `RUNNER_PASSWORD` (login), `RUNNER_SELF_HOSTED`, `RUNNER_MAX_CASES`, `RUNNER_MAX_JOBS`,
-`RUNNER_FREE_*`, `RUNNER_ADMIN_TOKEN`, `RUNNER_DATA_DIR`. The shared runtime variables (API keys, uploads) are listed
+`RUNNER_FREE_*`, `RUNNER_ADMIN_TOKEN`, `RUNNER_DATA_DIR`, `RUNNER_VIEW_MAX_FACES` (triangles of a 3-D result view
+before it is decimated, 250,000). The shared runtime variables (API keys, uploads) are listed
 in [apps/_shared/README.md](../_shared/README.md).
