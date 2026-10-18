@@ -43,7 +43,8 @@ __all__ = ["CORNERS", "SEALABLE", "TIER_COLOURS", "Seal", "SealError", "corner_s
 BRAND_YELLOW = "#FFD60A"
 BADGE_BG = "#0F1420"
 TIER_COLOURS = {"A": "#2FBF71", "B": "#FFB020"}
-TIER_TEXT = {"A": "INDEPENDENT REFERENCE", "B": "REFERENCE PENDING"}
+TIER_TEXT = {"en": {"A": "INDEPENDENT REFERENCE", "B": "REFERENCE PENDING"},
+             "pt": {"A": "REFER\u00caNCIA INDEPENDENTE", "B": "REFER\u00caNCIA PENDENTE"}}
 SEALABLE = ("A", "B")
 CORNERS = ("br", "tr", "bl", "tl")          # preference order when two corners are equally free
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
@@ -176,7 +177,7 @@ _HATCH = [((20, 30), (44, 48)), ((18, 40), (38, 55)), ((24, 24), (46, 41)), ((44
 _MARK_BOX = (14.0, 4.0, 50.0, 60.0)          # x0, y0, x1, y1 of the mark inside the icon box
 
 
-def _layout(seal: Seal, height: float, reason: bool, compact: bool) -> dict[str, Any]:
+def _layout(seal: Seal, height: float, reason: bool, compact: bool, lang: str = "en") -> dict[str, Any]:
     """Positions in pixels for a badge ``height`` tall (both renderers use it)."""
     h = float(height)
     pad = 0.16 * h
@@ -190,7 +191,8 @@ def _layout(seal: Seal, height: float, reason: bool, compact: bool) -> dict[str,
     else:
         top = 0.30 * h
         lines.append(("PINNeAPPle", top, BRAND_YELLOW, True, pad + 0.80 * top))
-        lines.append((f"TIER {seal.tier} · {TIER_TEXT[seal.tier]}", 0.145 * h, seal.colour, True,
+        tier_text = TIER_TEXT.get(lang, TIER_TEXT["en"])[seal.tier]
+        lines.append((f"TIER {seal.tier} · {tier_text}", 0.145 * h, seal.colour, True,
                       pad + top + 0.21 * h))
         if reason and seal.reason:
             lines.append((("✓ " if seal.reason_kind == "reference" else "◐ ") + seal.reason, 0.13 * h,
@@ -214,11 +216,12 @@ def _layout(seal: Seal, height: float, reason: bool, compact: bool) -> dict[str,
 
 
 def render_seal(seal: Seal, *, height: int = 96, fmt: str = "png", reason: bool = True,
-                compact: bool | None = None, opacity: float = 1.0):
+                compact: bool | None = None, opacity: float = 1.0, lang: str = "en"):
     """The badge as a PIL RGBA image (``fmt="png"``) or an SVG string (``fmt="svg"``). Below 56 px it switches to
-    the compact form (mark, wordmark and tier letter) so it stays legible; ``compact`` forces either form."""
+    the compact form (mark, wordmark and tier letter) so it stays legible; ``compact`` forces either form. ``lang``
+    ("en", "pt") sets the language of the tier line."""
     compact = height < 56 if compact is None else compact
-    L = _layout(seal, height, reason, compact)
+    L = _layout(seal, height, reason, compact, lang)
     return _svg(seal, L, opacity) if fmt == "svg" else _png(seal, L, opacity)
 
 
