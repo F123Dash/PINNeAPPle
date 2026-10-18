@@ -26,6 +26,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   plate-fin heat sink (the heat-sink sizer physics and its finite-volume base model), model glider wing (lifting
   line, vortex lattice); out-of-scope requests are refused with what would be needed. `materials` holds the cited
   material properties; `templates/example_spring.py` is the template-authoring example.
+- Design from intent from a shell and from agents: `pinneapple design "<goal>"` (`--answer slot=value`, `--out`,
+  `--templates`) and the MCP tool `design` (questions and refusals at once, the design as a job). Example
+  `examples/design_from_intent/design_from_intent.py` runs the five demos (loop car, bracket, heat sink, glider wing,
+  an out-of-scope motor) with their reports, geometry and figures in `_out/`; guide
+  `docs/guides/design_from_intent.md` with the template-authoring section.
 - `plate_fin_heatsink.evaluate` takes the starting fin-root temperature (`t_root_guess_c`): with `max_iter=1` the
   convection coefficient is evaluated once at that temperature (a hand calculation).
 - Drive model of synchronous machines (`pinneapple_simulation.electromagnetics.machines.drive`): FEA flux maps with

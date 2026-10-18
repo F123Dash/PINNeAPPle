@@ -165,7 +165,8 @@ def main(argv: list[str] | None = None) -> int:
     if not argv or argv[0] in ("-h", "--help"):
         print("usage: pinneapple <command> [options]\n\ncommands:\n"
               "  check      physics linter for results and models (pinneapple check --help)\n"
-              "  benchmark  equal-budget benchmarks of physics-AI methods (when installed)\n")
+              "  benchmark  equal-budget benchmarks of physics-AI methods (when installed)\n"
+              "  design     design from a plain-language goal (pinneapple design --help)\n")
         return 0 if argv else 2
     if argv[0] == "--version":
         print(f"pinneapple {__version__}")
@@ -173,6 +174,9 @@ def main(argv: list[str] | None = None) -> int:
     cmd, rest = argv[0], argv[1:]
     if cmd == "check":
         return check_main(rest)
+    if cmd == "design":
+        from pinneapple_design.intent.cli import main as design
+        return design(rest)
     if cmd == "benchmark":
         try:
             from pinneapple_analysis.benchmark.cli import main as bench
