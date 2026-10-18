@@ -40,7 +40,7 @@ red for up. The wings carry the lattice loading. The inset is n_z against time. 
 | ![](../assets/flight_dynamics/clips/light_ga_takeoff.png) [mp4](../assets/flight_dynamics/clips/light_ga_takeoff.mp4) | ![](../assets/flight_dynamics/clips/light_ga_turbulence.png) [mp4](../assets/flight_dynamics/clips/light_ga_turbulence.mp4) |
 | ![](../assets/flight_dynamics/clips/regional_turboprop_takeoff.png) [mp4](../assets/flight_dynamics/clips/regional_turboprop_takeoff.mp4) | ![](../assets/flight_dynamics/clips/regional_turboprop_turbulence.png) [mp4](../assets/flight_dynamics/clips/regional_turboprop_turbulence.mp4) |
 | ![](../assets/flight_dynamics/clips/a320_takeoff.png) [mp4](../assets/flight_dynamics/clips/a320_takeoff.mp4) | ![](../assets/flight_dynamics/clips/a320_turbulence.png) [mp4](../assets/flight_dynamics/clips/a320_turbulence.mp4) |
-| ![](../assets/flight_dynamics/clips/motor_glider_takeoff.png) [mp4](../assets/flight_dynamics/clips/motor_glider_takeoff.mp4) | ![](../assets/flight_dynamics/clips/motor_glider_turbulence.png) [mp4](../assets/flight_dynamics/clips/motor_glider_turbulence.mp4) (moderate: the severe run leaves the model, see below) |
+| ![](../assets/flight_dynamics/clips/motor_glider_takeoff.png) [mp4](../assets/flight_dynamics/clips/motor_glider_takeoff.mp4) | ![](../assets/flight_dynamics/clips/motor_glider_turbulence.png) [mp4](../assets/flight_dynamics/clips/motor_glider_turbulence.mp4) (moderate: the severe runs depart, and even the moderate run spends 7 % of the time past the stall angle, see below) |
 
 ## The four aircraft
 
@@ -338,8 +338,9 @@ quasi-steady linear model cannot represent, so its numbers are not a gust respon
 
 - **Motor glider in severe turbulence:** at 40 m/s, atan(σ_w/V) = 10.0° of RMS gust angle meets 6.5° of α margin
   from the trim. All three autopilot realisations depart, and one of the three stick-fixed ones does. Their numbers
-  are blanked in the tables. For the glider, read the light and moderate rows of the intensity table, which stay
-  valid.
+  are blanked in the tables. Only the glider's light-turbulence row stays
+  valid. In moderate turbulence it spends 7.0 % of the time past the stall angle, without departing; its clip
+  and trace show that moderate run.
 - **Light GA with the autopilot (severe):** 0.01–1.5 % of the time past the stall angle, depending on the
   realisation.
 - **Turboprop and A320 class, stick fixed:** at most 0.2 % of the time past it in one realisation.
