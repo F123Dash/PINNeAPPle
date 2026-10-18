@@ -20,6 +20,19 @@ coefficients. Held-out data: the last times (forecast), interleaved times, or ra
 scaled by their training RMS; parameters can be regressed in log scale; an amplitude / shape split helps responses
 that span orders of magnitude.
 
+**The held-out design on its body (3-D).** When the snapshots carry a mesh (a VTU / VTK / FRD series, or arrays
+with `cells_<type>` connectivity, optional `snapshot_points` per snapshot and `node_sets` in `meta`), the result page
+shows the selected held-out snapshot on its own body: the full-order field, the ROM prediction and the pointwise error
+|ROM − FEM| (switch between them; full-order and ROM share one colour scale), on the shape deformed by the FEM or the
+ROM displacement with a scale factor. The dataset's node sets are marked (the cantilever's clamp and loaded tip), the
+error hotspots (connected nodes in the top 10 % of the error) are listed and can be zoomed to, and a short text says
+where the error concentrates: each set grown by 10 % of the body length is a zone, with its share of the squared error
+against its share of the nodes, next to the study's error for that design and the study mean. All of it is computed
+from the stored snapshot and the model's prediction at its inputs (`pinneapple_neural.architectures.rom.views`,
+`pinneapple_analysis.validation.error_map`, `pp.viz.field_view`). Datasets without connectivity keep the 2-D map.
+
+![POD + GPR on a held-out cantilever: |ROM − FEM| of the von Mises stress on the deformed body](../../docs/assets/apps/d19-rom-beam-3d-error.jpg)
+
 **Outputs and integrations.** Each model downloads as a portable `.rom.npz` (arrays + JSON manifest, no pickle:
 `ReducedModel.from_bytes(...).predict(times=... | params=...)`), as **ONNX** (POD + RBF, nearest, the parametric neural
 model, DMD) with the `spec` the model gateway publishes (`ModelGateway.publish(name, "x.onnx", kind="onnx",
@@ -35,11 +48,14 @@ CalculiX, HDF5 and the other apps' `DatasetSpec` tables.
 | Two travelling waves (an exact rank-4 linear system), forecast of the last 20 % | DMD at rank 8 (uncentred: the mean is a mode) and OpInf at rank 4 below 1e-3; rank 2 fails; POD + RBF in time does not extrapolate; persistence > 50 % |
 | Every model | its held-out error is never below the POD projection error at its rank |
 | Export | `.rom.npz` predicts exactly what the fitted model does; ONNX agrees to < 1e-4 relative |
+| 3-D view | the error map of a held-out cantilever reproduces the relative L2 and the max of the 2-D reconstruction; the deformed shape is the stored displacement in metres; the zones' shares of the squared error add up to 1 |
 | Cylinder wake, PINNeAPPle LBM at Re 100 (example, 30 forecast snapshots) | DMD rank 16: 0.81 % (max 1.4 %), OpInf rank 16: 1.0 %, neural stepper (3 s): 3.8 %, persistence: 136 % |
 | Cantilever, solid FEM, 100 designs (example, 20 unseen designs, log H and W) | POD + GPR rank 8: 4.4 %, POD + RBF: 17 %, neural (3 s): 16 %, nearest design: 39 % |
 
 The examples are produced by `examples/make_examples.py` from the library's own solvers; the full-order times stored
-with them (0.68 s per wake snapshot interval, 0.72 s per FEM design) were measured when they were generated.
+with them (0.68 s per wake snapshot interval, 0.72 s per FEM design) were measured when they were generated. The
+cantilever's mesh (hexahedra, each design's node coordinates, the clamp and loaded-tip node sets) was added with
+`make_examples.py --mesh-only`, which first solves two designs again and checks that they match the stored fields.
 
 ## Run
 
@@ -59,7 +75,8 @@ neural budget, default 30 s), `ROM_DATA_DIR`, `ROM_ADMIN_TOKEN`, `ROM_REQUIRE_AP
 
 `POST /api/studies` (multipart `files`, `options` JSON: methods, ranks, budget_s, split, test_fraction, tolerance,
 log_params, amplitude_split, hf_seconds) queues a study; `GET /api/jobs/{id}` gives progress and the result;
-`GET /api/jobs/{id}/files/...`, `/onnx/{model}`, `/gateway/{model}`, `/reconstruction`; `POST /api/run`;
+`GET /api/jobs/{id}/files/...`, `/onnx/{model}`, `/gateway/{model}`, `/reconstruction`, `/view3d` (the 3-D view of a
+held-out snapshot: fields, colour ranges, markers, error maps and summaries) and `/view3d.glb`; `POST /api/run`;
 `POST /api/examples/{wake|beam}`. Interactive documentation at `/docs`.
 
 ## Limits

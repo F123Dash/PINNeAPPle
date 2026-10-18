@@ -433,3 +433,87 @@ def test_progress_callback_and_cancel():
             raise Cancelled
     with pytest.raises(Cancelled):
         run(p, "nsga2", budget=100, progress=stop)
+
+
+def test_verify_front_files_and_chart_points(tmp_path):
+    pytest.importorskip("pinneapple_data.contracts.models")
+    import pandas as pd
+
+    from pinneapple_design.design_optimizer import (
+        DESIGN_FILES,
+        chart_points,
+        verify_front,
+        write_design_files,
+    )
+    p = schaffer(fidelity="surrogate")
+    r = run(p, "nsga2", budget=300, seed=0)
+    ev, front = r.evaluations, r.pareto()
+    cand, rep, status = verify_front(p, ev, front, 4, None)
+    assert cand == select_candidates(ev, front, 4) and rep is None and status == {}
+    ref = FunctionEvaluator(_fn, ["f1", "f2", "g"], fidelity="reference")
+    cand, rep, status = verify_front(p, ev, front, 4, ref)
+    assert sorted(status) == sorted(cand) and set(status.values()) == {"verified"}
+    assert rep.errors["f1"]["max_rel"] == pytest.approx(0.0, abs=1e-12)     # same function: no error
+    labels = [f"m{i % 2}#0" for i in range(len(ev))]
+    files = write_design_files(tmp_path, p, ev, cand, status, labels=labels)
+    assert files == list(DESIGN_FILES) and all((tmp_path / f).exists() for f in files)
+    cdf = pd.read_csv(tmp_path / "candidates.csv")
+    assert cdf["verification"].tolist() == ["verified"] * len(cand)
+    assert cdf["found_by"].tolist() == [labels[i] for i in cand]
+    assert pd.read_csv(tmp_path / "candidates_to_run.csv").columns.tolist() == ["x", "y"]
+    assert len(pd.read_csv(tmp_path / "evaluations.csv")) == len(ev)
+    pts = chart_points(p, ev, front, limit=50, labels=labels)
+    assert len(pts) <= 50 + len(front) and {q["i"] for q in pts if q["p"]} == {int(i) for i in front}
+    assert set(pts[0]) >= {"i", "f", "p", "r", "f1", "f2", "g", "run"} and pts[0]["run"] in ("m0", "m1")
+    assert len(chart_points(p, ev)) == len(ev)
+
+
+def test_verify_uploaded_results_matches_rows_and_checks_constraints(tmp_path):
+    pytest.importorskip("pinneapple_data.contracts.models")
+    import pandas as pd
+
+    from pinneapple_design.design_optimizer import (
+        verify_front,
+        verify_uploaded_results,
+        write_design_files,
+    )
+    p = schaffer(fidelity="surrogate")
+    r = run(p, "nsga2", budget=300, seed=0)
+    cand, _, _ = verify_front(p, r.evaluations, r.pareto(), 4)
+    write_design_files(tmp_path, p, r.evaluations, cand)
+    cdf = pd.read_csv(tmp_path / "candidates.csv")
+    X = pd.read_csv(tmp_path / "candidates_to_run.csv")
+    # your solver: g 10 % larger than the search model, so designs near the g <= 1.5 limit fail there
+    g = _fn(X.to_numpy())["g"] * 1.1
+    res = X.assign(g=g)
+    rep = verify_uploaded_results(p.space, cdf, res, p.objectives, p.constraints)
+    assert [x["status"] for x in rep.rows] == ["verified" if v <= 1.5 else "rejected by reference" for v in g]
+    assert rep.errors["g"]["max_rel"] == pytest.approx(0.1 / 1.1, rel=1e-6)
+    missing = verify_uploaded_results(p.space, cdf, res.iloc[1:], p.objectives, p.constraints)
+    assert missing.rows[0]["status"] == "reference failed"                  # no row for that design
+    with pytest.raises(ValueError):
+        verify_uploaded_results(p.space, cdf, X.assign(other=1.0), p.objectives, p.constraints)
+
+
+def test_comparison_union_result_and_fronts():
+    c = compare_methods(schaffer(), ["random", "nsga2"], budget=120, seeds=(0, 1))
+    u = c.union_result()
+    assert u.method == "comparison: random, nsga2" and u.budget == 120 * 4
+    assert u.n_evals == sum(r.n_evals for r in c.results) and u.seed == 0
+    fr = c.fronts()
+    assert set(fr) == {"random", "nsga2"}
+    r0 = next(r for r in c.results if r.method == "nsga2" and r.seed == 0)
+    assert fr["nsga2"] == [[float(r0.evaluations.Y["f1"][i]), float(r0.evaluations.Y["f2"][i])] for i in r0.pareto()]
+    assert c.fronts(seed=1)["random"] != fr["random"]
+
+
+def test_preset_info_and_bodies():
+    hs, af = presets.preset_info("heatsink"), presets.preset_info("airfoil")
+    assert [v["name"] for v in hs["variables"]] == presets.heatsink_problem().space.names
+    assert hs["limits"]["fin_gap_min_mm"] > 0 and hs["objectives"][:2] == ["mass_g", "cost"]
+    assert af["limits"] == {"cl_min": 0.6, "cm_min": -0.12, "aft_min": 0.012} and af["reference"] is None
+    assert [v["name"] for v in af["variables"]] == presets.airfoil_problem().space.names
+    with pytest.raises(ValueError):
+        presets.preset_info("wing")
+    assert presets.preset_bodies("heatsink", presets.heatsink_baseline())
+    assert presets.preset_bodies("airfoil", presets.airfoil_baseline())

@@ -8,6 +8,7 @@ The logic behind it lives in the library, with tests:
 | Job queue, API keys, usage metering, uploads | `pinneapple_core.service` | `tests/pinneapple_core/test_service.py` |
 | Data contracts (`ParameterSpace`, `DatasetSpec`, `ModelRef`, `StudyResult`) | `pinneapple_data.contracts` | `tests/pinneapple_data/test_contracts.py` |
 | The HTTP routes below | `apps/_shared/appkit.py` | `tests/test_appkit_runtime.py` |
+| 3-D field view (`/shared/fieldview3d.js`: fields, errors, deformed shape, markers) | `pp.viz.field_view`, `pinneapple_analysis.validation.error_map` | `tests/test_field_view.py`, `tests/js/studio_core.test.mjs` |
 
 No new dependencies: SQLite and threads/processes from the standard library, plus FastAPI and
 `python-multipart`, which every app already lists. Parquet needs `pyarrow` and HDF5 needs `h5py`.

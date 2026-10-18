@@ -81,6 +81,7 @@ from .evaluators import ZooEvaluator, TorchModuleEvaluator, CommandEvaluator, fr
 from .spec import SpecError, problem_from_spec, reference_for_spec, zoo_problem
 from .report import (
     to_parameter_space, designs_frame, study_result, surrogate_from_table, model_ref_for_surrogate, table_evaluator,
+    verify_front, write_design_files, chart_points, verify_uploaded_results, DESIGN_FILES,
 )
 
 __all__ = [
@@ -109,5 +110,6 @@ __all__ = [
     "ActiveLearningResult", "MethodComparison", "compare_methods",
     "ZooEvaluator", "TorchModuleEvaluator", "CommandEvaluator", "from_model_ref",
     "to_parameter_space", "designs_frame", "study_result", "surrogate_from_table", "model_ref_for_surrogate",
-    "table_evaluator", "SpecError", "problem_from_spec", "reference_for_spec", "zoo_problem",
+    "table_evaluator", "verify_front", "write_design_files", "chart_points", "verify_uploaded_results", "DESIGN_FILES",
+    "SpecError", "problem_from_spec", "reference_for_spec", "zoo_problem",
 ]
