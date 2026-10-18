@@ -65,7 +65,9 @@ def run(smoke: bool = False, jobs: int = 1, cases=None, out_dir: Path = HERE):
     lyap = {r["zoo"]["series"]: r["truth"]["lyapunov"] for r in results if r["truth"].get("lyapunov")}
     titles = {r["zoo"]["series"]: r["title"] for r in results}
     plots.plot_skill_vs_horizon([r["zoo"] for r in results], str(fig_dir / "skill_vs_horizon.png"),
-                                lyapunov=lyap, titles=titles)
+                                lyapunov=lyap, titles=titles, reference="best_baseline")
+    plots.plot_skill_vs_horizon([r["zoo"] for r in results], str(fig_dir / "skill_vs_persistence.png"),
+                                lyapunov=lyap, titles=titles, reference="persistence")
     plots.plot_surrogate_tests({r["title"]: r["predictability"] for r in results}, str(fig_dir / "surrogate_tests.png"))
     pit = []
     for r in results:
