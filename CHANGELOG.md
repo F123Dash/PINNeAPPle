@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Animated showcase panel (`pinneapple_lab.showcase.panel`, `python -m pinneapple_lab showcase --lang en,pt`):
+  1080 x 1350 on #090C14, a Ken Burns hero, a 3 x 3 grid of Tier A tiles and a row of two Tier B tiles, each with
+  its seal and its curation headline; animated figures play once per 8 s loop; MP4 (H.264, faststart), GIF (720
+  wide, 12 fps) and PNG, in English and Portuguese. Tiles come from the curation (override with `picks`); C and D
+  items are never shown. Panels in `docs/assets/showcase/`.
 - PINNeAPPle quality seal (`pinneapple_lab.seal`): a badge with the tier the curation gave an item (A green,
   B amber; C and D are not stamped), the pineapple mark and the item's evidence line, as PNG or SVG; stamps on
   matplotlib figures (`stamp_figure`, `sealed_savefig` hook), images, GIFs and videos (`stamp_file`), in the

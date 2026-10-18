@@ -236,6 +236,26 @@ python -m pinneapple_lab stamp repo_results/prius_pmsm figure.png -o figure_seal
 python -m pinneapple_lab stamp --all --out export/sealed       # every figure of every A and B item, + manifest.json
 ```
 
+### Showcase panel
+
+`pinneapple_lab.showcase.panel` renders the animated panel of the Lab's best results, 1080 x 1350 on `#090C14`:
+the header, a hero tile with a slow Ken Burns zoom, a 3 x 3 grid of Tier A tiles, a row of two Tier B tiles and the
+footer. It writes an MP4 (H.264, yuv420p, faststart), a GIF (720 wide, 12 fps, palettegen), a still PNG and a JSON
+of the tiles it used.
+
+![Showcase panel, English](../assets/showcase/showcase_en.png)
+
+* Tiles come from the curation: Tier A first (hero and grid), then the strongest B. `picks=[(item, figure)]`
+  overrides the order and the figure; an item still lands where its tier puts it, and a C or D item is never shown.
+* Every tile's green "✓" or amber "◐" line is the item's curation headline, and every tile carries its seal.
+* GIF and MP4 figures play in their tiles, resampled to run once over the 8 s loop at 15 fps.
+* Plots are cut only at empty rows and columns, so a colour bar or an axis label is whole or left out; renders are
+  cropped to fill. The Ken Burns window stays inside the image, so no black bars appear.
+
+```bash
+python -m pinneapple_lab showcase --lang en,pt --out docs/assets/showcase
+```
+
 ## Examples and use cases
 
 Every script under `examples/` (224 today, use cases included) is also a lab experiment, `example_script`. A run
