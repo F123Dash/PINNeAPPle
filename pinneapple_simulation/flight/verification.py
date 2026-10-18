@@ -33,8 +33,8 @@ from .turbulence import (
 CRUISE = {"light_ga": (55.0, 1500.0), "regional_turboprop": (120.0, 3000.0), "a320": (128.0, 3000.0),
           "motor_glider": (30.0, 1500.0)}
 # speeds for the turbulence and gust studies at 3000 m: the cruise speeds, except the glider, flown at 40 m/s
-# (CL ~0.6) as glider pilots speed up in rough air; at 30 m/s its trim CL ~0.93 leaves ~3.5 deg of alpha to the
-# clean CLmax and moderate turbulence already takes it past stall (an assumption of the studies, not a limit)
+# (CL ~0.6) as glider pilots speed up in rough air; nearer its best-glide speed little alpha margin to the clean
+# CLmax is left for gusts (an assumption of the studies, not a limit)
 ENCOUNTER_SPEED = {"light_ga": 55.0, "regional_turboprop": 120.0, "a320": 128.0, "motor_glider": 40.0}
 
 
