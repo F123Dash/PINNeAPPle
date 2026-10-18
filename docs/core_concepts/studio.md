@@ -39,7 +39,9 @@ handles half models. `scene.labels["cp"] = "Pressure coefficient Cp"` sets the c
 ## Renders
 
 `pp.viz.render(scene, out, field=..., lines=..., slice=..., view="iso", background="studio")` needs
-`pip install bpy` (Blender as a Python module, CPU Cycles).
+`pip install "bpy>=4.2"` (Blender as a Python module, CPU Cycles; tested on 4.2 LTS and 5.2, older versions raise
+an error, `blender.MIN_BPY`). The surfaces are built directly as Blender meshes with their `MATERIALS` /
+`scene.materials` (no glTF import: Blender 4.2's importer crashes the interpreter at exit).
 
 - **Field colours:** CFD colours use the jet scale, blue for low and red for high. The colour bar, with five ticks,
   is burnt into the image.
@@ -155,6 +157,61 @@ optional field colour maps on the terrain and the parts with a colour bar, and E
 ![VIPER under a 5 degree Sun](../assets/lunar_rover/viper_beauty.png)
 
 The lunar rover page ([Lunar rover terramechanics in 3D](lunar_rover_terramechanics.md)) shows these in use.
+
+## Animations: bodies moving through a scene
+
+`pinneapple_tools.visualization.studio.animation.Animation` adds time to a `Scene`: rigid tracks (an aircraft on a
+runway, a vehicle, a rotor), arrows per frame, a trail drawn up to the current time, per-vertex fields that change
+with time (e.g. a wing-load lattice) and head-up numbers. Surfaces whose `group` matches a track are given in the
+body frame and placed at frame k by `R(q_k) v + positions[k]`; quaternions are `[w, x, y, z]`, everything in the
+scene's axes.
+
+```python
+from pinneapple_tools.visualization.studio import Scene, Surface
+from pinneapple_tools.visualization.studio.animation import Animation
+from pinneapple_tools.visualization.studio.blender import render_animation
+from pinneapple_tools.visualization.studio.web import screenshot, web_viewer
+
+sc = Scene([Surface("runway", Vr, Fr, "concrete"), Surface("aircraft", Va, Fa, "paint", group="ac")])
+anim = Animation(t, camera="follow")                      # times (T,)
+anim.add_track("ac", positions, quaternions)              # (T, 3), (T, 4)
+anim.add_vectors("loads", origins, vectors, values=mag, attach="ac", label="Load [kN]")   # (T, M, 3), (T, M)
+anim.add_trail("path", positions)
+anim.add_hud("V", speed, "Speed", "m/s")
+sc.animation = anim.resample(200)                         # keeps scene.json small
+web_viewer(sc, "viewer/")                                 # play, time slider, speed, Follow, Vectors
+screenshot("viewer/", "f100.png", frame=100)              # headless Chromium (playwright)
+render_animation(sc, "frames/", camera="chase", samples=16, gif=True)   # Cycles PNGs + HUD, MP4 and GIF
+```
+
+- **Viewer:** a bottom bar with play / pause, a time slider, the playback speed (0.25x to 4x), the time, a *Follow*
+  checkbox (chase camera; orbiting still works) and a *Vectors* toggle; the HUD values sit top left and the colour
+  bars of arrows and animated fields top right. Between frames positions are linear and rotations slerp. The camera
+  fit covers the static scene and the trajectories, and the clip planes follow the distance, so a 3 km runway with a
+  37 m aircraft works. `window.studio.setFrame(k)` and `window.studio.play(true)` drive it from scripts.
+- **Blender:** `render_animation` imports the surfaces once, parents each tracked group to an Empty, draws the arrows
+  as cylinders and cones and the trails as growing tubes, burns the HUD into each PNG and encodes an H.264 MP4
+  (yuv420p) and optionally a GIF with ffmpeg. Cameras: `"chase"`, `"follow"`, `"side"`, `"tower"`, `"fixed"`.
+- `Animation.at(t)`, `pose(group, k)`, `frame(k)`, `transform(group, k, points)` give the transforms; `to_dict` /
+  `from_dict` round-trip the JSON.
+- **Colours:** arrows, trails (`add_trail(..., values=nz, label="n_z [g]", radius=..., alpha=...)`), animated
+  surface fields and static `Lines` (`cmap`, `alpha`, `radius`, `color_range`) take `cmap="jet"` or the diverging
+  `"coolwarm"` / `"bwr"` (neutral midpoint, range symmetric about zero by default); the viewer and the Blender
+  colour bars use the same stops (`compose.CMAPS`, `studio-core.js` `CMAPS`).
+- **Cinematic clips:** `render_animation(sc, "frames/", camera="chase_low", motion_blur=True, dof=5.6, haze=1.0,
+  sparkline="nz", hud_keys=["V", "nz"], trails={"alpha": 0.7}, colorbars={"lines": False}, crf=27)` and
+  `render_still(sc, "still.png", frame, size=(1920, 1080), samples=64, ...)` (same options, one frame).
+  Motion blur uses a shutter in scene seconds (default 1/30 s) and keyframes the bodies and the camera, so the
+  ground blurs and the tracked body stays sharp; `dof` is the f-stop, focused on the tracked body; `haze` is a
+  noise-modulated volume (optical depth over ten camera distances) that thins out near the tracked body. Imported
+  meshes are smooth-shaded with sharp edges above 35 degrees; materials named `asphalt` and `grass` become
+  procedural (colour patches, roughness variation, bump) and `marking` surfaces are lifted so the paint stays crisp.
+  Trails show the last `trail_seconds` (default 8 s) of the path, 0.003 x the body size thick, fading to
+  transparent at the tail and never running through the camera. Materials missing from `MATERIALS` and
+  `scene.materials` render grey and are named in the log: put a model's own material table in `scene.materials`.
+- **Panels:** `compose.compose_grid(pngs, "grid.png", labels=..., ncols=2, colorbar=(title, lo, hi, cmap))` and
+  `compose.compose_grid_video(mp4s, "grid.mp4", labels=..., colorbar=..., crf=28, webm=True)` (ffmpeg `xstack`,
+  H.264 yuv420p, optional VP9) put several clips side by side with one common colour bar.
 
 ## Particle process videos
 

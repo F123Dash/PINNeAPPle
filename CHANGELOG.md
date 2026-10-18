@@ -57,6 +57,26 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   (one process per model, comparisons recomputed over the whole zoo). `studio.render(..., surface_fields=...)`
   colours one surface by its own field (jet or the new diverging `colormap.RDBU`) with a second colour bar. Tests
   `tests/test_enso.py`.
+- Flight dynamics, `pinneapple_simulation.flight`: a 6-DOF rigid aircraft (body axes, quaternion attitude) whose
+  wing and tail loads come from the vortex lattice of `pinneapple_design.aero.vlm` solved every step with the local
+  velocity at each panel (rates, gusts that differ along the span), plus fin and fuselage build-up, engines
+  (turbofan lapse, propeller), landing-gear contact with rolling / side friction, trim, stability derivatives and
+  modes, a pilot / autopilot (attitude, altitude, heading, speed, yaw damper, take-off rotation schedule);
+  MIL-F-8785C / MIL-HDBK-1797 turbulence (Dryden and von Karman, frozen line, forming filters, an isotropic
+  divergence-free 3-D field from random Fourier modes, 1-cosine gusts, log wind profile) checked against the target
+  spectra; take-off (ground roll, V_R, lift-off, 35 ft, crosswind, gusts) with Raymer's closed form; turbulence
+  encounters with cabin accelerations and the Pratt check; four aircraft in `flight.catalog` (C172 class, ATR 72
+  class, A320 class, high-aspect-ratio motor glider) with sources and assumptions; animated 3-D scenes
+  (`flight.visuals.flight_scene`) and figures. Examples in `examples/flight_dynamics/`, guide
+  `docs/guides/flight_dynamics.md`.
+- Studio animations: `pinneapple_tools.visualization.studio.animation.Animation` (rigid tracks with quaternions,
+  per-frame arrows, trails, animated per-vertex fields, HUD values, follow camera, `resample`, `at`/`pose`),
+  `Scene.animation` in scene.json, a play / slider / speed / follow bar in the browser viewer
+  (`window.studio.setFrame`, `play`), `blender.render_animation` (Cycles frames with HUD, MP4 and GIF through
+  ffmpeg) and `web.screenshot` (headless Chromium). The sky world of `render(background="sky")` works on Blender 5.
+- Cinematic studio clips: coloured trails and diverging colour maps (`coolwarm`, `bwr`) in the viewer and Blender, `Lines.cmap/alpha/radius/color_range` drawn as wisps, `render_animation(motion_blur=, dof=, haze=, camera="chase_low", hud_keys=, sparkline=, colorbars=, exposure=)`, and `studio.compose.compose_grid` / `compose_grid_video` panels.
+- Studio renders: `blender.render_still` (1080p stills), smooth shading, procedural asphalt and grass, motion blur in scene seconds, trails over their last `trail_seconds` with a fade (viewer and Blender), haze cleared around the tracked body, `Scene.materials` / `unknown_materials()`, MP4 `crf`, viewer arrows in true cmap colours.
+- Blender renders build the meshes, materials and field attributes directly instead of importing a glTF (bpy 4.2's glTF importer crashed the interpreter at exit); `blender.MIN_BPY = (4, 2)` with a clear error below it, render tests skip on older bpy.
 - Animated showcase panel (`pinneapple_lab.showcase.panel`, `python -m pinneapple_lab showcase --lang en,pt`):
   1080 x 1350 on #090C14, a Ken Burns hero, a 3 x 3 grid of Tier A tiles and a row of two Tier B tiles, each with
   its seal and its curation headline; animated figures play once per 8 s loop; MP4 (H.264, faststart), GIF (720
