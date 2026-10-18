@@ -14,9 +14,12 @@ The committed clips are 720 x 405, H.264 at CRF 27 (each well under 3 MB), the s
 raise --size / --samples / --frames with --keep-in-out for full-resolution renders (they stay in _out/).
 """
 import argparse
+import json
 import os
 import pickle
 import shutil
+
+import numpy as np
 
 from pinneapple_simulation.flight import catalog
 from pinneapple_simulation.flight.figures import LABELS
@@ -102,7 +105,10 @@ if "gust" not in skip and not a.only:
                              camera="chase", dof=8.0, trails={"alpha": 0.7}, hud_keys=["V", "nz", "theta"],
                              sparkline="nz", colorbars=False, fps=12, mp4=True, name=f"{name}_gust_same")
         mp4s.append(r["mp4"])
-        stills.append(r["frames"][len(r["frames"]) // 2])
+        # the still: the frame where this aircraft meets the gust peak (07_same_gust.py: lead-in + t_peak_s)
+        sg = json.load(open(os.path.join(HERE, "results", "same_gust.json")))["aircraft"][name]
+        k = int(np.argmin(np.abs(np.asarray(sc.animation.times) - (1.5 + sg["t_peak_s"]))))
+        stills.append(r["frames"][min(k, len(r["frames"]) - 1)])
         labels.append(LABELS[name])
         print(name, "same gust", r["mp4"], flush=True)
     if mp4s:
