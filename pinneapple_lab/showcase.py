@@ -7,7 +7,8 @@ yuv420p, faststart), a GIF (720 wide, 12 fps, palettegen) and a still PNG.
 What goes in it, and every word of evidence on it, comes from ``<lab>/curation.json``:
 
 * tiles are picked from the curation, Tier A first (hero and grid), then the strongest Tier B (the B row); an item
-  curated at C or D is never shown, whatever the override list says;
+  curated at C to F is never shown, whatever the override list says (the seals of C to F exist, for stamping the
+  item's own figures, but the panel shows validated results only);
 * an override list (``picks``) chooses items and which of their figures to show, in order; an item lands in the
   grid only if the curation gave it A, in the B row if it gave B, so a re-curation moves it;
 * each tile's green "✓" (A) or amber "◐" (B) line is the item's curation headline, the passing check it was
@@ -35,6 +36,7 @@ import numpy as np
 from .seal import (
     BRAND_YELLOW,
     TIER_COLOURS,
+    VALIDATED,
     Seal,
     SealError,
     draw_text,
@@ -177,9 +179,9 @@ def choose_tiles(lab: Any = None, picks=None, lang: str = "en", n_grid: int = 9,
 
     def make(item, want="", frame=None):
         try:
-            s = seal_for(item, cur)
+            s = seal_for(item, cur, VALIDATED)
         except (KeyError, SealError):
-            return None                                     # unknown, C or D: never shown
+            return None                                     # unknown, or C to F: never shown
         if not s.reason:
             return None                                     # no evidence line, no tile
         f = _best_figure([x for x in _figures(s, cur) if (item, x) not in used], want)

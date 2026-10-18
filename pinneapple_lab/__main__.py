@@ -9,12 +9,16 @@
     python -m pinneapple_lab export cylinder_lbm vorticity out/cylinder_vorticity.npz
     python -m pinneapple_lab serve --host 0.0.0.0 --port 8093                # the catalogue as a web app
     python -m pinneapple_lab examples --run --match use_cases                # examples and use cases into the lab
-    python -m pinneapple_lab curate                                          # A flagship .. D not usable, per run
+    python -m pinneapple_lab curate                                          # A flagship .. F not usable, per run
     python -m pinneapple_lab brief --tier A,B --use paper -o paper_candidates.pdf     # reports, one or many items
     python -m pinneapple_lab review kepler_law --novelty 4 --story "..." --approve paper,marketing
     python -m pinneapple_lab seal repo_results/ahmed_body -o seal.svg                # the item's quality seal
     python -m pinneapple_lab stamp repo_results/ahmed_body render.jpg -o out.jpg     # seal a figure / GIF / MP4
-    python -m pinneapple_lab stamp --all --out export/sealed                         # every figure of every A/B item
+    python -m pinneapple_lab stamp --all --out export/sealed                         # every figure of every item, A-F
+    python -m pinneapple_lab stamp --all --tiers A,B --out export/validated          # only the validated items
+    python -m pinneapple_lab legend --lang pt -o seal_legend_pt.png                  # the six seals, A to F
+    python -m pinneapple_lab seal --explain em_pinn/em_tm_cavity --lang pt          # what it lacks, and how
+    python -m pinneapple_lab improve em_pinn/em_tm_cavity [--run]                   # dry run, or run and re-curate
     python -m pinneapple_lab showcase --lang en,pt --out docs/assets/showcase         # the animated panel
 Use ``--root`` (or ``$PINNEAPPLE_LAB``) to choose the database folder.
 """
@@ -39,6 +43,10 @@ def _kv(items):
         k, _, v = it.partition("=")
         out[k] = _val(v)
     return out
+
+
+TIER_NAMES_PT = {"A": "referência independente", "B": "referência pendente", "C": "verificação parcial",
+                 "D": "exploratório", "E": "problemas conhecidos", "F": "não utilizável"}
 
 
 def main(argv=None) -> int:
@@ -69,7 +77,7 @@ def main(argv=None) -> int:
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=8093)
     sv.add_argument("--refresh", type=float, default=30.0, help="seconds between re-indexing the run folders")
-    cu = sub.add_parser("curate", help="grade every run and experiment (A flagship .. D not usable)")
+    cu = sub.add_parser("curate", help="grade every run and experiment (A flagship .. F not usable)")
     cu.add_argument("--json", action="store_true", help="print the experiment table as JSON")
     rv = sub.add_parser("review", help="record a human review of an experiment (qualitative curation)")
     rv.add_argument("name")
@@ -101,19 +109,36 @@ def main(argv=None) -> int:
     st.add_argument("out", nargs="?", default="docs/lab")
     se = sub.add_parser("seal", help="write the quality seal of a curated item (tier from the curation)")
     se.add_argument("item")
-    se.add_argument("-o", "--out", required=True, help="seal.svg or seal.png")
+    se.add_argument("-o", "--out", default=None, help="seal.svg or seal.png")
+    se.add_argument("--explain", action="store_true",
+                    help="print what the item lacks for the next letter and the PINNeAPPle actions for each gap")
+    se.add_argument("--no-next", action="store_true", help="leave out the next-letter line (A-D only)")
     se.add_argument("--height", type=int, default=96)
-    se.add_argument("--no-reason", action="store_true")
+    se.add_argument("--no-reason", action="store_true", help="drop the evidence line (E and F always keep theirs)")
+    se.add_argument("--lang", default="en", choices=["en", "pt"])
+    se.add_argument("--tiers", default=None, help="refuse items outside these tiers, e.g. A,B (default: all, A-F)")
     sp = sub.add_parser("stamp", help="stamp a figure, render, GIF or video with an item's seal")
     sp.add_argument("item", nargs="?", default=None)
     sp.add_argument("file", nargs="?", default=None)
     sp.add_argument("-o", "--out", default=None, help="output file (default name.sealed.ext); with --all a folder")
-    sp.add_argument("--all", action="store_true", help="every figure of every A/B item into --out")
-    sp.add_argument("--tier", default="A,B")
+    sp.add_argument("--all", action="store_true", help="every figure of every item at --tiers into --out")
+    sp.add_argument("--tiers", "--tier", dest="tiers", default=None,
+                    help="only items at these tiers, e.g. A,B for the validated ones (default: all, A-F)")
+    sp.add_argument("--lang", default="en", choices=["en", "pt"])
     sp.add_argument("--corner", default="auto", choices=["auto", "br", "tr", "bl", "tl"])
     sp.add_argument("--size", type=float, default=0.24, help="seal width / image width")
     sp.add_argument("--opacity", type=float, default=0.95)
-    sp.add_argument("--no-reason", action="store_true")
+    sp.add_argument("--no-reason", action="store_true", help="drop the evidence line (E and F always keep theirs)")
+    sp.add_argument("--no-next", action="store_true", help="leave out the next-letter line (A-D only)")
+    im = sub.add_parser("improve", help="the suggested actions for an item's next letter; --run runs the registered "
+                                        "lab commands among them and re-curates")
+    im.add_argument("item")
+    im.add_argument("--run", action="store_true", help="run them (default: dry run, print only)")
+    im.add_argument("--dry-run", action="store_true", help="print only (the default)")
+    im.add_argument("--lang", default="en", choices=["en", "pt"])
+    lg = sub.add_parser("legend", help="the legend of the six seals, A to F (PNG)")
+    lg.add_argument("-o", "--out", required=True)
+    lg.add_argument("--lang", default="en", choices=["en", "pt"])
     sh = sub.add_parser("showcase", help="the animated showcase panel (MP4, GIF, PNG) from the curation")
     sh.add_argument("--lang", default="en", help="en, pt or en,pt")
     sh.add_argument("--out", default="docs/assets/showcase")
@@ -126,20 +151,53 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     if a.cmd == "seal":
-        from .seal import save_seal, seal_for
-        print(save_seal(seal_for(a.item, LabStore(a.root)), a.out, height=a.height, reason=not a.no_reason))
+        from .seal import SealError, save_seal, seal_for
+        try:
+            s = seal_for(a.item, LabStore(a.root), a.tiers)
+        except SealError as e:
+            print(e, file=sys.stderr)
+            return 2
+        if a.explain:
+            from .curation import next_steps
+            from .next_steps import explain
+            name = TIER_NAMES_PT if a.lang == "pt" else None
+            print(explain(next_steps(a.item, LabStore(a.root)), a.lang,
+                          f"{a.item}: {'nível' if a.lang == 'pt' else 'tier'} {s.tier}"
+                          + (f" ({name[s.tier]})" if name else "")
+                          + (f"\n{'problema' if a.lang == 'pt' else 'problem'}: {s.text(a.lang)[0]}"
+                             if s.tier in ("E", "F") else "")))
+            if not a.out:
+                return 0
+        if not a.out:
+            ap.error("seal needs -o/--out (or --explain)")
+        print(save_seal(s, a.out, height=a.height, reason=not a.no_reason, lang=a.lang, next_step=not a.no_next))
+        return 0
+    if a.cmd == "improve":
+        from .improve import improve
+        return improve(a.item, LabStore(a.root), run=a.run and not a.dry_run, lang=a.lang)
+    if a.cmd == "legend":
+        from .seal import render_legend
+        os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+        render_legend(a.lang).save(a.out)
+        print(a.out)
         return 0
     if a.cmd == "stamp":
-        from .seal import seal_for, stamp_all, stamp_file
-        kw = {"corner": a.corner, "size": a.size, "opacity": a.opacity, "reason": not a.no_reason}
+        from .seal import SealError, seal_for, stamp_all, stamp_file
+        kw = {"corner": a.corner, "size": a.size, "opacity": a.opacity, "reason": not a.no_reason, "lang": a.lang,
+              "next_step": not a.no_next}
         if a.all:
-            man = stamp_all(LabStore(a.root), a.out or "export/sealed", tiers=tuple(a.tier.split(",")), **kw)
+            man = stamp_all(LabStore(a.root), a.out or "export/sealed", tiers=a.tiers, **kw)
             for k, v in man["items"].items():
                 print(f"{v['tier']}  {len(v['files']):3d} files  {k}")
             return 0
         if not (a.item and a.file):
             ap.error("stamp needs ITEM FILE, or --all")
-        print(stamp_file(a.file, seal_for(a.item, LabStore(a.root)), a.out, **kw))
+        try:
+            s = seal_for(a.item, LabStore(a.root), a.tiers)
+        except SealError as e:
+            print(e, file=sys.stderr)
+            return 2
+        print(stamp_file(a.file, s, a.out, **kw))
         return 0
     if a.cmd == "showcase":
         from .showcase import panel
