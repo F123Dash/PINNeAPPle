@@ -41,7 +41,7 @@
     "n_t": 41
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 40.0
    },
    "label": "Grid"
@@ -75,7 +75,7 @@
     "exact": "exp(-1*alpha*pi**2*t)*sin(pi*x)"
    },
    "position": {
-    "x": 600.0,
+    "x": 580.0,
     "y": 40.0
    },
    "label": "heat equations"
@@ -87,7 +87,7 @@
     "method": "fd"
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 40.0
    },
    "label": "Finite differences"
@@ -100,7 +100,7 @@
     "lbfgs_steps": 300
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 190.0
    },
    "label": "PINN"
@@ -112,7 +112,7 @@
     "reference": "exact"
    },
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 40.0
    },
    "label": "Validation"
@@ -124,7 +124,7 @@
     "title": "Heat 1D PINN vs FD"
    },
    "position": {
-    "x": 1440.0,
+    "x": 1390.0,
     "y": 40.0
    },
    "label": "Lab seal"
@@ -134,7 +134,7 @@
    "type": "viz.plot",
    "params": {},
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 190.0
    },
    "label": "Plots"

@@ -42,7 +42,7 @@
     "n_t": 41
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 40.0
    },
    "label": "Grid"
@@ -71,7 +71,7 @@
     "exact": "sin(pi*x)*sin(pi*y)"
    },
    "position": {
-    "x": 600.0,
+    "x": 580.0,
     "y": 40.0
    },
    "label": "poisson equations"
@@ -83,7 +83,7 @@
     "method": "fd"
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 40.0
    },
    "label": "Finite differences"
@@ -96,7 +96,7 @@
     "n": 25
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 190.0
    },
    "label": "Finite elements"
@@ -112,7 +112,7 @@
     "n_collocation": 3000
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 340.0
    },
    "label": "PINN"
@@ -124,7 +124,7 @@
     "reference": "auto"
    },
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 40.0
    },
    "label": "Validation"
@@ -136,7 +136,7 @@
     "title": "poisson 2D"
    },
    "position": {
-    "x": 1440.0,
+    "x": 1390.0,
     "y": 40.0
    },
    "label": "Lab seal"
@@ -146,7 +146,7 @@
    "type": "viz.plot",
    "params": {},
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 190.0
    },
    "label": "Plots"
@@ -156,7 +156,7 @@
    "type": "viz.field3d",
    "params": {},
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 340.0
    },
    "label": "3-D viewer"
@@ -168,7 +168,7 @@
     "title": "poisson in 2-D"
    },
    "position": {
-    "x": 1440.0,
+    "x": 1390.0,
     "y": 190.0
    },
    "label": "Report"
@@ -340,8 +340,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "4ee83ec7d7",
-    "created": 1792359540.932587
+    "id": "0bcda94e60",
+    "created": 1792362481.651035
    },
    {
     "topic": "equations",
@@ -393,8 +393,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "b7f36b24a8",
-    "created": 1792359540.9326894
+    "id": "5f32c5842e",
+    "created": 1792362481.6511407
    },
    {
     "topic": "dimension",
@@ -421,8 +421,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "fe4129dbed",
-    "created": 1792359540.9327273
+    "id": "aad566a45f",
+    "created": 1792362481.6511781
    },
    {
     "topic": "dimension",
@@ -445,8 +445,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "5e64adf2a5",
-    "created": 1792359540.93275
+    "id": "b349da4980",
+    "created": 1792362481.6512022
    },
    {
     "topic": "bcs",
@@ -496,8 +496,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "aab2fc2dd5",
-    "created": 1792359540.932777
+    "id": "812fe293ff",
+    "created": 1792362481.6512291
    },
    {
     "topic": "validation",
@@ -565,8 +565,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "24f9f5639a",
-    "created": 1792359540.932808
+    "id": "1b8bc31225",
+    "created": 1792362481.651263
    },
    {
     "topic": "method",
@@ -640,8 +640,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "9973fdeb27",
-    "created": 1792359540.9328606
+    "id": "b09739e95a",
+    "created": 1792362481.6513188
    },
    {
     "topic": "method",
@@ -687,8 +687,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "ee2f97f118",
-    "created": 1792359540.932895
+    "id": "a5f090709d",
+    "created": 1792362481.6513784
    },
    {
     "topic": "method",
@@ -741,8 +741,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "e16128524f",
-    "created": 1792359540.9329169
+    "id": "3e2dc82727",
+    "created": 1792362481.6514142
    },
    {
     "topic": "hyperparameters",
@@ -828,8 +828,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "8c06423367",
-    "created": 1792359540.9329422
+    "id": "7ca3df1512",
+    "created": 1792362481.6514432
    },
    {
     "topic": "architecture",
@@ -859,8 +859,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "ad532b2ce8",
-    "created": 1792359540.9329712
+    "id": "a8de97b5f9",
+    "created": 1792362481.6514933
    },
    {
     "topic": "validation",
@@ -912,8 +912,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "a62294df3e",
-    "created": 1792359540.9329925
+    "id": "f136155fa9",
+    "created": 1792362481.6515188
    },
    {
     "topic": "validation",
@@ -940,8 +940,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "9af74e5b10",
-    "created": 1792359540.9330149
+    "id": "588425e1db",
+    "created": 1792362481.6515422
    },
    {
     "topic": "validation",
@@ -968,8 +968,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "3416fd35d1",
-    "created": 1792359540.933069
+    "id": "4a9617db39",
+    "created": 1792362481.6515603
    },
    {
     "topic": "route",
@@ -992,8 +992,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "41e61d42c6",
-    "created": 1792359540.9330928
+    "id": "5690425936",
+    "created": 1792362481.651577
    },
    {
     "topic": "dimension",
@@ -1046,8 +1046,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "b0ad45c16c",
-    "created": 1792359540.933116
+    "id": "0a1bfd5b3a",
+    "created": 1792362481.6515987
    }
   ],
   "planner": "heuristic",

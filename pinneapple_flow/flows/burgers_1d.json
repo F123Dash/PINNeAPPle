@@ -41,7 +41,7 @@
     "n_t": 51
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 40.0
    },
    "label": "Grid"
@@ -75,7 +75,7 @@
     "exact": "cole_hopf"
    },
    "position": {
-    "x": 600.0,
+    "x": 580.0,
     "y": 40.0
    },
    "label": "burgers equations"
@@ -87,7 +87,7 @@
     "method": "fd"
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 40.0
    },
    "label": "Finite differences"
@@ -104,7 +104,7 @@
     "lr": 0.002
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 190.0
    },
    "label": "PINN"
@@ -117,7 +117,7 @@
     "tolerance": 0.05
    },
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 40.0
    },
    "label": "Validation"
@@ -129,7 +129,7 @@
     "title": "Burgers PINN vs FD"
    },
    "position": {
-    "x": 1440.0,
+    "x": 1390.0,
     "y": 40.0
    },
    "label": "Lab seal"
@@ -141,7 +141,7 @@
     "animate": false
    },
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 190.0
    },
    "label": "Space-time render"

@@ -228,11 +228,57 @@ def _flight_available():
     return True, ""
 
 
+def _render_takeoff(ctx, ac, hist, m, params) -> None:
+    """Blender (Cycles, CPU) still at the 35 ft screen and a short clip of the take-off scene; skipped with a
+    warning when bpy is not installed."""
+    from pinneapple_tools.visualization.studio import blender as studio_blender
+    try:
+        import bpy
+        studio_blender._check_bpy(bpy)
+    except Exception as exc:  # noqa: BLE001 - bpy missing or too old: the take-off still runs
+        ctx.warn(f"no Blender render: {exc}")
+        return
+    import time
+
+    from pinneapple_simulation.flight.visuals import flight_scene
+    n = int(params["frames"])
+    sc = flight_scene(ac, hist, n_frames=n, title=f"{ac.info.get('type', params['aircraft'])}: take-off")
+    t = np.asarray(hist.t, float)
+    t35 = m.get("t_35ft") if isinstance(m.get("t_35ft"), (int, float)) else t[-1] / 2
+    k = int(np.clip(round((t35 - t[0]) / max(t[-1] - t[0], 1e-9) * (n - 1)), 0, n - 1))
+    out = ctx.path("render")
+    out.mkdir(parents=True, exist_ok=True)
+    t0 = time.perf_counter()
+    still = studio_blender.render_still(sc, str(out / "takeoff_still.png"), k, size=(960, 540),
+                                        samples=int(params["samples"]) * 2, camera=params["camera"])
+    clip = studio_blender.render_animation(sc, str(out), size=(480, 270), samples=int(params["samples"]), fps=12,
+                                           mp4=True, camera=params["camera"], hud_keys=["V", "h", "nz"],
+                                           name="takeoff_clip")
+    ctx.metric("render_seconds", round(time.perf_counter() - t0, 1), "Cycles on this machine's CPU, still + clip")
+    ctx.report["figures"].append({"path": str(still), "name": "takeoff_render",
+                                  "caption": f"Blender Cycles, frame {k} of {n} (the 35 ft screen)"})
+    if clip.get("mp4"):
+        ctx.view("video", {"path": str(clip["mp4"]), "poster": str(still),
+                           "caption": f"{n} frames, 480x270, {params['samples']} samples, camera {params['camera']}"})
+    for f in clip.get("frames") or []:                   # the mp4 holds them
+        try:
+            __import__("os").remove(f)
+        except OSError:
+            pass
+
+
 @node("flight.takeoff", "Aircraft take-off (6-DOF)", category="Systems",
       outputs=[Port("metrics", "metrics"), Port("series", "series"), Port("figure", "figure", required=False)],
       params=[Param("aircraft", "str", "light_ga", help="name in pinneapple_simulation.flight.catalog"),
-              Param("kind", "enum", "light", choices=["light", "transport"])],
-      calls="pinneapple_simulation.flight.takeoff.simulate_takeoff + takeoff_metrics + raymer_variants",
+              Param("kind", "enum", "light", choices=["light", "transport"]),
+              Param("render", "enum", "none", choices=["none", "blender"],
+                    help="blender: a Cycles still at the 35 ft screen and a short clip (needs bpy >= 4.2)"),
+              Param("camera", "enum", "side", choices=["side", "chase_low", "chase", "tower", "follow"]),
+              Param("frames", "int", 24, minimum=4, maximum=480, help="clip frames"),
+              Param("samples", "int", 8, minimum=1, maximum=512, help="Cycles samples per pixel")],
+      calls="pinneapple_simulation.flight.takeoff.simulate_takeoff + takeoff_metrics + raymer_variants; "
+            "pinneapple_simulation.flight.visuals.flight_scene + pinneapple_tools.visualization.studio.blender."
+            "render_animation / render_still",
       available=_flight_available)
 def takeoff(ctx, inputs, params):
     """Simulate a take-off with the 6-DOF flight library (vortex lattice in the loop) and compare the distance
@@ -245,7 +291,7 @@ def takeoff(ctx, inputs, params):
     )
     ac = catalog.build(params["aircraft"])
     ctx.decide("flight.raymer", "take-off distance compared with Raymer's closed form")
-    hist = simulate_takeoff(ac, kind=params["kind"])
+    hist = simulate_takeoff(ac, kind=params["kind"], record_gamma=params["render"] == "blender")
     m = takeoff_metrics(ac, hist)
     rv = raymer_variants(ac, m, params["kind"])        # the same two closed forms the flight guide quotes
     for k, v in m.items():
@@ -271,6 +317,8 @@ def takeoff(ctx, inputs, params):
     ax.set_ylabel("height [m]")
     ax.legend(fontsize=8)
     fig_a = ctx.figure(fig, "takeoff", "take-off trajectory")
+    if params["render"] == "blender":
+        _render_takeoff(ctx, ac, hist, m, params)
     a, b = rv["raymer_1p1Vs"], rv["raymer_sim_VLOF"]
     ctx.summary(f"ground roll {m['ground_roll_m']:.0f} m, 35 ft at {m['distance_35ft_m']:.0f} m; Raymer 17.8: "
                 f"{a['total_35ft_m']:.0f} m with V_LOF = 1.1 V_s ({100 * (a['sim_over_raymer'] - 1):+.0f}%), "

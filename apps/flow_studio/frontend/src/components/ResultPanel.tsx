@@ -62,6 +62,13 @@ export function ResultPanel({ result, onAccept }: { result: NodeResult | null; o
       {views.architecture && (
         <div><div className="font-semibold text-[11.5px] mb-1">Architecture</div><LayerGraph graph={views.architecture} /></div>
       )}
+      {views.video && (
+        <figure data-testid="video">
+          <video src={artifactUrl(views.video.path)} poster={views.video.poster ? artifactUrl(views.video.poster) : undefined}
+            controls loop muted playsInline className="w-full rounded border border-slate-100" />
+          {views.video.caption && <figcaption className="text-[10.5px] text-slate-500">{views.video.caption}</figcaption>}
+        </figure>
+      )}
       {views.scene && <div><div className="font-semibold text-[11.5px] mb-1">3-D view</div><Viewer3D scene={views.scene} /></div>}
       {(r.figures || []).map((f: any) => (
         <figure key={f.path}>

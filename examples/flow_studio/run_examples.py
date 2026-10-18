@@ -41,7 +41,7 @@ def run_one(name: str, cache: bool = False) -> dict:
     res = pf.run(flow, workdir=WORK, cache=cache)
     out = RESULTS / name
     out.mkdir(parents=True, exist_ok=True)
-    for old in out.glob("*.png"):
+    for old in [*out.glob("*.png"), *out.glob("*.mp4")]:
         old.unlink()
     nodes = {}
     for nid, s in res.nodes.items():
@@ -55,6 +55,11 @@ def run_one(name: str, cache: bool = False) -> dict:
             except OSError:
                 pass
             del i
+        vid = (rep.get("views") or {}).get("video")
+        if vid and Path(vid["path"]).is_file():             # a rendered clip (small mp4) is kept with the results
+            import shutil
+            shutil.copy(vid["path"], out / f"{nid}_clip.mp4")
+            figs.append(f"{nid}_clip.mp4")
         nodes[nid] = {"type": flow.node(nid).type, "status": s["status"], "seconds": s["seconds"],
                       "error": s["error"], "summary": rep.get("summary"), "metrics": rep.get("metrics"),
                       "warnings": rep.get("warnings"), "tables": rep.get("tables"), "figures": figs}

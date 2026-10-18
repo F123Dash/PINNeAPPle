@@ -9,7 +9,11 @@
    "type": "flight.takeoff",
    "params": {
     "aircraft": "light_ga",
-    "kind": "light"
+    "kind": "light",
+    "render": "blender",
+    "camera": "side",
+    "frames": 36,
+    "samples": 8
    },
    "position": {
     "x": 40.0,
@@ -24,7 +28,7 @@
     "title": "take-off"
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 40.0
    },
    "label": "Report"

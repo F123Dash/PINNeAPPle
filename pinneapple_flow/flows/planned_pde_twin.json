@@ -37,7 +37,7 @@
     }
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 40.0
    },
    "label": "Live data"
@@ -51,7 +51,7 @@
     ]
    },
    "position": {
-    "x": 600.0,
+    "x": 580.0,
     "y": 40.0
    },
    "label": "Digital twin"
@@ -61,7 +61,7 @@
    "type": "viz.field3d",
    "params": {},
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 40.0
    },
    "label": "Twin 3-D view"
@@ -73,7 +73,7 @@
     "title": "digital twin"
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 190.0
    },
    "label": "Report"
@@ -151,8 +151,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "c1e8de6069",
-    "created": 1792359540.940872
+    "id": "4248f2342a",
+    "created": 1792362481.6592453
    },
    {
     "topic": "twin",
@@ -198,8 +198,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "fae8831759",
-    "created": 1792359540.940903
+    "id": "f579b5a40a",
+    "created": 1792362481.6592834
    },
    {
     "topic": "twin",
@@ -243,8 +243,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "3acae4e043",
-    "created": 1792359540.9409285
+    "id": "f8eb2d4e75",
+    "created": 1792362481.6593142
    },
    {
     "topic": "twin",
@@ -309,8 +309,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "87581ffc4a",
-    "created": 1792359540.9409518
+    "id": "c1c3252a10",
+    "created": 1792362481.6593397
    },
    {
     "topic": "twin",
@@ -337,8 +337,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "5343f769ad",
-    "created": 1792359540.9409757
+    "id": "9c9c4eb285",
+    "created": 1792362481.659402
    },
    {
     "topic": "twin",
@@ -364,8 +364,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "9fc3f88a6f",
-    "created": 1792359540.940995
+    "id": "154a000eab",
+    "created": 1792362481.6594276
    },
    {
     "topic": "route",
@@ -388,8 +388,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "42ecc27358",
-    "created": 1792359540.941013
+    "id": "157e8aec1f",
+    "created": 1792362481.659448
    }
   ],
   "planner": "heuristic",

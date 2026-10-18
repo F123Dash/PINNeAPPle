@@ -41,7 +41,7 @@
     "n_t": 41
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 40.0
    },
    "label": "Grid"
@@ -75,7 +75,7 @@
     "exact": "exp(-1*alpha*pi**2*t)*sin(pi*x)"
    },
    "position": {
-    "x": 600.0,
+    "x": 580.0,
     "y": 40.0
    },
    "label": "heat equations"
@@ -87,7 +87,7 @@
     "method": "fd"
    },
    "position": {
-    "x": 880.0,
+    "x": 850.0,
     "y": 40.0
    },
    "label": "Synthetic truth (FD)"
@@ -100,7 +100,7 @@
     "noise": 0.01
    },
    "position": {
-    "x": 1160.0,
+    "x": 1120.0,
     "y": 40.0
    },
    "label": "Sensors (1% noise)"
@@ -142,7 +142,7 @@
     "n_t": 41
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 190.0
    },
    "label": "Grid"
@@ -177,7 +177,7 @@
     ]
    },
    "position": {
-    "x": 600.0,
+    "x": 580.0,
     "y": 190.0
    },
    "label": "heat equations"
@@ -193,7 +193,7 @@
     "lbfgs_steps": 200
    },
    "position": {
-    "x": 1440.0,
+    "x": 1390.0,
     "y": 40.0
    },
    "label": "Inverse PINN"
@@ -214,7 +214,7 @@
     "n": 41
    },
    "position": {
-    "x": 1440.0,
+    "x": 1390.0,
     "y": 190.0
    },
    "label": "Calibration (FD)"

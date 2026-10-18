@@ -33,7 +33,7 @@
     }
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 40.0
    },
    "label": "DeepONet"
@@ -52,7 +52,7 @@
     }
    },
    "position": {
-    "x": 320.0,
+    "x": 310.0,
     "y": 190.0
    },
    "label": "FNO"
@@ -64,7 +64,7 @@
     "title": "Operators on Burgers"
    },
    "position": {
-    "x": 600.0,
+    "x": 580.0,
     "y": 40.0
    },
    "label": "Report"

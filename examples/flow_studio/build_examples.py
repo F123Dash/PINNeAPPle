@@ -167,7 +167,8 @@ def takeoff():
     fb = FlowBuilder("Aircraft take-off (flight library)",
                      "6-DOF take-off of the light-GA aircraft with the vortex lattice in the loop, against Raymer's "
                      "closed form (pinneapple_simulation.flight).")
-    t = fb.add("takeoff", "flight.takeoff", {"aircraft": "light_ga", "kind": "light"}, label="Take-off")
+    t = fb.add("takeoff", "flight.takeoff", {"aircraft": "light_ga", "kind": "light", "render": "blender",
+                                             "camera": "side", "frames": 36, "samples": 8}, label="Take-off")
     r = fb.add("report", "export.report", {"title": "take-off"}, label="Report")
     fb.connect(t, "metrics", r, "items")
     return fb.flow({"kind": "reproduction"})

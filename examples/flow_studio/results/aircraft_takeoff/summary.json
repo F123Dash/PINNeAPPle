@@ -2,7 +2,7 @@
  "flow": "aircraft_takeoff",
  "title": "Aircraft take-off (flight library)",
  "status": "done",
- "wall_seconds": 19.9,
+ "wall_seconds": 94.5,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -12,9 +12,9 @@
   "takeoff": {
    "type": "flight.takeoff",
    "status": "done",
-   "seconds": 16.36415934562683,
+   "seconds": 89.66273832321167,
    "error": null,
-   "summary": "ground roll 244 m, 35 ft at 403 m (Raymer 368 m, +9%)",
+   "summary": "ground roll 244 m, 35 ft at 403 m; Raymer 17.8: 311 m with V_LOF = 1.1 V_s (+30%), 410 m with the simulated V_LOF and rotation (-2%)",
    "metrics": {
     "mass_kg": 1100.0,
     "V_R": 28.67832007979312,
@@ -47,33 +47,39 @@
     "heading_at_LOF_deg": 5.448781915913358e-16,
     "nz_max": 1.0870426482296196,
     "peak_gear_load_kN": 4.664726451110001,
-    "raymer_S_ground_m": 176.14521712036043,
-    "raymer_S_rotation_m": 86.01969549298356,
-    "raymer_S_transition_m": 66.43652136429256,
-    "raymer_S_climb_m": 39.74865616190832,
-    "raymer_total_35ft_m": 368.3500901395449,
-    "raymer_V_LOF": 28.67323183099452,
-    "raymer_V_stall": 26.066574391813198,
-    "raymer_T_07VLOF_N": 2906.4939864392613,
-    "raymer_K_T": 0.2494362764449969,
-    "raymer_K_A": -2.7446813207649207e-05,
-    "raymer_CL_ground": 0.4449983468301043,
-    "raymer_CD0": 0.03119366776913671,
-    "raymer_K_induced_ground": 0.03810150555288905,
-    "raymer_climb_gradient_pct": 14.655772331763265,
-    "raymer_mu": 0.02,
-    "raymer_t_rotation_s": 3.0
+    "raymer_1p1Vs_total_35ft_m": {
+     "value": 311.0036264775558,
+     "how": "Raymer sec. 17.8, V_LOF = 1.1 V_stall, rotation 1 s (light) / 3 s (transport)"
+    },
+    "sim_over_raymer_1p1Vs": {
+     "value": 1.295612117527413,
+     "how": "simulated distance to 35 ft / closed form"
+    },
+    "raymer_sim_VLOF_total_35ft_m": {
+     "value": 409.8572551428263,
+     "how": "Raymer sec. 17.8 with the simulated V_LOF and rotation time"
+    },
+    "sim_over_raymer_sim_VLOF": {
+     "value": 0.9831229336635138,
+     "how": "simulated distance to 35 ft / closed form"
+    },
+    "render_seconds": {
+     "value": 70.0,
+     "how": "Cycles on this machine's CPU, still + clip"
+    }
    },
    "warnings": [],
    "tables": [],
    "figures": [
-    "takeoff_takeoff.png"
+    "takeoff_takeoff.png",
+    "takeoff_takeoff_render.png",
+    "takeoff_clip.mp4"
    ]
   },
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.0021038055419921875,
+   "seconds": 0.0015578269958496094,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
