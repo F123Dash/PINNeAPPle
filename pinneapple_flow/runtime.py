@@ -44,6 +44,16 @@ from .schema import Flow, as_flow, check_flow
 ADAPTER_KIND = "pinneapple_flow.node"
 STATUS = {"pending": "queued", "running": "running", "done": "done", "failed": "failed", "skipped": "cached",
           "cancelled": "cancelled"}
+NODE_STATES = ("queued", "running", "done", "degraded", "not_run", "failed", "cached", "cancelled")
+
+
+class NotRun(Exception):
+    """Raised by a node (``ctx.not_run(reason)``) that cannot run here: the node finishes ``not_run`` with the
+    reason, outputs nothing, and the nodes that need its outputs finish ``not_run`` too (not ``failed``)."""
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = str(reason)
 
 
 def default_workdir() -> Path:
@@ -66,6 +76,17 @@ class NodeContext:
                                        "summary": "", "decisions": []}
         self.upstream_reports: dict[str, dict[str, Any]] = {}
         self.explicit: set[str] = set()                 # parameters the flow document set (not defaults)
+
+    # -- outcome ---------------------------------------------------------------------------------------------------
+    def not_run(self, reason: str):
+        """Finish this node as ``not_run`` (it did not run, for ``reason``: a missing tool, a missing input)."""
+        raise NotRun(reason)
+
+    def degrade(self, reason: str) -> None:
+        """Mark this node ``degraded``: it ran, but on a declared fallback (``reason`` says which)."""
+        self.report["state"] = "degraded"
+        self.report.setdefault("degraded", []).append(str(reason))
+        self.warn(f"degraded: {reason}")
 
     # -- logging and report ----------------------------------------------------------------------------------------
     def log(self, msg: str) -> None:
@@ -201,41 +222,56 @@ class FlowNodeAdapter(Adapter):
     kind = ADAPTER_KIND
 
     def available(self, step: Step | None = None):
-        if step is None:
-            return True, ""
-        spec = REGISTRY.get(step.params.get("node_type", ""))
-        if spec is None:
+        # never refuse a step: a node whose library is missing finishes ``not_run`` with the reason (see run)
+        if step is not None and REGISTRY.get(step.params.get("node_type", "")) is None:
             return False, f"unknown node type {step.params.get('node_type')!r}"
-        return spec.available()
+        return True, ""
+
+    @staticmethod
+    def _finish(ctx: StepContext, report: dict[str, Any], ports: dict[str, Any]) -> dict[str, Any]:
+        report = _plain(report)
+        (Path(ctx.workdir) / "report.json").write_text(json.dumps(report, indent=1))
+        return {"ports": _plain(ports), "report": report}
 
     def run(self, ctx: StepContext) -> dict[str, Any]:
         p = ctx.params
         spec = REGISTRY[p["node_type"]]
-        inputs: dict[str, Any] = {}
-        for port, sources in (p.get("inputs") or {}).items():
-            vals = []
-            for src, src_port in sources:
-                up = ctx.upstream.get(src)
-                if up is None:
-                    raise StepFailed(f"upstream node {src!r} has no outputs")
-                ports = (up.get("outputs") or {}).get("ports") or {}
-                if src_port not in ports:
-                    raise StepFailed(f"upstream node {src!r} produced no {src_port!r}")
-                vals.append(ports[src_port])
-            pspec = spec.input(port)
-            inputs[port] = vals if (pspec is not None and pspec.multiple) else (vals[0] if vals else None)
         nctx = NodeContext(ctx.step.id, spec.type, ctx.workdir, ctx.log, ctx.should_stop, p.get("meta") or {})
-        nctx.upstream_reports = {k: (v.get("outputs") or {}).get("report") or {} for k, v in ctx.upstream.items()}
-        nctx.explicit = set((p.get("params") or {}).keys())
-        params = spec.resolved(p.get("params") or {})
-        ctx.log(f"{spec.type}: {spec.calls or spec.title}")
-        out = spec.fn(nctx, inputs, params) or {}
+        try:
+            ok, why = spec.available()
+            if not ok:
+                raise NotRun(why or "not available here")
+            inputs: dict[str, Any] = {}
+            for port, sources in (p.get("inputs") or {}).items():
+                pspec = spec.input(port)
+                vals = []
+                for src, src_port in sources:
+                    up = ctx.upstream.get(src)
+                    if up is None:
+                        raise StepFailed(f"upstream node {src!r} has no outputs")
+                    urep = (up.get("outputs") or {}).get("report") or {}
+                    if urep.get("state") == "not_run":
+                        if pspec is not None and not pspec.required:
+                            continue                             # an optional input from a node that did not run
+                        raise NotRun(f"upstream node {src!r} did not run: {urep.get('not_run_reason', '')}")
+                    ports = (up.get("outputs") or {}).get("ports") or {}
+                    if src_port not in ports:
+                        raise StepFailed(f"upstream node {src!r} produced no {src_port!r}")
+                    vals.append(ports[src_port])
+                inputs[port] = vals if (pspec is not None and pspec.multiple) else (vals[0] if vals else None)
+            nctx.upstream_reports = {k: (v.get("outputs") or {}).get("report") or {} for k, v in ctx.upstream.items()}
+            nctx.explicit = set((p.get("params") or {}).keys())
+            params = spec.resolved(p.get("params") or {})
+            ctx.log(f"{spec.type}: {spec.calls or spec.title}")
+            out = spec.fn(nctx, inputs, params) or {}
+        except NotRun as nr:
+            ctx.log(f"not run: {nr.reason}")
+            nctx.report.update(state="not_run", not_run_reason=nr.reason, summary=f"not run: {nr.reason}")
+            return self._finish(ctx, nctx.report, {})
         unknown = set(out) - {o.name for o in spec.outputs}
         if unknown:
             raise StepFailed(f"node returned unknown outputs {sorted(unknown)}")
-        report = _plain(nctx.report)
-        (Path(ctx.workdir) / "report.json").write_text(json.dumps(report, indent=1))
-        return {"ports": _plain(out), "report": report}
+        return self._finish(ctx, nctx.report, out)
 
 
 if ADAPTER_KIND not in ADAPTERS:
@@ -307,7 +343,11 @@ def node_states(runner: WorkflowRunner, run_id: str, *, with_logs: bool = False)
     out = {}
     for s in runner.steps(run_id):
         outputs = s.get("outputs") or {}
-        d = {"status": STATUS.get(s["status"], s["status"]), "error": s.get("error"),
+        status = STATUS.get(s["status"], s["status"])
+        state = (outputs.get("report") or {}).get("state")
+        if state in ("not_run", "degraded") and status in ("done", "cached"):
+            status = state                                  # did not run / ran on a declared fallback
+        d = {"status": status, "error": s.get("error"),
              "seconds": s.get("seconds"), "attempts": s.get("attempts"), "outputs": outputs.get("ports") or {},
              "report": outputs.get("report") or {}, "workdir": str(runner.step_workdir(run_id, s["step_id"])),
              "reused_from": s.get("reused_from")}

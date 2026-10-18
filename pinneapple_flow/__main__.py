@@ -121,6 +121,23 @@ def cmd_autocalls(a) -> int:
     return 0
 
 
+def cmd_references(a) -> int:
+    from .references import registry, verify_registry
+    if not a.verify:
+        for k, v in registry().items():
+            print(f"{k:<26} {v.get('year')}  {v.get('title', '')[:80]}")
+        return 0
+    res = verify_registry()
+    for k, v in res.items():
+        tm = "" if v.get("title_match") is None else ("  title ok" if v["title_match"] else
+                                                      f"  title differs: {v.get('registered_title')!r}")
+        print(f"{k:<26} {v['status']:<11} {v.get('source', '')}{tm}")
+    bad = [k for k, v in res.items() if v["status"] == "not found" or v.get("title_match") is False]
+    print(f"{len(res)} DOIs: {sum(v['status'] == 'verified' for v in res.values())} verified, "
+          f"{sum(v['status'] == 'unverified' for v in res.values())} not checkable here, {len(bad)} problems")
+    return 1 if bad else 0
+
+
 def cmd_studio(a) -> int:
     from .studio import serve
     return serve(host=a.host, port=a.port, open_browser=not a.no_browser, env_file=a.env,
@@ -162,6 +179,9 @@ def main(argv=None) -> int:
     cv = sub.add_parser("coverage", help="which library capabilities are nodes (markdown table)")
     cv.add_argument("-o", "--output")
     cv.set_defaults(fn=cmd_coverage)
+    rf = sub.add_parser("references", help="the curated reference registry; --verify resolves the DOIs online")
+    rf.add_argument("--verify", action="store_true")
+    rf.set_defaults(fn=cmd_references)
     ac = sub.add_parser("autocalls", help="regenerate the nodes generated from the public API (autocalls.json)")
     ac.add_argument("--no-check", action="store_true", help="skip calling each function with its defaults")
     ac.set_defaults(fn=cmd_autocalls)

@@ -185,6 +185,22 @@ RULES: dict[str, Rule] = {r.id: r for r in [
 ]}
 
 
+def register_rule(r: Rule) -> Rule:
+    """Add a heuristic rule (another package's decisions). It must cite registered references
+    (:func:`pinneapple_flow.references.register_references` first) or say why it has none; an existing id is
+    refused unless the rule is the same."""
+    from .references import registry
+    missing = [k for k in r.cites if k not in registry()]
+    if missing:
+        raise ValueError(f"rule {r.id!r} cites unknown references {missing}")
+    if not r.cites and not r.uncited:
+        raise ValueError(f"rule {r.id!r} needs cites or an uncited reason")
+    if r.id in RULES and RULES[r.id] != r:
+        raise ValueError(f"rule {r.id!r} is already registered differently")
+    RULES[r.id] = r
+    return r
+
+
 def rule(rule_id: str) -> Rule:
     if rule_id not in RULES:
         raise KeyError(f"unknown rule {rule_id!r}")

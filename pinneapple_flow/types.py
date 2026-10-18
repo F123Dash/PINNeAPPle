@@ -45,3 +45,19 @@ def compatible(source: str, target: str) -> bool:
     if source not in PORT_TYPES or target not in PORT_TYPES:
         return False
     return source == target or target == "any" or source == "any" or (source, target) in CONVERSIONS
+
+
+def register_port_type(name: str, description: str, *, converts_to=(), converts_from=()) -> None:
+    """Add a port type (for another package's node types, e.g. a CFD case). ``converts_to`` / ``converts_from``:
+    existing types it may feed / be fed from although the names differ. Re-registering the same description is a
+    no-op; a different one for an existing name is refused, so documents stay portable."""
+    global CONVERSIONS
+    if not name or not name.replace("_", "").isalnum() or not name[0].isalpha():
+        raise ValueError(f"port type {name!r}: letters, digits and _ only, starting with a letter")
+    if name in PORT_TYPES and PORT_TYPES[name] != description:
+        raise ValueError(f"port type {name!r} is already registered with another meaning")
+    unknown = [t for t in (*converts_to, *converts_from) if t not in PORT_TYPES and t != name]
+    if unknown:
+        raise ValueError(f"unknown port types {unknown}")
+    PORT_TYPES[name] = description
+    CONVERSIONS = frozenset(CONVERSIONS | {(name, t) for t in converts_to} | {(t, name) for t in converts_from})

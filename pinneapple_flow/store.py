@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -36,9 +37,19 @@ def redact(url: str) -> str:
     return re.sub(r"(://[^:/@]+:)[^@]*@", r"\1***@", url)
 
 
+_PREFIX = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
+
+
 class FlowStore:
-    def __init__(self, url: str | None = None):
+    """``table_prefix``: put the tables under a prefix (``flow_`` -> ``flow_flows``, ``flow_runs``, ...) when they
+    share an application's database; default ``$PINNEAPPLE_FLOW_TABLE_PREFIX`` or none."""
+
+    def __init__(self, url: str | None = None, *, table_prefix: str | None = None):
         import sqlalchemy as sa
+        prefix = os.environ.get("PINNEAPPLE_FLOW_TABLE_PREFIX", "") if table_prefix is None else table_prefix
+        if prefix and not _PREFIX.match(prefix):
+            raise ValueError(f"table prefix {prefix!r}: lower-case letters, digits and _, starting with a letter")
+        self.table_prefix = prefix
         self.url = url or default_url()
         kw: dict[str, Any] = {"future": True}
         if self.url.startswith("sqlite"):
@@ -52,40 +63,48 @@ class FlowStore:
                 cur.close()
         md = sa.MetaData()
         self.flows = sa.Table(
-            "flows", md, sa.Column("id", sa.String(64), primary_key=True), sa.Column("name", sa.String(200)),
+            prefix + "flows", md, sa.Column("id", sa.String(64), primary_key=True),
+            sa.Column("name", sa.String(200)),
             sa.Column("description", sa.Text), sa.Column("created", sa.Float), sa.Column("updated", sa.Float),
             sa.Column("latest_version", sa.Integer))
         self.versions = sa.Table(
-            "flow_versions", md, sa.Column("flow_id", sa.String(64), primary_key=True),
+            prefix + "flow_versions", md, sa.Column("flow_id", sa.String(64), primary_key=True),
             sa.Column("version", sa.Integer, primary_key=True), sa.Column("document", sa.Text),
             sa.Column("note", sa.String(500)), sa.Column("created", sa.Float))
         self.runs = sa.Table(
-            "runs", md, sa.Column("id", sa.String(80), primary_key=True), sa.Column("flow_id", sa.String(64)),
+            prefix + "runs", md, sa.Column("id", sa.String(80), primary_key=True), sa.Column("flow_id", sa.String(64)),
             sa.Column("version", sa.Integer), sa.Column("status", sa.String(20)), sa.Column("created", sa.Float),
             sa.Column("finished", sa.Float), sa.Column("workdir", sa.Text), sa.Column("document", sa.Text))
         self.nodes = sa.Table(
-            "node_results", md, sa.Column("run_id", sa.String(80), primary_key=True),
+            prefix + "node_results", md, sa.Column("run_id", sa.String(80), primary_key=True),
             sa.Column("node_id", sa.String(64), primary_key=True), sa.Column("status", sa.String(20)),
             sa.Column("outputs", sa.Text), sa.Column("report", sa.Text), sa.Column("error", sa.Text),
             sa.Column("seconds", sa.Float), sa.Column("workdir", sa.Text), sa.Column("updated", sa.Float))
         self.decisions = sa.Table(
-            "decisions", md, sa.Column("id", sa.String(40), primary_key=True), sa.Column("flow_id", sa.String(64)),
+            prefix + "decisions", md, sa.Column("id", sa.String(40), primary_key=True), sa.Column("flow_id", sa.String(64)),
             sa.Column("version", sa.Integer), sa.Column("run_id", sa.String(80)), sa.Column("node_id", sa.String(64)),
             sa.Column("topic", sa.String(40)), sa.Column("confidence", sa.Float), sa.Column("no_reference", sa.Boolean),
             sa.Column("record", sa.Text), sa.Column("created", sa.Float))
         self.custom = sa.Table(
-            "custom_nodes", md, sa.Column("type", sa.String(64), primary_key=True), sa.Column("doc", sa.Text),
+            prefix + "custom_nodes", md, sa.Column("type", sa.String(64), primary_key=True), sa.Column("doc", sa.Text),
             sa.Column("created", sa.Float))
         md.create_all(self.engine)
         self.sa = sa
 
     # -- flows -----------------------------------------------------------------------------------------------------
     def save_flow(self, flow: Flow | dict, note: str = "") -> int:
-        """Store a new version of the flow (created on first save); returns the version number."""
+        """Store a new version of the flow (created on first save); returns the version number. A document equal
+        to the latest version creates nothing and returns that version."""
         flow = as_flow(flow)
         sa, now = self.sa, time.time()
+        doc = flow.to_json(0)
         with self.engine.begin() as c:
             row = c.execute(sa.select(self.flows.c.latest_version).where(self.flows.c.id == flow.id)).first()
+            if row:
+                last = c.execute(sa.select(self.versions.c.document).where(
+                    (self.versions.c.flow_id == flow.id) & (self.versions.c.version == row[0]))).first()
+                if last and last[0] == doc:
+                    return int(row[0])
             version = (row[0] if row else 0) + 1
             if row:
                 c.execute(self.flows.update().where(self.flows.c.id == flow.id).values(
@@ -93,7 +112,7 @@ class FlowStore:
             else:
                 c.execute(self.flows.insert().values(id=flow.id, name=flow.name, description=flow.description,
                                                      created=now, updated=now, latest_version=version))
-            c.execute(self.versions.insert().values(flow_id=flow.id, version=version, document=flow.to_json(0),
+            c.execute(self.versions.insert().values(flow_id=flow.id, version=version, document=doc,
                                                     note=note[:500], created=now))
         from .decisions import collect
         self.record_decisions(flow.id, collect(flow), version=version)

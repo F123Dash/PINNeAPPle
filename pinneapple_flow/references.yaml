@@ -458,3 +458,114 @@ roache1998verification:
   url: "https://isbnsearch.org/isbn/0913478083"
   kind: book
   topics: [verification, grid_convergence]
+
+# ---- generic CFD references, contributed by the PINNeAPPle-CFD flow mode (pinneapple_cfd/fluxos/referencias.yaml,
+# entries marked generica: true). `checked` says how each was checked; doi.org and Crossref were blocked by the network
+# of both sessions that handled them, so the DOIs were not resolved online yet: run
+# `python -m pinneapple_flow references --verify` on a machine with network access.
+
+launder1974ke:
+  title: "The numerical computation of turbulent flows"
+  authors: [B. E. Launder, D. B. Spalding]
+  year: 1974
+  venue: "Computer Methods in Applied Mechanics and Engineering 3(2), 269-289"
+  doi: "10.1016/0045-7825(74)90029-2"
+  kind: article
+  topics: [turbulence, k_epsilon]
+  checked: "text cited in the CFD repository's method catalogue (launder_spalding_1974); DOI not resolved online"
+
+menter1994sst:
+  title: "Two-equation eddy-viscosity turbulence models for engineering applications"
+  authors: [F. R. Menter]
+  year: 1994
+  venue: "AIAA Journal 32(8), 1598-1605"
+  doi: "10.2514/3.12149"
+  kind: article
+  topics: [turbulence, k_omega_sst]
+  checked: "DOI not resolved online; the CFD method catalogue cites SST through the OpenFOAM documentation"
+
+white2011fm:
+  title: "Fluid Mechanics, 7th ed."
+  authors: [F. M. White]
+  year: 2011
+  venue: "McGraw-Hill"
+  kind: book
+  topics: [transition, pipe_flow, regimes]
+  checked: "cited in the CFD method catalogue (white_fm): pipe transition Re_D ~ 2300, fully turbulent ~ 4000"
+
+anderson2003mcf:
+  title: "Modern Compressible Flow, 3rd ed."
+  authors: [J. D. Anderson]
+  year: 2003
+  venue: "McGraw-Hill"
+  kind: book
+  topics: [compressible, mach]
+  checked: "cited in the CFD method catalogue (anderson_mcf): compressibility negligible below Mach ~0.3"
+
+hirt1981vof:
+  title: "Volume of fluid (VOF) method for the dynamics of free boundaries"
+  authors: [C. W. Hirt, B. D. Nichols]
+  year: 1981
+  venue: "Journal of Computational Physics 39(1), 201-225"
+  doi: "10.1016/0021-9991(81)90145-5"
+  kind: article
+  topics: [multiphase, vof]
+  checked: "text cited in the CFD method catalogue (hirt_nichols_1981); DOI not resolved online"
+
+elghobashi1994:
+  title: "On predicting particle-laden turbulent flows"
+  authors: [S. Elghobashi]
+  year: 1994
+  venue: "Applied Scientific Research 52, 309-329"
+  doi: "10.1007/BF00936835"
+  kind: article
+  topics: [particles, coupling]
+  checked: "text cited in the CFD method catalogue (elghobashi_1994); DOI not resolved online"
+
+patankar1980:
+  title: "Numerical Heat Transfer and Fluid Flow"
+  authors: [S. V. Patankar]
+  year: 1980
+  venue: "Hemisphere"
+  kind: book
+  topics: [fvm, simple, heat_transfer]
+  checked: "cited in the CFD method catalogue (patankar_1980)"
+
+incropera2007:
+  title: "Fundamentals of Heat and Mass Transfer, 6th ed."
+  authors: [F. P. Incropera, D. P. DeWitt, T. L. Bergman, A. S. Lavine]
+  year: 2007
+  venue: "Wiley"
+  kind: book
+  topics: [heat_transfer, conduction]
+  checked: "cited by the CFD repository for the series solution of a plate heated on top (eq. 4.19); edition to be confirmed"
+
+colebrook1939:
+  title: "Turbulent flow in pipes, with particular reference to the transition region between the smooth and rough pipe laws"
+  authors: [C. F. Colebrook]
+  year: 1939
+  venue: "Journal of the Institution of Civil Engineers 11(4), 133-156"
+  doi: "10.1680/ijoti.1939.13150"
+  kind: article
+  topics: [pipe_flow, friction]
+  checked: "text cited in the CFD repository's mathematical-model stage; DOI not resolved online"
+
+finnie1960:
+  title: "Erosion of surfaces by solid particles"
+  authors: [I. Finnie]
+  year: 1960
+  venue: "Wear 3(2), 87-103"
+  doi: "10.1016/0043-1648(60)90055-7"
+  kind: article
+  topics: [erosion, finnie]
+  checked: "the CFD repository implements the Finnie, Levy & McFadden (1979) form; the 1960 article was not resolved online"
+
+kovasznay1948:
+  title: "Laminar flow behind a two-dimensional grid"
+  authors: [L. I. G. Kovasznay]
+  year: 1948
+  venue: "Mathematical Proceedings of the Cambridge Philosophical Society 44(1), 58-62"
+  doi: "10.1017/S0305004100023999"
+  kind: article
+  topics: [kovasznay, benchmark, validation]
+  checked: "text cited in the CFD repository's PINN references; DOI not resolved online"

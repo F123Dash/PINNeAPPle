@@ -22,7 +22,7 @@ export interface PlanResult {
   planner: string; proposals: Proposal[]; warnings: string[]; detected: Record<string, any>; fallback_from?: string;
 }
 
-export type Status = "idle" | "queued" | "running" | "done" | "failed" | "cached" | "cancelled";
+export type Status = "idle" | "queued" | "running" | "done" | "degraded" | "not_run" | "failed" | "cached" | "cancelled";
 export interface NodeBrief { status: Status; error?: string; seconds?: number; summary?: string; metrics?: Record<string, any>; warnings?: string[] }
 export interface RunStatus { run_id: string; status: string; nodes: Record<string, NodeBrief>; error?: string }
 export interface NodeResult {
@@ -43,7 +43,7 @@ export const PORT_COLORS: Record<string, string> = {
 export const STATUS_STYLE: Record<string, string> = {
   idle: "bg-slate-100 text-slate-500", queued: "bg-slate-200 text-slate-700", running: "bg-amber-100 text-amber-800 animate-pulse",
   done: "bg-emerald-100 text-emerald-800", cached: "bg-sky-100 text-sky-800", failed: "bg-red-100 text-red-800",
-  cancelled: "bg-zinc-200 text-zinc-700",
+  cancelled: "bg-zinc-200 text-zinc-700", degraded: "bg-orange-100 text-orange-800", not_run: "bg-zinc-100 text-zinc-600 italic",
 };
 
 export interface Reference { key?: string; title?: string; authors?: string[]; year?: number; venue?: string; link?: string; status?: string; note?: string; supports?: string }

@@ -216,7 +216,7 @@ function Studio() {
   useEffect(() => {
     if (!runId || !selected) { setResult(null); return; }
     const st = (nodes.find((n) => n.id === selected)?.data as FlowNodeData | undefined)?.status;
-    if (st && ["done", "failed", "cached"].includes(st)) api.node(runId, selected).then(setResult).catch(() => setResult(null));
+    if (st && ["done", "failed", "cached", "degraded", "not_run"].includes(st)) api.node(runId, selected).then(setResult).catch(() => setResult(null));
   }, [selected, runId, nodes.find((n) => n.id === selected)?.data?.status]);
 
   // ---- files ----------------------------------------------------------------------------------------------------

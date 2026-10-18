@@ -38,12 +38,38 @@ from .schema import (
     flow_json_schema,
     validate_flow,
 )
-from .types import PORT_TYPES, compatible
+from .types import PORT_TYPES, compatible, register_port_type
 
 __all__ = ["Flow", "Node", "Edge", "FlowError", "Issue", "SCHEMA_ID", "as_flow", "check_flow", "validate_flow",
            "flow_json_schema", "REGISTRY", "NodeSpec", "Port", "Param", "node", "PORT_TYPES", "compatible", "run",
-           "plan", "catalog", "FlowStore"]
+           "plan", "catalog", "FlowStore", "register_port_type", "register_references", "register_rule", "Rule",
+           "NotRun"]
 __version__ = "0.1.0"
+
+
+def register_references(entries):
+    """Add curated references for another package's rules (see :func:`pinneapple_flow.references.register_references`)."""
+    from .references import register_references as _r
+    return _r(entries)
+
+
+def register_rule(r):
+    """Add a heuristic rule that cites registered references (see :func:`pinneapple_flow.rules.register_rule`)."""
+    from .rules import register_rule as _r
+    return _r(r)
+
+
+def __getattr__(name):
+    if name == "Rule":
+        from .rules import Rule
+        return Rule
+    if name == "NotRun":
+        from .runtime import NotRun
+        return NotRun
+    if name == "FlowStore":
+        from .store import FlowStore
+        return FlowStore
+    raise AttributeError(name)
 
 
 def run(flow, **kw):
@@ -62,9 +88,3 @@ def catalog() -> list[dict]:
     """Every node type as JSON (ports, parameter schema, availability)."""
     return REGISTRY.catalog()
 
-
-def __getattr__(name):
-    if name == "FlowStore":
-        from .store import FlowStore
-        return FlowStore
-    raise AttributeError(name)

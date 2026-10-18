@@ -74,6 +74,26 @@ coordinates, so one text works in 1-D, 2-D and 3-D). The text is translated node
 never passed to `eval` or `sympify`. Conditions are `{"kind": "dirichlet" | "neumann" | "robin" | "initial" |
 "periodic", "on": "x_min" | "x_max" | ... | "boundary" | "t_min", "equation": "u = 0"}`.
 
+## Extending the library from another package
+
+Another application registers what it adds through the public API, never by editing the module dictionaries:
+
+```python
+import pinneapple_flow as pf
+
+pf.register_port_type("cfd_case", "an OpenFOAM case folder", converts_to=["dataset"])
+pf.register_references("my_app/references.yaml")        # or a dict key -> entry; checked like the curated file
+pf.register_rule(pf.Rule("cfd.k_omega_sst", "k-omega SST for wall-bounded turbulence", cites=("menter1994sst",),
+                         topic="method"))
+store = pf.FlowStore("postgresql+psycopg://...", table_prefix="flow_")   # flow_flows, flow_runs, ...
+```
+
+A port type, reference or rule that is already registered with different content is refused, so documents and
+decision records stay portable. `FlowStore.save_flow` returns the current version unchanged when the document is the
+same as the latest one. `python -m pinneapple_flow references --verify` resolves every DOI of the registry online
+through doi.org and Crossref, and compares the registered title. `check()` on an LLM or user reference does the
+same when `PINNEAPPLE_FLOW_VERIFY_REFS=1`.
+
 ## Adding node types from another package
 
 ```python
@@ -96,8 +116,14 @@ the library (add a new one in `pinneapple_flow.types` with a pull request) so do
 
 * `pinneapple_flow.run(flow, workdir=..., from_node=..., store=...)` compiles the flow into a
   `pinneapple_core.workflows.Workflow` (one step of kind `pinneapple_flow.node` per node) and runs it with
-  `WorkflowRunner`: per-node logs and states (`queued`, `running`, `done`, `failed`, `cached`, `cancelled`), retries,
-  cancel, and skip-done by content hash (a node whose type, parameters and upstream are unchanged reuses its outputs).
+  `WorkflowRunner`: per-node logs and states (`queued`, `running`, `done`, `degraded`, `not_run`, `failed`, `cached`,
+  `cancelled`), retries, cancel, and skip-done by content hash (a node whose type, parameters and upstream are
+  unchanged reuses its outputs).
+  * `not_run`: the node did not run, and `report["not_run_reason"]` says why. This happens when its library or
+    tool is missing (`available()` is false: the step is not refused, it finishes `not_run`), when the node calls
+    `ctx.not_run(reason)`, or when a required input comes from a node that did not run. An optional input from such
+    a node is just absent.
+  * `degraded`: the node ran on a declared fallback (`ctx.degrade(reason)`); `report["degraded"]` lists the reasons.
 * Every finished run passes through `pinneapple_flow.runtime.on_run_finished(result, flow)`. Headless, service and
   GUI runs all go through it, and it is where the run will be exported as a PINNeAPPle Lab experiment through
   `pinneapple_lab.experiment` once that API is on main; until then the export reports `skipped`. Other packages
