@@ -54,7 +54,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   blocked hindcasts), figures (`plots`), the Blender slab render (`render`) and the study steps (`study`,
   `pipeline`). `pinneapple_analysis.state_estimation`: `enkf_analysis` (localised stochastic EnKF update for
   batched models) and `gaspari_cohn`. `forecast_lab.study`: `run_zoo(..., keep_models=True)` and `merge_zoo`
-  (one process per model, comparisons recomputed over the whole zoo). Tests `tests/test_enso.py`.
+  (one process per model, comparisons recomputed over the whole zoo). `studio.render(..., surface_fields=...)`
+  colours one surface by its own field (jet or the new diverging `colormap.RDBU`) with a second colour bar. Tests
+  `tests/test_enso.py`.
 - Animated showcase panel (`pinneapple_lab.showcase.panel`, `python -m pinneapple_lab showcase --lang en,pt`):
   1080 x 1350 on #090C14, a Ken Burns hero, a 3 x 3 grid of Tier A tiles and a row of two Tier B tiles, each with
   its seal and its curation headline; animated figures play once per 8 s loop; MP4 (H.264, faststart), GIF (720
