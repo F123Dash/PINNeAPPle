@@ -1,0 +1,474 @@
+# Electromagnetics and electrodynamics
+
+`pinneapple_simulation.electromagnetics` (`pp.em`) solves electromagnetic problems in SI units and checks the
+results against independent references; `pinneapple_physics.maxwell_checks` (`pp.maxwell`) checks any
+electromagnetic field, from a solver or a neural network, against Maxwell's equations without a reference
+solution. This page gives the theory the code implements, what is verified and to which order, and the limits.
+
+## Conventions
+
+* SI units throughout. Constants are CODATA 2022 (`pp.em.constants`): `mu0 = 1.25663706127e-6` N/A² (measured
+  since the 2019 SI redefinition), `eps0 = 1 / (mu0 c²)`, `eta0 = mu0 c`.
+* Phasors are `Re[X exp(+j omega t)]` (engineering convention, as in Taflove & Hagness, Pozar, scikit-rf). A lossy
+  medium has `Im(eps_r) < 0`; a wave travelling to `+z` is `exp(-j k z)`. Physics texts (Jackson, Bohren & Huffman)
+  use `exp(-i omega t)`; their `eps` is the complex conjugate of the one here. `pp.em.mie` takes the index in this
+  package's convention (`m = n - j k`, the same as miepython).
+* `pp.em.units.check_equations()` verifies that every term of every law below has the same SI dimension
+  (`pinneapple_data.physical_units`, now with T, Wb, coulomb, farad, henry and siemens), and
+  `check_units({"B": "mT", ...})` flags fields declared in the wrong unit or scale before residuals are computed.
+
+## Maxwell's equations
+
+Differential form (Jackson, *Classical Electrodynamics*, 3rd ed., sec. 6.1; Griffiths, *Introduction to
+Electrodynamics*, 4th ed., ch. 7):
+
+| Law | Differential | Integral |
+|---|---|---|
+| Gauss | `div D = rho` | `oint_S D . dA = Q_enc` |
+| Gauss (magnetic) | `div B = 0` | `oint_S B . dA = 0` |
+| Faraday | `curl E = -dB/dt` | `oint_C E . dl = -d/dt int_S B . dA` |
+| Ampere-Maxwell | `curl H = J + dD/dt` | `oint_C H . dl = I_enc + d/dt int_S D . dA` |
+
+with `D = eps E`, `B = mu H`, `J = sigma E + J_s`. Charge continuity `d rho/dt + div J = 0` follows from the
+divergence of Ampere-Maxwell plus Gauss; Poynting's theorem `du/dt + div S + J . E = 0`, `S = E x H`,
+`u = (E . D + B . H) / 2`, from the curl equations (Jackson sec. 6.7).
+
+Interface conditions (Jackson sec. I.5): `n x (E1 - E2) = 0`, `n x (H1 - H2) = K`, `n . (D1 - D2) = sigma_s`,
+`n . (B1 - B2) = 0`. A perfect electric conductor (PEC) has `n x E = 0`.
+
+### Formulations
+
+| Regime | Unknown | Equation | Where |
+|---|---|---|---|
+| Electrostatics | `phi`, `E = -grad phi` | `-div(eps grad phi) = rho` | `solve_electrostatic` (P1 FEM), kinds `electrostatics`, `electrostatics_integral` |
+| Magnetostatics (2-D) | `A_z`, `B = curl(A_z e_z)` | `-div(nu grad A) = J + curl(nu Br)` | `solve_magnetostatic` (P1 FEM, Newton for nonlinear B-H), kind `magnetostatics_az` |
+| Magneto-quasistatics | phasor `A_z` | `-div(nu grad A) + j omega sigma A = J_s + sigma u_c` | `solve_time_harmonic` (solid conductors with imposed currents), `eddy_current_fdm` (axisymmetric), kind `eddy_current_az` |
+| Full wave, time domain | `E, H` | curl equations | kinds `maxwell_tm`, `maxwell_te`, `maxwell_3d`, `maxwell_tm_integral` |
+| Full wave, frequency domain | phasor `E_z` | `lap E + k0^2 eps_r E = f` | kind `maxwell_tm_frequency` |
+
+The A-formulation in a solid conductor carries the voltage per metre `u_c` as an extra unknown fixed by its net
+current (Jin, *The Finite Element Method in Electromagnetics*, 3rd ed., ch. 4 and 8), which is the 2-D A-V
+formulation.
+
+### Integral form as a PINN loss
+
+The compiler kinds `electrostatics_integral` and `maxwell_tm_integral` impose the integral laws on a square
+control volume around each collocation point (Gauss-Legendre quadrature on its edges). They need only first
+derivatives and they see material interfaces: with `eps` jumping from 1 to 4 across a capacitor, `phi = y`
+satisfies `eps lap(phi) = 0` on both sides, so the differential residual is exactly zero for this wrong field,
+while the flux of `D` through the squares that straddle the interface is not
+(`tests/test_maxwell_checks.py::test_integral_gauss_sees_the_dielectric_interface_the_differential_form_misses`).
+
+### Presets with closed-form solutions
+
+`pp.PhysicalProblem.from_preset(name)`; `pp.solve(problem, "analytic")` returns the exact field, so
+`pp.compare(problem, [...], reference="analytic")` scores any method:
+
+| Preset | Physics | Exact solution |
+|---|---|---|
+| `em_two_dielectric_capacitor` (`_differential`) | Gauss across a dielectric interface | `D` uniform, `E_i = D / eps_i` (Griffiths ex. 4.7) |
+| `em_wire_az` | magnetostatics of a round conductor | Ampere's law |
+| `em_tm_cavity` (`_integral`) | TMz standing wave in a PEC square | `Ez = sin sin cos`, Pozar sec. 6.3 |
+| `em_skin_effect` | eddy currents into a conductor | `A0 exp(-(1 + j) x / delta)` |
+| `em_cylinder_scattering` | plane wave on a dielectric cylinder, TMz | series of cylinder functions (Harrington sec. 5-9) |
+
+## Materials
+
+* `Medium(eps_inf, mu_r, sigma, poles=...)` with `Drude(omega_p, gamma)`, `Lorentz(delta_eps, omega0, delta)` and
+  `Debye(delta_eps, tau)` poles (Taflove & Hagness, *Computational Electrodynamics*, 3rd ed., ch. 9). Each pole
+  carries the coefficients of its auxiliary differential equation for time-domain solvers; the trapezoidal
+  recursions reproduce `chi(omega)` at second order in `dt` (table below). `is_passive` checks `Im(eps_r) <= 0`.
+* `Anisotropic(eps_r, mu_r, sigma)` tensors, `uniaxial(n_o, n_e, axis)`, rotations, and the two refractive
+  indices of a plane wave along any direction from Fresnel's equation of wave normals. `is_reciprocal` is the
+  symmetry of the tensors (a gyrotropic medium is not reciprocal).
+* Magnetic: linear `LinearMaterial`, `Magnet` (`B = mu0 mu_r H + Br`), measured `BHCurve` (monotone PCHIP),
+  `BrauerCurve`, and `FrohlichKennelly` (`B = mu0 H + H / (alpha + beta |H|)`, every quantity of the Newton
+  solver in closed form). `JilesAtherton(Ms, a, k, c, alpha)` integrates the hysteresis model of Jiles & Atherton
+  (J. Magn. Magn. Mater. 61, 1986) along an applied-field path; its `dM/dH` is derived from the model's own
+  definitions (`M = Mrev + Mirr`), and `c = 1` reproduces the anhysteretic curve.
+
+## References in closed form
+
+`pp.em.statics`: capacitors (parallel plate, coax, spheres), point and line charges, infinite wire, exact
+Biot-Savart of straight segments (`biot_savart`, with the cancellation-free form beside long segments), circles,
+helices, the off-axis loop field in elliptic integrals, finite solenoid, Helmholtz pair, Maxwell's mutual
+inductance of coaxial loops, loop self-inductance.
+`pp.em.waves`: Fresnel coefficients, Brewster and critical angles, planar multilayers by characteristic matrices
+(Born & Wolf), skin depth and surface impedance, rectangular and circular waveguide cut-offs and modes,
+rectangular and cylindrical cavity resonances and the TE101 conductor Q (Pozar), Hertzian dipole fields and power,
+thin-dipole patterns, half-wave dipole resistance and directivity (Balanis), TMz scattering by a cylinder,
+surface-plasmon and plasma dispersion. `pp.em.mie`: Mie series for dielectric and perfectly conducting spheres
+(Bohren & Huffman; Wiscombe's series length), efficiencies, asymmetry parameter, amplitude functions.
+
+## Physics checks of any field
+
+`pp.maxwell.maxwell_checks(grid, fields, eps=..., mu=..., sigma=..., omega=None)` judges a field without a
+reference, like the Darcy checks: Gauss's laws, Faraday, Ampere-Maxwell and continuity as relative residuals
+(`||sum of terms|| / sum of ||term||`, second-order differences), Poynting's energy balance over the grid box,
+PEC faces, and optionally a reference. Every residual is also computed on the grid with every other point: the
+ratio `r(2h) / r(h)` is about 4 when the residual is discretisation error (the field obeys the law) and about 1
+when the field violates it, and the message says which. A law whose terms all vanish for the given components is
+reported as not informative instead of passed. `tangential_continuity`, `pec_boundary`, `reciprocity` and
+`passivity` cover interfaces and S-parameters. `maxwell_trust_report` gives the deploy decision.
+
+In CI:
+
+```toml
+[[result]]
+path = "fields.npz"           # x, y, (z), (t) axes; Ex..Hz / Bx.., Dx.., Jx.., rho; phasors as Ez_re / Ez_im
+physics = "maxwell"
+parameters = { eps_r = 1.0, mu_r = 1.0, sigma = 0.0 }   # omega = <rad/s> for phasors
+```
+
+`pinneapple check` reports Gauss's laws under PC102, Faraday / Ampere-Maxwell / continuity under PC301 and
+Poynting's theorem under PC103 (tolerances `maxwell-gauss`, `maxwell-faraday`, `maxwell-ampere`,
+`maxwell-continuity`, `maxwell-energy`). `save_maxwell_npz` writes the file with SI units and
+`check_config_entry` the configuration block. It runs without torch.
+
+## Time domain: FDTD on the Yee grid
+
+`pp.em.fdtd` solves the curl equations by the leapfrog scheme of Yee (1966): E at integer, H at half time
+steps, components staggered by half a cell (Taflove & Hagness, *Computational Electrodynamics*, 3rd ed., ch. 3).
+One code path covers 1-D, 2-D and 3-D: an axis with one node is a direction of invariance.
+
+```python
+import numpy as np
+from pinneapple_simulation.electromagnetics import fdtd, media
+
+grid = fdtd.YeeGrid((200, 200, 1), (1.5e-2, 1.5e-2, 1.5e-2))     # dt = 0.99 x the Courant limit
+sim = fdtd.FDTD(grid, {"x": "cpml", "y": "cpml"}, npml=10)
+sim.set_material(fdtd.fill_fraction(grid, lambda x, y, z: np.hypot(x - 1.5, y - 1.5) < 0.3), media.Medium(3.0))
+sim.add_plane_wave(fdtd.PlaneWaveTFSF("x", "Ez", fdtd.modulated_gaussian(1e9, 0.6e9), ((30, 170), (30, 170), (0, 1))))
+dft = sim.add_dft(["Ez", "Hx", "Hy"], [1e9])
+sim.run_until(40e-9)
+```
+
+* **Stability.** `dt <= 1 / (c sqrt(sum 1/dx_i^2))` (TH eq. 4.65). `YeeGrid` refuses a larger step; the test
+  shows grid-scale noise growing by 1e6 in 400 steps at 1.02 times the limit and staying bounded at 0.999.
+* **Numerical dispersion.** The scheme's waves obey `(sin(omega dt/2) / (c dt))^2 = sum_i (sin(k_i dx_i/2) / dx_i)^2`
+  (TH eq. 4.12, `numerical_dispersion`). The FDTD resonances match this relation to 1e-7 and the continuum at
+  second order.
+* **Energy.** The scheme conserves `(1/2) sum eps E^{n-1} . E^n + (1/2) sum mu |H^{n-1/2}|^2` exactly in a
+  lossless cavity (`energy()`; constant to 1e-12 in the test).
+* **Boundaries.** `pec`, `pmc`, `periodic`, `bloch` (Floquet phase `exp(-j k_b L)`, complex fields) and `cpml`,
+  the convolutional PML of Roden & Gedney (2000) with polynomial `sigma`, `kappa` and linear `alpha` grading
+  (TH sec. 7.9). Measured reflection 5 cells from the PML: -51 dB (5 cells), -87 dB (10), -106 dB (20).
+* **Dispersive media** by auxiliary differential equations solved with the E update: Drude (polarisation current,
+  trapezoidal), Debye (polarisation, trapezoidal), Lorentz (polarisation, central), TH sec. 9.4-9.6.
+* **Sources and plane waves.** Soft and hard E sources, impressed currents (a Hertzian dipole is one cell of `J`).
+  `PlaneWaveTFSF` is a total-field / scattered-field box driven by an auxiliary 1-D line with the same `dx` and
+  `dt`. The masked-curl form works for any box in 1-D, 2-D and 3-D, and the leakage into the scattered-field
+  region is 1e-16.
+* **Sub-cell averaging.** `fill_fraction` gives the fraction of each cell inside a shape, and `set_material` mixes
+  `eps` arithmetically with it at the nodes. Each E component then takes the harmonic mean of its two nodes (the
+  series rule for E normal to an interface; `harmonic_eps=False` switches it off). For E tangential to the surface
+  this is the exact first-order correction (Farjadpour et al., Opt. Lett. 31, 2006):
+  - the TMz cylinder converges at order 2, where the staircased one jumped between 1.2 % and 3.4 %;
+  - on a sphere (E normal to part of the surface) harmonic averaging cuts the Q_sca error from 9.7 % to 2 %, but
+    the error then plateaus near 2 % instead of converging. Full anisotropic (Kottke) smoothing is not implemented.
+* **Monitors and output.**
+  - Probes and running DFTs (phasors in this package's `exp(+j omega t)` convention, E and H stamped at their own
+    times).
+  - `poynting_flux_dft` gives the power through a plane.
+  - `NearToFarField` gives far-field patterns and radiated power from equivalent currents on a closed box (Balanis,
+    *Advanced Engineering Electromagnetics*, eq. 6-122).
+  - `snapshot()` returns node- and time-centred fields in the layout of `maxwell_checks`, so an FDTD run can be
+    checked like any other field.
+
+Figures and animations: `pinneapple_tools.visualization.electromagnetics` (`field_movie` writes GIF with Pillow
+or MP4 with ffmpeg, `field_map` adds a material outline and Poynting arrows, `radiation_pattern` draws polar
+patterns). `examples/electrodynamics/08_fdtd_gallery.py` writes `results/fdtd_cylinder_scattering.gif` / `.mp4`,
+`results/fdtd_cylinder_field_map.png` and `results/fdtd_dipole_pattern.png`. Each figure comes with its check:
+the cylinder's field against the series of cylinder functions (1.7 % at 30 cells per wavelength), the snapshots
+through `maxwell_trust_report` (APPROVED), and the dipole pattern and power against the closed forms.
+
+## Electric machines
+
+The A_z solver includes a polar ring mesher with a moving band, magnets, coils, (anti-)periodic constraints,
+Maxwell-stress (Arkkio) and co-energy torque, flux linkage, back-EMF, cogging, Steinmetz/Bertotti iron loss,
+resistance-limited magnet eddy loss, and an `SPMMachine` model with adjoint torque sensitivities used by the rotor
+topology optimisation (`pinneapple_design.topology`, [guide](topology_optimization.md)). `tests/test_motor_magnetics.py`
+asserts: slotless SPM torque within 1e-3 of the exact subdomain solution by both Maxwell stress and co-energy (360
+angular steps, rotor off the grid); Maxwell-stress and co-energy torque of the slotted 24-slot machine within
+0.3 %; skin-effect impedance of a round wire within 0.3 % of the Bessel solution (the table below measures
+8.55e-4); adjoint rotor-torque sensitivities within 1e-5 of finite differences, for linear and nonlinear iron.
+`examples/topology_optimization/03_reluctance_rotor.py` (run 2026-10-17) optimises a reluctance rotor to a mean
+torque of 38.10 N m with linear iron; re-evaluated with the nonlinear B-H curve the same rotor gives 13.44 N m, so
+saturation must be in the optimisation loop for thin-featured designs.
+
+### Interior-PM traction motor: the 2004 Toyota Prius
+
+`pinneapple_simulation.electromagnetics.machines` models interior-magnet machines on conforming meshes:
+
+* `geometry`: parametric V-magnet rotors (`VRotor`: V opening and depth, magnet width and thickness, bridges, ribs,
+  centre post, magnet segments) and round-bottom slots (`RoundBottomSlots`), the parametrisations of pyleecan's
+  `HoleM50` and `SlotW11`; `prius_2004()` holds the dimensions of pyleecan's `Toyota_Prius.json` (48 slots, 8 poles,
+  0.75 mm gap, 83.82 mm stack, stacking factor 0.95).
+* `mesher`: every polygon edge is a mesh edge (conforming Delaunay with Gabriel-edge recovery, concentric-shell
+  splitting at small angles). Half a pole and half a slot pitch are meshed, mirrored and copied around, so all
+  poles and slots have identical, symmetric elements: the no-load torque of the aligned rotor is 6e-13 N m
+  and the cogging curve is antisymmetric with zero mean. The air gap holds three ring layers; only the middle
+  one (moving band) is re-triangulated as the rotor turns.
+* `steel`: M400-50A (EN 10106) B-H curve and specific-loss table (50 Hz to 2.5 kHz), the data of pyleecan's material
+  library (Apache-2.0), and the Prius magnet grade (Br 1.24 T at 20 degC, -0.1 %/K); `stacked` applies the
+  stacking factor; `TableIronLoss` interpolates the catalogue table; `fit_iron_loss` fits
+  `k_h f^alpha B^beta + k_c (f B)^2 + k_e (f B)^1.5` with the classical term from resistivity and thickness.
+* `pmsm.IPMMachine`: Newton solution with the nonlinear B-H curve, Arkkio and co-energy torque, flux linkage,
+  back-EMF, the dq frame (d-axis on the magnet flux), torque ripple, frozen-permeability flux split and L_d / L_q,
+  MTPA by golden-section search on the FEA torque, iron loss per element in its own frame (table or fit) and
+  resistance-limited magnet eddy loss.
+
+The cross-check is against a published benchmark, not against FEMM or pyleecan (neither runs in this
+environment: FEMM is Windows-only, pyleecan's wheel needs a git-only dependency). The reference is the
+torque against current angle of the Prius motor at 250 A peak computed by Yang, Krishnamurthy and Brown (IEEE IEMDC
+2013), as tabulated in pyleecan's test suite. Their model and pyleecan's geometry are not the same file (centre
+post, magnet temperature, steel data), so agreement within a few per cent is the expectation, not a mesh error.
+
+`python examples/electrodynamics/10_pmsm_prius.py --write-docs` (run on 2026-10-17, 960 gap nodes, 29 936
+elements) wrote the table below and `examples/electrodynamics/results/10_pmsm_prius.json`; figures:
+`10_pmsm_field.png` (|B| and flux lines at MTPA, 250 A), `10_pmsm_curves.png` (torque against current angle with the
+published curve, cogging, back-EMF), `10_pmsm_mtpa.png` (MTPA locus, L_d and L_q).
+
+Results of that run (magnets at 20 degC, 1.24 T):
+
+| Peak current (A) | MTPA angle (deg from q) | Mean torque (N m) | Ripple pk-pk | L_d (mH) | L_q (mH) |
+|---|---|---|---|---|---|
+| 50 | 27.6 | 70.4 | 24.9 % | 1.945 | 4.871 |
+| 100 | 37.1 | 147.8 | 25.5 % | 1.741 | 3.697 |
+| 150 | 43.1 | 221.3 | 22.5 % | 1.623 | 3.101 |
+| 200 | 47.1 | 287.9 | 22.8 % | 1.511 | 2.729 |
+| 250 | 50.3 | 345.6 | 22.9 % | 1.386 | 2.435 |
+
+L_d and L_q are the apparent frozen-permeability values at each MTPA point (saturation lowers L_q from 4.87 to
+2.44 mH). The d-axis is the fundamental of the magnet flux linkage, from the winding layout (`pm_flux_angle`): a single
+no-load solution's flux vector carries the slot harmonics and sits 0.79 electrical degrees off, which shifted the
+torque at pure negative d-axis current by -12 N m; with the fundamental the mean torque at Phi0 = 180 deg is 0.0
+N m, as the rotor's mirror symmetry requires.
+
+Torque against current angle at 250 A, against Yang et al. (2013):
+
+| Phi0 (deg) | 60 | 70 | 80 | 90 | 100 | 110 | 120 | 130 | 140 | 150 | 160 | 170 | 180 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| this FEA (N m) | 92.0 | 133.6 | 175.8 | 217.3 | 256.0 | 289.9 | 318.2 | 338.1 | 345.6 | 330.1 | 267.1 | 151.4 | 0.0 |
+| published (N m) | 79 | 125 | 160 | 192 | 237 | 281 | 319 | 343 | 353 | 332 | 266 | 164 | 22 |
+| difference | +13.0 | +8.6 | +15.8 | +25.3 | +19.0 | +8.9 | -0.8 | -4.9 | -7.4 | -1.9 | +1.1 | -12.6 | -22.0 |
+
+The peak agrees within 2.1 %; the largest deviation is +25.3 N m (+13 %) at 90 deg (pure q-axis current), the rms
+deviation 13.3 N m. Shifting the curve in angle does not remove it: the best-fitting offset (-1.32 deg) lowers the
+rms over 70 to 170 deg only from 12.2 to 9.7 N m. The differences are in magnitude where the magnet torque dominates
+(low Phi0, more torque here) and at 180 deg, where a machine symmetric about its d-axis has no mean torque but the
+published curve gives 22 N m (an angle convention or an asymmetry of their model). Plausible causes, not
+resolved here: magnet remanence or temperature of the published model, its steel curve, the centre post (W1 = 0 in
+pyleecan's file).
+
+No load: cogging 1.38 N m peak to peak (antisymmetric, zero mean), magnet flux linkage 0.209 Wb peak per phase.
+Back-EMF from the flux linkage at 120 rotor angles per electrical period (spectral derivative): 87.6 V phase peak
+fundamental at 1000 rpm (107.3 V line-to-line rms fundamental, 0.1073 V/rpm), THD 9.3 % phase and 8.5 % line;
+largest harmonics 11th 6.5 %, 5th 4.2 %, 7th 3.6 %, 3rd 2.4 % of the fundamental (the 3rd cancels between phases).
+No published Prius back-EMF constant could be retrieved here to compare with. Losses at 1500 rpm (100 Hz), 250 A
+MTPA: stator iron 391 W, rotor iron 29 W with the catalogue table (332 W and 32 W with the Bertotti fit), magnet eddy
+loss 37.9 W (resistance limited, one piece per magnet). The Bertotti fit to the M400-50A table up to 1 kHz has
+8.2 % rms and 22 % maximum relative error; the table model is the default. Mesh convergence of the torque is not
+monotone (480, 960, 1920 gap nodes: 343.42, 345.65, 344.22 N m): treat the FEA torque as converged to about 0.4 %.
+
+<!-- machine-verification:start -->
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Magnetised ring, sector mesher + P1 FEM | relative L2 error of A_z, h halved | closed form (two magnetised cylinders + harmonic) | 1.91e-04 | 1.89, 1.91, 1.99 (expected 2) | pass |
+| Machine sector geometry (Prius slot and magnet areas) | slot area, gap nodes doubled | exact area (trapezoid + half disc) | 5.70e-05 | 1.99, 1.81, 1.90 (expected 2) | pass |
+| Prius IPM: Maxwell stress vs co-energy torque | Arkkio torque at 250 A, 3 rotor angles | virtual work dW'/dtheta (4th-order differences) | 1.96e-03 | - | pass |
+| Prius IPM: dq power balance and frozen permeability | mean Maxwell-stress torque over 60 el. deg | 1.5 p (psi_d i_q - psi_q i_d) | 1.96e-04 | - | pass |
+| Prius IPM: torque vs current angle (Yang et al. 2013) | mean torque, 250 A, Phi0 = 60..180 deg | published FEA (IEMDC 2013), 13 angles | 2.08e-02 | - | pass |
+| Prius IPM: mesh convergence of the peak torque | mean torque at 250 A, 50 deg, gap nodes doubled | successive differences | 4.15e-03 | - | pass |
+
+Notes from the same run:
+
+- Magnetised ring, sector mesher + P1 FEM: 8 sector copies, magnet edges on mesh edges
+- Machine sector geometry (Prius slot and magnet areas): magnet area (straight edges) exact to 4.4e-16
+- Prius IPM: Maxwell stress vs co-energy torque: max relative difference over the angles
+- Prius IPM: dq power balance and frozen permeability: frozen-permeability superposition error 4.1e-11; L_d = 1.386 mH, L_q = 2.420 mH, psi_pm = 0.2140 Wb at this point
+- Prius IPM: torque vs current angle (Yang et al. 2013): peak 345.6 N m at Phi0 = 140 deg (published 353 N m at 140 deg); largest deviation +25.3 N m at 90 deg; rms 13.3 N m; an angle offset of -1.32 deg fits best (rms 12.2 -> 9.7 N m over 70..170 deg)
+- Prius IPM: mesh convergence of the peak torque: 480: 343.42 N m, 960: 345.65 N m, 1920: 344.22 N m; difference ratio 1.56
+<!-- machine-verification:end -->
+
+### Drive model: MTPA, flux weakening, efficiency map, WLTC energy
+
+`pinneapple_simulation.electromagnetics.machines.drive` turns a machine into a drive under inverter limits:
+
+* `FluxMap.from_fea(machine, I_max)`: mean torque and dq flux linkages of the FEA on an `(i_d, i_q)` grid (saturation
+  and cross-saturation included, odd/even symmetry in `i_q`), and per grid point the speed-free iron-loss sums and
+  magnet-loss coefficient (`IPMMachine.loss_components`), so the core loss at any speed is
+  `k_h f^alpha S_h + k_c f^2 S_c + k_e f^1.5 S_e + c_m f^2` without new field solutions. `LinearDQ` is the
+  constant-inductance model with closed-form MTPA and flux-weakening torque.
+* `Drive(machine, R, I_max, V_max)`: steady state `v_d = R i_d - w psi_q`, `v_q = R i_q + w psi_d`, current and
+  voltage amplitude limits (`v_max_svpwm(V_dc) = V_dc / sqrt 3`). `max_torque(speed)` searches the outer boundary of
+  the feasible current set (current circle, voltage ellipse, so maximum-torque-per-volt operation is included);
+  `operating_point(T, speed)` returns the currents of least copper + core loss for a torque (MTPA at low speed,
+  flux weakening at high speed); `efficiency_map` evaluates a speed x torque grid.
+* `Vehicle` and `cycle_energy`: road load and inertia over a speed trace, a single gear, regeneration up to the
+  braking envelope (the rest goes to the friction brakes), battery-side energy of the drive.
+  `wltc_class3b()` is the WLTC class 3b trace of UN GTR No. 15, Annex 1 (1800 s, 23.266 km, 131.3 km/h).
+
+`python examples/electrodynamics/11_prius_drive.py --write-docs` (run on 2026-10-17) builds the flux map of the
+Prius model (9 x 9 currents up to 250 A, 480 gap nodes, 12 rotor angles; loss data on 5 x 5 points, 24 angles per
+electrical period) and evaluates the drive with stated assumptions: 250 A peak, 500 V DC link with SVPWM (288.7 V
+phase peak), phase resistance 93.6 mOhm at 100 degC from the winding data (72 series turns, 8.49 mm^2 conductors,
+end turn 0.16 m per side estimated), and an illustrative compact car (1450 kg, C_rr 0.009, C_d A 0.58 m^2, wheel
+0.30 m, gear 4.113, 97 %). Results (`results/11_prius_drive.json`, `11_prius_drive.png`):
+
+* envelope: 343.6 N m up to 2000 rpm, then flux weakening (181.0 N m at 3750 rpm, 104.4 N m at 6000 rpm); peak
+  electromagnetic power 77.7 kW at 2500 rpm under these limits. The Prius's published rating (50 kW, 400 N m,
+  quoted in pyleecan's test suite) comes from its own inverter current and thermal limits, which are not modelled;
+* peak efficiency 96.2 % at 2750 rpm, 70.7 N m (copper + iron + magnet loss; no inverter or mechanical loss; the map
+  is evaluated up to the motoring and braking envelopes at every speed from 100 to 6000 rpm);
+* WLTC class 3b: motoring 11.52 MJ, regenerated 2.97 MJ, drive losses 0.98 MJ, no friction braking needed within
+  the braking envelope, battery-side 102.1 Wh/km for this car.
+
+The optimiser is checked against the closed forms of the linear machine and against energy bookkeeping:
+
+<!-- drive-verification:start -->
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Drive: torque envelope vs closed form (linear dq) | max torque, 500..10000 rpm, both signs | MTPA / circle-ellipse intersection (R = 0) | 1.31e-14 | - | pass |
+| Drive: least-loss currents vs MTPA closed form | currents of least copper loss, 4 torques | i_d = (psi - sqrt(psi^2 + 8 (L_q - L_d)^2 I^2)) / (4 (L_q - L_d)) | 1.97e-08 | - | pass |
+| Drive cycle: WLTC class 3b energy balance | battery energy of a lossless drive | road-load work (kinetic energy returns to zero) | 0.00e+00 | - | pass |
+| Prius flux map: interpolation vs direct FEA | torque at 3 off-grid currents (7 x 7 grid) | FEA at the same currents | 2.72e-04 | - | pass |
+
+Notes from the same run:
+
+- Drive: torque envelope vs closed form (linear dq): L_d = 0.6 mH, L_q = 2.4 mH, psi_m = 0.2 Wb, 250 A, 500 V SVPWM
+- Drive cycle: WLTC class 3b energy balance: trace: 23266.3 m (GTR 15: 23 266 m), max 131.3 km/h, sum 83758.6 km/h s
+- Prius flux map: interpolation vs direct FEA: error relative to 300 N m
+<!-- drive-verification:end -->
+
+## Verification
+
+Each case compares a solver or reference implementation with an independent result; where the mesh or step is
+refined the observed order is measured. The table is the output of
+`python examples/electrodynamics/07_em_verification.py` (`pinneapple_simulation.electromagnetics.verification`,
+asserted by `tests/test_em_verification.py`):
+
+<!-- verification-table:start -->
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Coaxial capacitor (P1 FEM) | capacitance per metre | 2 pi eps / ln(b/a) | 3.87e-04 | 1.99, 2.00, 2.00 (expected 2) | pass |
+| Two-dielectric parallel-plate capacitor (P1 FEM) | potential (max abs, V) | D uniform, E_i = D / eps_i (exact in P1) | 3.11e-15 | - | pass |
+| Circular loop by Biot-Savart (polygon) | B off the axis | elliptic-integral loop field (Jackson 5.37) | 5.08e-05 | 1.99, 2.00, 2.00 (expected 2) | pass |
+| Infinite wire and finite solenoid (Biot-Savart) | B of a 200-turn helix on the axis | current-sheet solenoid (closed form) | 5.32e-04 | - | pass |
+| Coaxial mutual inductance | M (elliptic integrals) | Neumann double integral | 2.22e-16 | - | pass |
+| Axisymmetric coil (FDM, eddy_current_fdm at DC) | on-axis B_z | sum of current-loop fields (closed form) | 3.69e-04 | - | pass |
+| Mie sphere vs Bohren & Huffman / miepython | Q_sca, Q_ext, Q_back | BHMIE sample (B&H app. A) | 1.44e-06 | - | pass |
+| Mie small-sphere (Rayleigh) limit | Q_sca / Rayleigh - 1 vs x | 8/3 x^4 \|(m^2-1)/(m^2+2)\|^2 | 4.41e-05 | 1.98, 2.00 (expected 2) | pass |
+| Fresnel coefficients and Brewster angle | R + T - 1 (s and p, 3 interfaces) | energy conservation; r_p(atan n2/n1) = 0 | 6.66e-16 | - | pass |
+| Bragg mirror (characteristic matrices) | R at the design wavelength | ((1 - Y)/(1 + Y))^2, Y = (nH/nL)^2N ns | 2.22e-16 | - | pass |
+| Hertzian dipole radiated power | flux of the complete fields at kr = 0.05, 0.5, 20 | eta k^2 \|I l\|^2 / (12 pi) | 1.33e-13 | - | pass |
+| Half-wave dipole radiation resistance | R_rad from the pattern | eta Cin(2 pi) / (4 pi) = 73.08 ohm | 0.00e+00 | - | pass |
+| Dispersive ADE recursions (Drude, Debye, Lorentz) | discrete chi(omega) vs dt (Drude) | continuous chi(omega) | 9.02e-06 | 2.00, 2.00 (expected 2) | pass |
+| Uniaxial crystal indices | n_o, n_e(theta) from the wave-normal eigenproblem | index ellipsoid | 4.44e-16 | - | pass |
+| Round wire, A_z P1 FEM | A_z (max relative) | Ampere's law (closed form) | 5.18e-04 | 2.06, 2.04 (expected 2) | pass |
+| Skin effect in a round wire (A_z eddy FEM) | impedance R + j X at a / delta = 3 | Bessel solution (closed form) | 8.55e-04 | - | pass |
+| Froehlich-Kennelly iron ring (Newton) | \|B\| in saturated iron | B(H) at H = I / (2 pi r) | 5.08e-04 | - | pass |
+| Jiles-Atherton integrator | M along a major loop vs RK4 sub-steps | 256 sub-steps; c = 1 stays anhysteretic | 1.28e-09 | 2.77, 1.11, 2.88, 2.20 | pass |
+| Maxwell residual checks on an exact cavity mode | Ampere-Maxwell residual vs grid | exact TM12 mode (residual -> 0) | 2.33e-04 | 2.28, 2.22 (expected 2) | pass |
+| FDTD 1-D dielectric half-space (Fresnel) | \|r(f)\|, 0.6-1.4 f0 | (n1 - n2)/(n1 + n2) | 2.02e-03 | 2.11, 2.03 (expected 2) | pass |
+| FDTD dispersive half-spaces (Drude, Debye, Lorentz ADE) | \|r(f)\| of each medium, 0.6-1.4 f0 | Fresnel with eps(omega) of the pole | 8.74e-04 | 2.05, 2.02 (expected 2) | pass |
+| FDTD 2-D PEC cavity resonance (TM11) | resonance frequency | c/2 sqrt(1/a^2 + 1/b^2) | 1.36e-05 | 2.01, 1.98 (expected 2) | pass |
+| FDTD 3-D PEC box resonance (TE101) | resonance frequency | rectangular cavity formula | 2.37e-04 | 2.01, 2.00 (expected 2) | pass |
+| FDTD rectangular waveguide TE10 propagation constant | beta at 1.5 f_c (2-D section) | k sqrt(1 - (fc/f)^2) | 3.89e-05 | 1.53, 1.25 | pass |
+| FDTD bulk plasma (Drude) dispersion | k at omega = 1.67 omega_p | omega^2 = omega_p^2 + c^2 k^2 | 9.89e-05 | 1.83, 1.11 | pass |
+| FDTD dielectric cylinder, TF/SF plane wave | total Ez on a ring r = lambda/2 | series of cylinder functions (Harrington 5-9) | 4.23e-03 | 1.97, 2.12, 1.95 (expected 2) | pass |
+| FDTD Hertzian dipole (3-D) | phasor E_z at r = 0.8 lambda, theta = 30-120 deg | complete dipole fields (Balanis 4-8) | 1.17e-02 | 2.11, 1.98 (expected 2) | pass |
+| FDTD Bloch-periodic oblique incidence (Floquet) | \|r_s\| at 25 degrees | Fresnel coefficient | 1.01e-03 | 2.05, 2.01 (expected 2) | pass |
+| FDTD CPML reflection | max \|E - E_ref\| / max \|E_ref\| 5 cells from the PML | same run in a domain too large to reflect | 4.25e-05 | - | pass |
+| FDTD fields through the Maxwell checks | Ampere-Maxwell residual of the snapshots | 0 for a solution of Maxwell's equations | 1.78e-03 | 1.51, 1.50 | pass |
+| FDTD near-to-far-field transform (dipole pattern and power) | far-field E_theta(theta) | eta k \|I l\| sin(theta) / (4 pi) | 2.90e-03 | 2.08, 2.06 (expected 2) | pass |
+| FDTD dielectric sphere vs Mie (3-D, TF/SF + near-to-far field) | Q_sca, eps = 4, x = 1.57 | Mie series | 2.41e-02 | - | pass |
+
+Notes from the same run:
+
+- Coaxial capacitor (P1 FEM): errors 2.45e-02, 6.17e-03, 1.55e-03, 3.87e-04
+- Infinite wire and finite solenoid (Biot-Savart): 20 km segment vs mu0 I / (2 pi s): 6.3e-12
+- Axisymmetric coil (FDM, eddy_current_fdm at DC): errors 1.00e-02, 1.40e-03, 3.69e-04 (finite box: A = 0 at 20 coil radii)
+- Mie sphere vs Bohren & Huffman / miepython: published 5-digit values; miepython 3.3.0, 4 spheres incl. absorbing: max rel. diff 7.9e-09
+- Mie small-sphere (Rayleigh) limit: PEC sphere vs 10/3 x^4: orders 2.00, 2.00
+- Fresnel coefficients and Brewster angle: |r_p| at Brewster 0.0e+00
+- Half-wave dipole radiation resistance: 73.079 ohm
+- Dispersive ADE recursions (Drude, Debye, Lorentz): Debye orders 2.00, 2.00; Lorentz 2.00, 2.00
+- Froehlich-Kennelly iron ring (Newton): Newton: 8 iterations to residual 1.9e-12
+- Jiles-Atherton integrator: c = 1 deviation from the anhysteretic curve 1.2e-05 Ms (orders irregular: the pinning switch makes dM/dH non-smooth)
+- Maxwell residual checks on an exact cavity mode: a 20 % wrong frequency gives 0.181 (rejected) and Poynting imbalance 0.218
+- FDTD 1-D dielectric half-space (Fresnel): errors 3.56e-02, 8.25e-03, 2.02e-03 at 20/40/80 cells per wavelength
+- FDTD dispersive half-spaces (Drude, Debye, Lorentz ADE): Drude: errors 2.7e-03, 6.5e-04, 1.6e-04, orders 2.05, 2.02; Debye: errors 6.5e-03, 1.6e-03, 4.0e-04, orders 2.02, 2.01; Lorentz: errors 1.4e-02, 3.5e-03, 8.7e-04, orders 2.03, 2.01
+- FDTD 2-D PEC cavity resonance (TM11): against the scheme's own dispersion relation: max 1.6e-07
+- FDTD rectangular waveguide TE10 propagation constant: errors 2.7e-04, 9.3e-05, 3.9e-05; against the scheme's own dispersion relation max 2.5e-05 (the phase-slope measurement floor)
+- FDTD bulk plasma (Drude) dispersion: errors 7.6e-04, 2.1e-04, 9.9e-05
+- FDTD dielectric cylinder, TF/SF plane wave: eps = 3, a = 0.3 lambda, sub-cell (arithmetic) averaging of eps; errors 3.8e-02, 1.7e-02, 9.3e-03, 4.2e-03 at 20/30/40/60 cells per wavelength
+- FDTD Hertzian dipole (3-D): errors 4.9e-02, 2.1e-02, 1.2e-02 at 10, 15, 20 cells per wavelength
+- FDTD Bloch-periodic oblique incidence (Floquet): errors 1.7e-02, 4.1e-03, 1.0e-03
+- FDTD CPML reflection: 5 cells: 2.8e-03 (-51 dB), 10 cells: 4.2e-05 (-87 dB), 20 cells: 5.3e-06 (-106 dB)
+- FDTD fields through the Maxwell checks: Poynting imbalance 6e-05, 4e-06, 9e-07; residuals 1.4e-02, 5.0e-03, 1.8e-03
+- FDTD near-to-far-field transform (dipole pattern and power): radiated power errors 8.0e-03, 3.6e-03, 2.0e-03 vs eta k^2 |I l|^2 / (12 pi)
+- FDTD dielectric sphere vs Mie (3-D, TF/SF + near-to-far field): errors 2.1e-02, 1.8e-02, 2.4e-02 at 10, 15, 20 cells per wavelength: a plateau near 2 %, not a convergence order (harmonic/arithmetic sub-cell averaging is not the full anisotropic smoothing an oblique surface needs; arithmetic averaging alone gives 9.7 % at 10 cells)
+<!-- verification-table:end -->
+
+## Fixed while building this
+
+* `eddy_current_fdm.annular_current_source` normalised the coil current density by the nominal band area, so the
+  injected current depended on how the band fell on the grid (0.75 N I in one case); it now injects exactly N I.
+  `axial_flux_density` returned half the field on the axis (`A / r` with `A = 0` there instead of its limit
+  `dA/dr`), and `eddy_current_density` returned `+j omega sigma A`, the eddy current with the wrong sign for the
+  solver's `exp(+j omega t)` convention. Together these explain the coil field "about 0.20 times" the loop formula
+  recorded in the validation gallery.
+* The Newton solver of `solve_magnetostatic` could stall at a residual of 1e-7 because its Armijo test compared
+  energy differences below round-off; near convergence it now takes the full Newton step (6 iterations to 3e-13
+  on the saturated iron ring).
+
+## Limits
+
+* The FEM solvers are 2-D (planar or axisymmetric for `eddy_current_fdm`), first order (P1), and resolve
+  geometry on the mesh (polar grids are staircased in angle).
+* FDTD: uniform grids only. The sub-cell averaging is not the full anisotropic smoothing: curved surfaces with E
+  normal to them keep an error of a few percent that does not converge (2 % on the Mie sphere below). The CPML is tuned for vacuum; inside
+  dispersive or negative-permittivity media its reflection is not measured. Surface plasmon polaritons are
+  verified only in closed form: an FDTD SPP run on a lossless Drude interface did not converge cleanly at
+  affordable resolutions (4.9 % at 80 cells per wavelength), so no FDTD SPP number is claimed. NumPy, single
+  thread: a 60^3 grid takes 19 ms per step with PEC walls and 38 ms with CPML on all sides (measured in the
+  development container).
+* The differential compiler kinds do not differentiate material maps: jumps of `eps`, `mu` or `nu` are only seen
+  by the integral kinds.
+* `maxwell_checks` uses central differences on tensor grids: fields with discontinuities (material interfaces,
+  PEC edges) leave residuals there that are not errors of the field; crop them or check each region separately.
+* Machines: 2-D only (no end windings, no axial flux, no skew in the FEA), magnets at a uniform temperature,
+  iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
+  magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
+  M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.
+* Drive: steady state only (no current-controller dynamics, no PWM ripple or harmonics losses), no inverter,
+  mechanical or battery losses; the voltage limit is that of linear space-vector modulation.
+* `JilesAtherton` is the scalar model; its parameters must be fitted to measured loops of the material.
+  `illustrative_steel` is a formula, not a measured grade.
+
+## References
+
+* J. D. Jackson, *Classical Electrodynamics*, 3rd ed., Wiley, 1999.
+* D. J. Griffiths, *Introduction to Electrodynamics*, 4th ed., Cambridge University Press, 2017.
+* A. Taflove and S. C. Hagness, *Computational Electrodynamics: The Finite-Difference Time-Domain Method*,
+  3rd ed., Artech House, 2005.
+* J.-M. Jin, *The Finite Element Method in Electromagnetics*, 3rd ed., Wiley-IEEE Press, 2014.
+* D. M. Pozar, *Microwave Engineering*, 4th ed., Wiley, 2012.
+* Z. Yang, M. Krishnamurthy, I. P. Brown, "Electromagnetic and vibrational characteristic of IPM over full
+  torque-speed range", IEEE IEMDC 2013, pp. 295-302.
+* M. Arkkio, *Analysis of induction motors based on the numerical solution of the magnetic field and circuit
+  equations*, Acta Polytechnica Scandinavica EE-59, 1987.
+* G. Bertotti, "General properties of power losses in soft ferromagnetic materials", IEEE Trans. Magn. 24(1),
+  621-630, 1988.
+* J. R. Shewchuk, "Delaunay refinement algorithms for triangular mesh generation", Comput. Geom. 22, 21-74, 2002.
+* pyleecan 1.4.2 (Apache-2.0): machine and material library, https://github.com/Eomys/pyleecan.
+* C. A. Balanis, *Antenna Theory*, 4th ed., Wiley, 2016.
+* R. F. Harrington, *Time-Harmonic Electromagnetic Fields*, McGraw-Hill, 1961.
+* M. Born and E. Wolf, *Principles of Optics*, 7th ed., Cambridge University Press, 1999.
+* C. F. Bohren and D. R. Huffman, *Absorption and Scattering of Light by Small Particles*, Wiley, 1983.
+* W. J. Wiscombe, Improved Mie scattering algorithms, *Appl. Opt.* 19 (1980) 1505-1509.
+* D. C. Jiles and D. L. Atherton, Theory of ferromagnetic hysteresis, *J. Magn. Magn. Mater.* 61 (1986) 48-60.
+* S. A. Maier, *Plasmonics: Fundamentals and Applications*, Springer, 2007.
+* E. B. Rosa and F. W. Grover, Formulas and tables for the calculation of mutual and self-inductance, *Bulletin
+  of the Bureau of Standards* 8 (1912).

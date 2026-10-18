@@ -14,6 +14,60 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Drive model of synchronous machines (`pinneapple_simulation.electromagnetics.machines.drive`): FEA flux maps with
+  speed-free loss data, constant-inductance reference with closed forms, torque envelope and least-loss operating
+  points under current and voltage limits (MTPA, flux weakening, maximum torque per volt), efficiency maps, vehicle
+  road load and drive-cycle energy with regeneration; WLTC class 3b trace (UN GTR No. 15). Example
+  `examples/electrodynamics/11_prius_drive.py`, tests `tests/test_emachine_drive.py`.
+- Interior-PM machine FEA (`pinneapple_simulation.electromagnetics.machines`): parametric V-magnet rotors and
+  round-bottom slots, conforming mirrored sector meshes with a moving band, M400-50A B-H and loss data, stacking
+  factor, table and Bertotti iron-loss models, and `IPMMachine` (Maxwell-stress and co-energy torque, cogging, ripple,
+  flux linkage, back-EMF, dq flux linkages, frozen-permeability L_d / L_q, MTPA, iron and magnet losses). Verified
+  against a closed form (magnetised ring, second order), exact areas, torque consistency (co-energy, dq power
+  balance, frozen-permeability superposition) and the published Prius torque curve (Yang et al., IEMDC 2013);
+  example `examples/electrodynamics/10_pmsm_prius.py`, tests `tests/test_emachine_pmsm.py`.
+  `analytic.magnetized_ring` added.
+- Electromagnetics and electrodynamics (`pinneapple_simulation.electromagnetics`, `pp.em`; guide
+  `docs/guides/electromagnetics.md`):
+  - SI core: CODATA 2022 constants (`constants`), SI dimensions of every field and a dimensional check of Maxwell's
+    equations (`units.check_equations`, `units.check_units`); `pinneapple_data.physical_units` gains T, mT, Wb,
+    coulomb, farad, henry and siemens.
+  - Media (`media`): isotropic, anisotropic (`Anisotropic`, uniaxial crystals, plane-wave indices, reciprocity) and
+    dispersive Drude / Lorentz / Debye poles with auxiliary-differential-equation coefficients for time-domain
+    solvers, phasor convention `exp(+j omega t)`; `hysteresis`: Froehlich-Kennelly curve (plugs into the Newton
+    solver) and the Jiles-Atherton model.
+  - References in closed form: `statics` (capacitors, exact Biot-Savart of segments, loops in elliptic integrals,
+    solenoids, mutual and self inductance), `waves` (Fresnel, multilayers, skin depth, waveguides, cavities, dipoles,
+    TMz cylinder scattering, surface plasmons), `mie` (dielectric and conducting spheres, checked against miepython
+    and Bohren & Huffman's published values).
+  - `electrostatics.solve_electrostatic` (P1 FEM, capacitance from energy), `mesh.rect_mesh`.
+  - The electric-machine work of the `feat/motor-magnetics-topopt` branch: A_z magnetostatics with Newton for
+    nonlinear B-H, magnets and (anti-)periodic constraints; time-harmonic eddy currents in solid conductors; SPM and
+    reluctance machine model (Maxwell-stress and co-energy torque, cogging, back-EMF, losses, adjoint
+    sensitivities); `pinneapple_design.topology` (SIMP, filter, projection, OC, MMA; compliance, thermal,
+    Stokes-Brinkman and rotor problems; guide `docs/guides/topology_optimization.md`).
+  - `verification`: 19 cases against closed forms, published values and miepython with measured orders; the table
+    in the guide is the output of `examples/electrodynamics/07_em_verification.py`.
+  - Physics checks of any field (`pinneapple_physics.maxwell_checks`, `pp.maxwell`): Gauss, Faraday,
+    Ampere-Maxwell and continuity residuals with a grid-halving test that tells discretisation error from a field
+    that breaks the law, Poynting energy balance, PEC faces, tangential continuity, S-parameter reciprocity and
+    passivity, and a deploy decision. `pinneapple check` runs them with `physics = "maxwell"` (PC102, PC301, PC103;
+    tolerances `maxwell-gauss`, `maxwell-faraday`, `maxwell-ampere`, `maxwell-continuity`, `maxwell-energy`).
+  - PDE compiler kinds `electrostatics`, `magnetostatics_az`, `eddy_current_az`, `maxwell_tm`, `maxwell_3d`,
+    `maxwell_tm_frequency` and the integral forms `electrostatics_integral` and `maxwell_tm_integral` (Gauss's law
+    and Ampere-Maxwell / Faraday on control squares, which see material interfaces); presets `em_*` with closed-form
+    solutions registered for `pp.solve(problem, "analytic")`.
+  - Optional extra `em` (miepython); catalog items S29-S39 and E66-E71.
+  - `fdtd`: Yee FDTD in 1-D, 2-D and 3-D with the Courant limit enforced, CPML, PEC / PMC / periodic / Bloch
+    (Floquet) boundaries, Drude / Debye / Lorentz media by auxiliary differential equations, soft and hard sources,
+    impressed currents, total-field / scattered-field plane waves in any dimension (leakage 1e-16), sub-cell
+    (fill-fraction) averaging, probes, running DFTs, Poynting flux, the exactly conserved discrete energy,
+    node- and time-centred snapshots for `maxwell_checks`, and a near-to-far-field transform. 12 verification
+    cases (Fresnel and dispersive half-spaces, cavities, waveguide, plasma, cylinder scattering, Hertzian dipole,
+    Floquet, CPML, near-to-far field), second order where it applies.
+  - `pinneapple_tools.visualization.electromagnetics`: field maps with Poynting arrows, GIF / MP4 field movies,
+    radiation patterns; `examples/electrodynamics/08_fdtd_gallery.py` (scattering movie, field map, dipole
+    pattern, each with its check). Catalog items S40-S41.
 - The zoo demo Space `PINNeAPPle-Labs/zoo-demo` is a static Space (a Gradio Space needs a paid plan for the
   organisation). `pinneapple_hub.zoo.demo.precompute` / `export_space` compute, from the models published on the
   Hub, each model's sweep of every input with its band and the verdict of its query checks at every point, and
@@ -1022,6 +1076,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- `eddy_current_fdm`: `annular_current_source` injected a current that depended on how the coil band fell on the
+  grid (it normalised by the nominal band area; 0.75 N I in one case); `axial_flux_density` returned half the field
+  on the axis; `eddy_current_density` had the wrong sign for the solver's `exp(+j omega t)` convention. Together they
+  explain the coil field at a fraction of the loop formula recorded in the validation gallery.
+- `solve_magnetostatic` (electromagnetics): the Newton line search could stall at a 1e-7 residual when the Armijo
+  test compared energy changes below round-off; near convergence it now takes the full step.
 - Newton backend: a scene with several jointed trees failed to build (Newton needs the joints of an articulation to
   be contiguous); joints are now created tree by tree.
 - Blender renders of small models (a few centimetres) were cut by the camera's default 0.1 m near clipping plane;
