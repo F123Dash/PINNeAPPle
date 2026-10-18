@@ -211,9 +211,8 @@ def deck(f: dict):
            f"Mesh study inside the magnets (4 levels): grade H at -250 A {100 * min(hs):.1f} to {100 * max(hs):.1f} % "
            "-> area fractions converge; the worst element does not (sharp corners)."],
           image="13_prius_demag.png",
-          limits="Hcj coefficient assumed (-0.55 %/K); static knee test; the Prius magnet grade was not found in accessible public "
-                 "sources; the 
-                 "rows compare candidate grades.")
+          limits="Hcj coefficient assumed (-0.55 %/K); static knee test; the Prius magnet grade was not found in "
+                 "accessible public sources, so the rows compare candidate grades.")
     s0, k2, k3 = sk["straight"], sk["k2"], sk["k3"]
     slide("Step skew",
           [f"Multi-slice FEA. Straight rotor: cogging {s0['cogging_pkpk_Nm']:.2f} N m, ripple "
