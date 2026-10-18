@@ -663,6 +663,77 @@ sit at the lower bound of the bridge, 1.0 mm against the Prius's 1.5 mm. A thinn
 but the bridge carries the centrifugal load. Mechanical stress, demagnetisation and the torque-speed envelope are not
 constraints of this study, so it does not claim a better rotor. It shows the method and its FEA-call saving.
 
+### End effects: end windings and magnet end leakage
+
+Two effects outside the 2-D cross-section:
+
+* End windings. `machines.endwinding` models each coil end as a thin conductor on the cylinder at the mean slot
+  radius: axially out of the stack by the overhang, a half circle over the coil span, then back.
+  * The same path gives the end-turn length of the phase resistance (`prius_phase_resistance`, 0.16 m per coil
+    end), so resistance and inductance share one geometry.
+  * `end_winding_inductance` integrates the phase inductances with Neumann's double integral, using the thin-wire
+    kernel `1 / sqrt(r^2 + g^2)` with the wire's geometric mean distance `g = a e^-1/4` (`statics.filament_inductance`).
+    The coil bundle is a round conductor of the slot's copper area. Both ends are included, in air and with the
+    stator end face as an infinitely permeable mirror (image currents); the two cases bound the laminated face.
+  * The dq leakage `L_end = L_aa - M_ab` adds to both axes in the voltage equations (`Drive(..., L_end=...)`). It
+    cancels in the torque `1.5 p (psi_d i_q - psi_q i_d)`.
+* Magnet end leakage. `getdp.end_leakage_3d` builds a 3-D magnetostatic model of half the stack, from the mid-plane
+  to the end face, with an air region beyond the face: the cross-section extruded into prisms. The solver is GetDP,
+  using a magnetic scalar potential and Picard iteration on the secant permeability. The model is compared with the
+  same mesh without the end air, which is the extruded 2-D field. The ratio of the no-load air-gap flux under a pole
+  corrects the 2-D magnet flux.
+
+The filament inductance is verified against closed forms (`tests/test_emachine_ends.py`):
+
+* a circular loop against Rosa's `mu0 R (ln(8R/a) - 7/4)`, within 2e-3;
+* two coaxial loops against Maxwell's elliptic-integral mutual inductance, below 1e-3 and second order in the
+  polygon;
+* a loop above the iron mirror against the same loop plus the mutual of its image, within 2e-3.
+
+`python examples/electrodynamics/16_prius_end_effects.py` (run on 2026-10-18) gives
+`results/16_prius_end_effects.json` and `16_prius_end_effects.png`.
+
+End windings, 24 coils of 9 turns, overhang 19.4 mm:
+
+* `L_aa` 148.2 uH, `M_ab` 13.0 uH, so `L_end` = 135.2 uH in air;
+* 115.3 uH with the iron face;
+* 150 and 300 pieces per metre agree to 1.4e-4.
+
+In air, `L_end` is 9.8 % of `L_d` (1.386 mH) and 5.6 % of `L_q` at 250 A. With the drive model and the FEA flux map
+(250 A, 500 V), the maximum torque is:
+
+| Speed (rpm) | 1000 | 2000 | 3000 | 4000 | 5000 | 6000 |
+|---|---|---|---|---|---|---|
+| 2-D model (N m) | 343.6 | 343.6 | 239.3 | 167.4 | 128.5 | 104.4 |
+| + end windings in air | 343.6 | 338.1 | 213.3 | 150.1 | 115.7 | 94.2 |
+| + end windings, iron face | 343.6 | 339.9 | 216.8 | 152.4 | 117.4 | 95.6 |
+
+The end-winding reactance takes voltage, so the corner speed moves down. Above it the envelope falls by 10 to 11 %
+in air: 239.3 to 213.3 N m at 3000 rpm and 104.4 to 94.2 N m at 6000 rpm. At part load in flux weakening, the
+efficiency rises slightly because less negative `i_d` is needed:
+
+* 4000 rpm, 100 N m: 94.27 to 94.36 %;
+* 6000 rpm, 60 N m: 90.86 to 91.29 %.
+
+The 3-D/2-D ratio of the magnet flux on three meshes:
+
+* 0.9345 with 116 856 prisms;
+* 0.9463 with 198 336 prisms;
+* 0.9482 with 342 832 prisms.
+
+The steps are 0.0118 then 0.0019. Lengthening the end air from 40 to 60 mm changes the ratio by 1e-4 (0.9462).
+The half stack has one end and the full stack two, so the ratio applies to the whole 83.8 mm machine: the end
+leakage removes 5.2 % of the 2-D magnet flux.
+
+The correction scales the remanence in the 2-D FEA by that ratio, from 1.24 to 1.176 T, so saturation and
+reluctance torque follow:
+
+* the MTPA torque at 250 A falls from 345.7 to 336.7 N m (-2.6 %), with the MTPA angle moving from 49.5 to
+  50.1 deg;
+* the back-EMF fundamental at 1000 rpm falls from 87.6 to 82.9 V (-5.4 %).
+
+The torque falls less than the flux because the reluctance torque does not depend on the magnets.
+
 ## Verification
 
 Each case compares a solver or reference implementation with an independent result; where the mesh or step is
@@ -760,7 +831,9 @@ Notes from the same run:
   by the integral kinds.
 * `maxwell_checks` uses central differences on tensor grids: fields with discontinuities (material interfaces,
   PEC edges) leave residuals there that are not errors of the field; crop them or check each region separately.
-* Machines: 2-D only (no end windings, no axial flux; skew by multi-slice, without inter-segment axial flux), magnets at a uniform temperature,
+* Machines: 2-D FEA; end effects as corrections (end-winding inductance from thin filaments, magnet end leakage
+  as one 3-D no-load ratio applied through the remanence, not a coupled 3-D solution at load); skew by
+  multi-slice, without inter-segment axial flux; magnets at a uniform temperature,
   iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
   magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
   M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.

@@ -26,6 +26,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   purged k-fold / shuffled k-fold splitters, Diebold-Mariano with HLN correction, Holm and Benjamini-Hochberg,
   PIT and coverage helpers, and pinned, checksummed public series (`time_series.datasets.public`: USD/EUR daily from
   FRED, yearly sunspots). Tests `tests/test_near_random_forecasting.py` (a must-pass CI step).
+- Slides of the e-machine study: `examples/electrodynamics/18_emachine_slides.py` builds 12 slides (PPTX, and PDF
+  with LibreOffice) from the results of examples 10 to 17, every number read from the result files, each slide with
+  its limits (needs `python-pptx`).
+- End effects of machines: `statics.filament_inductance` (Neumann's formula for thin conductors, reduced kernel,
+  closed-form self terms, iron-face image), `machines.endwinding` (end-winding resistance path and dq leakage
+  inductance), `Drive(..., L_end=...)`, and `getdp.end_leakage_3d` (3-D magnetostatic end leakage of the magnet
+  flux). Example `examples/electrodynamics/16_prius_end_effects.py`, tests `tests/test_emachine_ends.py`.
 - Second FEA code and interoperability for machines: `machines.getdp` (the same machine in gmsh + GetDP, nonlinear
   2-D A-formulation with Arkkio torque, as an independent cross-check) and `machines.interop` (pyleecan machine
   files in and out, FEMM Lua script, ElmerFEM case, MATLAB `.mat`, DXF, `ParameterSpace` / `DatasetSpec` contracts).
