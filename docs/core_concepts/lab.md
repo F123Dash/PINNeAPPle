@@ -200,6 +200,45 @@ convergence index of a solver result from two or three meshes, with the Richards
 `rom_study/beam_parametric` and `calculix_case/plate_hole` use them. The card appears in the
 catalogue's run sheet, in every report (HTML, Markdown, PDF) and as a table in `lab/CURATION.md`.
 
+### Quality seal
+
+`pinneapple_lab.seal` stamps an item's figures, renders and movies with a small PINNeAPPle badge: the pineapple
+mark, the wordmark, the tier letter in its colour (A green, B amber) and, optionally, the one-line evidence.
+
+![Seals of a Tier A and a Tier B item, full and compact](../assets/showcase/seal_examples.png)
+
+* The tier is read from `lab/curation.json`; no argument sets it, and stamping again after `curate` picks up the
+  new tier. The evidence line is the item's curation **headline**: the first passing reference check (A), or for B
+  the first passing physics, baseline or unseen-data check, with the independent reference still missing.
+* Tiers C and D are not stamped at all (`SealError`): a badge on an unvalidated result would read as an endorsement
+  whatever it said.
+* Below 56 px tall the badge drops the small print (mark, wordmark, letter) so it stays legible.
+
+```python
+from pinneapple_lab.seal import seal_for, save_seal, stamp_figure, stamp_file, sealed_savefig
+
+s = seal_for("repo_results/prius_pmsm")             # tier and evidence from lab/curation.json
+save_seal(s, "seal.svg"); save_seal(s, "seal.png")
+stamp_figure(fig, s)                                 # matplotlib: keeps off colour bars, picks the emptiest corner
+with sealed_savefig(s):                              # a savefig hook: every figure saved in the block is stamped
+    fig.savefig("torque.png")
+stamp_file("render.jpg", s)                          # PNG / JPG / WebP -> render.sealed.jpg
+stamp_file("wake.gif", s, corner="tl", size=0.3, opacity=0.9)   # GIF frame by frame, MP4 by an ffmpeg overlay
+```
+
+`corner="auto"` (the default) scores each corner by the colour gradient and spread under the badge, so colour
+bars, axis labels and the subject push it elsewhere; for figures it also never overlaps a colour-bar axes.
+`size` is the badge width as a fraction of the image width, `opacity` its alpha. A plot filled to its edges has no
+free corner; then the badge goes in a strip added under it (`extend="auto"`) instead of covering the axes:
+
+![The Prius field stamped: no free corner, so the seal sits in a strip under the plot](../assets/showcase/seal_stamped_figure.jpg)
+
+```bash
+python -m pinneapple_lab seal repo_results/prius_pmsm -o seal.svg
+python -m pinneapple_lab stamp repo_results/prius_pmsm figure.png -o figure_sealed.png
+python -m pinneapple_lab stamp --all --out export/sealed       # every figure of every A and B item, + manifest.json
+```
+
 ## Examples and use cases
 
 Every script under `examples/` (224 today, use cases included) is also a lab experiment, `example_script`. A run
