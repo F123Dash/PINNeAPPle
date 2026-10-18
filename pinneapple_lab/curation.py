@@ -515,7 +515,7 @@ def problem(status: str, checks: list[dict[str, Any]], error: str | None = None)
         else:
             rule, main = "other", failing[0]
     more = f" (+{len(failing) - 1} more)" if len(failing) > 1 else ""
-    line = check_line(main, 56) + more
+    line = check_line(main, 90) + more                 # the seal wraps it onto two lines
     return {"tier": tier, "rule": rule, "check": main, "failing": len(failing), "text": line, "text_pt": line}
 
 

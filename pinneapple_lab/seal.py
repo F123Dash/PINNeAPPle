@@ -252,6 +252,33 @@ def _mark(seal: Seal) -> str:
     return {"reference": "\u2713 ", "failing": "\u2717 ", "": ""}.get(seal.reason_kind, "\u25d0 ")
 
 
+def _wrap(text: str, size: float, width: float, max_lines: int) -> list[str]:
+    """``text`` broken at spaces into at most ``max_lines`` lines of at most ``width`` px at font ``size``; only
+    what still does not fit after that is cut (with "…"). Continuation lines are indented past the mark."""
+    f = _pil_font(size * 4, False)
+    fits = lambda t: f.getlength(t) / 4 <= width  # noqa: E731
+    out, rest = [], text
+    while rest and len(out) < max_lines:
+        if fits(rest) or len(out) == max_lines - 1:
+            line, rest = rest, ""
+        else:
+            words, line = rest.split(" "), ""
+            for i, wd in enumerate(words):
+                cand = (line + " " + wd) if line else wd
+                if not fits(cand) and line:
+                    rest = " ".join(words[i:])
+                    break
+                line = cand
+            else:
+                rest = ""
+        if not fits(line):
+            while line and not fits(line + "…"):
+                line = line[:-1]
+            line = line.rstrip(" ,;·") + "…"
+        out.append(line if not out else "   " + line.lstrip())
+    return out
+
+
 def _layout(seal: Seal, height: float, reason: bool, compact: bool, lang: str = "en",
             next_step: bool = True) -> dict[str, Any]:
     """Positions in pixels for a badge ``height`` tall (both renderers use it). An E or F badge is never compact and
@@ -271,25 +298,18 @@ def _layout(seal: Seal, height: float, reason: bool, compact: bool, lang: str = 
         lines.append((f"TIER {seal.tier} · {tier_text}", 0.145 * h, seal.line, True,
                       pad + top + 0.21 * h))
         why, hint = seal.text(lang)
+        small = []
         if reason and why:
-            lines.append((_mark(seal) + why, 0.13 * h, "#E6E9F0", False, pad + top + 0.40 * h))
+            small.append((_mark(seal) + why, "#E6E9F0"))
         if (must or next_step) and hint:
-            lines.append(("\u2191 " + hint, 0.13 * h, seal.line, False,
-                          pad + top + (0.40 + _LINE_STEP * (len(lines) - 2)) * h))
+            small.append(("\u2191 " + hint, seal.line))
+        k = 0
+        for text, col in small:                 # up to two lines each, so the whole check and action can be read
+            for part in _wrap(text, 0.13 * h, 3.4 * h, 2):
+                lines.append((part, 0.13 * h, col, False, pad + top + (0.40 + _LINE_STEP * k) * h))
+                k += 1
     H = h + _LINE_STEP * h * max(0, len(lines) - 3)
-    widths = []
-    for text, size, _, bold, _ in lines:
-        f = _pil_font(size * 4, bold)
-        widths.append(f.getlength(text) / 4)
-    max_text = 3.4 * h                         # small print is cut, never the badge stretched for it
-    for i in range(2, len(lines)):
-        if widths[i] > max_text:
-            text = lines[i][0]
-            f = _pil_font(lines[i][1] * 4, False)
-            while text and f.getlength(text + "…") / 4 > max_text:
-                text = text[:-1]
-            lines[i] = (text.rstrip(" ,;·") + "…",) + lines[i][1:]
-            widths[i] = f.getlength(lines[i][0]) / 4
+    widths = [_pil_font(size * 4, bold).getlength(text) / 4 for text, size, _, bold, _ in lines]
     mark_h = h - 2 * pad
     mark_w = mark_h * (_MARK_BOX[2] - _MARK_BOX[0]) / (_MARK_BOX[3] - _MARK_BOX[1])
     x = pad + mark_w + 0.12 * h

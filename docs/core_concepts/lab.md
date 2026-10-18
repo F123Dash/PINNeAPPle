@@ -328,7 +328,8 @@ Every letter has a seal, so a figure always says where its result stands, not on
   first passing physics, baseline or unseen-data check (◐, B), the verification check (◐, C), or for E and F the
   failing check (✗).
 * **E and F always carry the main problem and the next step** (↑, from the curation), whatever `reason=` says, and
-  have no compact form: the badge is one line taller instead, and at least 56 px tall on a stamped figure.
+  have no compact form: the badge grows instead (the problem and the next step each wrap onto up to two lines,
+  so neither is cut), and it is at least 56 px tall on a stamped figure.
 * Colour is never the only cue: the letter and the tier line are always printed. The badge carries its own dark
   panel, so it reads the same on light and dark figures; on that panel the tier line and each letter on its disc
   have a WCAG contrast ratio of at least 4.5 (`contrast_ratio`, checked by a test). F's outline and tier line use a

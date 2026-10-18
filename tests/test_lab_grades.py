@@ -346,3 +346,16 @@ def test_improve_dry_run_then_a_fix_raises_the_letter(tmp_path, capsys):
     assert out["runs"][fixed.run_id]["tier"] == "B"                             # E -> B for the fixed run
     assert out["items"]["_test_fixable"]["tier"] == "C"                         # E -> C: most runs still fail
     assert next_steps("_test_fixable", root)[0].type == "consistency"           # ... which is now the first gap
+
+
+@pytest.mark.parametrize("lang", ["en", "pt"])
+def test_problem_and_next_lines_wrap_instead_of_being_cut(graded, lang):
+    root, _ = graded
+    s = seal_for("_test_grade/F_contradicts", root)
+    reason, hint = s.text(lang)
+    svg = render_seal(s, fmt="svg", lang=lang)
+    assert "…" not in svg                                      # the whole check and the whole action are printed
+    words = hint.split()
+    assert all(w in svg for w in words[-3:])                   # the end of the action is there, on a second line
+    assert render_seal(s, lang=lang).height > render_seal(seal_for("_test_grade/E_baseline", root), lang=lang,
+                                                            next_step=False).height

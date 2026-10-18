@@ -1,6 +1,6 @@
 # PINNeAPPle Lab curation
 
-Generated 2026-10-18 21:15 UTC. Tiers: **A flagship** (product / paper / marketing once reviewed), **B solid** (demos, use cases, datasets), **C plausible** (partly checked), **D exploratory** (not validated), **E known problems** (a failing check), **F not usable** (crashed, diverged, failed physics or contradicts the reference). Gates, not averages: see `pinneapple_lab/curation.py`.
+Generated 2026-10-18 21:57 UTC. Tiers: **A flagship** (product / paper / marketing once reviewed), **B solid** (demos, use cases, datasets), **C plausible** (partly checked), **D exploratory** (not validated), **E known problems** (a failing check), **F not usable** (crashed, diverged, failed physics or contradicts the reference). Gates, not averages: see `pinneapple_lab/curation.py`.
 
 | experiment | tier | best score | runs (A/B/C/D/E/F) | usable | product | paper | marketing | data | reviewed |
 |---|---|---|---|---|---|---|---|---|---|
@@ -120,7 +120,7 @@ Data and geometry (was the physical problem represented correctly?), model (can 
 
 | item | tier | main problem | next step |
 |---|---|---|---|
-| `repo_results/benchmark_arena` | E | dataset audit diversity.effective · effective sample… | D: fix the failing check |
+| `repo_results/benchmark_arena` | E | dataset audit diversity.effective · effective sample count 1 of 54 (no generator stated | D: fix the failing check |
 | `em_pinn/em_tm_cavity` | F | Ez vs closed form (+2 more) | E: agree with the reference, or pass an independent physics check |
 | `em_pinn/em_two_dielectric_capacitor` | F | phi vs closed form | E: agree with the reference, or pass an independent physics check |
 | `example_script/examples/getting_started/03_heat_diffusion_1d.py` | F | crashed · TimeoutError: 03_heat_diffusion_1d.py did not finish in 600.0 s | E: make the run finish without an error |

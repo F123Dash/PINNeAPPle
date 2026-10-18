@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18 21:15 UTC",
+ "generated": "2026-10-18 21:57 UTC",
  "experiments": {
   "accretion_flow": {
    "tier": "B",
@@ -28353,8 +28353,8 @@
    },
    "headline": {
     "kind": "failing",
-    "text": "dataset audit diversity.effective \u00b7 effective sample\u2026",
-    "text_pt": "dataset audit diversity.effective \u00b7 effective sample\u2026",
+    "text": "dataset audit diversity.effective \u00b7 effective sample count 1 of 54 (no generator stated",
+    "text_pt": "dataset audit diversity.effective \u00b7 effective sample count 1 of 54 (no generator stated",
     "check": "dataset_audit_diversity.effective",
     "rule": "other",
     "next_tier": "D",
@@ -73641,8 +73641,8 @@
    },
    "headline": {
     "kind": "failing",
-    "text": "dataset audit diversity.effective \u00b7 effective sample\u2026",
-    "text_pt": "dataset audit diversity.effective \u00b7 effective sample\u2026",
+    "text": "dataset audit diversity.effective \u00b7 effective sample count 1 of 54 (no generator stated",
+    "text_pt": "dataset audit diversity.effective \u00b7 effective sample count 1 of 54 (no generator stated",
     "check": "dataset_audit_diversity.effective",
     "rule": "other",
     "next_tier": "D",
