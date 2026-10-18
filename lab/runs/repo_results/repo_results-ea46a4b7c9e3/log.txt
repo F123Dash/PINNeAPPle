@@ -1,0 +1,8 @@
+[15:32:24] Topology optimisation: MBB beam and cantilever, heat conduction and Stokes channels, a reluctance rotor
+[15:32:24] stage import started
+[15:32:24] check adjoint_gradient_vs_finite_differences: PASS MBB compliance sensitivities; tolerance 1e-4
+[15:32:24] check rotor_adjoint_gradient_vs_finite_differences: PASS 
+[15:32:24] check oc_and_mma_reach_the_same_compliance: PASS two optimisers, same problem; tolerance 1 %
+[15:32:24] check optimised_conductor_beats_uniform: PASS thermal compliance of the optimised layout against the uniform material
+[15:32:24] check optimised_channels_beat_uniform: PASS Stokes dissipation, double_pipe_L1.0, double_pipe_L1.5
+[15:32:24] stage import done (0.008 s)

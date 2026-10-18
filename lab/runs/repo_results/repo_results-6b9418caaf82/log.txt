@@ -1,0 +1,8 @@
+[15:32:24] Free-surface jet into a trough (interFoam, 5 and 10 mm cells): mass balance, impingement, floor shear
+[15:32:24] stage import started
+[15:32:24] check mass_balance_5mm: PASS liquid in - out - stored, % of the inflow, after 1 s; tolerance 1 %
+[15:32:24] check mass_balance_10mm: PASS liquid in - out - stored, % of the inflow, after 1 s; tolerance 1 %
+[15:32:24] check solver_volume_matches_fields: PASS 
+[15:32:24] check courant_below_one: PASS 
+[15:32:24] check impingement_point_mesh_sensitivity: PASS floor pressure peak, 5 mm against 10 mm cells; tolerance 5 %
+[15:32:24] stage import done (0.002 s)
