@@ -4,6 +4,25 @@ Commands run in `apps/deploy` on the server unless stated. `<PREFIX>` is the app
 `CAMPAIGN`, ...; the list is in `.env.example`), `<svc>` its Compose service (`heatsink`, `models`, `campaign`, ...).
 Settings are described in `apps/_shared/README.md` and the host in `docs/security/server.md`.
 
+## Upgrade to the hardened containers (once)
+
+> [!IMPORTANT]
+> The first upgrade to the non-root images (PR "Harden the deployment") needs a one-time ownership change of the
+> app volumes, **before** the new images start; otherwise apps that keep state on a volume can not write to it.
+
+```bash
+cd apps/deploy
+docker compose down
+for v in $(docker volume ls -q | grep -E '^pinneapple-apps_(.*_data|obs_cache)$' | grep -v caddy_data); do
+  docker run --rm -v "$v":/v alpine chown -R 10001:0 /v
+done
+docker compose build --pull && docker compose up -d
+sudo ./check_server.sh                     # then every service healthy in `docker compose ps`
+```
+
+Also set login hashes (`<PREFIX>_PASSWORD_HASH`, below) and, if the Model Gateway hosted pickled Surrogate Studio
+models, decide on `MDL_ALLOW_PICKLE_UPLOAD` (off by default now).
+
 ## Rotate credentials
 
 **An app login password**

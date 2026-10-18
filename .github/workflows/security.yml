@@ -35,7 +35,9 @@ jobs:
 
       - name: Install scanners
         run: |
-          python -m pip install --upgrade pip
+          # pip-audit also audits this environment: bring the runner's own pip and setuptools up to date first
+          # (setuptools 79.0.1 on the runner image: PYSEC-2026-3447, fixed in 83.0.0; the project builds with hatchling)
+          python -m pip install --upgrade pip "setuptools>=83"
           pip install "bandit>=1.7.9" "pip-audit>=2.7" "cyclonedx-bom>=4.4"
           curl -sSfL -o /usr/local/bin/hadolint \
             "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64"
@@ -72,7 +74,10 @@ jobs:
 
       - name: Trivy (base images; fails on critical CVEs that have a fix)
         run: |
-          for img in python:3.11-slim $(grep -ho 'caddy:2[^ ]*' apps/deploy/docker-compose.yml apps/playground/Dockerfile | sort -u); do
+          imgs=$( (sed -n 's/^ *image: *\(caddy:[^ ]*\).*/\1/p' apps/deploy/docker-compose.yml
+                   sed -n 's/^FROM \(caddy:[^ ]*\).*/\1/p' apps/playground/Dockerfile) | sort -u)
+          for img in python:3.11-slim $imgs; do
+            echo "trivy: $img"
             trivy image --quiet --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 "$img"
           done
 
@@ -82,8 +87,8 @@ jobs:
           pip install -r app-requirements.txt >/dev/null
           cyclonedx-py environment --of JSON -o sbom-python.cdx.json
           trivy image --quiet --format cyclonedx -o sbom-python-3.11-slim.cdx.json python:3.11-slim
-          trivy image --quiet --format cyclonedx -o sbom-caddy.cdx.json \
-            "$(grep -ho 'caddy:2@[^ ]*' apps/deploy/docker-compose.yml | head -1)"
+          caddy=$(sed -n 's/^ *image: *\(caddy:[^ ]*\).*/\1/p' apps/deploy/docker-compose.yml | head -1)
+          trivy image --quiet --format cyclonedx -o sbom-caddy.cdx.json "$caddy"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -106,10 +111,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e . pytest fastapi httpx python-multipart pyyaml argon2-cffi
       - name: Security tests per layer (library, app wiring, deployment)
-        run: >
-          pytest -q tests/pinneapple_security tests/test_app_security.py tests/test_deploy_security.py
-          tests/test_app_campaign.py tests/test_app_model_gateway.py tests/test_appkit_runtime.py
-          tests/pinneapple_core/test_service.py
+        # tests/test_*_security.py: the app-wiring and deployment suites (tests/test_app_security.py,
+        # tests/test_deploy_security.py) and any later ones
+        run: |
+          shopt -s nullglob
+          pytest -q tests/pinneapple_security tests/test_*_security.py tests/test_app_campaign.py \
+            tests/test_app_model_gateway.py tests/test_appkit_runtime.py tests/pinneapple_core/test_service.py
 
   image:
     # one real app image end to end: built, run with the Compose hardening, scanned, SBOM; weekly and on demand

@@ -11,7 +11,7 @@ COPY data/geometries data/geometries
 COPY data/web data/web
 RUN python apps/playground/build.py --out /site
 
-FROM caddy:2.8.4-alpine
+FROM caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
 COPY apps/playground/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /site /srv
 EXPOSE 8095
