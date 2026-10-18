@@ -111,12 +111,15 @@ def frame_indices(hist: FlightHistory, n_frames: int) -> np.ndarray:
 def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind=None, runway: bool = True,
                  runway_length: float | None = None, gust_grid: int = 7, gust_scale: float | None = None,
                  load: bool = True, title: str | None = None, follow: bool = True,
-                 parts=None, arrows: bool = True, wisps: bool = False, trail_nz: bool = True) -> Any:
+                 parts=None, arrows: bool = True, wisps: bool = False, trail_nz: bool = True,
+                 gust_arrows: str = "vertical") -> Any:
     """Animated scene of ``hist``. ``wind``: the field the aircraft flew through, sampled on a heading-aligned
     horizontal grid around the aircraft (``gust_grid`` x ``gust_grid`` points over 2 spans, at the CG height and one
     semi-span above and below) and drawn as arrows coloured by the vertical gust; ``load``: the lattice dCp per frame
     (needs ``hist.gamma``, i.e. ``record_gamma=True``); ``arrows`` / ``wisps``: the gust as moving arrows and / or
-    as static wisps along the flown corridor (:func:`gust_wisps`); ``trail_nz``: the trail coloured by n_z."""
+    as static wisps along the flown corridor (:func:`gust_wisps`); ``trail_nz``: the trail coloured by n_z;
+    ``gust_arrows``: "vertical" draws the vertical gust w only, as vertical arrows (what the colour bar shows; they are
+    never seen end-on from the chase views), "full" the whole wind vector."""
     from pinneapple_tools.visualization.studio.animation import Animation, quat_from_matrix
     from pinneapple_tools.visualization.studio.scene import Scene
     ks = frame_indices(hist, n_frames)
@@ -158,8 +161,9 @@ def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind
             Org.append(P @ S_FLIP.T)
             W.append(wind.velocity(hist.t[k], P) @ S_FLIP.T)
         Org, W = np.array(Org), np.array(W)
-        sc = gust_scale or 0.5 * b / max(float(np.abs(W).max()), 1e-6)
-        anim.add_vectors("gust", Org, W * sc, values=W[..., 2], label="Vertical gust w [m/s] (up +)", cmap="coolwarm",
+        Wd = W * np.array([0.0, 0.0, 1.0]) if gust_arrows == "vertical" else W
+        sc = gust_scale or 0.5 * b / max(float(np.abs(Wd).max()), 1e-6)
+        anim.add_vectors("gust", Org, Wd * sc, values=W[..., 2], label="Vertical gust w [m/s] (up +)", cmap="coolwarm",
                          color_range=(-float(np.percentile(np.abs(W[..., 2]), 98)),
                                       float(np.percentile(np.abs(W[..., 2]), 98))))
     anim.add_hud("V", hist.airspeed[ks] / KT, "Airspeed", "kt", "{:.0f}")
