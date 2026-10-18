@@ -25,6 +25,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   stress): every method is trained on their square root and predicts their square (`methods.NonNegative`, also in
   the TorchScript / ONNX export). `heldout_report` counts negative predictions of such fields and gives the
   per-design errors next to the pooled one.
+- Drive model of synchronous machines (`pinneapple_simulation.electromagnetics.machines.drive`): FEA flux maps with
+  speed-free loss data, constant-inductance reference with closed forms, torque envelope and least-loss operating
+  points under current and voltage limits (MTPA, flux weakening, maximum torque per volt), efficiency maps, vehicle
+  road load and drive-cycle energy with regeneration; WLTC class 3b trace (UN GTR No. 15). Example
+  `examples/electrodynamics/11_prius_drive.py`, tests `tests/test_emachine_drive.py`.
 - Interior-PM machine FEA (`pinneapple_simulation.electromagnetics.machines`): parametric V-magnet rotors and
   round-bottom slots, conforming mirrored sector meshes with a moving band, M400-50A B-H and loss data, stacking
   factor, table and Bertotti iron-loss models, and `IPMMachine` (Maxwell-stress and co-energy torque, cogging, ripple,

@@ -200,3 +200,71 @@ def _mesh(quick: bool) -> CaseResult:
                       "successive differences", d2 / abs(T[2]), 0.02, detail=(
                           ", ".join(f"{n}: {t:.2f} N m" for n, t in zip(ns, T, strict=True))
                           + f"; difference ratio {d1 / max(d2, 1e-30):.2f}"))
+
+
+# ------------------------------------------------------------------------------------------------ drive model
+def _linear_drive(R: float = 0.0):
+    from .drive import Drive, LinearDQ, v_max_svpwm
+
+    m = LinearDQ(4, 0.2, 0.6e-3, 2.4e-3)  # psi_m > L_d I_max: no maximum-torque-per-volt region below the limit
+    return m, Drive(m, R=R, I_max=250.0, V_max=v_max_svpwm(500.0))
+
+
+@case("Drive: torque envelope vs closed form (linear dq)")
+def _envelope(quick: bool) -> CaseResult:
+    m, d = _linear_drive()
+    errs = []
+    for rpm in (500, 1500, 2500, 4000, 6000, 8000, 10000):
+        w = rpm * 2 * math.pi / 60
+        T = d.max_torque(w)["T"]
+        Tc = m.max_torque_closed_form(m.pole_pairs * w, d.I_max, d.V_max)[0]
+        Tg = -d.max_torque(w, generating=True)["T"]
+        errs += [abs(T - Tc) / Tc, abs(Tg - Tc) / Tc]
+    return CaseResult("Drive: torque envelope vs closed form (linear dq)", "max torque, 500..10000 rpm, both signs",
+                      "MTPA / circle-ellipse intersection (R = 0)", max(errs), 1e-9,
+                      detail="L_d = 0.6 mH, L_q = 2.4 mH, psi_m = 0.2 Wb, 250 A, 500 V SVPWM")
+
+
+@case("Drive: least-loss currents vs MTPA closed form")
+def _mtpa_drive(quick: bool) -> CaseResult:
+    m, d = _linear_drive(R=0.05)
+    errs = []
+    for amp in (25.0, 100.0, 175.0, 250.0):
+        i_d, i_q = m.mtpa_closed_form(amp)
+        op = d.operating_point(float(m.torque(i_d, i_q)), 50.0, include_core_loss=False)
+        errs.append(math.hypot(op["i_d"] - i_d, op["i_q"] - i_q) / amp)
+    return CaseResult("Drive: least-loss currents vs MTPA closed form", "currents of least copper loss, 4 torques",
+                      "i_d = (psi - sqrt(psi^2 + 8 (L_q - L_d)^2 I^2)) / (4 (L_q - L_d))", max(errs), 1e-6)
+
+
+@case("Drive cycle: WLTC class 3b energy balance")
+def _cycle(quick: bool) -> CaseResult:
+    from .drive import Vehicle, cycle_energy, wltc_class3b
+
+    t, v = wltc_class3b()
+    m, d = _linear_drive(R=0.0)
+    veh = Vehicle(mass=1450.0, c_rr=0.009, cd_a=0.58, wheel_radius=0.30, gear_ratio=4.113, gear_efficiency=1.0,
+                  rotating_mass_factor=0.0)
+    E = cycle_energy(d, veh, t, v, envelope_speeds=9 if quick else 25)
+    vm = 0.5 * (v[1:] + v[:-1])
+    road = np.sum((veh.mass * veh.g * veh.c_rr * (vm > 0) + 0.5 * veh.air_density * veh.cd_a * vm ** 2) * vm * np.diff(t))
+    err = abs(E["battery_J"] - road) / road
+    return CaseResult("Drive cycle: WLTC class 3b energy balance", "battery energy of a lossless drive",
+                      "road-load work (kinetic energy returns to zero)", err, 1e-9, detail=(
+                          f"trace: {E['distance_m']:.1f} m (GTR 15: 23 266 m), max {3.6 * v.max():.1f} km/h, "
+                          f"sum {np.sum(3.6 * v):.1f} km/h s"))
+
+
+@case("Prius flux map: interpolation vs direct FEA")
+def _fluxmap(quick: bool) -> CaseResult:
+    from .drive import FluxMap
+
+    m = _machine(288 if quick else 480)
+    npos = 6 if quick else 12  # the same rotor angles for the map and the direct solutions
+    fm = FluxMap.from_fea(m, 250.0, n_d=7, n_q=7, n_positions=npos, loss_n=0)
+    errs = []
+    for i_d, i_q in ((-60.0, 90.0), (-150.0, 170.0), (-200.0, 40.0)):
+        op = m.operating_point(i_d=i_d, i_q=i_q, n_positions=npos)
+        errs.append(abs(float(fm.torque(i_d, i_q)) - op["torque_mean"]) / 300.0)
+    return CaseResult("Prius flux map: interpolation vs direct FEA", "torque at 3 off-grid currents (7 x 7 grid)",
+                      "FEA at the same currents", max(errs), 0.01, detail="error relative to 300 N m")
