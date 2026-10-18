@@ -16,6 +16,19 @@ from pinneapple_tools.visualization.studio.animation import (
 )
 
 
+def _in_subprocess(func: str, out_dir) -> None:
+    """Run ``func(out_dir)`` of this file in a child interpreter: bpy (Blender as a module) is never imported into the
+    pytest process, whose exit would otherwise run Blender's teardown alongside torch / Playwright handles (it can
+    crash the interpreter at exit after every test passed)."""
+    import subprocess
+    import sys
+    code = ("import importlib.util, sys; s = importlib.util.spec_from_file_location('t', sys.argv[1]); "
+            "m = importlib.util.module_from_spec(s); s.loader.exec_module(m); getattr(m, sys.argv[2])(sys.argv[3])")
+    r = subprocess.run([sys.executable, "-c", code, os.path.abspath(__file__), func, str(out_dir)],
+                       capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0, f"{func} failed in the child process (rc {r.returncode}):\n{r.stdout[-3000:]}\n{r.stderr[-3000:]}"
+
+
 def _cube(s=1.0):
     V = np.array([[x, y, z] for x in (-s, s) for y in (-s, s) for z in (-s, s)], float) / 2
     F = [[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 1], [2, 3, 7], [2, 7, 6], [0, 2, 6], [0, 6, 4],
@@ -128,10 +141,11 @@ def test_scene_extras_and_web_viewer(tmp_path):
 
 
 def _has(mod):
+    """Installed? Checked without importing it (importing bpy here would load Blender into the pytest process)."""
+    import importlib.util
     try:
-        __import__(mod)
-        return True
-    except Exception:  # noqa: BLE001
+        return importlib.util.find_spec(mod) is not None
+    except (ImportError, ValueError):
         return False
 
 
@@ -157,6 +171,10 @@ def test_viewer_screenshot_moves(tmp_path):
 
 @pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
 def test_blender_render_animation(tmp_path):
+    _in_subprocess("_blender_render_animation", tmp_path)
+
+
+def _blender_render_animation(tmp_path):
     from pinneapple_tools.visualization.studio.blender import render_animation
     sc = _scene()
     r = render_animation(sc, str(tmp_path), frames=[0, 3], size=(64, 36), samples=1, gif=True)
@@ -259,6 +277,10 @@ def test_compose_grid_video(tmp_path):
 
 @pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
 def test_blender_cinematic_render(tmp_path):
+    _in_subprocess("_blender_cinematic_render", tmp_path)
+
+
+def _blender_cinematic_render(tmp_path):
     from PIL import Image
 
     from pinneapple_tools.visualization.studio.blender import render_animation
@@ -302,7 +324,14 @@ def test_scene_materials_override_and_unknown():
 
 @pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
 def test_blender_render_still(tmp_path):
+    _in_subprocess("_blender_render_still", tmp_path)
+
+
+def _blender_render_still(tmp_path):
+    import pathlib
+
     from PIL import Image
+    tmp_path = pathlib.Path(tmp_path)
 
     from pinneapple_tools.visualization.studio.blender import render_still
     sc = _cinematic_scene()
