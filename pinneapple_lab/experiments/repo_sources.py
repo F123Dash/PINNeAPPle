@@ -596,7 +596,9 @@ LIMITATIONS = {
 # the short lines seals and showcase tiles print for each item's headline check (see Experiment.check_labels)
 CHECK_LABELS = {
     "drag_vs_wind_tunnel": {"en": "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)",
-                            "pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)"},
+                            "pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)",
+                            "short": "drag vs wind tunnel (Ahmed 1984)",
+                            "short_pt": "arrasto vs t\u00fanel de vento (Ahmed 1984)"},
     "peak_torque_vs_yang_2013": {"en": "torque vs published FEA (Yang et al. 2013)",
                                  "pt": "torque vs FEA publicado (Yang et al. 2013)"},
     "coaxial_capacitor_p1_fem": {"en": "32 cases vs closed forms and published values",
