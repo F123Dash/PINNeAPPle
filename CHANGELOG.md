@@ -60,7 +60,7 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `manifest.from_results(folder, rules)` reads the metrics and checks a folder's committed results hold, by rules in
   `pinneapple_lab.results_rules` (a verdict the study recorded, its own check records, or a value against the
   threshold its own test applies, cited `file:line` and verified): flight dynamics, ENSO and the brick builds are
-  now Lab items (B each); folders whose results a `repo_results` source already grades link to that item
+  now Lab items (B each), the PINNeAPPle-vs-PhysicsNeMo benchmark metrics a D (measured, no check yet); folders whose results a `repo_results` source already grades link to that item
   (`manifest.lab_items_for`). Next steps that share the same actions are listed once (`next_steps.group`).
 - Lab quality seals for every tier, A to F (`pinneapple_lab.curation`, `pinneapple_lab.seal`). The curation now
   grades on six letters: A flagship and B solid unchanged, C plausible (every check passes, the trust card's model,

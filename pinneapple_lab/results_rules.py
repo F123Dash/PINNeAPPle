@@ -113,6 +113,13 @@ RESULTS_RULES: dict[str, list[Rule]] = {
                "recharge_period_rel_error_sub{o[sub]}", "", "recharge oscillator period vs theory "
                "(results/solver_checks.json)"),
     ],
+    "examples/pinneapple_and_physicsnemo": [
+        Metric("pinneapple/benchmarks/_out/pinneapple_pure_benchmark_results.json", "*.test_mse_u",
+               "test_mse_u_{o[name]}", "", "test-set MSE of u; steps and learning rate in the same record "
+               "(pinneapple/benchmarks/_out/pinneapple_pure_benchmark_results.json)"),
+        Metric("pinneapple/benchmarks/_out/pinneapple_pure_benchmark_results.json", "*.train_time_s",
+               "train_time_{o[name]}", "s", "wall-clock training time (same file)"),
+    ],
     "examples/bricks": [
         CheckList("_out/summary.json", "validation", "{r[check]}", "reference", value_key="simulated",
                   reference_key="reference", tolerance_key="tolerance"),
