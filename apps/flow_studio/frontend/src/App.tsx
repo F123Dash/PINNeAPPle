@@ -8,6 +8,7 @@ import { FlowNode, type FlowNodeData } from "./components/FlowNode";
 import { Palette } from "./components/Palette";
 import { ParamPanel } from "./components/ParamPanel";
 import { PlannerDialog } from "./components/PlannerDialog";
+import { CustomNodeDialog } from "./components/CustomNodeDialog";
 import { DecisionList } from "./components/DecisionsPanel";
 import { ResultPanel } from "./components/ResultPanel";
 import type { Catalog, Decision, DecisionsResult, FlowDoc, NodeResult, NodeType } from "./types";
@@ -31,6 +32,7 @@ function Studio() {
   const [tab, setTab] = useState<"params" | "results" | "decisions">("params");
   const [decisions, setDecisions] = useState<DecisionsResult | null>(null);
   const [showDecisions, setShowDecisions] = useState(false);
+  const [showCustom, setShowCustom] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<NodeResult | null>(null);
@@ -240,7 +242,7 @@ function Studio() {
         )}
       </header>
       <div className="flex flex-1 min-h-0">
-        <Palette nodes={catalog.nodes} onAdd={(t) => addNode(t)} />
+        <Palette nodes={catalog.nodes} onAdd={(t) => addNode(t)} onNewType={() => setShowCustom(true)} />
         <div className="flex-1 relative" ref={wrapper} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }} onDrop={onDrop} data-testid="canvas">
           <ReactFlow
             nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
@@ -319,6 +321,8 @@ function Studio() {
           </div>
         </div>
       )}
+      {showCustom && <CustomNodeDialog catalog={catalog.nodes} onClose={() => setShowCustom(false)}
+        onSaved={() => api.catalog().then(setCatalog).then(() => say("node type saved"))} />}
       {showDecisions && decisions && (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-start justify-center pt-12" onClick={() => setShowDecisions(false)}>
           <div className="bg-white rounded-xl shadow-xl w-[820px] max-h-[82vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()} data-testid="decisions-report">

@@ -103,3 +103,54 @@ the library (add a new one in `pinneapple_flow.types` with a pull request) so do
   `flow_versions`, `runs`, `node_results`.
 * `pinneapple_flow.service.FlowService` is what an HTTP layer exposes (plan, validate, previews, flows, runs, node
   results, artifacts); Flow Studio's routes are one call each.
+
+## Decision records
+
+Every choice a flow makes carries a record (`pinneapple_flow.decisions.Decision`, JSON):
+
+```json
+{
+  "id": "3f2a9c1d0e", "node": "eq", "topic": "equations",
+  "what": "equations: u_t = alpha*lap(u)",
+  "decided_by": {"kind": "rule", "id": "family.heat"},
+  "rationale": "keyword scores heat (4.5), ...; highest score wins",
+  "value": ["u_t = alpha*lap(u)"],
+  "references": [{"key": "carslaw1959heat", "title": "Conduction of Heat in Solids (2nd ed.)",
+                  "authors": ["H. S. Carslaw", "J. C. Jaeger"], "year": 1959, "status": "registry", "link": ""}],
+  "evidence": [{"kind": "example", "ref": "examples/flow_studio/results/heat_1d/summary.json",
+                "detail": "heat 1D: FD and PINN vs exact, Lab tier"}],
+  "uncited_reason": "", "confidence": 0.85, "label": "high", "no_reference": false, "suggestion": "",
+  "notes": "", "created": 1760817600.0
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `topic` | `equations`, `dimension`, `bcs`, `coefficients`, `method`, `architecture`, `hyperparameters`, `hpo`, `twin`, `validation`, `route`, `data`, `other` |
+| `decided_by` | `{"kind": "rule", "id": <rule id in pinneapple_flow.rules>}`, `{"kind": "llm", "id": "<provider>/<model>"}` or `{"kind": "user", "id": ...}` |
+| `references` | entries of the curated registry (`pinneapple_flow/references.yaml`, `status: "registry"`), or DOIs / URLs given by an LLM or a user: `verified` when they resolved (only with `PINNEAPPLE_FLOW_VERIFY_REFS=1`), `not found`, or `unverified` |
+| `evidence` | what in the repository backs the decision: a test, an example result, a library constant |
+| `confidence`, `label` | 0-1 and high / medium / low; a decision with neither a usable reference nor evidence is `no_reference: true`, capped at 0.35 (0.5 for a user's own choice) and carries a `suggestion` (run a validation node or a benchmark) |
+| `uncited_reason` | why a rule has no literature reference (reading the user's words, a project convention, a rule of thumb) |
+
+Where they live: planner and LLM decisions in `flow.meta["decisions"]`; user edits in `flow.meta["user_edits"]`
+(`{"node", "param", "value", "notes"?, "references"?}`, turned into user decisions by
+`pinneapple_flow.decisions.collect`); decisions a node takes while running in its report (`report["decisions"]`). The
+store keeps all of them per flow version and per run (table `decisions`); `export.report` prints a "Decisions and
+references" section. `tests/test_flow_decisions.py` checks that every rule cites the registry or says why not.
+
+## Library-call nodes and user-defined node types
+
+`lib.<key>` nodes come from the curated allowlist in `pinneapple_flow/libcalls_catalog.py`: a callable
+(`module:function` or `module:Class.method`), its palette category, references, which inputs come from ports, and
+parameters generated from its signature. A user-defined type is data, never code:
+
+```json
+{"type": "custom.soft_soil", "base": "solver.terramechanics", "title": "Wheel on JSC-1A", "category": "Custom",
+ "params": {"soil": {"default": "JSC-1A", "hidden": true}, "slip": {"default": 0.3}}}
+```
+
+`base` must be an allowlisted key and every parameter must exist on it and pass its check. Definitions are stored
+(`custom_nodes` table) or carried in `flow.meta["custom_nodes"]` so a flow that uses them stays portable.
+`python -m pinneapple_flow coverage` lists which library packages and modules are reached by nodes, and why the
+others are not (`docs/flow_studio/COVERAGE.md`).

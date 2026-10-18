@@ -185,6 +185,18 @@ class Registry:
         self._specs[spec.type] = spec
         return spec
 
+    def register_custom(self, spec: NodeSpec) -> NodeSpec:
+        """Register (or replace) a user-defined node type; only ``custom.*`` types can be replaced."""
+        if not spec.type.startswith("custom."):
+            raise ValueError("user-defined node types are named custom.<name>")
+        _load_builtin()
+        self._specs[spec.type] = spec
+        return spec
+
+    def unregister_custom(self, type_: str) -> None:
+        if type_.startswith("custom."):
+            self._specs.pop(type_, None)
+
     def get(self, type_: str) -> NodeSpec | None:
         _load_builtin()
         return self._specs.get(type_)

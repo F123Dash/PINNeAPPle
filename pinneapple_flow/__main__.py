@@ -94,6 +94,18 @@ def cmd_examples(a) -> int:
     return 0
 
 
+def cmd_coverage(a) -> int:
+    from .coverage import markdown
+    text = markdown()
+    if a.output:
+        Path(a.output).parent.mkdir(parents=True, exist_ok=True)
+        Path(a.output).write_text(text)
+        print(f"wrote {a.output}")
+    else:
+        print(text)
+    return 0
+
+
 def cmd_studio(a) -> int:
     from .studio import serve
     return serve(host=a.host, port=a.port, open_browser=not a.no_browser, env_file=a.env,
@@ -132,6 +144,9 @@ def main(argv=None) -> int:
     s.set_defaults(fn=lambda a: print(json.dumps(__import__("pinneapple_flow").flow_json_schema(), indent=1)) or 0)
     e = sub.add_parser("examples")
     e.set_defaults(fn=cmd_examples)
+    cv = sub.add_parser("coverage", help="which library capabilities are nodes (markdown table)")
+    cv.add_argument("-o", "--output")
+    cv.set_defaults(fn=cmd_coverage)
     st = sub.add_parser("studio", help="serve Flow Studio (backend + built frontend)")
     st.add_argument("--host")
     st.add_argument("--port", type=int)

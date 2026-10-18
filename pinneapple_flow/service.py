@@ -34,6 +34,12 @@ class FlowService:
         self._live: dict[str, dict[str, Any]] = {}
         self._stop: dict[str, threading.Event] = {}
         self._lock = threading.Lock()
+        from .runtime import register_custom_nodes
+        for d in self.store.custom_nodes():
+            try:
+                register_custom_nodes([d])
+            except ValueError:
+                pass                                    # a stale definition (its base call was removed)
 
     # -- catalog, schema ------------------------------------------------------------------------------------------
     def catalog(self) -> dict[str, Any]:
@@ -117,6 +123,32 @@ class FlowService:
     def check_reference(self, reference: dict[str, Any]) -> dict[str, Any]:
         from .references import check
         return check(reference)
+
+    # -- library calls and user-defined node types -------------------------------------------------------------
+    def library_calls(self) -> list[dict[str, Any]]:
+        from .libcalls import CALLS, introspect
+        out = []
+        for c in CALLS.values():
+            try:
+                params, skipped = introspect(c)
+            except Exception:  # noqa: BLE001 - not importable here
+                params, skipped = [], []
+            out.append({"key": c.key, "target": c.target, "title": c.title, "category": c.category,
+                        "params": [p.name for p in params], "not_exposed": skipped})
+        return out
+
+    def custom_nodes(self) -> list[dict[str, Any]]:
+        return self.store.custom_nodes()
+
+    def save_custom_node(self, doc: dict[str, Any]) -> dict[str, Any]:
+        from .runtime import register_custom_nodes
+        register_custom_nodes([doc])                    # validates: ValueError on anything not allowlisted
+        self.store.save_custom_node(doc)
+        return REGISTRY[doc["type"]].to_dict()
+
+    def delete_custom_node(self, type_: str) -> None:
+        self.store.delete_custom_node(type_)
+        REGISTRY.unregister_custom(type_)
 
     # -- flows ----------------------------------------------------------------------------------------------------
     def save_flow(self, flow: dict[str, Any], note: str = "") -> dict[str, Any]:

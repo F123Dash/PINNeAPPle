@@ -316,6 +316,17 @@ def node_states(runner: WorkflowRunner, run_id: str, *, with_logs: bool = False)
     return out
 
 
+def register_custom_nodes(docs: list[dict[str, Any]]) -> list[str]:
+    """Register user-defined node types (validated by :func:`pinneapple_flow.libcalls.custom_spec`: only
+    allowlisted library calls); returns their types."""
+    from .libcalls import custom_spec
+    out = []
+    for d in docs or []:
+        REGISTRY.register_custom(custom_spec(d))
+        out.append(d["type"])
+    return out
+
+
 def run(flow: Flow | dict | str | Path, *, workdir: str | Path | None = None, from_node: str | None = None,
         only: list[str] | None = None, run_id: str | None = None, cache: bool = True, max_parallel: int = 1,
         on_update: Callable[[str, dict[str, dict[str, Any]]], None] | None = None,
@@ -326,7 +337,11 @@ def run(flow: Flow | dict | str | Path, *, workdir: str | Path | None = None, fr
     ``from_node``: run that node and everything downstream (and its ancestors, reused from the cache when unchanged).
     ``only``: run just these nodes and their ancestors. ``on_update(run_id, node_states)`` is called while it runs.
     ``store``: a :class:`pinneapple_flow.store.FlowStore` recording the run and each node's outputs."""
-    flow = check_flow(as_flow(flow))
+    flow = as_flow(flow)
+    register_custom_nodes(flow.meta.get("custom_nodes") or [])
+    if store is not None:
+        register_custom_nodes(store.custom_nodes())
+    flow = check_flow(flow)
     root = Path(workdir) if workdir else default_workdir()
     runner = WorkflowRunner(root / "engine", cache=cache)
     nodes = None

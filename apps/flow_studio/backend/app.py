@@ -93,6 +93,26 @@ def create_app(service: FlowService | None = None) -> FastAPI:
     def check_reference(body: JSONBody):
         return svc.check_reference(body)
 
+    @app.get("/api/library-calls")
+    def library_calls():
+        return svc.library_calls()
+
+    @app.get("/api/custom-nodes")
+    def custom_nodes():
+        return svc.custom_nodes()
+
+    @app.post("/api/custom-nodes")
+    def save_custom_node(body: JSONBody):
+        try:
+            return svc.save_custom_node(body)
+        except ValueError as exc:
+            bad(exc)
+
+    @app.delete("/api/custom-nodes/{type_}")
+    def delete_custom_node(type_: str):
+        svc.delete_custom_node(type_)
+        return {"deleted": type_}
+
     @app.get("/api/flows")
     def flows():
         return svc.list_flows()

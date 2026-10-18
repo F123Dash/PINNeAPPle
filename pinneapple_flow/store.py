@@ -73,6 +73,9 @@ class FlowStore:
             sa.Column("version", sa.Integer), sa.Column("run_id", sa.String(80)), sa.Column("node_id", sa.String(64)),
             sa.Column("topic", sa.String(40)), sa.Column("confidence", sa.Float), sa.Column("no_reference", sa.Boolean),
             sa.Column("record", sa.Text), sa.Column("created", sa.Float))
+        self.custom = sa.Table(
+            "custom_nodes", md, sa.Column("type", sa.String(64), primary_key=True), sa.Column("doc", sa.Text),
+            sa.Column("created", sa.Float))
         md.create_all(self.engine)
         self.sa = sa
 
@@ -95,6 +98,20 @@ class FlowStore:
         from .decisions import collect
         self.record_decisions(flow.id, collect(flow), version=version)
         return version
+
+    # -- user-defined node types -----------------------------------------------------------------------------------
+    def save_custom_node(self, doc: dict[str, Any]) -> None:
+        with self.engine.begin() as c:
+            c.execute(self.custom.delete().where(self.custom.c.type == doc["type"]))
+            c.execute(self.custom.insert().values(type=doc["type"], doc=json.dumps(doc), created=time.time()))
+
+    def custom_nodes(self) -> list[dict[str, Any]]:
+        with self.engine.connect() as c:
+            return [json.loads(r[0]) for r in c.execute(self.sa.select(self.custom.c.doc))]
+
+    def delete_custom_node(self, type_: str) -> None:
+        with self.engine.begin() as c:
+            c.execute(self.custom.delete().where(self.custom.c.type == type_))
 
     # -- decisions -------------------------------------------------------------------------------------------------
     def record_decisions(self, flow_id: str, decisions: list[dict[str, Any]], *, version: int | None = None,

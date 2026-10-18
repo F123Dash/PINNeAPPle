@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { NodeType } from "../types";
 
-export function Palette({ nodes, onAdd }: { nodes: NodeType[]; onAdd: (t: string) => void }) {
+export function Palette({ nodes, onAdd, onNewType }: { nodes: NodeType[]; onAdd: (t: string) => void; onNewType?: () => void }) {
   const [q, setQ] = useState("");
   const groups = useMemo(() => {
     const out: Record<string, NodeType[]> = {};
@@ -43,7 +43,10 @@ export function Palette({ nodes, onAdd }: { nodes: NodeType[]; onAdd: (t: string
           </div>
         ))}
       </div>
-      <div className="p-2 text-[10.5px] text-slate-400 border-t">Drag onto the canvas (or double-click).</div>
+      <div className="p-2 text-[10.5px] text-slate-400 border-t">
+        Drag onto the canvas (or double-click).
+        {onNewType && <button className="block mt-1 text-sky-700" onClick={onNewType} data-testid="new-node-type">+ new node type from a library call</button>}
+      </div>
     </aside>
   );
 }
