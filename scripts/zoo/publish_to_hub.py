@@ -5,11 +5,11 @@ Space, and check what the Hub serves (the logic is :mod:`pinneapple_hub.zoo.publ
     python scripts/zoo/publish_to_hub.py --dry-run                 # build the derived files and cards, list uploads
     python scripts/zoo/publish_to_hub.py --staging DIR             # also Hub-only items, files in DIR/<name>/<file>
     python scripts/zoo/publish_to_hub.py --hub-fallback            # Hub-only datasets converted from the Hub copy
-    HF_TOKEN=... python scripts/zoo/publish_to_hub.py --space WHEEL    # the demo Space, with that wheel
+    HF_TOKEN=... python scripts/zoo/publish_to_hub.py --space      # the demo Space (static, from the Hub models)
     python scripts/zoo/publish_to_hub.py --verify                  # anonymous download + SHA-256 of every file
     python scripts/zoo/publish_to_hub.py --verify-viewer           # datasets-server is-valid / splits / first-rows
     python scripts/zoo/publish_to_hub.py --verify-models           # load from the Hub, reproduce card and example
-    python scripts/zoo/publish_to_hub.py --verify-space            # the Space builds and runs
+    python scripts/zoo/publish_to_hub.py --verify-space            # the Space runs and serves its page
 
 One repo per item under the PINNeAPPle-Labs organisation: the manifest's files (SHA-256 checked before upload), the
 files derived from them (Parquet copies of datasets, safetensors and ONNX copies of models) and the README card; the
@@ -43,7 +43,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="*", default=[], help="only these items (names)")
     ap.add_argument("--no-tags", action="store_true", help="upload to main without creating the revision tags")
     ap.add_argument("--work", type=Path, help="directory for the derived files (default: a temporary one)")
-    ap.add_argument("--space", type=Path, metavar="WHEEL", help="publish the demo Space with this wheel")
+    ap.add_argument("--space", action="store_true", help="build and publish the static demo Space")
     ap.add_argument("--verify", action="store_true", help="only verify the published files (anonymous download)")
     ap.add_argument("--allow-unpublished", action="store_true",
                     help="--verify: a Hub-only item missing from the Hub is a note, not a failure")
@@ -65,7 +65,7 @@ def main(argv=None) -> int:
         if not token:
             print(NO_TOKEN)
             return 0
-        pub.publish_space(token, ROOT / "apps" / "zoo_space", a.space)
+        pub.publish_space(token, ROOT / "apps" / "zoo_space", ROOT / "apps" / "playground" / "site", work=a.work)
         return 0
     items = plan(a.staging, hub_fallback=a.hub_fallback, work=a.work, only=a.only)
     size = sum(Path(p).stat().st_size for it in items for p in [*it["files"].values(), *it["derived"].values()])

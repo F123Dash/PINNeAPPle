@@ -189,7 +189,7 @@ reusable logic in the library (`pinneapple_hub/zoo/{checks,export,web}`, `pinnea
 | `examples/studio/07_lunar_rover_dashboard.py` | loads the zoo contact model, renders the dashboard | glue |
 | `scripts/zoo/build_assets.py` `hub_only_entry`, `_carry_versions` | zoo release manifest | stays for now; candidate for `pinneapple_hub.zoo._artifacts` once the open zoo PRs (#656, #674) land |
 | `scripts/zoo/publish_to_hub.py` | command line of the zoo's Hub publication | glue: `plan`, `publish`, the Parquet copies, cards, Space and every Hub check are in `pinneapple_hub.zoo.publish`, `.parquet`, `.hub_cards` |
-| `apps/zoo_space/app.py` | Gradio UI of the zoo demo Space | glue over `pinneapple_hub.zoo.demo` |
+| `apps/zoo_space/` (`index.html`, `app.js`, `space.css`) | page of the static zoo demo Space | UI over the data of `pinneapple_hub.zoo.demo.export_space` and the runtime `pinneapple_hub/zoo/web`; charts and widgets are the Playground's |
 
 ## Pull requests
 
