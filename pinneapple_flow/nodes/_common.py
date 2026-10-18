@@ -120,15 +120,16 @@ def interpolate(sol: dict[str, Any], X: np.ndarray) -> np.ndarray:
 
 
 def eval_axes(problem: dict[str, Any], n: int | None = None, n_t: int | None = None) -> dict[str, np.ndarray]:
-    """Evaluation grid of a problem: the mesh when one is attached, else ``n`` (and ``n_t``) points per axis."""
+    """Evaluation grid of a problem: ``n`` (and ``n_t``) points per axis when given, else the attached mesh, else a
+    default per dimension."""
     mesh = problem.get("mesh") or {}
     g = problem["geometry"]
     d = len(g["bounds"])
     nn = mesh.get("n") or {}
-    default = n or {1: 201, 2: 65, 3: 25}[d]
-    axes = {c: np.linspace(*map(float, b), int(nn.get(c, default))) for c, b in g["bounds"].items()}
+    default = {1: 201, 2: 65, 3: 25}[d]
+    axes = {c: np.linspace(*map(float, b), int(n or nn.get(c, default))) for c, b in g["bounds"].items()}
     if g.get("time"):
-        axes["t"] = np.linspace(*map(float, g["time"]), int(mesh.get("n_t") or n_t or 41))
+        axes["t"] = np.linspace(*map(float, g["time"]), int(n_t or mesh.get("n_t") or 41))
     return {c: axes[c] for c in coords_of(g)}
 
 

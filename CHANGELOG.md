@@ -13,6 +13,29 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 
 ## [Unreleased]
 
+### Added
+- PINNeAPPle Flow (`pinneapple_flow`, extra `[flow]`) and Flow Studio (`apps/flow_studio`, `python -m pinneapple_flow
+  studio`): engineering flows as typed node graphs in a versioned JSON document (`pinneapple-flow/1`, documented in
+  `docs/guides/flow_schema.md`), a catalog of nodes that each wrap a library call (domain with the 1-D / 2-D / 3-D
+  switch, editable equations, finite differences / FEM / OpenFOAM, PINN, DeepONet / FNO / MLP / POD + MLP surrogates
+  with an editable architecture and layer-graph preview, HPO, fine-tuning, inverse PINN, calibration, sensor data, CSV
+  ingest, parametric sweeps, validation with the trust card, Lab curation and seal, Sobol sensitivity, digital twin,
+  forecast lab, take-off, plots, three.js viewer, render, report), a runtime on `pinneapple_core.workflows` (skip-done
+  cache, run from a node, per-node status), a heuristic planner (offline, English and Portuguese) and an LLM planner
+  whose output is validated and repaired against the catalog, a SQLAlchemy store (SQLite by default, Postgres by URL),
+  a CLI (`run`, `plan`, `validate`, `catalog`, `schema`, `studio`) and example flows with their measured results.
+- `pinneapple_physics.symbolic_pde.text`: equations as text (`u_t = alpha*lap(u)`) parsed into SymPy through an AST
+  whitelist (never `eval` / `sympify`), with classification of the PDE family; `.pinn.pinn_problem` builds a
+  `PINNProblem` (residual by autograd, Dirichlet / initial samplers, Neumann / Robin constraints, trainable unknown
+  coefficients) from the same system.
+- `pinneapple_simulation.numerical_solvers.symbolic_fd.solve_fd`: finite differences for any parsed system on a box in
+  1-D to 3-D (Newton on a coloured sparse Jacobian for steady systems, method of lines with BDF otherwise; Dirichlet,
+  Neumann, Robin and periodic conditions).
+- `pinneapple_analysis.validation.pinn.train_pinn`: `problem.constraints`, `data=(X, Y)` (inverse PINNs) and
+  `callback`; the result has the loss history.
+- `pinneapple_llm.call_llm`: provider `openai_compatible` with `base_url` (vLLM, LM Studio, llama.cpp, a hosted
+  model), `base_url` for `openai`, and `max_tokens`.
+
 ### Security
 - Web hardening for every app, in the library (`pinneapple_security.web`, `.passwords`, `.archives`) and wired
   once through `apps/_shared/appkit.py` `install()`: CSP built from each app's own pages (no script

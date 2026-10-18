@@ -252,4 +252,17 @@ def takeoff(ctx, inputs, params):
     x = np.asarray(hist.x)
     s = ctx.save_npz("trajectory", t=np.asarray(hist.t), values=x[:, :3])
     s.update({"channels": ["north", "east", "down"]})
-    return {"metrics": ctx.report["metrics"], "series": s}
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(6.5, 3))
+    ax.plot(x[:, 0] - x[0, 0], -x[:, 2] + x[0, 2], label="6-DOF simulation")
+    ax.axhline(10.668, color="k", lw=0.8, ls="--", label="35 ft screen")
+    d = ray.get("total_35ft_m")
+    if isinstance(d, (int, float)):
+        ax.axvline(d, color="r", lw=0.8, ls=":", label="Raymer closed form")
+    ax.set_xlabel("distance along the runway [m]")
+    ax.set_ylabel("height [m]")
+    ax.legend(fontsize=8)
+    fig_a = ctx.figure(fig, "takeoff", "take-off trajectory")
+    return {"metrics": ctx.report["metrics"], "series": s, "figure": fig_a}
