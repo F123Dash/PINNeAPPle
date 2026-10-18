@@ -13,6 +13,30 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 
 ## [Unreleased]
 
+### Security
+- Web hardening for every app, in the library (`pinneapple_security.web`, `.passwords`, `.archives`) and wired
+  once through `apps/_shared/appkit.py` `install()`: CSP built from each app's own pages (no script
+  `'unsafe-inline'`), HSTS, frame, referrer and permissions policies; request body limit counted while streaming;
+  per-caller rate limits (429 + `Retry-After`); lockout after repeated failed logins; scrypt/argon2id password
+  hashes (`<PREFIX>_PASSWORD_HASH`, `python -m pinneapple_security hash-password`, plain passwords still work);
+  more logins and admin users (`<PREFIX>_USERS_FILE`, `<PREFIX>_ADMIN_USERS`); cross-site POST check; CORS
+  allow-list; `X-Forwarded-For` believed only from trusted proxies; JSON 500s with a reference id; auth and admin
+  events as JSON log lines and in a hash-chained audit trail (`AuditLog` is now safe with several workers).
+  Settings in `apps/_shared/README.md`; findings in `docs/security/audit.md`.
+- Fixed: formula evaluation could reach Python internals (`pinneapple_data.audit` constraints in the Benchmark Arena,
+  `pinneapple check` boundary values in the Validation Lab): both use the `contracts.expressions` interpreter
+  (now with `functions=` and `check()`); Meshless formulas are grammar-checked before `sympify`.
+- Fixed: Campaign Planner OpenFOAM edits could write outside the case; base-case zips are extracted with limits;
+  case templates allow only `{name}` / `{name:spec}`.
+- Fixed: Model Gateway pickled surrogate uploads are off unless `MDL_ALLOW_PICKLE_UPLOAD=1` (and then scanned);
+  remote ModelRefs to non-public addresses need `MDL_REMOTE_ALLOW_HOSTS`.
+- Uploads: zip members checked for traversal, links and size (`pinneapple_security.archives`, used by
+  `cae.upload.expand`, the GUI agent and the Campaign Planner); gzip decompression capped. Validation Lab configs
+  can only point at uploaded files. Jobs: optional `setrlimit` (`<PREFIX>_JOB_MAX_MEMORY_MB`,
+  `<PREFIX>_JOB_MAX_CPU_S`), process-group kill, tracebacks kept out of job logs (`<PREFIX>_JOB_TRACEBACKS=1`
+  restores them). Sensitivity/Uncertainty `?wait=` no longer blocks the event loop; `n_sobol` and `n_boot` capped;
+  the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
+
 ### Added
 - Visual pack and a YouTube case for the near-random forecasting study: in-process Cycles renderer
   (`pinneapple_blender.cycles`: surfaces, tubes, point clouds, translucent planes, ribbons, text, camera fitting,

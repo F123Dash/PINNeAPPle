@@ -31,6 +31,7 @@ import uuid
 
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -482,7 +483,7 @@ async def api_study(request: Request, config: str = _CONFIG, model: UploadFile |
     job = rt.submit(request, "study", {"config": cfg, "uploads": uploads},
                     units={k: v for k, v in units.items() if v})
     if wait > 0:
-        job = rt.jobs.wait(job["id"], timeout=min(float(wait), 600.0))
+        job = await run_in_threadpool(rt.jobs.wait, job["id"], timeout=min(float(wait), 600.0))
     return job
 
 
