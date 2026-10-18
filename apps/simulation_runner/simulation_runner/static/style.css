@@ -62,3 +62,11 @@ td.nowrap { white-space: nowrap; font-family: var(--mono); font-size: 11px; colo
 .role.output { background: #f0fdfa; color: var(--brand); } .role.id { background: #fef3c7; color: #92400e; }
 .role.meta { background: #f1f5f9; color: var(--na); }
 .panel + .panel { margin-top: 14px; }
+.v3wrap { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 14px; align-items: start; margin-top: 10px; }
+@media (max-width: 1100px) { .v3wrap { grid-template-columns: 1fr; } }
+table.conds { font-size: 12px; width: 100%; border-collapse: collapse; }
+table.conds td, table.conds th { padding: 4px 5px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.conds .num { text-align: right; }
+.mk { display: inline-block; padding: 1px 7px; border-radius: 99px; color: #fff; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.mk.bc { background: #1d4ed8; } .mk.load { background: #c2410c; }
+#v3panel { margin-top: 14px; }

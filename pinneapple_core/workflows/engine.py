@@ -258,6 +258,10 @@ class WorkflowRunner:
                                    (run_id, step_id)).fetchone()
         return json.loads(row["outputs"]) if row and row["outputs"] else {}
 
+    def step_workdir(self, run_id: str, step_id: str) -> Path:
+        """Where a step's files are: its own folder, or the folder of the run it was reused from (skip-done)."""
+        return self._workdir(run_id, step_id)
+
     def _workdir(self, run_id: str, step_id: str) -> Path:
         row = self.db.conn.execute("SELECT reused_from FROM steps WHERE run_id=? AND step_id=?",
                                    (run_id, step_id)).fetchone()

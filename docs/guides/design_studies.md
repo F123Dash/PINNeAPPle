@@ -78,7 +78,25 @@ the GP had not been trained on.
   ensemble `airfoil_cst_rans_mlp` (differentiable). No reference solver ships with it, so its candidates stay
   "only surrogate" until verified with OpenFOAM.
 * `plate_fin_bodies`, `airfoil_bodies` and `design_file(bodies, "stl" | "step")` write the chosen design as a binary
-  STL or an AP214 faceted STEP file through the geometry library's writers.
+  STL or an AP214 faceted STEP file through the geometry library's writers;
+  `preset_bodies(preset, design)` picks the right one.
+* `preset_info(preset)`: what a form needs (variables, operating point, limits, cost model, objectives, baseline
+  design and the reference that verifies candidates).
+
+## After a run: what an app shows and exports
+
+The design apps are built on these calls, so a run gives the same files and tables from Python:
+
+* `verify_front(problem, ev, front, n, reference)` returns the candidates spread along the front, the verification
+  report (None without a reference) and the status of each candidate;
+* `write_design_files(folder, problem, ev, candidates, status, labels=...)` writes `evaluations.csv`,
+  `candidates.csv` (with the verification status and, from a comparison, the run that found each one),
+  `candidates_to_run.csv` (the variables only, to run in your solver) and `parameter_space.json`;
+* `chart_points(problem, ev, front)` thins the evaluations for a trade-off plot and keeps the front;
+* `verify_uploaded_results(space, candidates, results, objectives, constraints)` verifies the exported candidates
+  against the solver results you ran offline, matching rows by their variable values;
+* `MethodComparison.union_result()` and `.fronts(seed)` give a comparison as one result (for `study_result`) and
+  each method's front.
 
 ## Limits
 

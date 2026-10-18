@@ -92,6 +92,38 @@ The file grows by about 28 bytes per triangle, plus about 2 bytes per triangle f
 
 Slices are stored as JSON grids, about 7 bytes per value. Keep them to a few hundred cells a side.
 
+## Fields, errors and deformed shapes in the apps: `pp.viz.field_view`
+
+The apps show a result on its mesh with one shared page module, `apps/_shared/static/shared/fieldview3d.js`, served at
+`/shared/fieldview3d.js` and built on the same vendored three.js and `studio-core.js`. The library builds what it
+shows:
+
+```python
+import pinneapple as pp
+from pinneapple_analysis.validation.error_map import error_map, grow_region
+
+em = error_map(mesh.points, pred, ref, regions={"clamp zone": grow_region(mesh.points, clamp, 0.2)})
+fv = pp.viz.field_view(mesh, [
+    {"name": "ref", "values": ref, "label": "FEM von Mises", "unit": "MPa", "group": "vm", "deform": "FEM"},
+    {"name": "pred", "values": pred, "label": "ROM von Mises", "unit": "MPa", "group": "vm", "deform": "FEM"},
+    {"name": "err", "values": em.error, "label": "|ROM − FEM|", "unit": "MPa", "kind": "error"}],
+    deform={"FEM": u}, length_unit="m",
+    markers=[{"name": "clamp", "kind": "bc", "points": mesh.points[clamp]}])
+fv.glb(), fv.meta                  # the glTF (fields as vertex attributes) and its description
+em.summary()                       # where the error concentrates, against the global number
+```
+
+- **Colours.** Values use the jet scale from their minimum to their maximum on the surface; fields of one `group`
+  share a scale. Errors use the sequential error scale (`ERR` in `studio-core.js`, white = 0) from 0 to their 99th
+  percentile, and the colour bar says when the maximum lies above it.
+- **Deformed shape.** Each `deform` entry gives a nodal displacement. The page draws it with a scale factor. By
+  default the largest displacement is drawn as 10 % of the body, and `1×` shows the true scale. The undeformed shape
+  stays as a grey wire.
+- **Markers.** Boundary conditions, loads, error hotspots and other regions get coloured points and a label. A
+  marker can belong to some fields only.
+- **Size.** Above `max_faces` triangles (`VIEW_MAX_FACES` = 250 k by default) the surface is decimated, and the page
+  says so. 250 k triangles is about 7 MB and a 0.5 s field switch in the table above.
+
 ## Lighting presets, Sun shadows and planetary surfaces
 
 `studio.lighting` holds lighting and sky presets that PyVista, Blender and the browser viewer share:

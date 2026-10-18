@@ -37,7 +37,7 @@ from .study import VALID, Constraint, DesignProblem, DesignSpace, Evaluator, Obj
 
 __all__ = ["HeatsinkOperating", "HeatsinkLimits", "CostModel", "HeatsinkEvaluator", "heatsink_problem",
            "heatsink_baseline", "AirfoilEvaluator", "airfoil_problem", "airfoil_baseline", "PRESETS",
-           "plate_fin_bodies", "airfoil_bodies", "design_file", "HEATSINK_FIDELITIES"]
+           "plate_fin_bodies", "airfoil_bodies", "design_file", "HEATSINK_FIDELITIES", "preset_info", "preset_bodies"]
 
 G0 = 9.80665
 HEATSINK_FIDELITIES = ("surrogate", "closed_form", "fvm")
@@ -377,6 +377,23 @@ def airfoil_baseline() -> dict[str, float]:
 PRESETS: dict[str, Any] = {"heatsink": heatsink_problem, "airfoil": airfoil_problem}
 
 
+def preset_info(name: str) -> dict[str, Any]:
+    """What a form needs to set up a preset: its variables, defaults (operating point, limits, cost model), the
+    objectives it can minimise, the baseline design and the reference that verifies its candidates (None if none)."""
+    if name == "heatsink":
+        return {"variables": [asdict(v) for v in HEATSINK_VARIABLES], "operating": asdict(HeatsinkOperating()),
+                "limits": asdict(_process_limits()), "cost": asdict(CostModel()),
+                "objectives": list(_HEATSINK_OBJECTIVES), "baseline": heatsink_baseline(),
+                "reference": "3-D finite-volume heat-sink engine"}
+    if name == "airfoil":
+        import inspect
+        defaults = {k: p.default for k, p in inspect.signature(airfoil_problem).parameters.items()
+                    if k in ("cl_min", "cm_min", "aft_min")}
+        return {"variables": [asdict(v) for v in airfoil_problem().space.variables], "limits": defaults,
+                "objectives": ["Cd", "spar_depth"], "baseline": airfoil_baseline(), "reference": None}
+    raise ValueError(f"unknown preset {name!r}: one of {sorted(PRESETS)}")
+
+
 # --------------------------------------------------------------------------- geometry export
 def _box(x0, x1, y0, y1, z0, z1, off):
     V = np.array([[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
@@ -416,6 +433,17 @@ def airfoil_bodies(design: dict[str, float], span: float = 0.2, chord: float = 1
         j = (i + 1) % m
         F += [[i, j, m + j], [i, m + j, m + i], [c0, j, i], [c1, m + i, m + j]]
     return [("wing_segment", V, np.array(F))]
+
+
+def preset_bodies(preset: str, design: dict[str, float]) -> list[tuple[str, np.ndarray, np.ndarray]]:
+    """The solid bodies of a ``"heatsink"`` (:func:`plate_fin_bodies`) or ``"airfoil"`` (:func:`airfoil_bodies`)
+    design, for :func:`design_file`."""
+    if preset == "airfoil":
+        from pinneapple_design.aero.geometry import PARAMS
+        return airfoil_bodies({p: float(design[p]) for p in PARAMS})
+    if preset == "heatsink":
+        return plate_fin_bodies(design)
+    raise ValueError(f"unknown preset {preset!r}: heatsink or airfoil")
 
 
 def design_file(bodies: list[tuple[str, np.ndarray, np.ndarray]], fmt: str, name: str = "design") -> bytes:
