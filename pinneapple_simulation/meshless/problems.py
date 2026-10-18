@@ -32,8 +32,16 @@ def _expr(s: str, time: bool):
     for f in ("sin", "cos", "tan", "exp", "log", "sqrt", "sinh", "cosh", "tanh", "atan", "atan2", "Abs"):
         names[f] = getattr(sp, f)
     s = str(s).replace("^", "**")
-    if len(s) > 400 or any(c in s for c in ("__", ";", "lambda", "import")):
+    if len(s) > 400:
         raise ValueError(f"expression not allowed: {s!r}")
+    from pinneapple_data.contracts.expressions import ExpressionError, check
+    try:                                 # sympify runs Python's eval: only formulas of these names get that far
+        check(s, names=set(names) - {"abs", "Abs"}, functions={"abs", "Abs", "sin", "cos", "tan", "exp", "log", "sqrt",
+                                                               "sinh", "cosh", "tanh", "atan", "atan2"})
+    except ExpressionError as ex:
+        if str(ex).startswith("unknown name"):
+            raise ValueError(f"unknown symbols in {s!r}; use x, y" + (", t" if time else "")) from None
+        raise ValueError(f"expression not allowed: {ex}") from None
     try:
         e = sp.sympify(s, locals=names)
     except (sp.SympifyError, TypeError, SyntaxError) as ex:

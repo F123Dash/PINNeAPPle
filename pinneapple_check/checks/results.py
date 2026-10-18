@@ -16,14 +16,16 @@ __all__ = ["check_result", "evaluate_expr", "check_balance", "report_equations"]
 
 _SAFE = {k: getattr(np, k) for k in ("sin", "cos", "tan", "exp", "log", "sqrt", "tanh", "sinh", "cosh", "abs",
                                        "arctan", "arctan2", "where", "minimum", "maximum")}
-_SAFE.update(pi=np.pi, e=np.e)
 
 
 def evaluate_expr(value: Any, coords: dict[str, np.ndarray], n: int) -> np.ndarray:
     """A declared value: a number, a vector (list) or an expression of the coordinates (``"sin(pi*x)"``)."""
     if isinstance(value, str):
+        from pinneapple_data.contracts.expressions import (
+            evaluate,  # interpreted, never eval(): configs are uploaded
+        )
         try:
-            out = eval(compile(value, "<bc>", "eval"), {"__builtins__": {}}, {**_SAFE, **coords})   # noqa: S307
+            out = evaluate(value, {"pi": np.pi, "e": np.e, **coords}, _SAFE)
         except Exception as e:
             raise ValueError(f"cannot evaluate {value!r}: {e}") from e
         return np.broadcast_to(np.asarray(out, float), (n,)).copy()

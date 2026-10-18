@@ -411,3 +411,18 @@ def test_arena_grid_layout_rejects_scattered_points():
     assert (ny, nx) == (4, 5) and np.all(np.diff(X[order][:nx, 0]) > 0)
     with pytest.raises(ValueError):
         grid_layout(np.random.default_rng(2).uniform(size=(20, 2)))
+
+
+def test_lab_login_hashed_password_and_lockout(tmp_path, monkeypatch):
+    import base64
+
+    from pinneapple_lab.server import LabServer
+    from pinneapple_security.passwords import hash_password
+    monkeypatch.setenv("LAB_LOGIN_MAX_FAILURES", "3")
+    lab = LabServer(str(tmp_path), user="eng", password=hash_password("s3cret", "scrypt"))
+
+    def basic(p):
+        return "Basic " + base64.b64encode(f"eng:{p}".encode()).decode()
+    assert lab.authorised(basic("s3cret"), "203.0.113.7")
+    assert not any(lab.authorised(basic("guess"), "203.0.113.7") for _ in range(3))
+    assert not lab.authorised(basic("s3cret"), "203.0.113.7")          # locked out
