@@ -268,3 +268,74 @@ def _fluxmap(quick: bool) -> CaseResult:
         errs.append(abs(float(fm.torque(i_d, i_q)) - op["torque_mean"]) / 300.0)
     return CaseResult("Prius flux map: interpolation vs direct FEA", "torque at 3 off-grid currents (7 x 7 grid)",
                       "FEA at the same currents", max(errs), 0.01, detail="error relative to 300 N m")
+
+
+# ------------------------------------------------------------------------------------------------ thermal
+@case("Thermal network: first-order transient")
+def _rc(quick: bool) -> CaseResult:
+    from .thermal import ThermalNetwork
+
+    C, G, P, Tb = 500.0, 2.0, 100.0, 20.0
+    net = ThermalNetwork.empty(["n"], [C]).to_boundary("n", G, Tb)
+    tau = C / G
+    exact = Tb + P / G * (1 - math.exp(-1.0))
+    errs = []
+    for dt in (tau / 10, tau / 20, tau / 40, tau / 80):
+        _, T = net.transient([P], tau, dt, Tb, method="trapezoidal")
+        errs.append(abs(T[-1, 0] - exact) / (P / G))
+    eul = []
+    for dt in (tau / 20, tau / 40):
+        _, T = net.transient([P], tau, dt, Tb, method="euler")
+        eul.append(abs(T[-1, 0] - exact))
+    return CaseResult("Thermal network: first-order transient", "node temperature at t = tau, dt halved",
+                      "T_b + P/G (1 - e^-1) (closed form)", errs[-1], 1e-4, observed_orders(errs), 2.0,
+                      f"trapezoidal rule; backward Euler order {math.log2(eul[0] / eul[1]):.2f}")
+
+
+@case("Thermal network: cylindrical conduction")
+def _shell(quick: bool) -> CaseResult:
+    from .thermal import cylinder_conductance
+
+    k, r1, r2, L = 28.0, 0.08, 0.13, 0.1
+    G = cylinder_conductance(k, r1, r2, L)
+    errs = []
+    for n in (8, 16, 32, 64):
+        r = np.linspace(r1, r2, n + 1)
+        rm = 0.5 * (r[1:] + r[:-1])
+        errs.append(abs(1.0 / np.sum(np.diff(r) / (2 * math.pi * rm * L * k)) - G) / G)
+    return CaseResult("Thermal network: cylindrical conduction", "series of thin flat shells, n doubled",
+                      "2 pi k L / ln(r2/r1)", errs[-1], 1e-4, observed_orders(errs), 2.0)
+
+
+@case("Demagnetisation field in a magnetised ring")
+def _demag(quick: bool) -> CaseResult:
+    from .thermal import reverse_field
+
+    r0, a, b, R, Br, N = 0.01, 0.02, 0.03, 0.05, 1.0, 8
+    span = 2 * math.pi / N
+    half = span / 2
+    errs = []
+    for h in ((4e-3, 2e-3, 1e-3) if quick else (4e-3, 2e-3, 1e-3, 5e-4)):
+        ring = np.vstack([[[a * math.cos(-half), a * math.sin(-half)], [b * math.cos(-half), b * math.sin(-half)]],
+                          arc(0j, b, -half, half, h)[1:-1],
+                          [[b * math.cos(half), b * math.sin(half)], [a * math.cos(half), a * math.sin(half)]],
+                          arc(0j, a, half, -half, h)[1:-1]])
+        geo = SectorGeometry(r0, R, span, "air", [Polygon("magnet", ring, 0.0)])
+        mesh = replicate_sector(mesh_sector(geo, h, max(1, round(span * r0 / h)), round(span * R / h)), N, span)
+        mag = mesh.region == 1
+        Brv = np.zeros((mesh.n_elements, 2))
+        Brv[mag, 0] = Br
+        sol = solve_magnetostatic(mesh, np.full(mesh.n_elements, NU0), Br=Brv)
+        H_fem = reverse_field(sol.B[mag], np.zeros(mag.sum()), Br, 1.0)
+        c = mesh.centroids()[mag]
+        d = 1e-7  # central differences of the closed-form A at the centroids
+        dAdx = (magnetized_ring(c[:, 0] + d, c[:, 1], Br, a, b, r0, R) - magnetized_ring(c[:, 0] - d, c[:, 1], Br, a, b,
+                                                                                            r0, R)) / (2 * d)
+        dAdy = (magnetized_ring(c[:, 0], c[:, 1] + d, Br, a, b, r0, R) - magnetized_ring(c[:, 0], c[:, 1] - d, Br, a, b,
+                                                                                            r0, R)) / (2 * d)
+        H_ex = reverse_field(np.column_stack([dAdy, -dAdx]), np.zeros(mag.sum()), Br, 1.0)
+        area = Geometry.of(mesh).area[mag]
+        errs.append(math.sqrt(np.sum(area * (H_fem - H_ex) ** 2) / np.sum(area * H_ex ** 2)))
+    return CaseResult("Demagnetisation field in a magnetised ring", "reverse field in the magnet, h halved",
+                      "closed form of the magnetised ring", errs[-1], 0.05, observed_orders(errs), 1.0,
+                      "element-wise B of P1 elements: first order")
