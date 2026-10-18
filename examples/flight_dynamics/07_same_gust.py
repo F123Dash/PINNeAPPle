@@ -19,7 +19,7 @@ from pinneapple_simulation.flight.encounter import gust_sensitivity
 from pinneapple_simulation.flight.simulate import simulate
 from pinneapple_simulation.flight.trim import stability_derivatives, trim
 from pinneapple_simulation.flight.turbulence import DiscreteGust, pratt_gust_load
-from pinneapple_simulation.flight.verification import CRUISE
+from pinneapple_simulation.flight.verification import ENCOUNTER_SPEED
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "_out")
@@ -30,7 +30,7 @@ res = {"gust": {"amplitude_m_s": U, "half_length_m": HALF, "altitude_m": H_ALT, 
        "aircraft": {}}
 for name in catalog.names():
     ac = catalog.build(name)
-    V = CRUISE[name][0]
+    V = ENCOUNTER_SPEED[name]
     tr = trim(ac, V, H_ALT)
     d = stability_derivatives(ac, tr)
     g = DiscreteGust(amplitude=U, length=HALF, start=LEAD * V, shape="full")

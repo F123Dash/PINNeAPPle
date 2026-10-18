@@ -25,7 +25,7 @@ from pinneapple_simulation.flight.figures import (
     gust_sensitivity_figure,
 )
 from pinneapple_simulation.flight.turbulence import turbulence_spec
-from pinneapple_simulation.flight.verification import CRUISE
+from pinneapple_simulation.flight.verification import ENCOUNTER_SPEED
 from pinneapple_simulation.flight.visuals import flight_scene
 from pinneapple_tools.visualization.studio.web import screenshot, web_viewer
 
@@ -46,7 +46,7 @@ res = {"spec": spec.as_dict(), "duration_s": DURATION, "seeds": SEEDS, "runs": [
 def job(name, kind, ctl, seed, severity="severe", field="3d"):
     """One encounter (run in a worker process); keeps the run and its viewer for the autopilot, seed-0 case."""
     ac = catalog.build(name)
-    V = CRUISE[name][0]
+    V = ENCOUNTER_SPEED[name]
     if kind == "pratt":
         return kind, name, pratt_check(ac, V, H, U_DE)
     keep = kind == "main" and ctl == "autopilot" and seed == 0

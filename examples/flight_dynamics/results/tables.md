@@ -76,10 +76,10 @@
 
 | aircraft | max offset on the ground [m] | max bank [deg] | max rudder [deg] | max aileron [deg] | heading at lift-off [deg] | min wing-tip clearance [m] | to 35 ft [m] |
 |---|---|---|---|---|---|---|---|
-| Light GA (C172 class) | 4.87 | 2.01 | 6.61 | 1.00 | 6.29 | 1.89 | 382 |
-| Turboprop (ATR 72 class) | 1.47 | 0.93 | 5.39 | 4.47 | 1.98 | 3.95 | 1278 |
-| Airliner (A320 class) | 5.95 | 3.19 | 11.76 | 14.28 | 0.59 | 2.65 | 1663 |
-| Motor glider (AR 28) | 2.69 | 3.03 | 10.96 | 2.49 | 5.55 | 0.63 | 275 |
+| Light GA (C172 class) | 3.48 | 11.09 | 7.35 | 1.77 | 5.05 | 1.90 | 384 |
+| Turboprop (ATR 72 class) | 1.01 | 1.25 | 5.68 | 4.45 | 1.76 | 3.95 | 1278 |
+| Airliner (A320 class) | 1.51 | 4.99 | 11.62 | 14.90 | 0.19 | 2.67 | 1666 |
+| Motor glider (AR 28) | 1.36 | 5.64 | 11.15 | 3.01 | 4.76 | 0.63 | 277 |
 
 ## gust
 
@@ -100,42 +100,42 @@
 
 ## turbulence
 
-| aircraft | controls | V [m/s] | W/S [Pa] | A = ρVCLα/2(W/S) [g per m/s] | A·σ_w [g] | RMS Δn_z CG [g] | spread over seeds | max Δn_z | min Δn_z | RMS bank [deg] | peak bank [deg] | RMS pitch [deg] | RMS n_y CG [g] | worst cabin station: RMS / peak Δn_z [g] | max α [deg] |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Light GA (C172 class) | stick fixed | 55 | 666 | 0.1919 | 1.077 | 0.493 | 0.000 | 1.71 | -1.27 | 12.5 | 29.4 | 10.7 | 0.049 | rear seat: 0.508 / 1.76 | 11.4 |
-| Light GA (C172 class) | autopilot | 55 | 666 | 0.1919 | 0.718 | 0.303 | 0.000 | 1.00 | -0.85 | 6.9 | 15.0 | 2.1 | 0.027 | rear seat: 0.323 / 1.14 | 13.1 |
-| Turboprop (ATR 72 class) | stick fixed | 120 | 3698 | 0.0846 | 0.564 | 0.295 | 0.000 | 0.87 | -0.81 | 6.7 | 13.6 | 4.5 | 0.059 | aft row: 0.322 / 0.89 | 7.2 |
-| Turboprop (ATR 72 class) | autopilot | 120 | 3698 | 0.0846 | 0.476 | 0.266 | 0.000 | 0.68 | -0.74 | 3.2 | 7.4 | 1.7 | 0.031 | aft row: 0.288 / 0.82 | 9.5 |
-| Airliner (A320 class) | stick fixed | 128 | 5879 | 0.0520 | 0.301 | 0.200 | 0.000 | 0.36 | -0.67 | 18.2 | 39.9 | 5.4 | 0.052 | aft row: 0.247 / 0.88 | 12.8 |
-| Airliner (A320 class) | autopilot | 128 | 5879 | 0.0520 | 0.301 | 0.162 | 0.000 | 0.39 | -0.37 | 3.7 | 9.9 | 2.2 | 0.022 | aft row: 0.188 / 0.50 | 12.3 |
-| Motor glider (AR 28) | stick fixed | 30 | 446 | 0.1832 | 0.897 | 0.661 | 0.000 | 2.47 | -1.01 | 14.2 | 31.6 | 8.5 | 0.085 | pilot: 0.665 / 2.62 | 14.4 |
-| Motor glider (AR 28) | autopilot | 30 | 446 | 0.1832 | 0.838 | 0.412 | 0.000 | 1.09 | -1.52 | 8.6 | 21.0 | 6.6 | 0.061 | pilot: 0.402 / 1.49 | 20.0 |
+| aircraft | controls | V [m/s] | W/S [Pa] | A = ρVCLα/2(W/S) [g per m/s] | A·σ_w [g] | RMS Δn_z CG [g] | spread over seeds | max Δn_z | min Δn_z | RMS bank [deg] | peak bank [deg] | RMS pitch [deg] | RMS n_y CG [g] | worst cabin station: RMS / peak Δn_z [g] | max α [deg] | α at clean CLmax [deg] | model validity |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Light GA (C172 class) | stick fixed | 55 | 666 | 0.1919 | 1.163 | 0.712 | 0.293 | 3.28 | -1.49 | 23.1 | 59.0 | 17.1 | 0.058 | rear seat: 0.734 / 3.42 | 12.7 | 14.1 | beyond stall |
+| Light GA (C172 class) | autopilot | 55 | 666 | 0.1919 | 1.380 | 0.355 | 0.062 | 1.20 | -1.23 | 8.4 | 22.5 | 4.6 | 0.033 | rear seat: 0.376 / 1.35 | 17.1 | 14.1 | beyond stall |
+| Turboprop (ATR 72 class) | stick fixed | 120 | 3698 | 0.0846 | 0.539 | 0.628 | 0.522 | 2.80 | -0.91 | 19.3 | 49.0 | 10.5 | 0.084 | aft row: 0.652 / 2.95 | 6.7 | 11.8 | valid |
+| Turboprop (ATR 72 class) | autopilot | 120 | 3698 | 0.0846 | 0.576 | 0.276 | 0.012 | 0.90 | -0.84 | 4.2 | 11.9 | 3.4 | 0.034 | aft row: 0.299 / 1.06 | 10.1 | 11.8 | valid |
+| Airliner (A320 class) | stick fixed | 128 | 5879 | 0.0520 | 0.331 | 0.365 | 0.122 | 1.44 | -0.72 | 15.4 | 40.3 | 10.1 | 0.040 | aft row: 0.401 / 1.66 | 13.5 | 14.1 | beyond stall |
+| Airliner (A320 class) | autopilot | 128 | 5879 | 0.0520 | 0.321 | 0.216 | 0.021 | 0.57 | -0.69 | 4.1 | 12.1 | 2.7 | 0.026 | aft row: 0.249 / 0.80 | 14.6 | 14.1 | beyond stall |
+| Motor glider (AR 28) | stick fixed | 30 | 446 | 0.1832 | 1.289 | 4.530 | 10.059 | 51.06 | -278.67 | 64.9 | 161.1 | 32.0 | 0.454 | pilot: 4.528 / 281.84 | 123.6 | 7.5 | departed |
+| Motor glider (AR 28) | autopilot | 30 | 446 | 0.1832 | 1.109 | 0.542 | 0.189 | 3.04 | -2.37 | 32.4 | 168.1 | 17.3 | 0.064 | pilot: 0.536 / 3.83 | 157.6 | 7.5 | departed |
 
 ## spanwise
 
 | aircraft | RMS bank, 3-D field [deg] | RMS bank, frozen line [deg] | RMS Δn_z, 3-D field [g] | RMS Δn_z, frozen line [g] |
 |---|---|---|---|---|
-| Light GA (C172 class) | 12.5 | 5.5 | 0.493 | 0.477 |
-| Turboprop (ATR 72 class) | 6.7 | 2.5 | 0.295 | 0.444 |
-| Airliner (A320 class) | 18.2 | 8.8 | 0.200 | 0.254 |
-| Motor glider (AR 28) | 14.2 | 3.4 | 0.661 | 0.373 |
+| Light GA (C172 class) | 23.1 | 12.2 | 0.712 | 0.412 |
+| Turboprop (ATR 72 class) | 19.3 | 2.4 | 0.628 | 0.350 |
+| Airliner (A320 class) | 15.4 | 8.3 | 0.365 | 0.250 |
+| Motor glider (AR 28) | 64.9 | 53.6 | 4.530 | 1.077 |
 
 ## intensity
 
-| aircraft | severity | σ [m/s] | RMS Δn_z [g] | max Δn_z [g] | RMS bank [deg] |
-|---|---|---|---|---|---|
-| Airliner (A320 class) | light | 1.84 | 0.052 | 0.13 | 1.0 |
-| Airliner (A320 class) | moderate | 2.88 | 0.076 | 0.20 | 1.6 |
-| Airliner (A320 class) | severe (mean of seeds) | 7.05 | 0.162 | 0.39 | 3.7 |
-| Light GA (C172 class) | light | 1.84 | 0.086 | 0.23 | 1.8 |
-| Light GA (C172 class) | moderate | 2.88 | 0.118 | 0.30 | 2.0 |
-| Light GA (C172 class) | severe (mean of seeds) | 7.05 | 0.303 | 1.00 | 6.9 |
-| Motor glider (AR 28) | light | 1.84 | 0.103 | 0.27 | 2.0 |
-| Motor glider (AR 28) | moderate | 2.88 | 0.166 | 0.42 | 3.0 |
-| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | 0.412 | 1.09 | 8.6 |
-| Turboprop (ATR 72 class) | light | 1.84 | 0.082 | 0.18 | 0.9 |
-| Turboprop (ATR 72 class) | moderate | 2.88 | 0.123 | 0.25 | 1.3 |
-| Turboprop (ATR 72 class) | severe (mean of seeds) | 7.05 | 0.266 | 0.68 | 3.2 |
+| aircraft | severity | σ [m/s] | RMS Δn_z [g] | max Δn_z [g] | RMS bank [deg] | max α [deg] | model validity |
+|---|---|---|---|---|---|---|---|
+| Airliner (A320 class) | light | 1.84 | 0.056 | 0.14 | 1.0 | 8.2 | valid |
+| Airliner (A320 class) | moderate | 2.88 | 0.084 | 0.24 | 1.5 | 9.4 | valid |
+| Airliner (A320 class) | severe (mean of seeds) | 7.05 | 0.216 | 0.57 | 4.1 | 14.6 | beyond stall |
+| Light GA (C172 class) | light | 1.84 | 0.100 | 0.30 | 2.1 | 7.1 | valid |
+| Light GA (C172 class) | moderate | 2.88 | 0.147 | 0.59 | 2.8 | 8.9 | valid |
+| Light GA (C172 class) | severe (mean of seeds) | 7.05 | 0.355 | 1.20 | 8.4 | 17.1 | beyond stall |
+| Motor glider (AR 28) | light | 1.84 | 0.094 | 0.32 | 2.6 | 11.5 | beyond stall |
+| Motor glider (AR 28) | moderate | 2.88 | 0.135 | 0.42 | 4.0 | 19.2 | departed |
+| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | 0.542 | 3.04 | 32.4 | 157.6 | departed |
+| Turboprop (ATR 72 class) | light | 1.84 | 0.081 | 0.26 | 1.1 | 3.0 | valid |
+| Turboprop (ATR 72 class) | moderate | 2.88 | 0.125 | 0.40 | 1.7 | 3.9 | valid |
+| Turboprop (ATR 72 class) | severe (mean of seeds) | 7.05 | 0.276 | 0.90 | 4.2 | 10.1 | valid |
 
 ## pratt
 

@@ -4,6 +4,7 @@ from the committed results JSON, so every number in the guide comes from a run.
     python examples/flight_dynamics/06_tables.py
 """
 import json
+import math
 import os
 import re
 
@@ -95,8 +96,23 @@ if "takeoff" in R:
                  f"the certified rule) | {1.15 * p['sim_all_engines_35ft_m']:.0f} m |\n| published | {p['published']} |")
 if "turbulence" in R:
     u = R["turbulence"]
+    # validity: the linear lattice has no stall; alpha at the clean CLmax of the catalog (an assumption) from the trim
+    from pinneapple_simulation.flight import catalog
+    CLMAX = {n: catalog.build(n).clmax_clean for n in catalog.names()}
+
+    def alpha_stall(m):
+        return m["trim"]["alpha_deg"] + math.degrees((CLMAX[m["aircraft"]] - m["trim"]["CL"]) / m["cl_alpha"])
+
+    def status(rows_):
+        dep = sum(r.get("departed", r["phi_peak_deg"] > 90 or r["alpha_max_deg"] > alpha_stall(r) + 10)
+                  for r in rows_)
+        stall = sum(r.get("time_above_stall_frac", float(r["alpha_max_deg"] > alpha_stall(r))) > 0 for r in rows_)
+        return "departed" if dep else ("beyond stall" if stall else "valid")
     rows = []
     for s in u["summary"]:
+        runs = [r for r in u["runs"] if r["aircraft"] == s["aircraft"] and r["controller"] == s["controller"]]
+        s["status"] = status(runs)
+        s["alpha_stall"] = alpha_stall(runs[0])
         cab = s["cabin"]
         worst = max(cab, key=lambda k: cab[k]["dnz_rms"])
         rows.append({"aircraft": LABELS[s["aircraft"]], "ctl": s["controller"].replace("_", " "), "V": s["V"],
@@ -104,15 +120,16 @@ if "turbulence" in R:
                      "rms": s["dnz_cg_rms"], "spr": s["dnz_cg_rms_spread"], "max": s["dnz_cg_max"], "min": s["dnz_cg_min"],
                      "phi": s["phi_rms_deg"], "phip": s["phi_peak_deg"], "th": s["theta_rms_deg"], "ny": s["ny_cg_rms"],
                      "cab": f"{worst.replace('_', ' ')}: {cab[worst]['dnz_rms']:.3f} / {cab[worst]['dnz_peak']:.2f}",
-                     "amax": s["alpha_max_deg"]})
+                     "amax": s["alpha_max_deg"], "ast": s["alpha_stall"], "st": s["status"]})
     T["turbulence"] = table_markdown(rows, [("aircraft", "aircraft"), ("ctl", "controls"), ("V", "V [m/s]"),
                                      ("ws", "W/S [Pa]"), ("A", "A = ρVCLα/2(W/S) [g per m/s]"), ("qs", "A·σ_w [g]"),
                                      ("rms", "RMS Δn_z CG [g]"), ("spr", "spread over seeds"), ("max", "max Δn_z"),
                                      ("min", "min Δn_z"), ("phi", "RMS bank [deg]"), ("phip", "peak bank [deg]"),
                                      ("th", "RMS pitch [deg]"), ("ny", "RMS n_y CG [g]"),
-                                     ("cab", "worst cabin station: RMS / peak Δn_z [g]"), ("amax", "max α [deg]")],
+                                     ("cab", "worst cabin station: RMS / peak Δn_z [g]"), ("amax", "max α [deg]"),
+                                     ("ast", "α at clean CLmax [deg]"), ("st", "model validity")],
                                      {"V": 0, "ws": 0, "A": 4, "qs": 3, "rms": 3, "spr": 3, "phi": 1, "phip": 1, "th": 1,
-                                      "ny": 3, "amax": 1})
+                                      "ny": 3, "amax": 1, "ast": 1})
     st = {(s["aircraft"]): s for s in u["summary"] if s["controller"] == "stick_fixed"}
     rows = [{"aircraft": LABELS[m["aircraft"]], "line_phi": m["phi_rms_deg"], "line_p": m["p_rms_deg_s"],
              "f3_phi": st[m["aircraft"]]["phi_rms_deg"], "line_rms": m["dnz_cg_rms"], "f3_rms": st[m["aircraft"]]["dnz_cg_rms"]}
@@ -122,14 +139,16 @@ if "turbulence" in R:
                                    ("line_rms", "RMS Δn_z, frozen line [g]")], {"f3_phi": 1, "line_phi": 1, "f3_rms": 3,
                                                                                  "line_rms": 3})
     rows = [{"aircraft": LABELS[m["aircraft"]], "sev": m["severity"], "sw": m["spec"]["sigma_w"], "rms": m["dnz_cg_rms"],
-             "max": m["dnz_cg_max"], "phi": m["phi_rms_deg"]} for m in u["intensity"]]
+             "max": m["dnz_cg_max"], "phi": m["phi_rms_deg"], "amax": m["alpha_max_deg"], "st": status([m])}
+            for m in u["intensity"]]
     rows += [{"aircraft": LABELS[s["aircraft"]], "sev": "severe (mean of seeds)", "sw": u["spec"]["sigma_w"],
-              "rms": s["dnz_cg_rms"], "max": s["dnz_cg_max"], "phi": s["phi_rms_deg"]}
-             for s in u["summary"] if s["controller"] == "autopilot"]
+              "rms": s["dnz_cg_rms"], "max": s["dnz_cg_max"], "phi": s["phi_rms_deg"], "amax": s["alpha_max_deg"],
+              "st": s["status"]} for s in u["summary"] if s["controller"] == "autopilot"]
     T["intensity"] = table_markdown(sorted(rows, key=lambda r: (r["aircraft"], r["sw"])),
                                     [("aircraft", "aircraft"), ("sev", "severity"), ("sw", "σ [m/s]"),
-                                     ("rms", "RMS Δn_z [g]"), ("max", "max Δn_z [g]"), ("phi", "RMS bank [deg]")],
-                                    {"sw": 2, "rms": 3, "phi": 1})
+                                     ("rms", "RMS Δn_z [g]"), ("max", "max Δn_z [g]"), ("phi", "RMS bank [deg]"),
+                                     ("amax", "max α [deg]"), ("st", "model validity")],
+                                    {"sw": 2, "rms": 3, "phi": 1, "amax": 1})
     T["pratt"] = table_markdown([{**p, "aircraft": LABELS[p["aircraft"]]} for p in u["pratt"]],
                                 [("aircraft", "aircraft"), ("V", "V [m/s]"), ("mu", "mass ratio μ"), ("K_g", "K_g"),
                                  ("dn_unalleviated", "Δn, no alleviation"), ("dn_pratt", "Δn Pratt"),

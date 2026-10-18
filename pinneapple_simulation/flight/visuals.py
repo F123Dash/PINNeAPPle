@@ -139,7 +139,7 @@ def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind
         dx = L.chord[L.strip] / ac.aero.nc
         dcp = 2 * hist.gamma[ks] / (np.maximum(hist.airspeed[ks], 1.0)[:, None] * dx[None])
         lo, hi = np.percentile(dcp, [1, 99])
-        anim.add_surface_field("vlm_load", np.repeat(dcp, 4, axis=1), label="Lifting-surface load dCp (vortex lattice)",
+        anim.add_surface_field("vlm_load", np.repeat(dcp, 4, axis=1), label="Wing load dCp (lattice)",
                                color_range=(float(min(lo, 0.0)), float(hi)))
     lines = []
     if wind is not None and wisps:

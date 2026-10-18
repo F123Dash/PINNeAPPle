@@ -208,7 +208,7 @@ track, so the aircraft crabs into the wind.
 The turbulence is the same for all four aircraft: von Kármán, MIL-F-8785C severe (exceedance probability 1e-5) at
 3000 m, σ = 7.05 m/s, L = 762 m. It is a frozen 3-D field, so the two wings meet different gusts.
 
-Each aircraft flies at its own cruise speed (55 / 120 / 128 / 30 m/s) for 120 s. Each case is run stick-fixed and
+Each aircraft flies at its own speed for 120 s: 55, 120 and 128 m/s, and the glider at 40 m/s. Glider pilots speed up in rough air, and at 30 m/s its trim leaves only ~3.5° of α to the clean CLmax (an assumption of the study). Each case is run stick-fixed and
 with the autopilot (altitude, heading and speed hold), in three realisations of the field. The first 5 s are
 discarded.
 
