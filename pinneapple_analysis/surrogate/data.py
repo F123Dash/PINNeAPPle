@@ -18,7 +18,8 @@ from typing import Any
 
 import numpy as np
 
-__all__ = ["SurrogateData", "read_table", "from_table", "from_arrays", "field_columns", "inspect_table", "grid_coords"]
+__all__ = ["SurrogateData", "read_table", "from_table", "from_arrays", "field_columns", "inspect_table", "grid_coords",
+           "from_snapshots", "snapshot_values", "lattice_order"]
 
 _FMT = {".csv": "csv", ".txt": "csv", ".parquet": "parquet", ".pq": "parquet", ".json": "json", ".h5": "hdf5",
         ".hdf5": "hdf5", ".npz": "npz"}
@@ -294,3 +295,70 @@ def from_arrays(arrays: Mapping[str, np.ndarray], *, input_names: Sequence[str] 
     outn = list(output_names or names("output_names", default_out))
     return SurrogateData(X, Y, inn, outn, coords=arrays.get("coords"),
                          coord_names=names("coord_names", []), groups=arrays.get("groups"), meta=dict(meta or {}))
+
+
+def lattice_order(points) -> tuple[tuple[int, ...], np.ndarray] | None:
+    """``(shape, order)`` when the points are a tensor-product lattice (``points[order]`` reshapes to ``shape`` with
+    the first coordinate slowest), else None."""
+    P = np.asarray(points, float)
+    axes = [np.unique(np.round(P[:, k], 12)) for k in range(P.shape[1])]
+    shape = tuple(len(a) for a in axes)
+    if int(np.prod(shape)) != len(P):
+        return None
+    idx = np.stack([np.searchsorted(a, np.round(P[:, k], 12)) for k, a in enumerate(axes)], 1)
+    flat = np.ravel_multi_index(idx.T, shape)
+    if len(np.unique(flat)) != len(P):
+        return None
+    return shape, np.argsort(flat)
+
+
+def from_snapshots(snaps, *, meta: Mapping[str, Any] | None = None) -> SurrogateData:
+    """A parametric ``pinneapple_data.snapshots.SnapshotSet`` whose point fields live on a tensor-product lattice of
+    nodes (a structured mesh, possibly scaled per snapshot) as one field dataset: ``Y`` (n, *lattice, channels), the
+    channels being every component of every point field (``ux, uy, uz, von_mises``), ``coords`` the unit lattice plus
+    the channel index. ``meta["channels"]`` and ``meta["lattice_order"]`` let :func:`snapshot_values` map a
+    prediction back onto the snapshot layout."""
+    if snaps.params is None:
+        raise ValueError("a surrogate maps parameters to fields: these snapshots have no parameters")
+    pts = snaps.locations.get("point")
+    fields = [f for f in snaps.fields if f["where"] == "point"]
+    if pts is None or not fields:
+        raise ValueError("no point fields with node coordinates")
+    lat = lattice_order(snaps.snapshot_points[0] if snaps.snapshot_points is not None else pts)
+    if lat is None:
+        raise ValueError("the nodes are not a tensor-product lattice (a structured mesh); give the fields as columns")
+    shape, order = lat
+    chans, cols = [], []
+    for f in fields:
+        v = snaps.field_values(f["name"])
+        v = v[..., None] if v.ndim == 2 else v
+        for c in range(v.shape[2]):
+            chans.append(f["name"] if v.shape[2] == 1 else f"{f['name']}[{c}]")
+            cols.append(v[:, order, c])
+    Y = np.stack(cols, -1).reshape(snaps.n, *shape, len(chans))
+    grids = np.meshgrid(*[np.linspace(0, 1, s) for s in (*shape, len(chans))], indexing="ij")
+    coords = np.stack([g.ravel() for g in grids], 1)
+    m = {"source": snaps.source.get("file", "snapshots"), **(snaps.meta or {}), **dict(meta or {}),
+         "channels": chans, "lattice_shape": list(shape), "lattice_order": order.tolist()}
+    m.pop("node_sets", None)
+    return SurrogateData(snaps.params, Y, list(snaps.param_names), ["+".join(f["name"] for f in fields)],
+                         coords=coords, coord_names=["i", "j", "k"][:len(shape)] + ["channel"], meta=m)
+
+
+def snapshot_values(snaps, data: SurrogateData, Y) -> np.ndarray:
+    """Fields predicted on the lattice of :func:`from_snapshots` (n, *lattice, channels) back to snapshot rows
+    (n, n_values) in the layout of ``snaps`` (``snaps.field_values(name, rows)`` then reads them)."""
+    Y = np.asarray(Y, float).reshape(-1, int(np.prod(data.meta["lattice_shape"])), len(data.meta["channels"]))
+    order = np.asarray(data.meta["lattice_order"])
+    inv = np.empty_like(order)
+    inv[order] = np.arange(len(order))
+    out = np.zeros((len(Y), snaps.n_values))
+    c = 0
+    for f in snaps.fields:
+        if f["where"] != "point":
+            continue
+        k = f["components"]
+        v = Y[:, inv, c:c + k]                                  # back to node order
+        out[:, f["offset"]:f["offset"] + f["size"]] = v.reshape(len(Y), -1)
+        c += k
+    return out
