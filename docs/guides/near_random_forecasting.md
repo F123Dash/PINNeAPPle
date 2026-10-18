@@ -9,12 +9,15 @@ to four questions:
 3. Which training choices actually prevent overfitting, and by how much?
 4. How do the point and probabilistic scores compare once the differences are tested for significance?
 
-Everything here comes from one script,
-[`examples/near_random_forecasting/run_study.py`](../../examples/near_random_forecasting/run_study.py). Its results
+Everything here comes from two scripts:
+[`examples/near_random_forecasting/run_study.py`](../../examples/near_random_forecasting/run_study.py) runs the
+study and [`render_visuals.py`](../../examples/near_random_forecasting/render_visuals.py) draws the
+[visual pack](#visual-pack) from its results. Their results
 are committed in `examples/near_random_forecasting/results/`: one JSON per series, the overfitting studies, and
 `tables.md`, from which every table below is copied. The figures are in `examples/near_random_forecasting/figures/`.
 The library pieces live in `pinneapple_systems.time_series` (`predictability`, `synthetic`, `forecast_lab`,
-`metrics_ext`, `validation`, `datasets.public`) and are tested in `tests/test_near_random_forecasting.py`.
+`metrics_ext`, `validation`, `datasets.public`) and are tested in `tests/test_near_random_forecasting.py` and
+`tests/test_near_random_visuals.py`.
 
 ## Quick start
 
@@ -97,6 +100,7 @@ never see the true parameters.
 | white noise, random walk | controls | 6000 | 1 | – |
 | USD/EUR daily log-returns (%) | FRED DEXUSEU via the [datasets/exchange-rates](https://github.com/datasets/exchange-rates) package (ODC-PDDL), 1999-01-05 to 2026-10-09, pinned commit and SHA-256 | 6964 | 1 day | real |
 | sunspots | yearly mean sunspot number 1700–2008, NOAA NGDC (public domain), as shipped by statsmodels | 309 | 1 year | real |
+| YouTube US trending, daily | log10 of the total views of the ~200 trending entries, and the number of Entertainment (category 24) entries; see [section 5](#5-a-real-daily-series-youtube-trending) | 205 | 1 trending day | real |
 
 The largest Lyapunov exponents come from the equations (Benettin two-trajectory method,
 `synthetic.largest_lyapunov_benettin`, natural logarithm per unit time):
@@ -121,10 +125,12 @@ direction):
 * With longer runs the estimate settles at 0.0050 (step 0.1) to 0.0052 (step 0.05). The 3 % dependence on the
   step is presumably the integration error of the delayed term, which is interpolated linearly at the half step.
 * The value used for the LT axes (0.0049) is within 5 % of the finest estimate.
-* A reviewer quoted 0.006 to 0.007 for τ = 17 from Farmer (1982, Physica D 4:366) and Wolf et al. (1985, Physica
-  D 16:285). Those papers could not be consulted from this environment, so their units (nats or bits per unit
-  time) and settings are not checked here. Our converged value is 13 to 29 % below that range. If those values
-  are in bits, they would convert to 0.0042–0.0049 nats; this is an open question, not a resolution.
+* **Unverified comparison.** A reviewer quoted 0.006 to 0.007 for τ = 17 from Farmer (1982, Physica D 4:366) and
+  Wolf et al. (1985, Physica D 16:285). Neither paper could be opened from this environment (publisher sites and
+  arXiv were not reachable), so their values, units and settings are not checked here. Our converged value is 13
+  to 29 % below that range.
+* **Hypothesis, not a finding:** if those values are in bits per unit time, they would be 0.0042–0.0049 in natural
+  log, consistent with ours. This was not verified.
 
 ## 1. Is there anything to predict?
 
@@ -488,6 +494,117 @@ horizons, with no line joining them.
 
 ![Fan charts](../../examples/near_random_forecasting/figures/fan_charts.png)
 
+## 5. A real daily series: YouTube trending
+
+**Data.** "Trending YouTube Video Statistics" (Kaggle, user datasnaek; listed there as CC0 1.0 public domain). The
+Kaggle page itself could not be opened from this environment; the licence is taken from the search-engine listing
+of that page, so treat it as stated by the source, not checked here. The US file (`USvideos.csv`) is fetched from a
+GitHub mirror at a pinned commit and checked against its SHA-256 (`datasets.public.PINNED["youtube_trending_us"]`);
+two independent mirrors serve byte-identical files. No API key is needed.
+
+`load_youtube_trending_us` aggregates it per trending day: 205 days from 2017-11-14 to 2018-06-14, 196 to 200
+entries per day. Eight calendar days are missing from the source (2018-01-10, 01-11 and 04-08 to 04-13); they are
+skipped, so one step is one trending day. Two series, horizons 1, 2, 3, 5 and 7 days, the baselines plus the
+data-driven zoo (there is no physical model for this):
+
+* **log10 total daily views**: trends upward over the period.
+* **Entertainment slots per day**: 36 to 63 of the ~200 entries (mean 48.6).
+
+Predictability (`results/tables.md`):
+
+| series | AR order (R² 1-step) | NPE / std | p shuffle | p IAAFT | p TRA IAAFT | verdict |
+|---|---|---|---|---|---|---|
+| log10 total daily views | 10 (0.97) | 1.78 | 1.00 | 1.00 | 0.03 | nonlinear structure |
+| Entertainment slots | 1 (0.80) | 0.81 | 0.01 | 0.45 | 0.37 | linear structure only |
+
+* The surrogate tests assume a stationary series. On the trending views series the NPE is larger than the
+  standard deviation and the shuffle and IAAFT tests give p = 1.00: the original is *less* predictable by nearest
+  neighbours than its surrogates, presumably because test points late in the trend have no neighbours at that
+  level. The "nonlinear structure" verdict rests on the time-reversal test alone and should not be read as
+  evidence of exploitable nonlinearity.
+* The Entertainment count has linear (AR(1)) structure and nothing beyond it.
+
+Forecasts (test period 34 days, 2018-05-06 to 2018-06-08):
+
+| series | best baseline (val) | best data model (val) | its RMSE skill vs persistence, h = 1 2 3 5 7 | significant vs best baseline (Holm) |
+|---|---|---|---|---|
+| log10 total daily views | exp_smoothing | transformer | -0.00 0.02 -0.12 -0.43 0.02 | none |
+| Entertainment slots | ar | lstm | -0.13 -0.12 -0.17 -0.13 -0.08 | none |
+
+No model of the zoo is significantly better than the best baseline on either series at any horizon. With 34 test
+days the DM tests have little power, so this says the gain, if any, is too small to detect on this sample.
+
+The surprise calendar below shows the same comparison day by day.
+
+## Visual pack
+
+`examples/near_random_forecasting/render_visuals.py` draws four 3-D scenes with Blender Cycles (`bpy` from PyPI, in
+process, CPU; `pinneapple_blender.cycles`) and two 2-D figures from the committed case results. Every number on
+them is in `results/visuals.json`. The scenes are built by `forecast_lab.renders`, which also returns the data
+drawn.
+
+**Predictability landscape.** One tile per series: x is the horizon (log10 Lyapunov times for the chaotic series,
+log10 samples otherwise), y the four families, and height the RMSE skill of the family's best model (chosen on
+validation) against the best baseline, floored at -0.5. The translucent plane is skill 0. The chaotic series peak
+at 0.44 (Mackey–Glass, noise 0.3) to 0.98 (Lorenz-63, noise 0.01) and are back at 0.05 or less at their longest
+horizon (3.8 to 5.7 LT). Sunspots peaks at 0.20; every other series stays at 0.06 or less. On white noise,
+USD/EUR and the YouTube series only the data family was run.
+
+![Predictability landscape](../../examples/near_random_forecasting/figures/visuals/landscape.png)
+
+**Forecast cone.** The same gradient-boosting forecaster refitted at every horizon 1 to 48 (so every step of the
+cone is a real forecast, not an interpolation) on Lorenz-63 (noise 0.1) and white noise. On Lorenz-63 the cone
+starts narrow and widens; on white noise it is as wide at h = 1 as at h = 48. Over all 576 test origins and
+horizons the 90 % band covered 89.0 % (Lorenz-63) and 89.4 % (white noise) of the outcomes, and the 50 % band 62.3 %
+and 50.4 %. A 3-second clip draws the cone step by step: `figures/visuals/forecast_cone.mp4`.
+
+![Forecast cone](../../examples/near_random_forecasting/figures/visuals/forecast_cone.png)
+
+**Attractor vs surrogates.** Lorenz-63 x (noise 0.01), delay-embedded in three dimensions with delay 7 samples,
+next to its IAAFT surrogate (same spectrum and value distribution) and a shuffled surrogate. The nearest-neighbour
+prediction error relative to the standard deviation is 0.13, 0.29 and 1.05: the surrogate keeps the linear part
+of the predictability, the shuffle keeps none.
+
+![Attractor vs surrogates](../../examples/near_random_forecasting/figures/visuals/attractor_vs_surrogates.png)
+
+**Ensemble divergence.** 50 members started from one state perturbed by 1 % of the attractor standard deviation,
+integrated with the true equations. Mean spread (in units of the standard deviation) at the start, at 1 LT and
+at the end:
+
+| system | start | 1 LT | end |
+|---|---|---|---|
+| Lorenz-63, 5 LT | 0.011 | 0.018 | 0.747 |
+| Mackey–Glass, 5 LT | 0.009 | 0.052 | 0.944 |
+| noise-driven oscillator, 150 steps (all members share one forcing path) | 0.009 | – | 0.001 |
+
+The chaotic spreads grow 67 times (Lorenz-63) and 110 times (Mackey–Glass) over 5 LT, to about one standard
+deviation of the attractor; the damped linear oscillator forgets the initial difference and the members converge. Its unpredictability comes from the forcing, not from the initial state.
+
+![Ensemble divergence](../../examples/near_random_forecasting/figures/visuals/ensemble_divergence.png)
+
+**Memorise vs learn.** The over-parametrised MLP of the overfitting study (512 × 3 units, 32 lags, no early
+stopping) against the regularised one (64 × 2, early stopping), refitted. The figure shows the last 150 training
+and the first 150 test origins; the one-step RMSE is over the whole training and test sets:
+
+| series | variant | params | train | test |
+|---|---|---|---|---|
+| double well | overfit | 546 312 | 0.166 | 0.350 |
+| double well | 64 × 2 + early stopping | 5 768 | 0.245 | 0.248 |
+| Lorenz-63, noise 0.1 | overfit | 579 080 | 0.613 | 1.145 |
+| Lorenz-63, noise 0.1 | 64 × 2 + early stopping | 7 816 | 0.861 | 0.913 |
+
+The overfit network follows the training noise and is worse on the test period.
+
+![Memorise vs learn](../../examples/near_random_forecasting/figures/visuals/memorise_vs_learn.png)
+
+**Surprise calendar.** One cell per day of the test period, coloured by log2(|error of the best model| / |error of
+the best baseline|) at h = 1, both chosen on validation (blue: model closer; red: baseline closer). The model was
+closer on 68 % of the 34 days for YouTube views (transformer vs exponential smoothing), 38 % of 34 days for the
+Entertainment count (LSTM vs AR) and 50 % of 687 days for USD/EUR returns (MLP vs AR). None of these differences
+is significant in the DM tests above.
+
+![Surprise calendar](../../examples/near_random_forecasting/figures/visuals/surprise_calendar.png)
+
 ## What to use when
 
 * **Always first:** run `predictability_report`.
@@ -540,7 +657,7 @@ horizons, with no line joining them.
 * **SINDy only on the fully observed ODEs.** It has no delay or stochastic library. The UDE was only tested on
   Lorenz-63; the double well has a neural *drift* closure instead.
 * **Volatility models (GARCH)** were not part of the zoo. USD/EUR is tested for forecasting the mean return only.
-* **Real data:** one financial series and one physical series. The sunspot test period has 51 origins, so its DM
-  tests have little power.
+* **Real data:** one financial series, one physical series and two series from one YouTube dataset. The sunspot
+  test period has 51 origins and the YouTube one 34, so their DM tests have little power.
 * **The Rosenstein exponent** was computed with one embedding (dimension 4, delay from the autocorrelation) and one
   fit window. As shown above, it is sensitive to both.

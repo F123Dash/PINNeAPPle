@@ -31,7 +31,7 @@ __all__ = [
     "SyntheticSeries", "rk4_step", "lorenz63_rhs", "lorenz96_rhs", "mackey_glass_rhs", "double_well_drift",
     "mackey_glass_step", "largest_lyapunov_benettin", "mackey_glass_lyapunov", "lorenz63", "lorenz96", "mackey_glass",
     "ornstein_uhlenbeck", "stochastic_oscillator", "oscillator_transition", "double_well", "white_noise",
-    "random_walk",
+    "random_walk", "ode_stepper", "mackey_glass_stepper", "linear_sde_stepper",
 ]
 
 
@@ -330,3 +330,34 @@ def random_walk(n: int = 6000, *, seed: int = 0) -> SyntheticSeries:
     x = np.cumsum(np.random.default_rng(seed).standard_normal(n))[:, None]
     return SyntheticSeries("random_walk", np.arange(n, dtype=float), x, x.copy(), 1.0, 0, [0], {}, 0.0, 0.0, None,
                            "noise")
+
+
+def ode_stepper(rhs: Callable, dt: float, sub: int = 1) -> Callable[[np.ndarray], np.ndarray]:
+    """A map advancing a batch of states (m, d) of dx/dt = rhs(x) by ``dt`` (``sub`` RK4 substeps)."""
+    h = dt / sub
+
+    def step(X):
+        for _ in range(sub):
+            X = rk4_step(rhs, X, h)
+        return X
+    return step
+
+
+def mackey_glass_stepper(dt_int: float = 0.1, sub: int = 10, **params) -> Callable[[np.ndarray], np.ndarray]:
+    """A map advancing Mackey-Glass histories (m, tau / dt_int + 1) by ``sub`` RK4 steps of ``dt_int``."""
+    def step(H):
+        for _ in range(sub):
+            H = mackey_glass_step(H, dt_int, **params)
+        return H
+    return step
+
+
+def linear_sde_stepper(Phi: np.ndarray, Q: np.ndarray, seed: int = 0) -> Callable[[np.ndarray], np.ndarray]:
+    """A map x -> Phi x + w for a batch of states, with one noise draw w ~ N(0, Q) per call shared by the whole
+    batch: members that differ only in their initial state (sensitivity to initial conditions, same forcing)."""
+    rng = np.random.default_rng(seed)
+    L = np.linalg.cholesky(np.asarray(Q) + 1e-15 * np.eye(len(Q)))
+
+    def step(X):
+        return X @ np.asarray(Phi).T + (L @ rng.standard_normal(len(Q)))[None]
+    return step

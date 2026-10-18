@@ -16,6 +16,8 @@
 | Random walk | 0 (0.00) | 1.00 | 2.20 | -0.00 | 1.05 | 0.71 | 0.67 | 0.98 | no structure found (tested on differences) |
 | USD/EUR daily log-returns | 0 (0.00) | 1.00 | 1.97 | 0.00 | 0.90 | 0.01 | 0.01 | 0.15 | nonlinear structure |
 | Sunspots (yearly) | 9 (0.86) | 0.60 | 0.84 | 0.03 | 0.60 | 0.01 | 0.84 | 0.01 | nonlinear structure |
+| YouTube US trending: log10 total daily views | 10 (0.97) | 0.74 | 0.53 | 0.02 | 1.78 | 1.00 | 1.00 | 0.03 | nonlinear structure |
+| YouTube US trending: Entertainment slots per day | 1 (0.80) | 0.85 | 1.04 | 0.01 | 0.81 | 0.01 | 0.45 | 0.37 | linear structure only |
 
 ## skill_horizon
 
@@ -35,6 +37,8 @@
 | Random walk | 1, 2, 4, 8, 16 | transformer: none / none | – | – | – |
 | USD/EUR daily log-returns | 1, 2, 5, 10, 20 | mlp: 20 / none | – | – | – |
 | Sunspots (yearly) | 1, 2, 3, 5, 8, 11 | mlp: 8 / none | gbm_physics_features: 8 / 1 | oscillator_kalman: 8 / none | oscillator_kalman+gbm: 8 / 1 |
+| YouTube US trending: log10 total daily views | 1, 2, 3, 5, 7 | transformer: none / none | – | – | – |
+| YouTube US trending: Entertainment slots per day | 1, 2, 3, 5, 7 | lstm: none / none | – | – | – |
 
 ## scores
 
@@ -132,9 +136,9 @@
 | Random walk | transformer | data | -0.00 -0.00 -0.00 -0.00 0.00 | 0.96 0.95 0.92 0.89 0.84 | 0.76 (80 %), 0.93 (95 %) | 0.10 | 17893 | 5.4 |
 | USD/EUR daily log-returns | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 | -0.36 -0.36 -0.37 -0.40 -0.38 | 0.76 (80 %), 0.90 (95 %) | 0.10 | 0 | 0.0 |
 | USD/EUR daily log-returns | climatology | baseline | 0.29 0.28 0.29 0.31 0.30 | 0.00 0.00 0.00 0.00 0.00 | 0.91 (80 %), 0.98 (95 %) | 0.42 | 2 | 0.0 |
-| USD/EUR daily log-returns | ar | baseline | 0.29 0.28 0.29 0.31 0.30 | 0.04 0.04 0.04 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.13 | 2 | 0.1 |
+| USD/EUR daily log-returns | ar | baseline | 0.29 0.28 0.29 0.31 0.30 | 0.04 0.04 0.04 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.13 | 2 | 0.2 |
 | USD/EUR daily log-returns | phase_climatology | baseline | 0.26 0.25 0.27 0.27 0.27 | 0.01 -0.00 0.01 -0.02 -0.01 | 0.77 (80 %), 0.90 (95 %) | 0.11 | 5 | 0.0 |
-| USD/EUR daily log-returns | mlp | data | 0.29 0.28 0.29 0.30 0.29 | 0.04 0.04 0.05 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.12 | 18309 | 2.0 |
+| USD/EUR daily log-returns | mlp | data | 0.29 0.28 0.29 0.30 0.29 | 0.04 0.04 0.05 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.12 | 18309 | 1.4 |
 | Sunspots (yearly) | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 | 0.44 -0.05 -0.49 -0.86 -0.26 0.40 | 0.46 (80 %), 0.70 (95 %) | 0.68 | 0 | 0.0 |
 | Sunspots (yearly) | climatology | baseline | -0.79 0.01 0.27 0.40 0.16 -0.65 | 0.00 0.00 0.00 0.00 0.00 0.00 | 0.58 (80 %), 0.77 (95 %) | 0.75 | 2 | 0.0 |
 | Sunspots (yearly) | ar | baseline | 0.35 0.48 0.55 0.61 0.47 -0.07 | 0.65 0.52 0.43 0.38 0.41 0.40 | 0.64 (80 %), 0.81 (95 %) | 0.50 | 20 | 0.0 |
@@ -143,6 +147,16 @@
 | Sunspots (yearly) | gbm_physics_features | data+physics | 0.48 0.48 0.50 0.54 0.28 0.02 | 0.72 0.53 0.35 0.22 0.11 0.44 | 0.61 (80 %), 0.77 (95 %) | 0.37 | 7386 | 0.8 |
 | Sunspots (yearly) | oscillator_kalman | physical | 0.31 0.36 0.38 0.44 0.24 -0.48 | 0.62 0.41 0.18 0.07 0.12 0.12 | 0.62 (80 %), 0.81 (95 %) | 0.52 | 5 | 1.1 |
 | Sunspots (yearly) | oscillator_kalman+gbm | hybrid | 0.47 0.52 0.54 0.57 0.35 -0.08 | 0.72 0.58 0.44 0.33 0.22 0.37 | 0.68 (80 %), 0.81 (95 %) | 0.43 | 7529 | 1.2 |
+| YouTube US trending: log10 total daily views | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 | 0.95 0.92 0.92 0.92 0.91 | 0.83 (80 %), 0.95 (95 %) | 0.25 | 0 | 0.0 |
+| YouTube US trending: log10 total daily views | climatology | baseline | -10.04 -7.58 -7.23 -7.45 -7.09 | 0.00 0.00 0.00 0.00 0.00 | 0.00 (80 %), 0.00 (95 %) | 1.80 | 2 | 0.0 |
+| YouTube US trending: log10 total daily views | ar | baseline | -0.48 -0.87 -1.35 -2.47 -3.18 | 0.91 0.84 0.80 0.71 0.63 | 0.50 (80 %), 0.92 (95 %) | 1.16 | 14 | 0.0 |
+| YouTube US trending: log10 total daily views | phase_climatology | baseline | -0.47 -0.27 -0.28 -0.31 -0.28 | 0.91 0.90 0.89 0.88 0.88 | 0.98 (80 %), 1.00 (95 %) | 0.82 | 19 | 0.0 |
+| YouTube US trending: log10 total daily views | transformer | data | -0.00 0.02 -0.12 -0.43 0.02 | 0.95 0.93 0.91 0.88 0.92 | 0.73 (80 %), 0.88 (95 %) | 0.32 | 17637 | 0.1 |
+| YouTube US trending: Entertainment slots per day | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 | 0.76 0.66 0.61 0.49 0.46 | 0.84 (80 %), 0.95 (95 %) | 0.41 | 0 | 0.0 |
+| YouTube US trending: Entertainment slots per day | climatology | baseline | -2.50 -1.50 -1.31 -0.85 -0.84 | 0.00 0.00 0.00 0.00 0.00 | 0.49 (80 %), 0.69 (95 %) | 1.19 | 2 | 0.0 |
+| YouTube US trending: Entertainment slots per day | ar | baseline | -0.01 -0.01 -0.05 -0.06 -0.15 | 0.76 0.67 0.60 0.48 0.42 | 0.76 (80 %), 0.89 (95 %) | 0.46 | 3 | 0.0 |
+| YouTube US trending: Entertainment slots per day | phase_climatology | baseline | -1.71 -0.95 -0.89 -0.63 -0.88 | 0.31 0.29 0.25 0.18 0.01 | 0.86 (80 %), 0.97 (95 %) | 0.54 | 24 | 0.0 |
+| YouTube US trending: Entertainment slots per day | lstm | data | -0.13 -0.12 -0.17 -0.13 -0.08 | 0.73 0.62 0.54 0.42 0.44 | 0.71 (80 %), 0.89 (95 %) | 0.54 | 17605 | 0.7 |
 
 ## zoo
 
@@ -356,16 +370,16 @@
 | Random walk | transformer | data | 17893 | 4 | 49.9 | 5.4 | -0.00 | none |
 | USD/EUR daily log-returns | persistence | baseline | 0 | 1 | 0.0 | 0.0 | 0.00 | none |
 | USD/EUR daily log-returns | climatology | baseline | 2 | 1 | 0.0 | 0.0 | 0.29 | none |
-| USD/EUR daily log-returns | ar | baseline | 2 | 1 | 0.0 | 0.1 | 0.29 | none |
-| USD/EUR daily log-returns | exp_smoothing | baseline | 1 | 1 | 0.0 | 0.0 | 0.29 | none |
+| USD/EUR daily log-returns | ar | baseline | 2 | 1 | 0.0 | 0.2 | 0.29 | none |
+| USD/EUR daily log-returns | exp_smoothing | baseline | 1 | 1 | 0.0 | 0.1 | 0.29 | none |
 | USD/EUR daily log-returns | seasonal_naive | baseline | 1 | 1 | 0.0 | 0.0 | 0.00 | none |
 | USD/EUR daily log-returns | phase_climatology | baseline | 5 | 2 | 0.0 | 0.0 | 0.26 | none |
-| USD/EUR daily log-returns | arima | baseline | 2 | 1 | 0.0 | 5.9 | 0.29 | none |
-| USD/EUR daily log-returns | gbm | data | 14500 | 4 | 16.9 | 1.4 | 0.29 | none |
-| USD/EUR daily log-returns | mlp | data | 18309 | 4 | 18.6 | 2.0 | 0.29 | none |
-| USD/EUR daily log-returns | lstm | data | 4709 | 4 | 54.9 | 4.1 | 0.29 | none |
-| USD/EUR daily log-returns | tcn | data | 16261 | 4 | 138.5 | 10.0 | 0.28 | none |
-| USD/EUR daily log-returns | transformer | data | 9861 | 4 | 96.6 | 6.2 | 0.29 | none |
+| USD/EUR daily log-returns | arima | baseline | 2 | 1 | 0.0 | 3.7 | 0.29 | none |
+| USD/EUR daily log-returns | gbm | data | 14500 | 4 | 17.9 | 1.0 | 0.29 | none |
+| USD/EUR daily log-returns | mlp | data | 18309 | 4 | 16.1 | 1.4 | 0.29 | none |
+| USD/EUR daily log-returns | lstm | data | 4709 | 4 | 56.0 | 4.8 | 0.29 | none |
+| USD/EUR daily log-returns | tcn | data | 16261 | 4 | 140.0 | 9.4 | 0.28 | none |
+| USD/EUR daily log-returns | transformer | data | 9861 | 4 | 98.5 | 7.0 | 0.29 | none |
 | Sunspots (yearly) | persistence | baseline | 0 | 1 | 0.0 | 0.0 | 0.00 | none |
 | Sunspots (yearly) | climatology | baseline | 2 | 1 | 0.0 | 0.0 | -0.10 | none |
 | Sunspots (yearly) | ar | baseline | 20 | 1 | 0.0 | 0.0 | 0.40 | none |
@@ -381,6 +395,30 @@
 | Sunspots (yearly) | gbm_physics_features | data+physics | 7386 | 4 | 17.5 | 0.8 | 0.38 | 1 |
 | Sunspots (yearly) | oscillator_kalman | physical | 5 | 1 | 0.0 | 1.1 | 0.21 | none |
 | Sunspots (yearly) | oscillator_kalman+gbm | hybrid | 7529 | 4 | 13.6 | 1.2 | 0.39 | 1 |
+| YouTube US trending: log10 total daily views | persistence | baseline | 0 | 1 | 0.0 | 0.0 | 0.00 | none |
+| YouTube US trending: log10 total daily views | climatology | baseline | 2 | 1 | 0.0 | 0.0 | -7.88 | none |
+| YouTube US trending: log10 total daily views | ar | baseline | 14 | 1 | 0.0 | 0.0 | -1.67 | none |
+| YouTube US trending: log10 total daily views | exp_smoothing | baseline | 1 | 1 | 0.0 | 0.0 | 0.00 | none |
+| YouTube US trending: log10 total daily views | seasonal_naive | baseline | 1 | 1 | 0.0 | 0.0 | -0.58 | none |
+| YouTube US trending: log10 total daily views | phase_climatology | baseline | 19 | 2 | 0.0 | 0.0 | -0.32 | none |
+| YouTube US trending: log10 total daily views | arima | baseline | 4 | 1 | 0.0 | 6.8 | -2.40 | none |
+| YouTube US trending: log10 total daily views | gbm | data | 3848 | 4 | 4.7 | 0.3 | -0.81 | none |
+| YouTube US trending: log10 total daily views | mlp | data | 1701 | 4 | 14.1 | 0.0 | -0.18 | none |
+| YouTube US trending: log10 total daily views | lstm | data | 17605 | 4 | 1.5 | 0.1 | -0.07 | none |
+| YouTube US trending: log10 total daily views | tcn | data | 16261 | 4 | 4.3 | 0.2 | -0.79 | none |
+| YouTube US trending: log10 total daily views | transformer | data | 17637 | 4 | 2.1 | 0.1 | -0.10 | none |
+| YouTube US trending: Entertainment slots per day | persistence | baseline | 0 | 1 | 0.0 | 0.0 | 0.00 | none |
+| YouTube US trending: Entertainment slots per day | climatology | baseline | 2 | 1 | 0.0 | 0.0 | -1.40 | none |
+| YouTube US trending: Entertainment slots per day | ar | baseline | 3 | 1 | 0.0 | 0.0 | -0.06 | none |
+| YouTube US trending: Entertainment slots per day | exp_smoothing | baseline | 1 | 1 | 0.0 | 0.0 | 0.00 | none |
+| YouTube US trending: Entertainment slots per day | seasonal_naive | baseline | 1 | 1 | 0.0 | 0.0 | -1.84 | none |
+| YouTube US trending: Entertainment slots per day | phase_climatology | baseline | 24 | 2 | 0.0 | 0.0 | -1.01 | none |
+| YouTube US trending: Entertainment slots per day | arima | baseline | 3 | 1 | 0.0 | 6.4 | -0.01 | none |
+| YouTube US trending: Entertainment slots per day | gbm | data | 3670 | 4 | 5.4 | 0.2 | -0.18 | none |
+| YouTube US trending: Entertainment slots per day | mlp | data | 18181 | 4 | 14.0 | 0.4 | -0.14 | none |
+| YouTube US trending: Entertainment slots per day | lstm | data | 17605 | 4 | 1.1 | 0.7 | -0.12 | none |
+| YouTube US trending: Entertainment slots per day | tcn | data | 28933 | 4 | 2.9 | 1.0 | -0.17 | none |
+| YouTube US trending: Entertainment slots per day | transformer | data | 2597 | 4 | 2.4 | 0.5 | -0.07 | none |
 
 ## surrogate_trained
 
@@ -400,6 +438,8 @@
 | Random walk | -0.03 | -0.04 | -14.95 | 0.01 |
 | USD/EUR daily log-returns | 0.28 | 0.28 | 0.28 | 0.01 |
 | Sunspots (yearly) | 0.39 | 0.34 | 0.02 | 0.05 |
+| YouTube US trending: log10 total daily views | -1.17 | -1.45 | -4.95 | 0.28 |
+| YouTube US trending: Entertainment slots per day | -0.06 | -0.18 | -1.14 | 0.12 |
 
 ## overfitting
 
