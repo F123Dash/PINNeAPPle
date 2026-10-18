@@ -163,7 +163,7 @@ def markdown_tables(results: Sequence[dict], overfit: Sequence[dict] = ()) -> di
             "coverage of the central 80 % and 95 % intervals (mean over h) | PIT deviation (pooled) | params | final fit [s] |", "|---" * 9 + "|"]
     for r in results:
         z = r["zoo"]
-        names = ["persistence", "climatology", "ar"] + [z["family_representative"][f] for f in fams
+        names = ["persistence", "climatology", "ar", "phase_climatology"] + [z["family_representative"][f] for f in fams
                                                          if f in z.get("family_representative", {})]
         for name in names:
             m = z["models"].get(name)
