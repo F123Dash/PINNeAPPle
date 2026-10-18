@@ -44,7 +44,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   sort, per-letter counts, detail pages, EN/PT, mobile layout. Served at `/experiments` with `/api/experiments`,
   `/api/experiment`, `/api/coverage`, `/stamped/...`, `/seal.png`, `/repo/...` (behind the Lab login); static export
   `python -m pinneapple_lab site --out <dir>`; coverage list `python -m pinneapple_lab coverage`
-  (`docs/lab/coverage.md`: 139 experiments, 74 curated, 65 not curated). The Lab image sets `PINNEAPPLE_REPO`;
+  (`docs/lab/coverage.md`: 119 experiments, 70 curated, 49 not curated; a Lab item that grades an `examples/*`
+  folder is shown inside that folder's entry, so each study is counted once). Shared next steps listed once. The Lab image sets `PINNEAPPLE_REPO`;
   deploy steps in `apps/deploy/README.md`.
 - Experiment manifests (`pinneapple_lab.manifest`, format `pinneapple.experiment/1`): one `experiment.json` per
   experiment that the curation, the experiments site and the Flow Studio read through one loader (Lab run folders

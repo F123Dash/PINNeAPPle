@@ -146,7 +146,7 @@ def _manifest_entry(path: str, m: M.Manifest, cur: dict[str, Any], root: str) ->
     base = os.path.dirname(path)
     rel = os.path.relpath(base, M.REPO)
     items = cur.get("items", {})
-    keys = M.lab_items_for(rel, cur)                               # best letter first
+    keys = M.lab_items_for(m.id, cur)                              # best letter first (the id is the folder path)
     tier = items[keys[0]]["tier"] if keys else None
     media = [{"kind": "figure", "repo": f"{rel}/{f}", "name": os.path.basename(f)} for f in m.files.get("figures", [])
              if f.lower().endswith(FIG_EXT)]
@@ -195,7 +195,7 @@ def collect(store, examples: str | None = None) -> dict[str, Any]:
         cur = curate(store)
     items = cur.get("items", {})
     folders = [(p, m) for p, m in M.scan([examples or os.path.join(M.REPO, "examples")], lab="")]
-    folded = {k for p, _ in folders for k in M.lab_items_for(os.path.relpath(os.path.dirname(p), M.REPO), cur)}
+    folded = {k for _, m in folders for k in M.lab_items_for(m.id, cur)}
     entries = []
     for key, rec in sorted(items.items()):
         if key in folded or rec.get("experiment") == "example_script":

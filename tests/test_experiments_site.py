@@ -61,9 +61,11 @@ def test_api_lists_every_experiment_of_the_coverage_list(server, lab_root):
     keys = {e["key"] for e in every["entries"]}
     for must in ("examples/flight_dynamics", "examples/enso_forecasting", "examples/near_random_forecasting",
                  "examples/black_hole_weather", "examples/modelica", "examples/electrodynamics",
-                 "em_pinn/em_tm_cavity", "rom_study/cylinder_wake", "calculix_case/plate_hole",
-                 "repo_results/ahmed_body", "repo_results/weather_era5"):
+                 "examples/weather_forecasting", "examples/studio", "examples/bricks",
+                 "em_pinn/em_tm_cavity", "rom_study/cylinder_wake", "calculix_case/plate_hole"):
         assert must in keys, must
+    folded = {i["key"] for e in every["entries"] for i in e.get("items", [])}
+    assert "repo_results/ahmed_body" in folded and not folded & keys      # each study counted once
     assert every["count"] == len(keys) == sum(every["counts"].values())     # counts counted from the list
     for m in M.example_dirs():
         assert os.path.relpath(m, REPO) in keys                              # every manifest is on the page
@@ -79,7 +81,7 @@ def test_filters(server):
     fl = api(server, "/api/experiments?domain=flight%20dynamics")
     assert [e["key"] for e in fl["entries"]] == ["examples/flight_dynamics"]
     q = api(server, "/api/experiments?q=ahmed")
-    assert "repo_results/ahmed_body" in {e["key"] for e in q["entries"]}
+    assert "examples/studio" in {e["key"] for e in q["entries"]}          # found through its Lab item
     r = api(server, "/api/experiments?ready=1")
     assert r["count"] > 0 and all(e["ready"] for e in r["entries"])
     pinn = api(server, "/api/experiments?method=PINN")
@@ -100,7 +102,10 @@ def test_detail_seal_stamped_figure_and_repo_files(server):
     st, ctype, body = get(server + fig["src"])
     assert ctype == "image/jpeg" and len(body) > 1000
     flight = api(server, "/api/experiment?key=examples/flight_dynamics")
-    assert flight["links"]["guide"] == "docs/guides/flight_dynamics.md" and flight["curate"]
+    assert flight["links"]["guide"] == "docs/guides/flight_dynamics.md" and flight["tier"] == "B"
+    assert flight["items"][0]["key"] == "manifest/examples/flight_dynamics" and flight["stages"]   # from its results
+    modelica = api(server, "/api/experiment?key=examples/modelica")
+    assert modelica["tier"] is None and modelica["curate"] == "python -m pinneapple_lab register examples/modelica"
     with pytest.raises(urllib.error.HTTPError) as err:
         get(server + "/repo/pyproject.toml")                  # only files a manifest lists are served
     assert err.value.code == 404
@@ -162,14 +167,15 @@ def test_page_in_a_browser(server):
         page.click('[data-letter="F"]')
         assert page.locator(".card").count() == int(page.locator('[data-letter="F"] b').inner_text())
         page.click('[data-letter="F"]')
-        page.goto(server + "/experiments#e=repo_results%2Fahmed_body")
+        page.goto(server + "/experiments#e=examples%2Fflight_dynamics")
         page.wait_for_selector("#detail.on h2")
-        assert "Ahmed" in page.locator("#detail h2").inner_text()
+        assert "Flight" in page.locator("#detail h2").inner_text()
+        assert page.locator("#detail table").count() >= 2                    # trust card and metrics
         if shots:
             page.screenshot(path=os.path.join(shots, "experiment_detail.png"), full_page=True)
         page.goto(server + "/experiments#e=em_pinn%2Fem_tm_cavity")
         page.wait_for_selector("#detail.on .problem")
-        assert page.locator("ol.next code").count() > 0
+        assert page.locator("ol.next code").count() == 3                     # 3 shared actions, listed once
         if shots:
             page.screenshot(path=os.path.join(shots, "experiment_F_next_steps.png"), full_page=True)
         page.click('[data-lang="pt"]')
