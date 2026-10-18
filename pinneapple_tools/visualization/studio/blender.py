@@ -133,14 +133,17 @@ def render(scene, out: str, *, field: Optional[str] = None, field_range: Optiona
            view: Union[str, Sequence[float]] = "iso", distance: float = 1.0, lens: float = 50,
            background: str = "studio", samples: int = 96, size: Tuple[int, int] = (1600, 900),
            title: Optional[str] = None, colorbar_on: bool = True, lo_txt: str = "", hi_txt: str = "",
-           sun_elevation: float = 40.0, ghost: Optional[bool] = None) -> str:
+           sun_elevation: float = 40.0, ghost: Optional[bool] = None,
+           surface_fields: dict | None = None) -> str:
     """Render ``scene`` (a Scene or a .glb path) to ``out`` (.png or .jpg). Returns ``out``.
 
     field: colour the surfaces by this per-vertex field (surfaces without it are grey). lines: True (all) or the
     name of a Lines set, coloured by their values. slice: name of a Slice. background: "studio" (light gradient,
     true colours), "sky" (Nishita sky, filmic) or a lunar preset of :mod:`.lighting` ("lunar_south_pole",
     "lunar_low_sun", "lunar_day": black sky, one Sun lamp with the Sun's angular size). ghost: draw the surfaces translucent (default: when a slice is
-    shown)."""
+    shown). surface_fields: {surface name: (field, lo, hi, cmap, title)} colours that surface by its own field
+    on ``cmap`` (one of :data:`.compose.CMAPS`: "jet", or a diverging "rdbu" / "coolwarm" / "bwr") and adds a
+    second colour bar (bottom left) for it."""
     import bpy
     from mathutils import Vector
 
@@ -168,8 +171,8 @@ def render(scene, out: str, *, field: Optional[str] = None, field_range: Optiona
     maxs = Vector((max(max((o.matrix_world @ Vector(c))[i] for c in o.bound_box) for o in objs) for i in range(3)))
     centre, size_l = (mins + maxs) / 2, (maxs - mins).length
 
-    def ramp_material(name: str, attr: str, lo: float, hi: float):
-        return _ramp_material(bpy, name, attr, lo, hi)
+    def ramp_material(name: str, attr: str, lo: float, hi: float, cmap: str = "jet"):
+        return _ramp_material(bpy, name, attr, lo, hi, cmap)
 
     def plain(name, rgb, alpha=1.0):
         return _plain(bpy, name, rgb, alpha)
@@ -183,6 +186,17 @@ def render(scene, out: str, *, field: Optional[str] = None, field_range: Optiona
             o.data.materials.clear()
             o.data.materials.append(fm if attr in o.data.attributes else grey)
         bar = (title or (sc.labels.get(field, field) if sc else field), lo, hi)
+
+    from .compose import stops
+    bar2 = None
+    for sname, (sfield, slo, shi, scale, stitle) in (surface_fields or {}).items():
+        sattr = "_" + sfield.upper().lstrip("_")
+        smat = ramp_material(f"{sname}_{sfield}", sattr, slo, shi, scale)
+        for o in objs:
+            if o.name.split(".")[0] == sname and sattr in o.data.attributes:
+                o.data.materials.clear()
+                o.data.materials.append(smat)
+        bar2 = (stitle or sfield, slo, shi, stops(scale))
 
     show_ghost = ghost if ghost is not None else bool(slice)
     if show_ghost and not field:
@@ -335,6 +349,8 @@ def render(scene, out: str, *, field: Optional[str] = None, field_range: Optiona
     bpy.ops.render.render(write_still=True)
     if bar and colorbar_on:
         colorbar(out, bar[0], bar[1], bar[2], None, lo_txt, hi_txt)
+    if bar2 and colorbar_on:
+        colorbar(out, bar2[0], bar2[1], bar2[2], None, corner="bottom-left", stops=bar2[3])
     return out
 
 

@@ -6,10 +6,11 @@
 // CFD convention: jet, blue = low, red = high. Stops: [position 0..1, [r, g, b] 0..255].
 export const JET = [[0, [0, 0, 143]], [0.125, [0, 0, 255]], [0.375, [0, 255, 255]], [0.625, [255, 255, 0]], [0.875, [255, 0, 0]], [1, [128, 0, 0]]];
 
-// diverging, neutral midpoint (use a range symmetric about zero): Moreland's coolwarm and plain blue-white-red;
-// the same stops as pinneapple_tools.visualization.studio.compose
+// diverging, neutral midpoint (use a range symmetric about zero): Moreland's coolwarm, plain blue-white-red and
+// ColorBrewer RdBu reversed; the same stops as pinneapple_tools.visualization.studio.compose
 export const COOLWARM = [[0, [59, 76, 192]], [0.25, [141, 176, 254]], [0.5, [221, 221, 221]], [0.75, [244, 154, 123]], [1, [180, 4, 38]]];
 export const BWR = [[0, [0, 0, 255]], [0.5, [255, 255, 255]], [1, [255, 0, 0]]];
+export const RDBU = [[0, [33, 102, 172]], [0.25, [103, 169, 207]], [0.5, [247, 247, 247]], [0.75, [239, 138, 98]], [1, [178, 24, 43]]];
 
 // errors: sequential, white = no error, dark red = largest (YlOrRd); used for |prediction - reference|
 export const ERR = [[0, [255, 255, 229]], [0.2, [255, 237, 160]], [0.4, [254, 178, 76]], [0.6, [252, 78, 42]], [0.8, [189, 0, 38]], [1, [103, 0, 13]]];
@@ -208,8 +209,8 @@ export function hudLine(h, v) {
   return `${h.label}: ${s}${h.unit ? " " + h.unit : ""}`;
 }
 
-// colour map stops by name ("jet", "coolwarm", "bwr"; anything else: jet)
-export const CMAPS = { jet: JET, coolwarm: COOLWARM, bwr: BWR };
+// colour map stops by name ("jet", "coolwarm", "bwr", "rdbu"; anything else: jet)
+export const CMAPS = { jet: JET, coolwarm: COOLWARM, bwr: BWR, rdbu: RDBU };
 export const cmapStops = (name) => CMAPS[name] || JET;
 
 // first point index of a trail shown at frame `last` (its last `seconds`; null: all) and the opacity factor of point
