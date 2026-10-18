@@ -19,7 +19,7 @@ from .learned import GBMForecaster
 from .presets import BUDGET, case, overfitting_variants
 from .study import overfitting_study, run_zoo, surrogate_trained
 
-__all__ = ["run_case", "run_overfitting", "fan_panels", "markdown_tables"]
+__all__ = ["run_case", "run_overfitting", "lyapunov_study", "fan_panels", "markdown_tables"]
 
 QUANTILES = (0.05, 0.25, 0.5, 0.75, 0.95)
 
@@ -86,6 +86,25 @@ def run_overfitting(name: str, *, n: int = 6000, seed: int = 0, cache_dir: str |
     st = overfitting_study(c.data, c.protocol, v, schemes=schemes, schemes_for=with_cv, log=log)
     st["title"] = c.title
     return to_jsonable(st, digits=4, unknown="repr")
+
+
+def lyapunov_study(dt_ints=(0.1, 0.05), total_times=(10000.0, 50000.0, 200000.0), seeds=(0, 1, 2),
+                   log: Callable[[str], None] = print) -> dict[str, Any]:
+    """Convergence of the Benettin estimate of the Mackey-Glass (tau = 17) largest Lyapunov exponent with the
+    integration step, the length of the run and the seed (initial history and perturbation direction)."""
+    from ..synthetic import mackey_glass_lyapunov
+    rows = []
+    for dt in dt_ints:
+        for T in total_times:
+            vals, t0 = [], time.perf_counter()
+            for s in seeds:
+                vals.append(mackey_glass_lyapunov(dt_int=dt, total_time=T, seed=s))
+            rows.append({"dt_int": dt, "total_time": T, "values": vals, "mean": float(np.mean(vals)),
+                         "std": float(np.std(vals, ddof=1)) if len(vals) > 1 else None,
+                         "seconds": time.perf_counter() - t0})
+            log(f"  MG Lyapunov dt={dt} T={T}: {np.round(vals, 5).tolist()}")
+    return {"system": "Mackey-Glass tau=17, beta=0.2, gamma=0.1, n=10", "units": "per unit time, natural log",
+            "method": "Benettin two-trajectory renormalisation on the discretised history", "rows": rows}
 
 
 # ---------------------------------------------------------------------------
