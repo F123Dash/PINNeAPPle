@@ -295,3 +295,51 @@ class EnsembleKalmanFilter:
         """Predict + update in one call."""
         self.predict()
         return self.update(y)
+
+
+# ---------------------------------------------------------------------------
+# Localized ensemble analysis for large states (batched models, no dense Q)
+# ---------------------------------------------------------------------------
+
+def gaspari_cohn(d: np.ndarray) -> np.ndarray:
+    """Gaspari & Cohn (1999, QJRMS 125:723) fifth-order compactly supported correlation of the normalised distance
+    ``d`` = distance / half-width (zero for d >= 2)."""
+    d = np.abs(np.asarray(d, float))
+    out = np.zeros_like(d)
+    a = d <= 1
+    b = (d > 1) & (d < 2)
+    x = d[a]
+    out[a] = -0.25 * x ** 5 + 0.5 * x ** 4 + 0.625 * x ** 3 - 5 / 3 * x ** 2 + 1
+    x = d[b]
+    out[b] = x ** 5 / 12 - 0.5 * x ** 4 + 0.625 * x ** 3 + 5 / 3 * x ** 2 - 5 * x + 4 - 2 / (3 * x)
+    return out
+
+
+def enkf_analysis(ens: np.ndarray, y: np.ndarray, hx: np.ndarray, r_var: np.ndarray, *,
+                  loc_xy: Optional[np.ndarray] = None, loc_yy: Optional[np.ndarray] = None,
+                  inflation: float = 1.0, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+    """Stochastic EnKF analysis (perturbed observations; Burgers et al. 1998, Mon. Wea. Rev. 126:1719) of an
+    ensemble ``ens`` (N, n_state) given observations ``y`` (m,), their forecast equivalents ``hx`` (N, m) and
+    independent observation-error variances ``r_var`` (m,).
+
+    ``loc_xy`` (n_state, m) and ``loc_yy`` (m, m) are Schur-product localisation weights (e.g. :func:`gaspari_cohn`
+    of distances); ``inflation`` multiplies the forecast anomalies first. Returns the analysis ensemble (N,
+    n_state). Use it with any batched model: forecast the N members, call this, repeat.
+    """
+    rng = rng or np.random.default_rng(0)
+    N = ens.shape[0]
+    xm = ens.mean(0)
+    A = (ens - xm) * inflation
+    ens = xm + A
+    hm = hx.mean(0)
+    HA = (hx - hm) * inflation
+    hx = hm + HA
+    PHt = A.T @ HA / (N - 1)                                # (n_state, m)
+    HPHt = HA.T @ HA / (N - 1)                              # (m, m)
+    if loc_xy is not None:
+        PHt = PHt * loc_xy
+    if loc_yy is not None:
+        HPHt = HPHt * loc_yy
+    S = HPHt + np.diag(r_var)
+    D = y[None, :] + rng.standard_normal((N, len(y))) * np.sqrt(r_var)[None, :] - hx   # (N, m)
+    return ens + np.linalg.solve(S, D.T).T @ PHt.T

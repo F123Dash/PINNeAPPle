@@ -36,9 +36,13 @@ from __future__ import annotations
 from pinneapple_analysis.state_estimation.kalman import (
     ExtendedKalmanFilter,
     EnsembleKalmanFilter,
+    enkf_analysis,
+    gaspari_cohn,
 )
 
 __all__ = [
     "ExtendedKalmanFilter",
     "EnsembleKalmanFilter",
+    "enkf_analysis",
+    "gaspari_cohn",
 ]

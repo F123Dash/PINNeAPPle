@@ -14,6 +14,23 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- ENSO prediction (`pinneapple_systems.time_series.enso`): openly licensed, checksummed data (`data`: NOAA OISST
+  v2.1 monthly tropical-Pacific SST and Nino indices, World Ocean Database moored-buoy / XBT / Argo 20 C isotherm
+  depth, ERA5 stress and a Tahiti - Darwin index from WeatherBench 2, NCEI heat content and the statsmodels Nino 1+2
+  as cross-checks; a SHA-256 manifest per source), the study data set (`dataset`: anomalies on a development-period
+  base, EOF gap filling of the thermocline bins); conceptual models (`oscillators`: recharge oscillator with
+  seasonal coefficients and multiplicative noise fitted by multiple shooting, delayed oscillator with its Lambert-W
+  roots); an intermediate coupled model (`intermediate`: linear equatorial beta-plane shallow-water ocean on a
+  C-grid, Gill atmosphere solved per meridional mode, SST equation, nudging, Kelvin / Rossby / Gill / convergence
+  checks); forecasters with the forecast_lab interface (`forecasters`: recharge oscillator, LIM, map CNN with
+  optional pre-training on the intermediate model, intermediate model with SST nudging or a localised EnKF,
+  multi-model ensemble, `ColumnSubset`); physics-informed networks (`pinn`: recharge-oscillator identification
+  with an optional learned closure, per-origin PINN extrapolation, an equatorial-wave shallow-water PINN with a
+  learned thermocline-feedback closure), ENSO scores (`evaluation`: ACC, target-month skill, categorical scores,
+  blocked hindcasts), figures (`plots`), the Blender slab render (`render`) and the study steps (`study`,
+  `pipeline`). `pinneapple_analysis.state_estimation`: `enkf_analysis` (localised stochastic EnKF update for
+  batched models) and `gaspari_cohn`. `forecast_lab.study`: `run_zoo(..., keep_models=True)` and `merge_zoo`
+  (one process per model, comparisons recomputed over the whole zoo). Tests `tests/test_enso.py`.
 - Forecasting near-random series without overfitting (`pinneapple_systems.time_series.forecast_lab`): one
   interface for baselines (persistence, climatology, AR, ARIMA, exponential smoothing), data-driven direct
   forecasters (gradient boosting, MLP, LSTM, TCN, transformer), data + physics (physics features, physics-residual
