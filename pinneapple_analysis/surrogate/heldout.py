@@ -40,8 +40,12 @@ def _rel(a, b) -> float:
 def heldout_report(snaps, data: SurrogateData, model, idx, *, grow: float = 0.1) -> dict[str, Any]:
     """Errors of ``model`` (a ``SurrogateModel`` or anything with ``predict_array``) on the samples ``idx``:
     ``fields`` (relative L2 over all of them, per region: the dataset's node sets grown by ``grow`` times the body,
-    see ``rom.views.zones``), ``qois`` (per sample, true and predicted: the largest magnitude of each vector field on
-    each node set, the largest value of each scalar field) and ``samples`` (relative L2 per sample and field)."""
+    see ``rom.views.zones``; ``per_sample``: the mean and median of the per-sample errors and the share of the pooled
+    weight, the squared field, that the ``heaviest`` samples hold), ``qois`` (per sample, true and predicted: the largest magnitude of each vector field on
+    each node set, the largest value of each scalar field) and ``samples`` (relative L2 per sample and field). Fields
+    declared non-negative (``data.meta["nonnegative"]``, e.g. a von Mises stress) also count the predicted values
+    below zero, which are physically invalid: ``fields[name]["negative_values"]`` and per sample
+    ``negative_<name>``."""
     from pinneapple_neural.architectures.rom.views import zones
     idx = np.asarray(idx, np.int64)
     if not len(idx):
@@ -53,15 +57,27 @@ def heldout_report(snaps, data: SurrogateData, model, idx, *, grow: float = 0.1)
     regs = zones(snaps, P, grow)                                  # node indices: the same nodes in every design
     sets = {k: np.asarray(v["nodes"], np.int64) for k, v in (snaps.meta.get("node_sets") or {}).items()}
     units = snaps.meta.get("units") or {}
+    nonneg = set(data.meta.get("nonnegative") or [])
     out: dict[str, Any] = {"n": int(len(idx)), "indices": idx.tolist(), "fields": {}, "qois": [], "samples": []}
     for f in snaps.fields:
         if f["where"] != "point":
             continue
         n = f["name"]
         tv, pv = snaps.field_values(n, true), snaps.field_values(n, pred)
+        per = np.array([_rel(pv[k], tv[k]) for k in range(len(tv))])
+        w = np.array([float(np.sum(np.square(tv[k]))) for k in range(len(tv))])
+        heavy = np.argsort(-w)[:min(3, len(w))]                   # the designs with the largest fields
         out["fields"][n] = {"unit": units.get(n, ""), "rel_l2": _rel(pv, tv),
                             "regions": region_rel_l2(pv, tv, regs) if regs else {},
-                            "max_abs_error": float(np.abs(pv - tv).max())}
+                            "max_abs_error": float(np.abs(pv - tv).max()),
+                            # the pooled number weighs each design by its squared field: say how much
+                            "per_sample": {"mean": float(np.nanmean(per)), "median": float(np.nanmedian(per)),
+                                           "heaviest": len(heavy),
+                                           "heaviest_weight": float(w[heavy].sum() / w.sum()) if w.sum() > 0 else 0.0,
+                                           "heaviest_max": float(np.nanmax(per[heavy])) if len(heavy) else 0.0}}
+        if n in nonneg:
+            out["fields"][n].update(nonnegative=True, negative_values=int((pv < 0).sum()),
+                                    min_predicted=float(pv.min()))
         mag_t = np.linalg.norm(tv, axis=-1) if tv.ndim == 3 else tv
         mag_p = np.linalg.norm(pv, axis=-1) if pv.ndim == 3 else pv
         if tv.ndim == 3:                                          # vectors: the largest magnitude on each set
@@ -77,5 +93,7 @@ def heldout_report(snaps, data: SurrogateData, model, idx, *, grow: float = 0.1)
     for k, i in enumerate(idx):
         out["samples"].append({"index": int(i), "params": data.X[i].tolist(),
                                **{n: _rel(snaps.field_values(n, pred[k:k + 1]), snaps.field_values(n, true[k:k + 1]))
-                                  for n in out["fields"]}})
+                                  for n in out["fields"]},
+                               **{f"negative_{n}": int((snaps.field_values(n, pred[k:k + 1]) < 0).sum())
+                                  for n in out["fields"] if n in nonneg}})
     return out

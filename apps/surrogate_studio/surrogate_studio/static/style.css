@@ -58,3 +58,7 @@ details.limits summary { cursor: pointer; font-weight: 700; }
 .v3side { font-size: 13px; } .v3side h4 { margin: 4px 0 6px; } .v3side p { margin: 0 0 7px; }
 .v3side table { font-size: 12px; }
 #v3pick select { width: auto; max-width: 100%; display: inline-block; margin-left: 6px; }
+.gate { margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; }
+.gate.ok { border-color: #2e7d32; background: rgba(46, 125, 50, .08); }
+.gate.warn { border-color: #c77700; background: rgba(199, 119, 0, .1); }
+.gate.bad { border-color: #c62828; background: rgba(198, 40, 40, .1); }

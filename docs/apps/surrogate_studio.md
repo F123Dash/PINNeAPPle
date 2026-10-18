@@ -39,9 +39,16 @@ The ROM Lab's 100 solid-FEM cantilevers become one field dataset: displacement a
 - the held-out errors per field and per zone (clamp, loaded tip, rest of the body), for the test and the
   extrapolated (smallest load angle) designs;
 - the errors on the tip displacement and on the largest stress;
-- any held-out design on its deformed body: surrogate, FEM reference and their difference, with a colour bar.
+- any held-out design on its deformed body: surrogate, FEM reference and their difference, with a colour bar, and
+  the verdict of the hosted endpoint's OOD gate (in range, warn or refuse) for that design.
 
-![The worst extrapolated design: the surrogate's von Mises stress error on the deformed cantilever](../assets/apps/d14-surrogate-3d-error.jpg)
+The von Mises stress is declared non-negative: it is trained on its square root and predicted as its square, so no
+prediction can be negative. A line under the error table says why the pooled displacement error is larger than the
+tip error.
+
+![A typical held-out test design (median error): the surrogate's von Mises stress on the deformed cantilever](../assets/apps/d14-surrogate-3d-test-surrogate.jpg)
+
+![Extrapolation: the worst shift design, outside the training range, with the OOD gate's warning](../assets/apps/d14-surrogate-3d-extrapolation-error.jpg)
 
 **Library.** `pinneapple_analysis.surrogate` (study, splits, methods, limits, contracts),
 `pinneapple_analysis.cost.equal_budget`, `pinneapple_registry.ModelGateway` and `gateway_api`; guide:

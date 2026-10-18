@@ -161,6 +161,32 @@ def test_export_torchscript_matches(tmp_path):
                        atol=1e-5)
 
 
+def test_nonnegative_outputs_are_never_predicted_negative(tmp_path):
+    """An output declared non-negative (a von Mises stress, a magnitude) is trained on its square root and predicted
+    as its square: no prediction is below zero, even far outside the data; the TorchScript export does the same."""
+    torch = pytest.importorskip("torch")
+    from pinneapple_analysis.surrogate.methods import NonNegative
+    from pinneapple_analysis.surrogate.study import nonnegative_mask
+    rng = np.random.default_rng(1)
+    X = rng.uniform(-1, 1, (120, 2))
+    Y = np.stack([np.exp(-4 * X[:, 0] ** 2), X[:, 0] + X[:, 1]], 1)       # f > 0, near 0 at the edges; g signed
+    d = S.SurrogateData(X, Y, ["a", "b"], ["f", "g"], meta={"nonnegative": ["f"]})
+    assert nonnegative_mask(d).tolist() == [True, False]
+    st = S.run_study(d, methods=["ridge", "mlp"], budget={"steps": 60}, seeds=1)
+    assert isinstance(st.model.fitted, NonNegative)
+    far = np.c_[np.linspace(-3, 3, 200), np.linspace(3, -3, 200)]
+    pred = st.model.predict_array(far)
+    assert pred[:, 0].min() >= 0 and pred[:, 1].min() < 0          # only the declared output is constrained
+    assert any("never negative" in n for n in st.notes)
+    plain = S.run_study(S.SurrogateData(X, Y, ["a", "b"], ["f", "g"]), methods=["ridge"], budget={"steps": 60})
+    assert plain.model.predict_array(X)[:, 0].min() < 0         # without the declaration ridge goes below 0
+    if st.best == "mlp":
+        ts = torch.jit.load(str(st.model.export(tmp_path / "m.pt", "torchscript")))
+        assert np.allclose(ts(torch.tensor(far, dtype=torch.float32)).detach().numpy(), pred, atol=1e-4)
+    with pytest.raises(ValueError, match="not outputs"):
+        nonnegative_mask(S.SurrogateData(X, Y, ["a", "b"], ["f", "g"], meta={"nonnegative": ["h"]}))
+
+
 def test_airfoil_example_is_the_zoo_campaign():
     d = S.examples.airfoil_rans()
     assert d.input_names[-1] == "alpha_deg" and d.output_names == ["Cl", "Cd"]
@@ -187,4 +213,11 @@ def test_snapshots_on_a_node_lattice_become_a_field_and_back():
     exact = type("Exact", (), {"predict_array": lambda self, X: d.Y[[int(np.argmin(np.abs(P - x).sum(1))) for x in X]]})()
     rep = heldout_report(s, d, exact, [3, 7])                   # a perfect model: every error is zero
     assert rep["fields"]["u"]["rel_l2"] == 0 and rep["qois"][0]["rel_error_max"] == 0
+    assert rep["fields"]["u"]["per_sample"]["mean"] == 0 and rep["fields"]["u"]["per_sample"]["heaviest"] == 2
+    assert "negative_values" not in rep["fields"]["T"]           # nothing declared non-negative
+    d.meta["nonnegative"] = ["T"]
+    neg = type("Neg", (), {"predict_array": lambda self, X: -np.abs(exact.predict_array(X))})()
+    rep = heldout_report(s, d, neg, [3, 7])                     # invalid values are counted, per field and design
+    assert rep["fields"]["T"]["negative_values"] > 0 and rep["fields"]["T"]["min_predicted"] < 0
+    assert sum(x["negative_T"] for x in rep["samples"]) == rep["fields"]["T"]["negative_values"]
     assert region_rel_l2(np.ones((2, 4)), np.ones((2, 4)) * 2, {"all": [0, 1, 2, 3]}) == {"all": 0.5}

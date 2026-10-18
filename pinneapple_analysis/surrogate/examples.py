@@ -15,6 +15,8 @@
                   31 x 4 x 7 node lattice: displacement (ux, uy, uz, mm) and von Mises stress (MPa). The FEM solve
                   time is measured here, on this machine, by solving ``n_timed`` stored designs again (and checking
                   that they reproduce the stored fields). The shift split holds out the smallest load angles.
+                  The von Mises stress is declared non-negative (``meta["nonnegative"]``): the study trains on
+                  its square root and predicts its square.
 """
 from __future__ import annotations
 
@@ -90,7 +92,7 @@ def cantilever_3d(path, n_timed: int = 2) -> SurrogateData:
     meta = {"source": "3-D solid FEM cantilever (pinneapple_lab.experiments.rom.cantilever, 30 x 3 x 6 hexahedra), "
                       "100 Latin-hypercube designs", "solver": "pinneapple_simulation.numerical_solvers.solid_fem",
             "solver_s_per_sample": float(np.median(times)) if times else None, "solver_s_timed_on": len(times),
-            "shift": {"column": "angle_deg", "side": "low"}}
+            "shift": {"column": "angle_deg", "side": "low"}, "nonnegative": ["von_mises"]}
     return from_snapshots(snaps, meta=meta)
 
 

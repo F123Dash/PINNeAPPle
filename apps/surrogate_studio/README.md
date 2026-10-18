@@ -52,8 +52,16 @@ page adds a panel with:
   prediction, and the speed-up is their ratio.
 - **Held-out errors per field and per zone.** These are relative L2, pooled over the test designs and over the shift
   designs. The zones are the clamp and loaded-tip node sets grown by 10 % of the length, and the rest of the body.
+  A line under the table says why the pooled displacement error is larger than the tip error (see below).
 - **Quantities read off the fields:** the largest displacement on the loaded tip and the largest von Mises stress.
   For each, the relative error per held-out design (mean and max).
+- **Von Mises stress is never negative.** The example declares it non-negative (`meta["nonnegative"]`), so the
+  study trains every method on its square root and predicts its square; errors are measured on the stress itself.
+  The published model and its TorchScript / ONNX export do the same. The page and the report count the negative
+  (physically invalid) values predicted, per field and per design.
+- **The OOD gate next to each design.** Every held-out design carries the verdict of the hosted endpoint
+  `/v1/models/<name>/predict`: the model's gate and the policy the version is published with (`in range`, `warn`:
+  predicted and flagged as an extrapolation, `refuse`: no prediction). The selected design shows it with the reason.
 - **A held-out design on its body.** Pick any test or shift design to see the surrogate field, the FEM reference and
   |surrogate − FEM|, each with a colour bar and on the deformed shape. The clamp and load sets and the error
   hotspots are marked, and a short text says where the error concentrates against the pooled held-out number.
@@ -64,21 +72,29 @@ with the ROM Lab, and `pinneapple_analysis.surrogate.heldout.heldout_report`. Th
 
 In one run here (Gaussian process chosen):
 
-- the FEM took 1.01 s per design and the surrogate 0.83 ms per prediction, a speed-up of about 1,220×;
-- pooled over the 17 test designs, the relative L2 error was 15.3 % on the displacement and 8.0 % on the von Mises
-  stress;
-- pooled over the 15 shift designs, it was 34 % and 25 %;
-- the tip displacement was within 2.9 % on average over the test designs (18.5 % at worst).
+- the FEM took 1.03 s per design and the surrogate 1.18 ms per prediction, a speed-up of about 880×;
+- pooled over the 17 test designs, the relative L2 error was 16.4 % on the displacement and 5.1 % on the von Mises
+  stress; per design, the displacement error averaged 4.2 % (median 2.2 %);
+- pooled over the 15 shift designs, it was 35 % and 22 %;
+- the tip displacement was within 3.4 % on average over the test designs (19.9 % at worst);
+- no negative von Mises value on any held-out design; the gate passed all 17 test designs and flagged all 15 shift
+  designs (their load angle is below the training range).
 
-The timings vary from run to run on a shared machine (0.87 to 1.11 s for the FEM over seven runs of the example). The worst shift
-design (load angle 1.2°) shows what extrapolation costs: 77 % error on the stress, and negative von Mises values
-from the surrogate, which no FEM can produce.
+The pooled displacement error is larger than the tip error because pooling weighs each design by its squared
+displacement: the three most flexible test designs hold 87 % of that weight, and the worst of them is off by 19.9 %.
+Per design, the displacement error is in line with the tip error.
 
-![The worst extrapolated design: |surrogate − FEM| of the von Mises stress on the deformed body](../../docs/assets/apps/d14-surrogate-3d-error.jpg)
+The timings vary from run to run on a shared machine: 0.87 to 1.11 s for the FEM over seven runs of the example,
+and 0.83 ms and 1.18 ms for the surrogate in the two studies timed. The worst shift design (load angle 1.16°, below the training range of 13.9 to
+89.9°) shows what extrapolation costs: 48 % error on the stress and 81 % on the displacement, and the gate flags it.
 
-![The surrogate's von Mises stress on the same design (note the negative values)](../../docs/assets/apps/d14-surrogate-3d-surrogate.jpg)
+![A typical held-out test design (median von Mises error, 3.95 %): the surrogate's von Mises stress on the deformed body](../../docs/assets/apps/d14-surrogate-3d-test-surrogate.jpg)
 
-![The FEM reference of that design, on the same colour scale](../../docs/assets/apps/d14-surrogate-3d-fem.jpg)
+![The FEM reference of the same test design, on the same colour scale](../../docs/assets/apps/d14-surrogate-3d-test-fem.jpg)
+
+![|surrogate − FEM| of the von Mises stress on that test design](../../docs/assets/apps/d14-surrogate-3d-test-error.jpg)
+
+![Extrapolation: the worst shift design (load angle 1.16°, outside the training range), |surrogate − FEM| of the von Mises stress, with the OOD gate's warning](../../docs/assets/apps/d14-surrogate-3d-extrapolation-error.jpg)
 
 ## Integrations
 
@@ -123,7 +139,8 @@ model hosting with API keys, and enterprise deployments next to the customer's s
 - FNO here takes parameters as constant input channels on 1-D or 2-D uniform grids; irregular meshes are not
   supported. Gaussian processes are limited to 2000 training samples.
 - The 3-D view needs the node lattice of a structured mesh (`from_snapshots`). It runs for the cantilever example;
-  uploaded tables keep the 1-D and 2-D field maps. Nothing constrains the predicted von Mises stress to be positive.
+  uploaded tables keep the 1-D and 2-D field maps. Only the declared outputs are kept non-negative; nothing else
+  (equilibrium, boundary conditions) constrains the predicted fields.
 - Hosted models are visible to everyone who can reach the server; use the login or `SUR_REQUIRE_API_KEY=1`.
 - Thread jobs are cancelled at their next progress report; `SUR_JOB_EXECUTOR=process` kills them at once.
 

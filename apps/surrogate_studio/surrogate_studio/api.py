@@ -41,7 +41,7 @@ from pinneapple_analysis import surrogate as S
 from pinneapple_analysis.surrogate import contracts as SC
 from pinneapple_analysis.surrogate.heldout import heldout_report
 from pinneapple_core.jsonable import to_jsonable
-from pinneapple_registry.gateway import ModelGateway
+from pinneapple_registry.gateway import ModelGateway, ood_verdict
 from pinneapple_registry.gateway_api import gateway_router
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
@@ -233,6 +233,21 @@ def _snapshots(params: dict[str, Any]):
     return load_snapshots([(CANTILEVER.name, CANTILEVER.read_bytes())])
 
 
+def _pooling_note(rep: dict[str, Any]) -> str:
+    """One line on why a pooled field error differs from the per-design error of the quantity read off it."""
+    for n, f in rep.get("fields", {}).items():
+        q = next((x for x in rep["qois"] if x["name"].startswith(f"max |{n}|")), None)
+        ps = f.get("per_sample")
+        if q is None or not ps:
+            continue
+        return (f"the pooled {n} error ({100 * f['rel_l2']:.1f} %) weighs each design by its squared {n}; the "
+                f"{ps['heaviest']} most flexible of the {rep['n']} test designs hold {100 * ps['heaviest_weight']:.0f} % "
+                f"of that weight (the worst of them is off by {100 * ps['heaviest_max']:.1f} %). Per design, the {n} "
+                f"error averages {100 * ps['mean']:.1f} % (median {100 * ps['median']:.1f} %), in line with the "
+                f"{100 * q['rel_error_mean']:.1f} % mean error of the {q['name']}.")
+    return ""
+
+
 def _heldout(params: dict[str, Any], st, data) -> dict[str, Any] | None:
     """Held-out errors per field, per region and on the scalar quantities, and the measured speed-up."""
     snaps = _snapshots(params)
@@ -240,8 +255,19 @@ def _heldout(params: dict[str, Any], st, data) -> dict[str, Any] | None:
         return None
     sb = next(r for r in st.methods if r["id"] == st.best)["summary"]
     fem = data.meta.get("solver_s_per_sample")
-    return {"test": heldout_report(snaps, data, st.model, st.splits.test),
-            "shift": heldout_report(snaps, data, st.model, st.splits.shift),
+    policy = params.get("ood_policy", "warn")
+    reps = {}
+    for split in ("test", "shift"):
+        rep = heldout_report(snaps, data, st.model, getattr(st.splits, split))
+        # the hosted /v1 endpoint's rule: the model's OOD gate and the policy the version is published with
+        for smp, flag in zip(rep["samples"], st.model.gate.assess(data.X[rep.get("indices", [])]) if rep["n"] else [],
+                             strict=True):
+            smp["gate"] = {"verdict": ood_verdict(flag, policy), "reasons": flag["reasons"],
+                           "knn_distance": flag["knn_distance"]}
+        rep["gate"] = {v: sum(1 for x in rep["samples"] if x["gate"]["verdict"] == v)
+                       for v in ("in range", "warn", "refuse")}
+        reps[split] = rep
+    return {"test": reps["test"], "shift": reps["shift"], "ood_policy": policy, "pooling_note": _pooling_note(reps["test"]),
             "fem_s": fem, "fem_timed_on": data.meta.get("solver_s_timed_on"), "infer_s": sb["infer_s_per_query"],
             "speedup": fem / sb["infer_s_per_query"] if fem and sb.get("infer_s_per_query") else None,
             "channels": data.meta.get("channels")}
@@ -377,7 +403,9 @@ def _view(request: Request, job_id: str, split: str, k: int):
             reported_by_field={n: {f"pooled over the {rep['n']} {split} designs": f["rel_l2"]}
                                for n, f in rep["fields"].items()})
         info.update(index=i, params=dict(zip(data.input_names, data.X[i].tolist(), strict=True)),
-                    predict_s=dt)
+                    predict_s=dt, gate=rep["samples"][k].get("gate"), ood_policy=res["heldout3d"].get("ood_policy"),
+                    negative={n: rep["samples"][k][f"negative_{n}"] for n in rep["fields"]
+                              if f"negative_{n}" in rep["samples"][k]})
         js.parent.mkdir(exist_ok=True)
         glb.write_bytes(fv.glb())
         js.write_text(json.dumps(to_jsonable({"view": fv.meta, **info})))

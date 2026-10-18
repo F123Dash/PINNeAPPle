@@ -18,8 +18,13 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   (`pinneapple_analysis.surrogate.from_snapshots` / `snapshot_values` for snapshots on a node lattice). The page shows
   held-out errors per field, per zone and on the tip displacement and the largest stress
   (`pinneapple_analysis.surrogate.heldout`). It also shows the speed-up against a FEM solve timed on the machine,
-  and any held-out design on its body (surrogate, FEM, error), through `rom.views.prediction_view`, now shared by
-  the ROM Lab and the Surrogate Studio.
+  and any held-out design on its body (surrogate, FEM, error) with the hosted endpoint's OOD gate verdict for it
+  (`pinneapple_registry.gateway.ood_verdict`), through `rom.views.prediction_view`, now shared by the ROM Lab and
+  the Surrogate Studio.
+- Surrogate studies keep declared outputs non-negative (`SurrogateData.meta["nonnegative"]`, e.g. a von Mises
+  stress): every method is trained on their square root and predicts their square (`methods.NonNegative`, also in
+  the TorchScript / ONNX export). `heldout_report` counts negative predictions of such fields and gives the
+  per-design errors next to the pooled one.
 - Electromagnetics and electrodynamics (`pinneapple_simulation.electromagnetics`, `pp.em`; guide
   `docs/guides/electromagnetics.md`):
   - SI core: CODATA 2022 constants (`constants`), SI dimensions of every field and a dimensional check of Maxwell's

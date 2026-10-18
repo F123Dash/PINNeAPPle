@@ -9,7 +9,7 @@ pytest.importorskip("sklearn")
 from pinneapple_analysis import surrogate as S
 from pinneapple_arena.regimes import NOT_IN_LIBRARY, run_regime_arena
 from pinneapple_data.audit import constraint_mask
-from pinneapple_registry.gateway import ModelGateway
+from pinneapple_registry.gateway import ModelGateway, ood_verdict
 
 
 def _scalar(n=120):
@@ -87,6 +87,13 @@ def test_gateway_publish_predict_policies_and_metrics(tmp_path, model):
     assert len(g.runs("demo")) == 5
     ref = g.describe("demo")["model_ref"]
     assert ref["inputs"] == ["a", "b"] and ref["sha256"]
+
+
+def test_ood_verdict_is_what_predict_does():
+    assert ood_verdict({"ood": False}, "refuse") == "in range"
+    assert ood_verdict({"ood": True}, "warn") == "warn" and ood_verdict({"ood": True}, "refuse") == "refuse"
+    with pytest.raises(ValueError):
+        ood_verdict({"ood": True}, "ignore")
 
 
 def test_gateway_reject_needs_override(tmp_path, model):

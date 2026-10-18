@@ -106,3 +106,13 @@ def test_cantilever_3d_held_out_designs_on_the_mesh(client):
     assert glb.status_code == 200 and glb.content[:4] == b"glTF"
     assert client.get(f"/api/studies/{r['id']}/view3d", params={"split": "test", "k": 999}).status_code == 422
     assert client.get("/api/examples/cantilever_3d/data").status_code == 200
+    # von Mises is predicted as a square: never negative, on any held-out design
+    assert T["fields"]["von_mises"]["negative_values"] == 0 and H["shift"]["fields"]["von_mises"]["negative_values"] == 0
+    assert v["negative"] == {"von_mises": 0}
+    # the OOD gate of the hosted endpoint: every shift design (load angle below the training range) is flagged
+    assert H["ood_policy"] == "warn" and H["shift"]["gate"]["warn"] == H["shift"]["n"]
+    assert all(x["gate"]["verdict"] == "warn" and any("angle_deg" in t for t in x["gate"]["reasons"])
+               for x in H["shift"]["samples"])
+    assert v["gate"]["verdict"] == "warn" and v["ood_policy"] == "warn"
+    assert sum(H["test"]["gate"].values()) == T["n"]
+    assert "most flexible" in H["pooling_note"] and "max |displacement| on loaded tip" in H["pooling_note"]
