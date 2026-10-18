@@ -2,7 +2,7 @@
  "schema": "pinneapple-flow/1",
  "id": "aircraft-take-off-flight-library",
  "name": "Aircraft take-off (flight library)",
- "description": "6-DOF take-off of the light-GA aircraft with the vortex lattice in the loop, against Raymer's closed form. Needs pinneapple_simulation.flight (not on main yet): the node reports itself unavailable until then.",
+ "description": "6-DOF take-off of the light-GA aircraft with the vortex lattice in the loop, against Raymer's closed form (pinneapple_simulation.flight).",
  "nodes": [
   {
    "id": "takeoff",

@@ -224,8 +224,7 @@ def _fmt(v):
 
 def _flight_available():
     if importlib.util.find_spec("pinneapple_simulation.flight") is None:
-        return False, ("pinneapple_simulation.flight is not in this checkout (the flight-dynamics library is not on "
-                       "main yet); the node runs once it is")
+        return False, "needs pinneapple_simulation.flight (the flight-dynamics library; an older checkout lacks it)"
     return True, ""
 
 
@@ -271,4 +270,8 @@ def takeoff(ctx, inputs, params):
     ax.set_ylabel("height [m]")
     ax.legend(fontsize=8)
     fig_a = ctx.figure(fig, "takeoff", "take-off trajectory")
+    sim, cf = m.get("distance_35ft_m"), ray.get("total_35ft_m")
+    if isinstance(sim, (int, float)) and isinstance(cf, (int, float)):
+        ctx.summary(f"ground roll {m.get('ground_roll_m', float('nan')):.0f} m, 35 ft at {sim:.0f} m "
+                    f"(Raymer {cf:.0f} m, {100 * (sim - cf) / cf:+.0f}%)")
     return {"metrics": ctx.report["metrics"], "series": s, "figure": fig_a}

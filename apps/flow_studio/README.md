@@ -100,7 +100,7 @@ docker compose -f apps/flow_studio/docker-compose.yml --profile llm --profile po
 | Digital twin | `data.stream` (simulated sensors, file, MQTT, OPC UA), `twin.auto` (a twin built from any identified PDE: a coarse grid model, its coefficients estimated online by the ensemble Kalman filter, anomaly alarms, a dashboard), `twin.connect` (the tank twin) |
 | Library calls | `lib.*` from `pinneapple_flow/libcalls_catalog.py`: presets with `pp.solve` / `pp.compare`, LBM, beam, X-TFC, meshless, terramechanics, CalculiX, FMU, Newton, registry models, ROM study, parametric POD, classical ML / GP, Sobol, Morris, predictability, design of experiments, design from a goal, geometry export (STL / OBJ / glTF / USD / STEP) |
 | Time series | `forecast.lab` (predictability first, then the forecaster zoo on purged walk-forward folds) |
-| Systems | `flight.takeoff` (needs `pinneapple_simulation.flight`; reports itself unavailable until that library is on main) |
+| Systems | `flight.takeoff` (6-DOF take-off from `pinneapple_simulation.flight`, against Raymer's closed form) |
 | Visualization / export | `viz.plot`, `viz.field3d` (three.js viewer), `viz.render` (Blender Cycles when `bpy` is installed, else a matplotlib shaded surface, and says which), `export.report` |
 
 The document format, port types and how another app adds node types: [docs/guides/flow_schema.md](../../docs/guides/flow_schema.md).
