@@ -75,7 +75,7 @@ function legend() {
   if (S.mode === "field") title = (META.labels || {})[S.arg] || label(S.arg);
   if (S.mode === "lines") title = META.lineLabel || "value along the lines";
   if (S.mode === "slice") { const s = currentSlice(); title = s.label || s.name; }
-  L.innerHTML = core.colorbarHTML({ title, lo, hi, width: 260 });
+  L.innerHTML = core.colorbarHTML({ title, lo, hi, width: 260, stops: S.mode === "lines" ? META.lineStops : core.JET });
   L.style.display = "block";
 }
 
@@ -93,7 +93,7 @@ function paint() {
     }
   }
   if (S.mode === "lines") {
-    core.recolourLines(THREE, lineGroup, lo, hi);
+    core.recolourLines(THREE, lineGroup, lo, hi, META.lineStops);
     const on = new Set(core.thin(lineGroup.userData.n || 0, S.density));
     lineGroup.children.forEach((m) => (m.visible = on.has(m.userData.index)));
   }
@@ -150,9 +150,17 @@ function buildLines() {
   const all = (META.lines || []).flatMap((L) => L.points.map((P, i) => [P, L.values ? L.values[i] : null]));
   S.data.lines = all.flatMap(([, v]) => v || []);
   META.lineLabel = ((META.lines || []).find((L) => L.label) || {}).label;
-  const [lo, hi] = S.data.lines.length ? core.autoRange(S.data.lines) : [0, 1];
+  // colour map, range, radius and opacity of the first set that gives them (Lines.cmap / color_range / radius / alpha)
+  const first = (k) => ((META.lines || []).find((L) => L[k] !== undefined && L[k] !== null) || {})[k];
+  const cmap = first("cmap") || "jet", alpha = first("alpha") ?? 1, rad = first("radius");
+  META.lineStops = core.cmapStops(cmap);
+  let [lo, hi] = S.data.lines.length ? core.autoRange(S.data.lines) : [0, 1];
+  if (first("range")) [lo, hi] = first("range");
+  else if (cmap !== "jet") { const m = Math.max(Math.abs(lo), Math.abs(hi)) || 1; [lo, hi] = [-m, m]; }
+  if (S.data.lines.length) S.range.lines = [lo, hi];
   const g = core.tubeLines(THREE, all.map(([P]) => P), all.some(([, v]) => v) ? all.map(([, v]) => v) : null,
-    { lo, hi, radius: radius * 0.0035, toV3: ax });
+    { lo, hi, radius: rad || radius * 0.0035, toV3: ax, stops: META.lineStops });
+  if (alpha < 1) g.children.forEach((m) => { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = alpha; m.material.depthWrite = false; });
   if (g.children.length) lineGroup.add(...g.children);
   lineGroup.userData.n = all.length;
 }
@@ -232,12 +240,18 @@ function buildAnimation(gltf) {
     const base = sRGB(hexRGB(vs.color || "#f97316"));
     for (let i = 0; i < M; i++) { shaft.setColorAt(i, base); head.setColorAt(i, base); }
     parent.add(shaft, head);
-    A.arrows.push({ vs, shaft, head, L, r: 0.022 * L, h: 0.22 * L });
+    A.arrows.push({ vs, shaft, head, L, r: 0.022 * L, h: 0.22 * L, stops: core.cmapStops(vs.cmap) });
   }
   for (const tr of an.trails) {
     const P = new Float32Array(tr.points.length * 3); tr.points.forEach((p, i) => ax(p).toArray(P, 3 * i));
     const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(P, 3));
-    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: new THREE.Color(tr.color || "#f59e0b") }));
+    const mat = new THREE.LineBasicMaterial({ color: tr.values ? 0xffffff : new THREE.Color(tr.color || "#f59e0b"), vertexColors: !!tr.values,
+      transparent: (tr.alpha ?? 1) < 1, opacity: tr.alpha ?? 1 });
+    if (tr.values) {                                          // coloured point by point (e.g. the load factor)
+      const v = Float32Array.from(tr.values, (x) => (x === null ? NaN : x)), [lo, hi] = tr.range || core.autoRange(v, "full");
+      geo.setAttribute("color", new THREE.BufferAttribute(core.colorArray(v, lo, hi, core.cmapStops(tr.cmap)), 3));
+    }
+    const line = new THREE.Line(geo, mat);
     line.frustumCulled = false; model.add(line); A.trails.push({ tr, line }); A.paths.push(tr.points);
   }
   for (const fd of an.fields) {
@@ -273,7 +287,7 @@ function applyFrame(f) {
       a.shaft.setMatrixAt(i, _m.compose(o, _q, _s.set(r, len - h, r)));
       a.head.setMatrixAt(i, _m.compose(_p.copy(o).addScaledVector(d, len - h), _q, _s.set(2.6 * r, h, 2.6 * r)));
       if (vs.values) {
-        const c = sRGB(core.jet((core.lerp(vs.values[k0][i], vs.values[k1][i], w) - lo) / ((hi - lo) || 1)));
+        const c = sRGB(core.ramp(a.stops, (core.lerp(vs.values[k0][i], vs.values[k1][i], w) - lo) / ((hi - lo) || 1)));
         a.shaft.setColorAt(i, c); a.head.setColorAt(i, c);
       }
     }
@@ -283,7 +297,7 @@ function applyFrame(f) {
   for (const { fd, o, n } of A.fields) {
     const v0 = fd.values[k0], v1 = fd.values[k1], v = new Float32Array(n);
     for (let i = 0; i < n; i++) v[i] = core.lerp(v0[i], v1[i], w) ?? NaN;
-    o.geometry.attributes.color.array.set(core.colorArray(v, fd.range[0], fd.range[1])); o.geometry.attributes.color.needsUpdate = true;
+    o.geometry.attributes.color.array.set(core.colorArray(v, fd.range[0], fd.range[1], core.cmapStops(fd.cmap))); o.geometry.attributes.color.needsUpdate = true;
   }
   if (A.follow) chase();
   hud();
@@ -336,8 +350,10 @@ function animBar() {
   $("#aspeed").onchange = (e) => (A.speed = +e.target.value);
   if ($("#afollow")) $("#afollow").onchange = (e) => setFollow(e.target.checked);
   if ($("#avec")) $("#avec").onchange = (e) => { A.vectors = e.target.checked; applyFrame(A.f); };
-  const bars = [...an.vectors.filter((v) => v.values && v.range).map((v) => [v.label || v.name, v.range]), ...an.fields.map((f) => [f.label || f.surface, f.range])];
-  if (bars.length) { $("#alegend").innerHTML = bars.map(([t, [lo, hi]]) => core.colorbarHTML({ title: t, lo, hi, width: 220 })).join('<div style="height:8px"></div>'); $("#alegend").style.display = "block"; }
+  const bars = [...an.vectors.filter((v) => v.values && v.range).map((v) => [v.label || v.name, v.range, v.cmap]),
+    ...(an.trails || []).filter((t) => t.values && t.range).map((t) => [t.label || t.name, t.range, t.cmap]),
+    ...an.fields.map((f) => [f.label || f.surface, f.range, f.cmap])];
+  if (bars.length) { $("#alegend").innerHTML = bars.map(([t, [lo, hi], c]) => core.colorbarHTML({ title: t, lo, hi, width: 220, stops: core.cmapStops(c) })).join('<div style="height:8px"></div>'); $("#alegend").style.display = "block"; }
   hud();
 }
 function hud() {

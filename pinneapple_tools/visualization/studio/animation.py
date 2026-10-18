@@ -25,6 +25,8 @@ from typing import Any
 
 import numpy as np
 
+from .compose import default_range, stops
+
 
 # ---------------------------------------------------------------------- rotations
 def matrix_from_quat(q) -> np.ndarray:
@@ -144,10 +146,12 @@ class Animation:
 
     def add_vectors(self, name: str, origins, vectors, values=None, label: str = "",
                     color_range: tuple[float, float] | None = None, attach: str | None = None,
-                    color: str = "#f97316") -> Animation:
+                    color: str = "#f97316", cmap: str = "jet") -> Animation:
         """Arrows per frame: origins and vectors (T, M, 3) already scaled to display length; ``values`` (T, M)
-        colour them on the jet scale (range: ``color_range`` or min..max over all frames), otherwise ``color``.
+        colour them on ``cmap`` ("jet", or the diverging "coolwarm" / "bwr"; range: ``color_range``, else min..max
+        over all frames for jet and symmetric about zero for a diverging map), otherwise ``color``.
         ``attach=group``: given in that track's body frame, they move with it."""
+        stops(cmap)
         o = self._check(origins, (-1, 3), "origins")
         v = self._check(vectors, (-1, 3), "vectors")
         if o.shape != v.shape:
@@ -155,29 +159,41 @@ class Animation:
         s = None if values is None else np.asarray(values, float).reshape(o.shape[:2])
         if attach is not None and attach not in self.tracks:
             raise ValueError(f"attach={attach!r}: add_track({attach!r}, ...) first")
-        rng = color_range if color_range is not None or s is None else (float(np.nanmin(s)), float(np.nanmax(s)))
+        rng = color_range if color_range is not None or s is None else default_range(s, cmap)
         self.vectors.append({"name": name, "origins": o, "vectors": v, "values": s, "label": label,
                              "range": None if rng is None else tuple(map(float, rng)), "attach": attach,
-                             "color": color})
+                             "color": color, "cmap": cmap})
         return self
 
-    def add_trail(self, name: str, points, color: str = "#f59e0b") -> Animation:
-        """A path (T, 3) the viewer draws up to the current time (e.g. the track's positions)."""
-        self.trails.append({"name": name, "points": self._check(points, (3,), "trail points"), "color": color})
+    def add_trail(self, name: str, points, color: str = "#f59e0b", values=None, label: str = "",
+                  color_range: tuple[float, float] | None = None, cmap: str = "jet", radius: float | None = None,
+                  alpha: float = 1.0) -> Animation:
+        """A path (T, 3) drawn up to the current time (e.g. the track's positions). ``values`` (T,) colour it point
+        by point on ``cmap`` (with a colour bar titled ``label``), otherwise it is ``color``. ``radius``: tube radius
+        in Blender (default 0.004 x the tracked body's size); ``alpha`` < 1 makes it translucent."""
+        stops(cmap)
+        P = self._check(points, (3,), "trail points")
+        v = None if values is None else np.asarray(values, float).ravel()
+        if v is not None and len(v) != self.n_frames:
+            raise ValueError(f"trail values: expected {self.n_frames}, got {len(v)}")
+        rng = None if v is None else tuple(map(float, color_range or default_range(v, cmap)))
+        self.trails.append({"name": name, "points": P, "color": color, "values": v, "label": label, "range": rng,
+                            "cmap": cmap, "radius": None if radius is None else float(radius), "alpha": float(alpha)})
         return self
 
-    def add_lines(self, name: str, points, color: str = "#f59e0b") -> Animation:
+    def add_lines(self, name: str, points, color: str = "#f59e0b", **kw) -> Animation:
         """Alias of :meth:`add_trail`: one point per frame, shown progressively."""
-        return self.add_trail(name, points, color)
+        return self.add_trail(name, points, color, **kw)
 
     def add_surface_field(self, surface: str, values, label: str = "",
-                          color_range: tuple[float, float] | None = None) -> Animation:
-        """A per-vertex scalar per frame (T, n_vertices) on the Surface named ``surface``, jet scale."""
+                          color_range: tuple[float, float] | None = None, cmap: str = "jet") -> Animation:
+        """A per-vertex scalar per frame (T, n_vertices) on the Surface named ``surface``, on ``cmap``."""
+        stops(cmap)
         a = np.asarray(values, float)
         if a.ndim != 2 or a.shape[0] != self.n_frames:
             raise ValueError(f"values: expected ({self.n_frames}, n_vertices), got {a.shape}")
-        rng = color_range or (float(np.nanmin(a)), float(np.nanmax(a)))
-        self.surface_fields[surface] = {"values": a, "label": label, "range": tuple(map(float, rng))}
+        rng = color_range or default_range(a, cmap)
+        self.surface_fields[surface] = {"values": a, "label": label, "range": tuple(map(float, rng)), "cmap": cmap}
         return self
 
     def add_hud(self, key: str, values, label: str = "", unit: str = "", fmt: str = "{:.1f}") -> Animation:
@@ -274,7 +290,8 @@ class Animation:
             out.vectors.append({**vs, "origins": lerp(vs["origins"]), "vectors": lerp(vs["vectors"]),
                                 "values": None if vs["values"] is None else lerp(vs["values"])})
         for tr in self.trails:
-            out.trails.append({**tr, "points": lerp(tr["points"])})
+            out.trails.append({**tr, "points": lerp(tr["points"]),
+                               "values": None if tr.get("values") is None else lerp(tr["values"])})
         for s, sf in self.surface_fields.items():
             out.surface_fields[s] = {**sf, "values": lerp(sf["values"])}
         for h in self.hud:
@@ -300,12 +317,16 @@ class Animation:
                         **({"surfaces": [i for i, gg in enumerate(groups) if gg == g]} if groups is not None else {})}
                        for g, tr in self.tracks.items()],
             "vectors": [{"name": vs["name"], "label": vs["label"], "attach": vs["attach"], "color": vs["color"],
+                         "cmap": vs.get("cmap", "jet"),
                          "range": None if vs["range"] is None else list(vs["range"]),
                          "origins": r(vs["origins"]), "vectors": r(vs["vectors"]),
                          "values": None if vs["values"] is None else finite(vs["values"].reshape(self.n_frames, -1))}
                         for vs in self.vectors],
-            "trails": [{"name": t["name"], "color": t["color"], "points": r(t["points"])} for t in self.trails],
-            "fields": [{"surface": s, "label": sf["label"], "range": list(sf["range"]),
+            "trails": [{"name": t["name"], "color": t["color"], "points": r(t["points"]),
+                        "values": None if t.get("values") is None else finite(t["values"]), "label": t.get("label", ""),
+                        "range": None if t.get("range") is None else list(t["range"]), "cmap": t.get("cmap", "jet"),
+                        "radius": t.get("radius"), "alpha": t.get("alpha", 1.0)} for t in self.trails],
+            "fields": [{"surface": s, "label": sf["label"], "range": list(sf["range"]), "cmap": sf.get("cmap", "jet"),
                         **({"index": names.index(s)} if names is not None and s in names else {}),
                         "values": finite(sf["values"])} for s, sf in self.surface_fields.items()],
             "hud": [{"key": h["key"], "label": h["label"], "unit": h["unit"], "fmt": h["fmt"],
@@ -327,25 +348,29 @@ class Animation:
         nan = lambda x: None if x is None else np.asarray(x, dtype=float)  # noqa: E731  (None entries -> NaN)
         for vs in d.get("vectors", []):
             a.vectors.append({"name": vs["name"], "label": vs.get("label", ""), "attach": vs.get("attach"),
-                              "color": vs.get("color", "#f97316"),
+                              "color": vs.get("color", "#f97316"), "cmap": vs.get("cmap", "jet"),
                               "range": None if vs.get("range") is None else tuple(vs["range"]),
                               "origins": np.asarray(vs["origins"], float), "vectors": np.asarray(vs["vectors"], float),
                               "values": nan(vs.get("values"))})
         for t in d.get("trails", []):
             a.trails.append({"name": t["name"], "color": t.get("color", "#f59e0b"),
-                             "points": np.asarray(t["points"], float)})
+                             "points": np.asarray(t["points"], float), "values": nan(t.get("values")),
+                             "label": t.get("label", ""), "range": None if t.get("range") is None else tuple(t["range"]),
+                             "cmap": t.get("cmap", "jet"), "radius": t.get("radius"), "alpha": t.get("alpha", 1.0)})
         for f in d.get("fields", []):
             a.surface_fields[f["surface"]] = {"values": nan(f["values"]), "label": f.get("label", ""),
-                                              "range": tuple(f["range"])}
+                                              "range": tuple(f["range"]), "cmap": f.get("cmap", "jet")}
         for h in d.get("hud", []):
             a.hud.append({"key": h["key"], "label": h["label"], "unit": h.get("unit", ""), "fmt": h.get("fmt", "{:.1f}"),
                           "values": nan(h["values"])})
         return a
 
-    def hud_lines(self, k: int, time_fmt: str = "t = {:.2f} s") -> list[str]:
-        """The overlay text of frame k: the time, then ``label: value unit`` per HUD entry."""
+    def hud_lines(self, k: int, time_fmt: str = "t = {:.2f} s", keys: Sequence[str] | None = None) -> list[str]:
+        """The overlay text of frame k: the time, then ``label: value unit`` per HUD entry (only ``keys``, in that
+        order, when given)."""
         out = [time_fmt.format(self.times[k])]
-        for h in self.hud:
+        hs = self.hud if keys is None else [h for key in keys for h in self.hud if h["key"] == key]
+        for h in hs:
             v = h["values"][k]
             out.append(f"{h['label']}: {h['fmt'].format(v) if np.isfinite(v) else '-'}{(' ' + h['unit']) if h['unit'] else ''}")
         return out

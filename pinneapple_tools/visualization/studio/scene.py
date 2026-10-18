@@ -72,11 +72,17 @@ class Surface:
 
 @dataclass
 class Lines:
-    """Polylines (e.g. streamlines), each with optional per-point values (e.g. speed)."""
+    """Polylines (e.g. streamlines), each with optional per-point values (e.g. speed). ``cmap``: "jet" or the
+    diverging "coolwarm" / "bwr"; ``color_range`` (default: 1st..99th percentile, symmetric for a diverging map);
+    ``alpha`` < 1 and ``radius`` (tube radius; default from the scene size) for soft translucent wisps."""
     points: List[np.ndarray]
     values: Optional[List[np.ndarray]] = None
     name: str = "streamlines"
     label: str = ""
+    cmap: str = "jet"
+    alpha: float = 1.0
+    radius: Optional[float] = None
+    color_range: Optional[Tuple[float, float]] = None
 
 
 @dataclass
@@ -203,9 +209,12 @@ class Scene:
         a = np.concatenate([s.fields[name] for s in self.surfaces if name in s.fields])
         return float(np.nanpercentile(a, pct[0])), float(np.nanpercentile(a, pct[1]))
 
-    def add_lines(self, points, values=None, name: str = "streamlines", label: str = "") -> "Scene":
+    def add_lines(self, points, values=None, name: str = "streamlines", label: str = "", cmap: str = "jet",
+                  alpha: float = 1.0, radius: Optional[float] = None,
+                  color_range: Optional[Tuple[float, float]] = None) -> "Scene":
         self.lines.append(Lines([np.asarray(p, float) for p in points],
-                                None if values is None else [np.asarray(v, float) for v in values], name, label))
+                                None if values is None else [np.asarray(v, float) for v in values], name, label,
+                                cmap, alpha, radius, color_range))
         return self
 
     def add_slice(self, name, origin, u, v, grid, label: str = "", group: str = "") -> "Scene":
@@ -268,7 +277,11 @@ class Scene:
         return {"axes": self.axes, "title": self.title, "labels": self.labels, "fields": self.field_names(),
                 **({"lighting": self.lighting} if self.lighting else {}),
                 "lines": [{"name": L.name, "label": L.label, "points": [r(p) for p in L.points],
-                           "values": None if L.values is None else [r(v) for v in L.values]} for L in self.lines],
+                           "values": None if L.values is None else [r(v) for v in L.values],
+                           "cmap": getattr(L, "cmap", "jet"), "alpha": float(getattr(L, "alpha", 1.0)),
+                           "radius": None if getattr(L, "radius", None) is None else float(L.radius),
+                           "range": None if getattr(L, "color_range", None) is None else [float(x) for x in L.color_range]}
+                          for L in self.lines],
                 "slices": [{"name": s.name, "label": s.label, "group": s.group or s.name, "origin": r(s.origin), "u": r(s.u), "v": r(s.v),
                             "grid": [[None if not np.isfinite(t) else round(float(t), 5) for t in row] for row in s.grid]}
                            for s in self.slices],
