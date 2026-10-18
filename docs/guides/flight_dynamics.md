@@ -260,6 +260,13 @@ at which the CG has climbed 35 ft above its rest height.
 | Motor glider (AR 28) | 47.9 | 54.3 | 1.6 | 1.3 | 186 | 286 | 57.7 | 16.8 | 250 | 14.5 | 326 | -12.4 | 1.17 | 1.07 |
 <!-- /table:takeoff -->
 
+- **Raymer's standard assumptions** (V_LOF = 1.1 V_s, 3 s / 1 s rotation): the simulated distance to 35 ft is within
+  1 % for the two transports. It is 30 % longer for the light GA and 15 % longer for the glider. Their simulated
+  lift-off speeds are well above 1.1 V_s, because the pilot model rotates to a fixed attitude and lifts off below the
+  assumed CLmax (see the max CL column).
+- **Closed form fed the simulated V_LOF and rotation time:** it is 2–14 % longer than the simulation. Its transition
+  arc (n = 1.2 at 1.15 V_s) is more conservative than the flown climb-out.
+
 **A320 class against published values.** The certified take-off field length is the longer of two distances: the
 one-engine-inoperative distance, and 1.15 × the all-engines distance to 35 ft. It is published for the 78 t MTOW. The
 simulation runs all engines, with no margin, at 73.5 t. The two numbers are of the same order but are not the same
