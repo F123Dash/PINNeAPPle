@@ -19,6 +19,18 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   tolerance model for JCGM 101 Monte Carlo (`tolerance_model`), extruded 3-D field of a skewed rotor
   (`skewed_field_3d`) and VTK unstructured-grid export (`write_vtu`, `solution_to_vtu`). Examples
   `examples/electrodynamics/15_prius_skew.py` and `17_prius_tolerances.py`, tests `tests/test_emachine_robustness.py`.
+- Rotor design of IPM machines with the design-study core (`pinneapple_simulation.electromagnetics.machines.design`):
+  the FEA as a reference evaluator (`rotor_evaluator`), `rotor_design_problem`, and `hybrid_vs_fea_only`
+  (Gaussian-process surrogate + NSGA-II with adaptive FEA sampling against NSGA-II on the FEA, at equal hypervolume,
+  every front design re-evaluated by a finer FEA). Example `examples/electrodynamics/12_prius_rotor_design.py`,
+  tests `tests/test_emachine_design.py`.
+- Thermal network and demagnetisation check of machines (`pinneapple_simulation.electromagnetics.machines.thermal`):
+  lumped `ThermalNetwork` (steady state, backward Euler and trapezoidal transients), the seven-node
+  `machine_network` of a water-jacketed machine, per-element demagnetisation margin against `Hcj(T)` of the NdFeB
+  grade letters with the area fraction within a margin of the knee, `demagnetisation_refinement` (mesh study inside
+  the magnets), and `magnet_temperature_sweep` (MTPA torque, back-EMF, L_d, L_q against the magnet temperature).
+  Example `examples/electrodynamics/13_prius_thermal.py` (WLTC x 4 temperatures, peak-load time to 180 degC,
+  demagnetisation maps), tests `tests/test_emachine_thermal.py`.
 - Design from intent (`pinneapple_design.intent`, `pp.design`): a goal in
   plain language becomes a `RequirementSpec` (values with units checked by `physical_units`, each stated, answered,
   defaulted with its source or missing; follow-up questions for missing critical values; an optional LLM behind

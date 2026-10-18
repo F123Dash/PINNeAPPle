@@ -418,6 +418,164 @@ samples met the stated specification: torque >= 98 % of nominal and ripple <= 25
 with a Wilson 95 % interval of 0.981 to 1.000. The nominal torque differs from the 960-node value (345.6 N m) by
 the mesh; the spread is a difference between samples on the same mesh.
 <!-- tolerances:end -->
+### Magnet temperature, thermal network and demagnetisation
+
+`pinneapple_simulation.electromagnetics.machines.thermal`:
+
+* `ThermalNetwork`: isothermal nodes with heat capacities, conductances between nodes and to fixed-temperature
+  boundaries, time-dependent sources; steady state and transients (backward Euler or trapezoidal rule).
+  `machine_network(geometry)` builds the seven-node model of a water-jacketed machine (stator yoke, teeth, winding in
+  the slots, end windings, rotor, magnets, shaft path) from the cross-section: cylindrical-shell conduction
+  `2 pi k L / ln(r2/r1)`, slot insulation, axial conduction to the end windings, convection across the gap and at the
+  end windings. The material, contact and heat-transfer data are the stated defaults of `MachineThermalData`
+  (coolant 65 degC). They are inputs, not correlations fitted here, and illustrative: none is measured on a Prius.
+* `IPMMachine(..., magnet_temperature=T)`: remanence `Br(T) = Br20 (1 + alpha_Br (T - 20))`, with
+  `alpha_Br = -0.1 %/K` (the pyleecan Prius magnet). `magnet_temperature_sweep` evaluates MTPA torque, back-EMF and
+  `L_d`, `L_q` with the FEA at each temperature.
+* `demagnetisation_margin(machine, solution, Hcj)`: in every magnet element, the field opposing the magnetisation
+  `H_rev = -(B . m - Br) / (mu0 mu_r)` against the intrinsic coercivity (the knee of a square-loop sintered NdFeB
+  magnet). It returns the per-element ratio `H_rev / Hcj` and the demagnetised area fraction (ratio > 1).
+  `intrinsic_coercivity(Hcj20, T, beta) = Hcj20 (1 + beta (T - 20))`. `NDFEB_HCJ_MIN_KAM` holds the minimum `Hcj`
+  at 20 degC of each grade letter (N 12, M 14, H 17, SH 20, UH 25, EH 30, AH 35 kOe), the manufacturers' grade
+  convention. `beta = -0.55 %/K` is a typical datasheet value for sintered NdFeB and an assumption here: use the
+  grade's datasheet.
+
+`python examples/electrodynamics/13_prius_thermal.py` (run on 2026-10-18, 960 gap nodes) gives
+`results/13_prius_thermal.json`, `13_prius_thermal.png` and `13_prius_demag.png`.
+
+Performance against the magnet temperature (MTPA at 250 A; EMF is the phase fundamental, peak, at 1000 rpm):
+
+| Magnets (degC) | Br (T) | Torque (N m) | MTPA angle (deg) | EMF (V) | L_d (mH) | L_q (mH) |
+|---|---|---|---|---|---|---|
+| 20 | 1.240 | 345.6 | 50.3 | 87.6 | 1.386 | 2.435 |
+| 60 | 1.190 | 338.7 | 50.6 | 84.0 | 1.386 | 2.443 |
+| 100 | 1.141 | 331.6 | 51.0 | 80.2 | 1.388 | 2.458 |
+| 150 | 1.079 | 322.6 | 51.4 | 75.4 | 1.389 | 2.474 |
+
+From 20 to 150 degC, Br falls by 13.0 % and the EMF by 13.9 %. The torque at 250 A falls by only 6.7 %, because the
+reluctance torque does not depend on the magnets. `L_q` rises by 1.6 % as the weaker magnets saturate the q-axis
+iron less.
+
+The thermal network takes the drive model's per-second losses over four WLTC class 3b cycles. Copper loss is split
+between the slots and the end windings by length. Iron loss is split by the FEA loss density at 250 A: yoke 26 %,
+teeth 63 %, rotor 10 %. The magnet loss goes to the magnets. Mean losses are copper 298 W, iron 247 W and magnet
+0.2 W. The peak temperatures are:
+
+* teeth 82.5 degC;
+* winding 80.3 degC;
+* magnets 78.5 degC;
+* end winding 75.1 degC;
+* yoke 71.9 degC.
+
+The network then runs at peak load from the end-of-cycle state: 343.2 N m at 1500 rpm, with copper 8.75 kW, iron
+382 W and magnet 30 W. The hotter winding node reaches 180 degC (class H) after 237 s. The magnets settle at
+127.4 degC.
+
+Demagnetisation at that magnet temperature, at the full d-axis current (`i_d = -250 A`) and at the peak of a
+three-phase short circuit estimated as `2 psi_pm / L_d = -165 A` (demagnetised area fraction of the magnets;
+`H_rev` is the worst element):
+
+| Grade | Hcj at 127 degC (kA/m) | -250 A, H_rev 719 kA/m | -165 A, H_rev 517 kA/m |
+|---|---|---|---|
+| N | 391 | 99.4 % | 31.8 % |
+| M | 456 | 93.3 % | 3.2 % |
+| H | 554 | 18.6 % | 0 |
+| SH | 651 | 2.4 % | 0 |
+| UH | 814 | 0 | 0 |
+
+The worst elements sit at the outer magnet corners and at the V tip. `13_prius_demag.png` shows the per-element
+ratio for grades H and SH in both cases.
+
+The table above uses the default mesh: 784 magnet elements, 2.2 mm mean size. To test how much the fractions depend
+on the magnet mesh, `demagnetisation_refinement` refines the magnets over four levels. It lowers the element-size
+growth away from the gap, keeping the gap mesh fixed (`13_prius_demag_mesh.png`). Each cell gives the demagnetised
+area, the area above `0.9 Hcj` and the worst-element ratio `H_rev / Hcj`:
+
+| Magnet elements (size) | H, -250 A | SH, -250 A | UH, -250 A | M, -165 A | H, -165 A |
+|---|---|---|---|---|---|
+| 784 (2.24 mm) | 18.6 / 83.4 % / 1.30 | 2.4 / 7.6 % / 1.10 | 0 / 0 % / 0.88 | 3.2 / 10.9 % / 1.13 | 0 / 2.0 % / 0.93 |
+| 1920 (1.43 mm) | 19.4 / 85.5 % / 1.43 | 2.6 / 8.3 % / 1.21 | 0 / 0.7 % / 0.97 | 3.3 / 12.3 % / 1.25 | 0.2 / 1.0 % / 1.03 |
+| 4224 (0.96 mm) | 18.6 / 85.5 % / 1.46 | 2.0 / 7.5 % / 1.24 | 0 / 0.7 % / 0.99 | 4.1 / 14.0 % / 1.28 | 0.4 / 1.1 % / 1.06 |
+| 7216 (0.74 mm) | 18.8 / 85.1 % / 1.52 | 2.3 / 8.6 % / 1.29 | 0.2 / 0.5 % / 1.03 | 3.6 / 14.0 % / 1.33 | 0.3 / 1.0 % / 1.10 |
+
+The area fractions settle. The demagnetised fraction stays within 0.9 percentage points across the four levels,
+and within 0.6 between the two finest. The area above `0.9 Hcj` stays within 3.1 points across the levels (M at
+-165 A rises from 10.9 to 14.0 %) and within 1.1 between the two finest. The worst-element ratio does not converge. It grows by 4 to 6 % at each level because the field is
+singular at the sharp corners where the magnet meets the pocket. A demagnetised fraction of a few tenths of a
+percent at the finest mesh is a corner effect of the same kind, as for UH at -250 A and H at the short circuit.
+
+The conclusions therefore rest on the area fractions, not on the worst element. When hot, grade H loses about
+19 % of the magnet area at the full d-axis current, and about 85 % of the area lies within 10 % of the knee. Grade
+SH loses about 2 %, with 8 % within 10 % of the knee. In UH, only the corners reach the knee. Corner-level
+demagnetisation is not resolved by this model: the real corners are rounded and their field is not singular.
+
+The grade rows are a comparison of candidate grades, not a statement about the real car. We found no accessible
+public source that states the grade of the 2004 Prius magnets. Neither does the pyleecan model this geometry comes
+from: it gives `Br` and `mu_r` only. So the "N demagnetises" row says nothing about the production motor, whose
+magnets were chosen by Toyota for its own current and temperature limits.
+
+The network and the demagnetisation field are checked against closed forms (`machines.verification`):
+
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Thermal network: first-order transient | node temperature at t = tau, dt halved | T_b + P/G (1 - e^-1) (closed form) | 4.79e-06 | 2.00, 2.00, 2.00 (expected 2) | pass |
+| Thermal network: cylindrical conduction | series of thin flat shells, n doubled | 2 pi k L / ln(r2/r1) | 5.08e-06 | 2.00, 2.00, 2.00 (expected 2) | pass |
+| Demagnetisation field in a magnetised ring | reverse field in the magnet, h halved | closed form of the magnetised ring | 5.99e-03 | 1.02, 0.89, 0.95 (expected 1) | pass |
+
+The element-wise B of P1 elements is first order, hence the observed order of the demagnetisation field.
+
+### Rotor design: FEA + Gaussian-process surrogate + NSGA-II
+
+`pinneapple_simulation.electromagnetics.machines.design` puts the FEA behind the design-study core of
+`pinneapple_design.design_optimizer`:
+
+* `rotor_evaluator` maps five rotor variables (magnet width `W4` and thickness `H3`, V depth `H0` and opening `W0`,
+  bridge `H1`) to the FEA mean torque and ripple at a fixed current, plus the exact magnet mass. Invalid
+  geometries are rejected without a solve.
+* `rotor_design_problem` maximises torque and minimises magnet mass, with ripple at most 30 %.
+* `hybrid_vs_fea_only` compares two studies:
+  * surrogate-assisted NSGA-II (`surrogate_assisted`): a Latin-hypercube start, then rounds of GP fit, NSGA-II on
+    the GP, and FEA on points along the predicted front (adaptive sampling);
+  * NSGA-II that calls the FEA for every individual.
+
+  It compares them at equal quality, the hypervolume of the feasible FEA-evaluated designs, and re-evaluates every
+  design of the hybrid front with a finer FEA (`verify_candidates`).
+
+`python examples/electrodynamics/12_prius_rotor_design.py` (run on 2026-10-18) uses three seeds. The study FEA has
+288 gap nodes and 6 rotor angles at 250 A, 50 deg. The hybrid starts from 24 Latin-hypercube points and runs
+4 rounds of 8 FEA verifications. The FEA-only NSGA-II has a budget of 2000 designs. Results are in
+`results/12_prius_rotor_design.json` and `12_prius_rotor_design.png`:
+
+| Seed | Hybrid FEA calls | Hybrid hypervolume | FEA calls for NSGA-II to reach it | Saving | NSGA-II final (FEA calls) |
+|---|---|---|---|---|---|
+| 0 | 53 | 0.8938 | 711 | 92.5 % | 0.9194 (1582) |
+| 1 | 52 | 0.8893 | 601 | 91.3 % | 0.9067 (1600) |
+| 2 | 51 | 0.9379 | 605 | 91.6 % | 0.9598 (1554) |
+
+At equal quality the hybrid needs 51 to 53 FEA solutions where NSGA-II on the FEA needs 601 to 711, a saving of
+91 to 93 %. Given enough calls, the FEA-only GA ends higher: 0.907 to 0.960 after about 1600 calls. The hypervolume
+is normalised per seed by the ideal and nadir points of both runs, so it compares the two runs of one seed, not
+seeds with each other.
+
+The GP's held-out error on the 8 FEA points of each round, in the last round:
+
+* torque: mean 0.07 to 0.14 %, max 0.35 %;
+* magnet mass: 0.01 % or less;
+* ripple: mean 2.5 to 4.6 %, max 11 %. In the first round it was up to 46 %, so ripple is the weak output.
+
+All 83 designs of the three hybrid fronts were re-evaluated with the finer FEA (480 gap nodes, 12 angles):
+
+* all remain feasible;
+* torque changes by at most 1.1 % (mean 0.8 %);
+* ripple rises by 15 to 19 % on average and by up to 30 %, because 6 rotor angles under-sample it.
+
+A design study should therefore apply its ripple limit with that margin or evaluate ripple with 12 angles.
+
+Against the Prius rotor through the same finer FEA (343.4 N m, 1.236 kg, ripple 20.3 %), each front has 6 to 8
+designs with more torque and less magnet: about 364 N m (+6 %) at 1.21 kg, with ripple 24 to 25 %. These designs
+sit at the lower bound of the bridge, 1.0 mm against the Prius's 1.5 mm. A thinner bridge leaks less magnet flux,
+but the bridge carries the centrifugal load. Mechanical stress, demagnetisation and the torque-speed envelope are not
+constraints of this study, so it does not claim a better rotor. It shows the method and its FEA-call saving.
 
 ## Verification
 
@@ -520,6 +678,13 @@ Notes from the same run:
   iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
   magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
   M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.
+* Thermal: a lumped network whose material, contact and heat-transfer data are illustrative defaults, not
+  measured or fitted to a Prius; one temperature per node (no hot spot inside the slot, magnets uniform). `Hcj(T)`
+  is the grade minimum with an assumed -0.55 %/K coefficient. The demagnetisation check is static, a square-loop
+  knee test on the 2-D field (no recoil-line modelling, no partial demagnetisation of later operation). The
+  worst-element ratio does not converge under mesh refinement (field singular at the sharp magnet corners), so
+  only area fractions are reported as results. The
+  short-circuit peak `2 psi_pm / L_d` is an estimate, not a transient simulation.
 * Drive: steady state only (no current-controller dynamics, no PWM ripple or harmonics losses), no inverter,
   mechanical or battery losses; the voltage limit is that of linear space-vector modulation.
 * `JilesAtherton` is the scalar model; its parameters must be fitted to measured loops of the material.
