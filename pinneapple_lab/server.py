@@ -53,7 +53,10 @@ class LabServer:
         self.root = os.path.abspath(self.store.root)
         self.refresh = refresh
         self.user = user if user is not None else os.environ.get("LAB_USER", "")
-        self.password = password if password is not None else os.environ.get("LAB_PASSWORD", "")
+        self.password = password if password is not None else (os.environ.get("LAB_PASSWORD_HASH")
+                                                               or os.environ.get("LAB_PASSWORD", ""))
+        from pinneapple_security.web import LoginThrottle
+        self.throttle = LoginThrottle(max_failures=int(os.environ.get("LAB_LOGIN_MAX_FAILURES") or 10))
         self._lock = threading.Lock()
         self._page: tuple[Any, bytes, bytes] | None = None     # (signature, html, catalog json)
         self._thumbs: dict[tuple[str, float], bytes] = {}
@@ -139,7 +142,9 @@ class LabServer:
                     os.replace(tmp, path)
         return path
 
-    def authorised(self, header: str | None) -> bool:
+    def authorised(self, header: str | None, ip: str = "") -> bool:
+        """Basic login against ``LAB_USER`` and ``LAB_PASSWORD_HASH`` (or the plain ``LAB_PASSWORD``); repeated
+        failures lock the client and the user name out (``LAB_LOGIN_MAX_FAILURES``, 15 minutes)."""
         if not (self.user or self.password):
             return True
         if not header or not header.startswith("Basic "):
@@ -148,7 +153,16 @@ class LabServer:
             u, _, p = base64.b64decode(header[6:]).decode().partition(":")
         except (ValueError, UnicodeDecodeError):
             return False
-        return hmac.compare_digest(u, self.user) and hmac.compare_digest(p, self.password)
+        if self.throttle.locked_for(ip, u):
+            return False
+        from pinneapple_security.passwords import is_hash, verify_password
+        ok = hmac.compare_digest(u, self.user) and (verify_password(p, self.password) if is_hash(self.password)
+                                                    else hmac.compare_digest(p, self.password))
+        if ok:
+            self.throttle.success(ip, u)
+        else:
+            self.throttle.failure(ip, u)
+        return ok
 
     # ------------------------------------------------------------------ HTTP
     def handler(self) -> type[BaseHTTPRequestHandler]:
@@ -167,6 +181,9 @@ class LabServer:
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", cache)
                 self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("X-Frame-Options", "DENY")
+                self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+                self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
                 for k, v in (extra or {}).items():
                     self.send_header(k, v)
                 self.end_headers()
@@ -199,7 +216,9 @@ class LabServer:
                 path = urllib.parse.unquote(url.path)
                 if path == "/health":
                     return self._json({"ok": True, "runs": sum(sum(v.values()) for v in lab.store.status().values())})
-                if not lab.authorised(self.headers.get("Authorization")):
+                from pinneapple_security.web import client_ip
+                ip = client_ip(self.client_address[0], self.headers.get("X-Forwarded-For"))
+                if not lab.authorised(self.headers.get("Authorization"), ip):
                     return self._send(401, b"login required", "text/plain",
                                       extra={"WWW-Authenticate": 'Basic realm="PINNeAPPle Lab"'})
                 q = dict(urllib.parse.parse_qsl(url.query))

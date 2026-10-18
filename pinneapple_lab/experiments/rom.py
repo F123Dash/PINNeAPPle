@@ -89,6 +89,11 @@ def _vort(ux, uy, D, u):
 @register
 class ROMStudy(Experiment):
     name = "rom_study"
+    check_labels = {
+        "pod_mode_pair_holds_the_energy": {"en": "POD mode pair holds the energy \u00b7 beats persistence",
+                                           "pt": "par de modos POD concentra a energia \u00b7 supera a persist\u00eancia",
+                                           "also": ["rom_forecast_beats_persistence"]},
+    }
     version = "1"
     description = ("Reduced-order models on the lab's own solvers: POD / DMD / Operator Inference forecasting a "
                    "cylinder wake, and a parametric POD-RBF / POD-GPR model of a 3-D FEM cantilever, each against "

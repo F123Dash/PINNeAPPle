@@ -33,6 +33,8 @@ def make_goal(case: str):
 @register
 class BricksExperiment(Experiment):
     name = "bricks"
+    check_labels = {"best_build_passes_statics": {"en": "best build passes rigid-body statics",
+                                                  "pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"}}
     version = "1"
     description = ("Self-modifying interlocking-brick builds: rigid-body statics with stud clutch judge every "
                    "candidate, an evolutionary and a surrogate-guided search redesign it at equal evaluation budget.")
@@ -58,9 +60,9 @@ class BricksExperiment(Experiment):
         newton = bool(p["newton"]) and importlib.util.find_spec("newton") is not None
         with ctx.stage("closed-form checks"):
             val = validation.validate(newton=newton, fea=True)
-        for r in val["rows"]:
-            ctx.check(r["check"], bool(r["passed"]), value=r["rel_error"], detail=f"tolerance {r['tolerance']}",
-                      kind="reference")
+        for r in val["rows"]:          # the statics engine on canonical stacks with exact answers: it verifies the
+            ctx.check(r["check"], bool(r["passed"]), value=r["rel_error"],     # solver, not the builds it designs
+                      detail=f"tolerance {r['tolerance']}", kind="verification")
         make = make_goal(p["case"])
         seeds = tuple(range(int(p["seeds"])))
         with ctx.stage("search"):

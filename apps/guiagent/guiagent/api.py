@@ -34,6 +34,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from pinneapple_security.archives import ArchiveLimits, UnsafeArchive, safe_extract_zip
 from pinneapple_tools.automation import (
     Runner,
     RunRecord,
@@ -374,11 +375,10 @@ async def upload_workflow(file: UploadFile = File(...)):  # noqa: B008  (FastAPI
     UPLOADED.mkdir(parents=True, exist_ok=True)
     tmp = UPLOADED / (".upload-" + secrets.token_hex(4))
     try:
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-            for name in z.namelist():
-                if not (tmp / name).resolve().is_relative_to(tmp.resolve()):
-                    raise HTTPException(422, f"Unsafe path in the archive: {name}")
-            z.extractall(tmp)
+        try:
+            safe_extract_zip(data, tmp, ArchiveLimits(max_members=2000, max_total_bytes=500 * 2**20))
+        except UnsafeArchive as e:
+            raise HTTPException(422, f"Unsafe archive: {e}") from None
         found = sorted(tmp.rglob("workflow.y*ml")) + sorted(tmp.rglob("workflow.json"))
         if not found:
             raise HTTPException(422, "The archive has no workflow.yaml.")

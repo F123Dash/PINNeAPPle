@@ -13,6 +13,30 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 
 ## [Unreleased]
 
+### Security
+- Web hardening for every app, in the library (`pinneapple_security.web`, `.passwords`, `.archives`) and wired
+  once through `apps/_shared/appkit.py` `install()`: CSP built from each app's own pages (no script
+  `'unsafe-inline'`), HSTS, frame, referrer and permissions policies; request body limit counted while streaming;
+  per-caller rate limits (429 + `Retry-After`); lockout after repeated failed logins; scrypt/argon2id password
+  hashes (`<PREFIX>_PASSWORD_HASH`, `python -m pinneapple_security hash-password`, plain passwords still work);
+  more logins and admin users (`<PREFIX>_USERS_FILE`, `<PREFIX>_ADMIN_USERS`); cross-site POST check; CORS
+  allow-list; `X-Forwarded-For` believed only from trusted proxies; JSON 500s with a reference id; auth and admin
+  events as JSON log lines and in a hash-chained audit trail (`AuditLog` is now safe with several workers).
+  Settings in `apps/_shared/README.md`; findings in `docs/security/audit.md`.
+- Fixed: formula evaluation could reach Python internals (`pinneapple_data.audit` constraints in the Benchmark Arena,
+  `pinneapple check` boundary values in the Validation Lab): both use the `contracts.expressions` interpreter
+  (now with `functions=` and `check()`); Meshless formulas are grammar-checked before `sympify`.
+- Fixed: Campaign Planner OpenFOAM edits could write outside the case; base-case zips are extracted with limits;
+  case templates allow only `{name}` / `{name:spec}`.
+- Fixed: Model Gateway pickled surrogate uploads are off unless `MDL_ALLOW_PICKLE_UPLOAD=1` (and then scanned);
+  remote ModelRefs to non-public addresses need `MDL_REMOTE_ALLOW_HOSTS`.
+- Uploads: zip members checked for traversal, links and size (`pinneapple_security.archives`, used by
+  `cae.upload.expand`, the GUI agent and the Campaign Planner); gzip decompression capped. Validation Lab configs
+  can only point at uploaded files. Jobs: optional `setrlimit` (`<PREFIX>_JOB_MAX_MEMORY_MB`,
+  `<PREFIX>_JOB_MAX_CPU_S`), process-group kill, tracebacks kept out of job logs (`<PREFIX>_JOB_TRACEBACKS=1`
+  restores them). Sensitivity/Uncertainty `?wait=` no longer blocks the event loop; `n_sobol` and `n_boot` capped;
+  the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
+
 ### Added
 - Flight dynamics, `pinneapple_simulation.flight`: a 6-DOF rigid aircraft (body axes, quaternion attitude) whose
   wing and tail loads come from the vortex lattice of `pinneapple_design.aero.vlm` solved every step with the local
@@ -33,6 +57,39 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   ffmpeg) and `web.screenshot` (headless Chromium). The sky world of `render(background="sky")` works on Blender 5.
 - Cinematic studio clips: coloured trails and diverging colour maps (`coolwarm`, `bwr`) in the viewer and Blender, `Lines.cmap/alpha/radius/color_range` drawn as wisps, `render_animation(motion_blur=, dof=, haze=, camera="chase_low", hud_keys=, sparkline=, colorbars=, exposure=)`, and `studio.compose.compose_grid` / `compose_grid_video` panels.
 - Studio renders: `blender.render_still` (1080p stills), smooth shading, procedural asphalt and grass, motion blur in scene seconds, trails over their last `trail_seconds` with a fade (viewer and Blender), haze cleared around the tracked body, `Scene.materials` / `unknown_materials()`, MP4 `crf`, viewer arrows in true cmap colours.
+- Lab curation of everything with committed results but no Lab entry (`pinneapple_lab.experiments.repo_sources`,
+  imported by `repo_results`): the 2004 Prius motor (torque against the published FEA of Yang et al. 2013, GetDP
+  second code, cogging, skew, tolerances), its end effects, thermal / demagnetisation and drive, the
+  electromagnetics verification suite with the FDTD gallery, the SPM motor, the NACA 2412 hand-off package
+  (OpenFOAM against XFOIL and thin-airfoil theory), the A320-class airliner CFD, the lunar rover, the near-random
+  forecasting study, design from intent, topology optimisation, the free-surface trough, the benchmark arena and
+  the ERA5 weather model; a new `em_pinn` experiment trains PINNs on the `em_*` presets and scores them against
+  their closed forms. `lab/curation.json` and `lab/CURATION.md` re-generated.
+- `RunContext.check(kind="verification")` for agreement with a second code or method that shares the model's
+  inputs, and for solver checks on canonical problems: it answers the trust card's model question and never counts
+  toward a tier. `label=` gives a check the short line seals and showcase tiles print.
+- Every curated run and item carries a `headline`: the passing check it was compared with (reference for A,
+  physics / baseline / unseen data for B), taken from its checks only (`pinneapple_lab.curation.headline`).
+- Visual pack and a YouTube case for the near-random forecasting study: in-process Cycles renderer
+  (`pinneapple_blender.cycles`: surfaces, tubes, point clouds, translucent planes, ribbons, text, camera fitting,
+  frames to MP4; needs `pip install bpy`), render data and scenes in `time_series.forecast_lab.renders` (predictability
+  landscape, forecast cones refitted at every horizon, attractor vs surrogates, ensemble divergence), 2-D figures
+  `plots.plot_memorise_vs_learn` and `plots.plot_surprise_calendar` (with `pipeline.memorise_vs_learn` and
+  `pipeline.surprise_record`), steppers in `time_series.synthetic`, and `datasets.public.load_youtube_trending_us`
+  (Kaggle "Trending YouTube Video Statistics", CC0, pinned GitHub copy with SHA-256). Tests
+  `tests/test_near_random_visuals.py`.
+- Forecasting near-random series without overfitting (`pinneapple_systems.time_series.forecast_lab`): one
+  interface for baselines (persistence, climatology, AR, ARIMA, exponential smoothing), data-driven direct
+  forecasters (gradient boosting, MLP, LSTM, TCN, transformer), data + physics (physics features, physics-residual
+  loss), physical models (fitted ODE / delay ODE, Kalman-filtered linear SDEs, SDE drift regression, EnKF, SINDy)
+  and hybrids (physics + learned correction, UDE closures); the protocol (`study.Protocol`, `tune`, `run_zoo`,
+  `overfitting_study`, `surrogate_trained`), presets of the study cases and figures. Predictability before
+  modelling (`time_series.predictability`: AR fit, permutation and sample entropy, Rosenstein exponent, shuffled /
+  phase / IAAFT surrogates and the surrogate test), ground-truth generators (`time_series.synthetic`: Lorenz-63/96,
+  Mackey-Glass, OU, noise-driven oscillator, double well, noise controls, Benettin exponents), purged walk-forward /
+  purged k-fold / shuffled k-fold splitters, Diebold-Mariano with HLN correction, Holm and Benjamini-Hochberg,
+  PIT and coverage helpers, and pinned, checksummed public series (`time_series.datasets.public`: USD/EUR daily from
+  FRED, yearly sunspots). Tests `tests/test_near_random_forecasting.py` (a must-pass CI step).
 - Slides of the e-machine study: `examples/electrodynamics/18_emachine_slides.py` builds 12 slides (PPTX, and PDF
   with LibreOffice) from the results of examples 10 to 17, every number read from the result files, each slide with
   its limits (needs `python-pptx`).
@@ -45,6 +102,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   files in and out, FEMM Lua script, ElmerFEM case, MATLAB `.mat`, DXF, `ParameterSpace` / `DatasetSpec` contracts).
   Example `examples/electrodynamics/14_prius_getdp_crosscheck.py` (torque, back-EMF, inductances, cogging
   convergence and diagnosis against GetDP), tests `tests/test_emachine_getdp.py`, `tests/test_emachine_interop.py`.
+- Supply chain security: the `Security` workflow runs bandit (fails on high severity), pip-audit, gitleaks
+  (`.gitleaks.toml`), hadolint, Trivy on the base images (fails on fixable critical CVEs), the security tests and
+  CycloneDX SBOMs, plus a weekly build, hardened run and scan of one app image; Dependabot for pip, GitHub Actions
+  and the Docker base images; operator runbook `docs/security/runbook.md`.
 - Step skew, tolerances and 3-D export of machines (`pinneapple_simulation.electromagnetics.machines.robustness`,
   `machines.export`): multi-slice step skew (`skewed_torque`, `skewed_no_load`, `step_skew_factor`), the FEA as a
   tolerance model for JCGM 101 Monte Carlo (`tolerance_model`), extruded 3-D field of a skewed rotor
@@ -1305,6 +1366,16 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   these modules onto pass / warn / fail / not-applicable; and how check power is measured (ASME V&V 40 and
   NASA-STD-7009A credibility, mutation testing, metamorphic relations, adversarial robustness of neural operators,
   the arena proposed in #707).
+
+### Security (deployment)
+- App images run as uid 10001 (`USER 10001:0`, `HOME=/tmp`); Compose adds a read-only root filesystem, `/tmp`
+  tmpfs, `cap_drop: ALL`, `no-new-privileges`, pids/CPU limits and log rotation (`x-app-hardening`); only Caddy
+  publishes ports. Existing root-owned volumes need a one-time `chown` (docs/security/server.md).
+- Caddy: TLS 1.2+, HSTS with subdomains, frame/permissions/opener policies, a body limit on every site, rotated JSON
+  access log; Caddy and the Playground base image pinned by digest (Playground: `caddy:2-alpine`, from 7 critical
+  CVEs to none).
+- `apps/deploy/check_server.sh` (read-only host check), fail2ban filters and jail for Caddy and the app auth events,
+  host hardening guide `docs/security/server.md`, `tests/test_deploy_security.py`.
 
 ## [0.7.0] - 2026-10-13
 

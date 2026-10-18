@@ -30,6 +30,7 @@ from pydantic import BaseModel, Field
 
 from pinneapple_data.contracts import ParameterSpace, read_table
 from pinneapple_data.doe import METHODS, plan_campaign
+from pinneapple_security.archives import ArchiveLimits, UnsafeArchive, safe_extract_zip
 from pinneapple_simulation.external_solvers import campaign_cases as cc
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
@@ -41,6 +42,7 @@ STATIC = os.path.join(HERE, "static")
 EXAMPLES = os.path.join(HERE, "..", "examples")
 MAX_CASES = int(os.environ.get("CAMPAIGN_MAX_CASES") or 5000)
 MAX_CASE_DIRS = int(os.environ.get("CAMPAIGN_MAX_CASE_DIRS") or 50)
+MAX_CASE_MB = int(os.environ.get("CAMPAIGN_MAX_CASE_MB") or 200)        # an uploaded base case, unzipped
 TABLE_SUFFIXES = {".csv", ".parquet", ".json", ".h5", ".hdf5"}
 
 app = FastAPI(title="Simulation Campaign Planner", version=VERSION,
@@ -163,12 +165,10 @@ def _read_existing(path: Path):
 
 
 def _unzip_case(zip_path: Path, dest: Path) -> Path:
-    with zipfile.ZipFile(zip_path) as z:
-        for m in z.infolist():
-            target = (dest / m.filename).resolve()
-            if not str(target).startswith(str(dest.resolve())):
-                raise ValueError(f"unsafe path in zip: {m.filename}")
-        z.extractall(dest)
+    try:
+        safe_extract_zip(zip_path, dest, ArchiveLimits(max_members=5000, max_total_bytes=MAX_CASE_MB * 2**20))
+    except UnsafeArchive as exc:
+        raise ValueError(str(exc)) from None
     for d in [dest, *sorted(p for p in dest.rglob("*") if p.is_dir())]:
         if (d / "system" / "controlDict").is_file():
             return d
