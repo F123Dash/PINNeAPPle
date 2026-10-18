@@ -1149,6 +1149,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   versions the manifest was generated with. All files and the manifest were regenerated. The self-intersection
   check measures distances about each triangle pair's centre with a size-relative tolerance (no false hits on flat
   caps far from the origin or on nearly parallel neighbours).
+- Geometry library: the vertices carry no negative zeros. Whether a coordinate that snaps to zero came out as -0 or
+  +0 depended on the SIMD kernels NumPy picks for the CPU (AVX-512 or not), and the STL, OBJ and USD writers keep the
+  sign, so the publishing job's SHA-256 check failed on runners unlike the machine that wrote the manifest (18 files:
+  aortic arch, KCS, H145, ATR 72). The light STL files and the manifest were regenerated (OBJ / STL / USD hashes;
+  glTF and STEP are unchanged); a test rebuilds an entry with NumPy's AVX-512 and AVX2 kernels disabled and requires
+  the same bytes.
 
 ### Documentation
 - Validation methods reference: measured behaviour of `crps_gaussian` / `crps_ensemble` (fair score unbiased for
