@@ -53,6 +53,16 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
     and Ampere-Maxwell / Faraday on control squares, which see material interfaces); presets `em_*` with closed-form
     solutions registered for `pp.solve(problem, "analytic")`.
   - Optional extra `em` (miepython); catalog items S29-S39 and E66-E71.
+  - `fdtd`: Yee FDTD in 1-D, 2-D and 3-D with the Courant limit enforced, CPML, PEC / PMC / periodic / Bloch
+    (Floquet) boundaries, Drude / Debye / Lorentz media by auxiliary differential equations, soft and hard sources,
+    impressed currents, total-field / scattered-field plane waves in any dimension (leakage 1e-16), sub-cell
+    (fill-fraction) averaging, probes, running DFTs, Poynting flux, the exactly conserved discrete energy,
+    node- and time-centred snapshots for `maxwell_checks`, and a near-to-far-field transform. 12 verification
+    cases (Fresnel and dispersive half-spaces, cavities, waveguide, plasma, cylinder scattering, Hertzian dipole,
+    Floquet, CPML, near-to-far field), second order where it applies.
+  - `pinneapple_tools.visualization.electromagnetics`: field maps with Poynting arrows, GIF / MP4 field movies,
+    radiation patterns; `examples/electrodynamics/08_fdtd_gallery.py` (scattering movie, field map, dipole
+    pattern, each with its check). Catalog items S40-S41.
 - The zoo demo Space `PINNeAPPle-Labs/zoo-demo` is a static Space (a Gradio Space needs a paid plan for the
   organisation). `pinneapple_hub.zoo.demo.precompute` / `export_space` compute, from the models published on the
   Hub, each model's sweep of every input with its band and the verdict of its query checks at every point, and
