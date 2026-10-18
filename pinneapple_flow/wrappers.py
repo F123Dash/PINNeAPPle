@@ -94,7 +94,8 @@ def meshless_compare(kind: Literal["poisson", "heat", "helmholtz"] = "poisson",
                      methods: list = ("kansa", "rbf_fd", "fd", "fem"), k: float = 4.0, alpha: float = 1.0) -> dict:
     """Meshless vs mesh-based methods on one problem (``meshless_study``); expressions go through the library's
     own expression checks."""
-    from pinneapple_simulation.meshless import Problem, domain as make_domain, meshless_study
+    from pinneapple_simulation.meshless import Problem, meshless_study
+    from pinneapple_simulation.meshless import domain as make_domain
     st = meshless_study(Problem(kind=kind, exact=exact, k=k, alpha=alpha), make_domain(domain), methods=tuple(methods))
     return st.to_dict() if hasattr(st, "to_dict") else {"result": str(st)}
 
@@ -203,6 +204,7 @@ def model_architecture(name: str = "fno", in_dim: int = 1, out_dim: int = 1, hid
     import inspect
 
     from pinneapple_neural.architectures.registry import ModelRegistry
+
     from . import learn
     cls_kw = {}
     spec = ModelRegistry.spec(name) if hasattr(ModelRegistry, "spec") else None
