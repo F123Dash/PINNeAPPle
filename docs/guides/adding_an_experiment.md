@@ -62,6 +62,16 @@ README or the first script's docstring, modules from the imports, figures and mo
 folder, the pull requests whose merge changed it), leaves the rest empty, and marks methods found by name as
 inferred. Metrics come from a Lab run when the Lab has curated the folder's scripts, else the list is empty.
 
+### Committed results
+
+A folder that commits measured results (`results/*.json`) is graded from them with
+`pinneapple_lab.manifest.from_results(folder)` and a rule set in `pinneapple_lab.results_rules.RESULTS_RULES`:
+`Metric` (a value, its unit and how it was measured), `Flag` (a verdict the study recorded, such as
+`stall_margin_ok`), `CheckList` (check records the study wrote, each with its own `passed`) and `Bound` (a value
+against the threshold the study's own test applies, cited as `tests/test_x.py:LINE`; a test checks the literal is on
+that line). Then `python -m pinneapple_lab register <folder>` grades it. A folder whose results a Lab `repo_results`
+source already reads is linked to that item instead (`manifest.lab_items_for`).
+
 ### 4. The CI gate
 
 ```bash

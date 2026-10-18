@@ -156,7 +156,10 @@ def register_manifest(path: str, lab: Any = None, *, curate: bool = True) -> str
     if errors:
         raise ValueError(f"{path}: invalid manifest: " + "; ".join(errors))
     store = lab if isinstance(lab, LabStore) else LabStore(lab)
+    from .manifest import REPO
     p = os.path.abspath(path if path.endswith(".json") else os.path.join(path, "experiment.json"))
+    if p.startswith(REPO + os.sep):
+        p = os.path.relpath(p, REPO)                      # portable: the run id and record do not name this machine
     run("manifest", {"id": m.id, "path": p}, root=store.root, force=True)
     if curate:
         from .curation import curate as _curate

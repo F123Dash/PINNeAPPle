@@ -200,10 +200,12 @@ def render_html(store, groups: list[dict[str, Any]], title: str, filters: str = 
                      f"<b>To raise it:</b> ↑ {_e(g['problem']['hint'])}</p>")
         L.append(f"<p>{_e(g['description'])}</p>")
         if g["next_steps"]:
-            L.append("<h3>Next letter: what is missing and how</h3><ol>" + "".join(
-                f"<li><b>{_e(x['to'])}: {_e(x['short'])}</b> <span class=\"muted\">{_e(x['why'])}</span><ul>"
-                + ("".join(f"<li>{_e(a['text'])}<br><code>{_e(a['command'])}</code></li>" for a in x["actions"])
-                   or "<li>no PINNeAPPle action yet</li>") + "</ul></li>" for x in g["next_steps"]) + "</ol>")
+            from .next_steps import group
+            L.append("<h3>Next letter: what is missing and how</h3>" + "".join(
+                "<ol>" + "".join(f"<li><b>{_e(x['to'])}: {_e(x['short'])}</b> <span class=\"muted\">{_e(x['why'])}"
+                                 "</span></li>" for x in grp["gaps"]) + "</ol><ul>"
+                + ("".join(f"<li>{_e(a['text'])}<br><code>{_e(a['command'])}</code></li>" for a in grp["actions"])
+                   or "<li>no PINNeAPPle action yet</li>") + "</ul>" for grp in group(g["next_steps"])))
         if g["figures"]:
             imgs = []
             for f in g["figures"]:
@@ -283,10 +285,11 @@ def render_md(groups: list[dict[str, Any]], title: str, filters: str = "") -> st
             L += [f"**Main problem:** ✗ {g['problem']['text']}  ", f"**To raise it:** ↑ {g['problem']['hint']}", ""]
         L += [g["description"], ""]
         if g["next_steps"]:
+            from .next_steps import group
             L += ["**Next letter: what is missing and how**", ""]
-            for i, x in enumerate(g["next_steps"], 1):
-                L.append(f"{i}. **{x['to']}: {x['short']}** ({x['why']})")
-                L += [f"   - {a['text']}: `{a['command']}`" for a in x["actions"]] or ["   - no PINNeAPPle action yet"]
+            for grp in group(g["next_steps"]):
+                L += [f"- **{x['to']}: {x['short']}** ({x['why']})" for x in grp["gaps"]]
+                L += [f"  - {a['text']}: `{a['command']}`" for a in grp["actions"]] or ["  - no PINNeAPPle action yet"]
             L.append("")
         if g["stages"]:
             L += ["**Trust card**", "", "| stage | question | status | evidence | next |", "|---|---|---|---|---|"]
@@ -349,10 +352,12 @@ def render_pdf(groups: list[dict[str, Any]], title: str, filters: str = "") -> b
         S.append(Paragraph(_e(g["description"]), body))
         if g["next_steps"]:
             S.append(Paragraph("Next letter: what is missing and how", st["Heading4"]))
-            for x in g["next_steps"]:
+            from .next_steps import group
+            for grp in group(g["next_steps"]):
                 acts = "<br/>".join(f"&rarr; {_e(a['text'])}: <font face=\"Courier\">{_e(a['command'])}</font>"
-                                    for a in x["actions"]) or "&rarr; no PINNeAPPle action yet"
-                S.append(Paragraph(f"<b>{_e(x['to'])}: {_e(x['short'])}</b> ({_e(x['why'])})<br/>{acts}", body))
+                                    for a in grp["actions"]) or "&rarr; no PINNeAPPle action yet"
+                heads = "<br/>".join(f"<b>{_e(x['to'])}: {_e(x['short'])}</b> ({_e(x['why'])})" for x in grp["gaps"])
+                S.append(Paragraph(f"{heads}<br/>{acts}", body))
         for f in g["figures"][:2]:
             im = _img_data(f, 1100)
             if im:

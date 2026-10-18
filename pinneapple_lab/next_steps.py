@@ -355,18 +355,44 @@ def make_gap(gtype: str, to: str, ctx: dict[str, Any], *, check: dict[str, Any] 
                check=(check or {}).get("name", ""), measured=meas, actions=acts)
 
 
+def group(gaps) -> list[dict[str, Any]]:
+    """Gaps that share the same actions (same commands, same order) merged into one entry, in first-seen order:
+    ``[{"gaps": [gap, ...], "actions": [action, ...]}]``. Works on :class:`Gap` objects or their dicts, so three
+    failing checks fixed by the same commands list the commands once."""
+    def cmds(g):
+        acts = g.actions if isinstance(g, Gap) else g.get("actions", [])
+        return tuple(a.command if isinstance(a, Action) else a.get("command") for a in acts)
+    out: list[dict[str, Any]] = []
+    index: dict[tuple, int] = {}
+    for g in gaps:
+        k = cmds(g)
+        if k in index:
+            out[index[k]]["gaps"].append(g)
+        else:
+            index[k] = len(out)
+            out.append({"gaps": [g], "actions": list(g.actions if isinstance(g, Gap) else g.get("actions", []))})
+    return out
+
+
 def explain(gaps: list[Gap], lang: str = "en", title: str = "") -> str:
-    """The gaps as text: gap, why (with the measured value), and the suggested PINNeAPPle actions."""
+    """The gaps as text: gap, why (with the measured value), and the suggested PINNeAPPle actions, listed once for
+    all the gaps they address (:func:`group`)."""
     pt = lang == "pt"
     out = [title] if title else []
     if not gaps:
         out.append("Nada em falta." if pt else "Nothing missing.")
-    for i, g in enumerate(gaps, 1):
-        out.append(f"{i}. [{g.to}] {g.short_pt if pt else g.short}")
-        out.append(f"   {'porquê' if pt else 'why'}: {g.why_pt if pt else g.why}")
-        if not g.actions:
+    i = 0
+    for grp in group(gaps):
+        for g in grp["gaps"]:
+            i += 1
+            out.append(f"{i}. [{g.to}] {g.short_pt if pt else g.short}")
+            out.append(f"   {'porquê' if pt else 'why'}: {g.why_pt if pt else g.why}")
+        if len(grp["gaps"]) > 1:
+            out.append(f"   {'para os' if pt else 'for the'} {len(grp['gaps'])} "
+                       f"{'pontos acima' if pt else 'gaps above'}:")
+        if not grp["actions"]:
             out.append(f"   -> {NO_ACTION[1] if pt else NO_ACTION[0]}")
-        for a in g.actions:
+        for a in grp["actions"]:
             out.append(f"   -> {a.text_pt if pt else a.text}")
             out.append(f"      {a.command}")
     return "\n".join(out)

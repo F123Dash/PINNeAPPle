@@ -60,6 +60,16 @@
  "status": "curated",
  "lab": {
   "item": "example_script/examples/getting_started/01_harmonic_oscillator.py",
+  "items": [
+   "example_script/examples/getting_started/01_harmonic_oscillator.py",
+   "example_script/examples/getting_started/02_damped_oscillator.py",
+   "example_script/examples/getting_started/05_logistic_growth.py",
+   "example_script/examples/getting_started/06_lotka_volterra.py",
+   "example_script/examples/getting_started/07_nonlinear_pendulum.py",
+   "example_script/examples/getting_started/03_heat_diffusion_1d.py",
+   "example_script/examples/getting_started/04_wave_equation_1d.py",
+   "example_script/examples/getting_started/08_van_der_pol.py"
+  ],
   "experiment": "example_script",
   "run_id": "example_script-5a77c5897b1d",
   "tier": "D"
@@ -67,6 +77,6 @@
  "provenance": {
   "source": "register",
   "methods": "inferred from names",
-  "git": "cfaaf553"
+  "git": "c31f0955"
  }
 }

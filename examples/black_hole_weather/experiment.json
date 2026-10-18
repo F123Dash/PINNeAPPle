@@ -49,11 +49,19 @@
   ]
  },
  "references": [],
- "status": "not curated",
- "lab": {},
+ "status": "curated",
+ "lab": {
+  "item": "repo_results/bh_forecast",
+  "items": [
+   "repo_results/bh_forecast"
+  ],
+  "experiment": "repo_results",
+  "run_id": "repo_results-269f1207b6f2",
+  "tier": "B"
+ },
  "provenance": {
   "source": "register",
   "methods": "inferred from names",
-  "git": "cfaaf553"
+  "git": "c31f0955"
  }
 }

@@ -36,11 +36,19 @@
   ]
  },
  "references": [],
- "status": "not curated",
- "lab": {},
+ "status": "curated",
+ "lab": {
+  "item": "repo_results/motor_spm",
+  "items": [
+   "repo_results/motor_spm"
+  ],
+  "experiment": "repo_results",
+  "run_id": "repo_results-baf5389acdaf",
+  "tier": "B"
+ },
  "provenance": {
   "source": "register",
   "methods": "inferred from names",
-  "git": "cfaaf553"
+  "git": "c31f0955"
  }
 }

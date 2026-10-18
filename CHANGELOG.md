@@ -57,6 +57,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   holds (README or docstring, imports, figures, the docs page citing it, the pull requests whose merge changed
   it); metrics only where a Lab run measured them. CI gate `scripts/check_experiment_manifests.py` (must pass) and
   an AGENTS.md rule. Guide (EN/PT): `docs/guides/adding_an_experiment.md`.
+  `manifest.from_results(folder, rules)` reads the metrics and checks a folder's committed results hold, by rules in
+  `pinneapple_lab.results_rules` (a verdict the study recorded, its own check records, or a value against the
+  threshold its own test applies, cited `file:line` and verified): flight dynamics, ENSO and the brick builds are
+  now Lab items (B each); folders whose results a `repo_results` source already grades link to that item
+  (`manifest.lab_items_for`). Next steps that share the same actions are listed once (`next_steps.group`).
 - Lab quality seals for every tier, A to F (`pinneapple_lab.curation`, `pinneapple_lab.seal`). The curation now
   grades on six letters: A flagship and B solid unchanged, C plausible (every check passes, the trust card's model,
   physics or benchmark stage answered, B gates not met), D exploratory (consistent, not validated), E known problems

@@ -58,11 +58,19 @@
   ]
  },
  "references": [],
- "status": "not curated",
- "lab": {},
+ "status": "curated",
+ "lab": {
+  "item": "repo_results/ahmed_body",
+  "items": [
+   "repo_results/ahmed_body"
+  ],
+  "experiment": "repo_results",
+  "run_id": "repo_results-76a9a3bf2c2f",
+  "tier": "A"
+ },
  "provenance": {
   "source": "register",
   "methods": "inferred from names",
-  "git": "cfaaf553"
+  "git": "c31f0955"
  }
 }

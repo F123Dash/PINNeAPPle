@@ -1,6 +1,6 @@
 # PINNeAPPle Lab curation
 
-Generated 2026-10-18 21:57 UTC. Tiers: **A flagship** (product / paper / marketing once reviewed), **B solid** (demos, use cases, datasets), **C plausible** (partly checked), **D exploratory** (not validated), **E known problems** (a failing check), **F not usable** (crashed, diverged, failed physics or contradicts the reference). Gates, not averages: see `pinneapple_lab/curation.py`.
+Generated 2026-10-18 23:08 UTC. Tiers: **A flagship** (product / paper / marketing once reviewed), **B solid** (demos, use cases, datasets), **C plausible** (partly checked), **D exploratory** (not validated), **E known problems** (a failing check), **F not usable** (crashed, diverged, failed physics or contradicts the reference). Gates, not averages: see `pinneapple_lab/curation.py`.
 
 | experiment | tier | best score | runs (A/B/C/D/E/F) | usable | product | paper | marketing | data | reviewed |
 |---|---|---|---|---|---|---|---|---|---|
@@ -16,6 +16,7 @@ Generated 2026-10-18 21:57 UTC. Tiers: **A flagship** (product / paper / marketi
 | `vehicle_cfd` | **B** solid | 93.8 | 0/1/0/0/0/0 | 100 % | - | - | - | ready | no |
 | `pendulum_video` | **B** solid | 92.9 | 0/1/0/0/0/0 | 100 % | - | - | - | ready | no |
 | `bar_wear_ranking` | **B** solid | 92.0 | 0/1/0/0/0/0 | 100 % | - | - | - | ready | no |
+| `manifest` | **B** solid | 91.9 | 0/3/0/0/0/0 | 100 % | - | - | - | - | no |
 | `bricks` | **B** solid | 91.2 | 0/3/0/0/0/0 | 100 % | - | - | - | - | no |
 | `kepler_law` | **B** solid | 89.4 | 0/1/0/0/0/0 | 100 % | - | - | - | ready | no |
 | `lorenz_discovery` | **B** solid | 89.4 | 0/1/0/0/0/0 | 100 % | - | - | - | - | no |
@@ -76,6 +77,9 @@ Data and geometry (was the physical problem represented correctly?), model (can 
 | `heat_xtfc` | B | ? | ✓ | ? | ✓ | ~ | ✓ |
 | `kepler_law` | B | ~ | ✓ | ? | ✓ | ~ | ✓ |
 | `lorenz_discovery` | B | ? | ✓ | ? | ✓ | ~ | ~ |
+| `manifest/examples/bricks` | B | ~ | ✓ | ? | ✓ | ? | ~ |
+| `manifest/examples/enso_forecasting` | B | ~ | ✓ | ? | ✓ | ? | ~ |
+| `manifest/examples/flight_dynamics` | B | ✓ | ✓ | ✓ | ? | ~ | ~ |
 | `oscillator` | B | ✓ | ✓ | ? | ✓ | ? | ~ |
 | `oscillator_discovery` | B | ? | ✓ | ? | ✓ | ? | ~ |
 | `pendulum_video` | B | ? | ✓ | ? | ✓ | ~ | ✓ |
@@ -141,6 +145,7 @@ Data and geometry (was the physical problem represented correctly?), model (can 
 - `heat_xtfc` (B): show it beats a baseline or satisfies a physical law it was not trained on; add figures (a movie, a render or a 3-D view for communication)
 - `kepler_law` (B): show it beats a baseline or satisfies a physical law it was not trained on; add figures (a movie, a render or a 3-D view for communication)
 - `lorenz_discovery` (B): show it beats a baseline or satisfies a physical law it was not trained on; add figures (a movie, a render or a 3-D view for communication)
+- `manifest` (B): compare with an independent reference (exact solution, experiment, published value); add figures (a movie, a render or a 3-D view for communication); document it (docs page, references)
 - `oscillator` (B): show it beats a baseline or satisfies a physical law it was not trained on; add figures (a movie, a render or a 3-D view for communication)
 - `oscillator_discovery` (B): show it beats a baseline or satisfies a physical law it was not trained on; add figures (a movie, a render or a 3-D view for communication)
 - `pendulum_video` (B): show it beats a baseline or satisfies a physical law it was not trained on
