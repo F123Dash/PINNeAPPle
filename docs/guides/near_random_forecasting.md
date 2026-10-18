@@ -178,7 +178,7 @@ are scored on the real test period. The table gives the RMSE skill against persi
 | Sunspots (yearly) | 0.39 | 0.34 | 0.02 | 0.05 |
 
 The real-trained model beats its IAAFT twin only on the chaotic series (by 0.12 to 0.42 for Lorenz-63 and
-Mackey–Glass) and, slightly, on the sunspots (0.05). On OU, the oscillator, the noise controls and USD/EUR the
+Mackey–Glass) and, slightly, on the double well (0.04) and the sunspots (0.05). On OU, the oscillator, the noise controls and USD/EUR the
 difference is 0.00 to 0.01: whatever the GBM learned there, a linear Gaussian process with the same spectrum
 teaches it too. On white noise and USD/EUR, the 0.28 skill against persistence is just the gain of forecasting the
 mean instead of the last value; the shuffled twin gets the same 0.28. Lorenz-96 seen through a single variable
