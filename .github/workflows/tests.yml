@@ -40,7 +40,7 @@ jobs:
       - name: Near-random forecasting — predictability, surrogates, purged splits, DM tests, forecaster zoo (must pass)
         run: |
           pip install scikit-learn statsmodels
-          pytest tests/test_near_random_forecasting.py -q -p no:warnings
+          pytest tests/test_near_random_forecasting.py tests/test_near_random_visuals.py -q -p no:warnings
 
       - name: Agents — AGENTS.md examples and the MCP server (must pass)
         run: pytest tests/test_agents_md.py tests/test_mcp_server.py -q

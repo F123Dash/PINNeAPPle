@@ -13,7 +13,39 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 
 ## [Unreleased]
 
+### Security
+- Web hardening for every app, in the library (`pinneapple_security.web`, `.passwords`, `.archives`) and wired
+  once through `apps/_shared/appkit.py` `install()`: CSP built from each app's own pages (no script
+  `'unsafe-inline'`), HSTS, frame, referrer and permissions policies; request body limit counted while streaming;
+  per-caller rate limits (429 + `Retry-After`); lockout after repeated failed logins; scrypt/argon2id password
+  hashes (`<PREFIX>_PASSWORD_HASH`, `python -m pinneapple_security hash-password`, plain passwords still work);
+  more logins and admin users (`<PREFIX>_USERS_FILE`, `<PREFIX>_ADMIN_USERS`); cross-site POST check; CORS
+  allow-list; `X-Forwarded-For` believed only from trusted proxies; JSON 500s with a reference id; auth and admin
+  events as JSON log lines and in a hash-chained audit trail (`AuditLog` is now safe with several workers).
+  Settings in `apps/_shared/README.md`; findings in `docs/security/audit.md`.
+- Fixed: formula evaluation could reach Python internals (`pinneapple_data.audit` constraints in the Benchmark Arena,
+  `pinneapple check` boundary values in the Validation Lab): both use the `contracts.expressions` interpreter
+  (now with `functions=` and `check()`); Meshless formulas are grammar-checked before `sympify`.
+- Fixed: Campaign Planner OpenFOAM edits could write outside the case; base-case zips are extracted with limits;
+  case templates allow only `{name}` / `{name:spec}`.
+- Fixed: Model Gateway pickled surrogate uploads are off unless `MDL_ALLOW_PICKLE_UPLOAD=1` (and then scanned);
+  remote ModelRefs to non-public addresses need `MDL_REMOTE_ALLOW_HOSTS`.
+- Uploads: zip members checked for traversal, links and size (`pinneapple_security.archives`, used by
+  `cae.upload.expand`, the GUI agent and the Campaign Planner); gzip decompression capped. Validation Lab configs
+  can only point at uploaded files. Jobs: optional `setrlimit` (`<PREFIX>_JOB_MAX_MEMORY_MB`,
+  `<PREFIX>_JOB_MAX_CPU_S`), process-group kill, tracebacks kept out of job logs (`<PREFIX>_JOB_TRACEBACKS=1`
+  restores them). Sensitivity/Uncertainty `?wait=` no longer blocks the event loop; `n_sobol` and `n_boot` capped;
+  the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
+
 ### Added
+- Visual pack and a YouTube case for the near-random forecasting study: in-process Cycles renderer
+  (`pinneapple_blender.cycles`: surfaces, tubes, point clouds, translucent planes, ribbons, text, camera fitting,
+  frames to MP4; needs `pip install bpy`), render data and scenes in `time_series.forecast_lab.renders` (predictability
+  landscape, forecast cones refitted at every horizon, attractor vs surrogates, ensemble divergence), 2-D figures
+  `plots.plot_memorise_vs_learn` and `plots.plot_surprise_calendar` (with `pipeline.memorise_vs_learn` and
+  `pipeline.surprise_record`), steppers in `time_series.synthetic`, and `datasets.public.load_youtube_trending_us`
+  (Kaggle "Trending YouTube Video Statistics", CC0, pinned GitHub copy with SHA-256). Tests
+  `tests/test_near_random_visuals.py`.
 - Forecasting near-random series without overfitting (`pinneapple_systems.time_series.forecast_lab`): one
   interface for baselines (persistence, climatology, AR, ARIMA, exponential smoothing), data-driven direct
   forecasters (gradient boosting, MLP, LSTM, TCN, transformer), data + physics (physics features, physics-residual
@@ -1302,6 +1334,16 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   these modules onto pass / warn / fail / not-applicable; and how check power is measured (ASME V&V 40 and
   NASA-STD-7009A credibility, mutation testing, metamorphic relations, adversarial robustness of neural operators,
   the arena proposed in #707).
+
+### Security (deployment)
+- App images run as uid 10001 (`USER 10001:0`, `HOME=/tmp`); Compose adds a read-only root filesystem, `/tmp`
+  tmpfs, `cap_drop: ALL`, `no-new-privileges`, pids/CPU limits and log rotation (`x-app-hardening`); only Caddy
+  publishes ports. Existing root-owned volumes need a one-time `chown` (docs/security/server.md).
+- Caddy: TLS 1.2+, HSTS with subdomains, frame/permissions/opener policies, a body limit on every site, rotated JSON
+  access log; Caddy and the Playground base image pinned by digest (Playground: `caddy:2-alpine`, from 7 critical
+  CVEs to none).
+- `apps/deploy/check_server.sh` (read-only host check), fail2ban filters and jail for Caddy and the app auth events,
+  host hardening guide `docs/security/server.md`, `tests/test_deploy_security.py`.
 
 ## [0.7.0] - 2026-10-13
 
