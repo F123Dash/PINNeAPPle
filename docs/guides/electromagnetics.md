@@ -262,7 +262,8 @@ end turn 0.16 m per side estimated), and an illustrative compact car (1450 kg, C
 * envelope: 343.6 N m up to 2000 rpm, then flux weakening (181.0 N m at 3750 rpm, 104.4 N m at 6000 rpm); peak
   electromagnetic power 77.7 kW at 2500 rpm under these limits. The Prius's published rating (50 kW, 400 N m,
   quoted in pyleecan's test suite) comes from its own inverter current and thermal limits, which are not modelled;
-* peak efficiency 96.2 % at 2750 rpm, 80 N m (copper + iron + magnet loss; no inverter or mechanical loss);
+* peak efficiency 96.2 % at 2750 rpm, 70.7 N m (copper + iron + magnet loss; no inverter or mechanical loss; the map
+  is evaluated up to the motoring and braking envelopes at every speed from 100 to 6000 rpm);
 * WLTC class 3b: motoring 11.52 MJ, regenerated 2.97 MJ, drive losses 0.98 MJ, no friction braking needed within
   the braking envelope, battery-side 102.1 Wh/km for this car.
 
