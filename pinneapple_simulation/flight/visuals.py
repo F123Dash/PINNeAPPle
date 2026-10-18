@@ -184,27 +184,36 @@ def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind
 
 def gust_wisps(ac: Aircraft, hist: FlightHistory, wind, n_lat: int = 5, n_vert: int = 3, spacing: float | None = None,
                exaggeration: float = 1.5, ahead: float = 0.15):
-    """The frozen gust field as static wisps: lines parallel to the mean flight path through the corridor the
-    aircraft flew (``n_lat`` x ``n_vert`` lines over +-1 span sideways and +-0.5 span up and down, extended by
-    ``ahead`` x the flown distance), sampled every ``spacing`` (default span / 4), each point lifted by
-    ``exaggeration`` x the vertical gust [m per m/s] and coloured by it (up positive) on a diverging scale."""
+    """The frozen gust field as static wisps along the flown track: ``n_lat`` x ``n_vert`` lines offset from the CG
+    track by +-1 span on the local horizontal normal and +-0.5 span vertically (extended by ``ahead`` x the flown
+    distance along the last heading), sampled every ``spacing`` (default span / 4) of track length, each point lifted
+    by ``exaggeration`` x the vertical gust [m per m/s] and coloured by it (up positive) on a diverging scale."""
     from pinneapple_tools.visualization.studio.scene import Lines
     b = ac.af.span
-    p0, p1 = hist.x[0, :3], hist.x[-1, :3]
-    d = p1[:2] - p0[:2]
-    L = float(np.linalg.norm(d)) or 1.0
-    e = np.r_[d / L, 0.0]
-    n = np.array([-e[1], e[0], 0.0])
+    P = hist.x[:, :3]
+    seg = np.linalg.norm(np.diff(P, axis=0), axis=1)
+    s_cum = np.r_[0.0, np.cumsum(seg)]
+    L = float(s_cum[-1]) or 1.0
     ds = spacing or b / 4
-    s = np.arange(-ahead * L, (1 + ahead) * L, ds)
+    s = np.arange(0.0, L, ds)
+    track = np.stack([np.interp(s, s_cum, P[:, k]) for k in range(3)], 1)
+    head = P[-1] - P[max(len(P) - 20, 0)]
+    head[2] = 0.0
+    head /= np.linalg.norm(head) + 1e-12
+    ext = P[-1] + np.outer(np.arange(ds, ahead * L, ds), head)
+    track = np.vstack([track, ext])
+    tang = np.gradient(track, axis=0)
+    tang[:, 2] = 0.0
+    tang /= np.linalg.norm(tang, axis=1, keepdims=True) + 1e-12
+    nrm = np.c_[-tang[:, 1], tang[:, 0], np.zeros(len(tang))]
     pts, vals = [], []
     for a in np.linspace(-b, b, n_lat):
         for dz in np.linspace(-b / 2, b / 2, n_vert):
-            P = p0 + np.outer(s, e) + a * n + np.array([0.0, 0.0, float(np.mean(hist.x[:, 2]) - p0[2]) + dz])
-            w_up = -wind.velocity(0.0, P)[:, 2]
-            Q = P @ S_FLIP.T
-            Q[:, 2] += exaggeration * w_up
-            pts.append(Q)
+            Q = track + a * nrm + np.array([0.0, 0.0, dz])
+            w_up = -wind.velocity(0.0, Q)[:, 2]
+            Z = Q @ S_FLIP.T
+            Z[:, 2] += exaggeration * w_up
+            pts.append(Z)
             vals.append(w_up)
     lim = float(max(np.percentile(np.abs(np.concatenate(vals)), 98), 1e-6))
     lines = Lines(pts, vals, name="gust_wisps", label="Vertical gust w [m/s] (up +), frozen field")

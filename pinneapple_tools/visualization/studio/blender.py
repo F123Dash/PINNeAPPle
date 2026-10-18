@@ -382,7 +382,7 @@ def _hud_overlay(path: str, lines: Sequence[str]) -> None:
 
 
 def _encode(pngs: Sequence[str], out: str, fps: float, gif: bool = False, gif_fps: float = 12,
-            gif_width: int = 480) -> str:
+            gif_width: int = 480, crf: int = 27) -> str:
     """MP4 (H.264, yuv420p, even size) or GIF (palette) of a PNG sequence with the ffmpeg binary; without it, the
     MP4 goes through Blender's encoder (:func:`.particles.encode_mp4`) and the GIF through PIL."""
     import shutil
@@ -409,7 +409,7 @@ def _encode(pngs: Sequence[str], out: str, fps: float, gif: bool = False, gif_fp
         cmd += ["-vf", vf, "-loop", "0", out]
     else:
         cmd += ["-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", "-r", f"{fps}", "-c:v", "libx264", "-pix_fmt", "yuv420p",
-                "-crf", "20", "-movflags", "+faststart", out]
+                "-crf", str(crf), "-preset", "slow", "-movflags", "+faststart", out]
     subprocess.run(cmd, check=True)
     shutil.rmtree(seq, ignore_errors=True)
     return out
@@ -514,9 +514,11 @@ def _sparkline(path: str, t, y, k: int, label: str, unit: str = "", fmt: str = "
     im.save(path)
 
 
-def _haze(bpy, bs, lo, hi, density: float, blob: float):
+def _haze(bpy, bs, lo, hi, density: float, blob: float, clear_obj=None, clear: tuple[float, float] | None = None):
     """A box from ``lo`` to ``hi`` filled with a Principled Volume whose density is ``density`` modulated by a
-    Noise texture (blobs of about ``blob``): cloud-like haze. Volume bounces are kept at zero (cheap)."""
+    Noise texture (blobs of about ``blob``): cloud-like haze. ``clear_obj`` / ``clear=(r0, r1)``: no haze within r0
+    of that object (e.g. the Empty of the tracked body), full haze beyond r1, so the body, the camera and the lines
+    near them stay crisp. Volume bounces are kept at zero (cheap)."""
     lo, hi = np.asarray(lo, float), np.asarray(hi, float)
     V = [(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]
     F = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
@@ -538,7 +540,22 @@ def _haze(bpy, bs, lo, hi, density: float, blob: float):
     mr.inputs["To Min"].default_value, mr.inputs["To Max"].default_value = 0.15 * density, density
     nt.links.new(tc.outputs["Object"], noise.inputs["Vector"])
     nt.links.new(noise.outputs["Fac"], mr.inputs["Value"])
-    nt.links.new(mr.outputs["Result"], vol.inputs["Density"])
+    if clear_obj is not None and clear:
+        tco = nt.nodes.new("ShaderNodeTexCoord")
+        tco.object = clear_obj
+        ln = nt.nodes.new("ShaderNodeVectorMath")
+        ln.operation = "LENGTH"
+        cz = nt.nodes.new("ShaderNodeMapRange")
+        cz.inputs["From Min"].default_value, cz.inputs["From Max"].default_value = clear
+        mul = nt.nodes.new("ShaderNodeMath")
+        mul.operation = "MULTIPLY"
+        nt.links.new(tco.outputs["Object"], ln.inputs[0])
+        nt.links.new(ln.outputs["Value"], cz.inputs["Value"])
+        nt.links.new(mr.outputs["Result"], mul.inputs[0])
+        nt.links.new(cz.outputs["Result"], mul.inputs[1])
+        nt.links.new(mul.outputs["Value"], vol.inputs["Density"])
+    else:
+        nt.links.new(mr.outputs["Result"], vol.inputs["Density"])
     vol.inputs["Color"].default_value = (0.92, 0.94, 0.97, 1)
     vol.inputs["Anisotropy"].default_value = 0.3
     nt.links.new(vol.outputs["Volume"], out.inputs["Volume"])
@@ -553,6 +570,131 @@ def _haze(bpy, bs, lo, hi, density: float, blob: float):
 COLORBAR_KINDS = ("field", "vectors", "trails", "lines")
 
 
+def _smooth(objs, angle_deg: float = 35.0) -> None:
+    """Smooth shading with sharp edges above ``angle_deg`` (the glTF normals are averaged over shared vertices, so
+    they are dropped: creases such as trailing edges stay sharp, curved skins shade smoothly)."""
+    for o in objs:
+        me = o.data
+        if "custom_normal" in me.attributes:
+            me.attributes.remove(me.attributes["custom_normal"])
+        try:
+            me.shade_smooth()
+            me.set_sharp_from_angle(angle=math.radians(angle_deg))
+        except (AttributeError, TypeError, RuntimeError):
+            for p in me.polygons:
+                p.use_smooth = True
+
+
+def _ground_material(bpy, m, kind: str) -> None:
+    """Rebuild material ``m`` as procedural "asphalt" (patchy dark grey, rough, fine bump) or "grass" (patches of
+    greens, bump), in metres of object space."""
+    nt = m.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    out, b = nt.nodes.new("ShaderNodeOutputMaterial"), nt.nodes.new("ShaderNodeBsdfPrincipled")
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    big, fine = nt.nodes.new("ShaderNodeTexNoise"), nt.nodes.new("ShaderNodeTexNoise")
+    ramp, rough, bump = nt.nodes.new("ShaderNodeValToRGB"), nt.nodes.new("ShaderNodeMapRange"), nt.nodes.new("ShaderNodeBump")
+    for n in (big, fine):
+        nt.links.new(tc.outputs["Object"], n.inputs["Vector"])
+    if kind == "asphalt":
+        big.inputs["Scale"].default_value, big.inputs["Detail"].default_value = 0.06, 6.0
+        fine.inputs["Scale"].default_value, fine.inputs["Detail"].default_value = 2.5, 8.0
+        c0, c1 = (0.030, 0.031, 0.033), (0.085, 0.086, 0.090)
+        r0, r1, strength = 0.72, 0.95, 0.12
+    else:
+        big.inputs["Scale"].default_value, big.inputs["Detail"].default_value = 0.012, 5.0
+        fine.inputs["Scale"].default_value, fine.inputs["Detail"].default_value = 0.8, 6.0
+        c0, c1 = (0.035, 0.075, 0.018), (0.11, 0.16, 0.045)
+        r0, r1, strength = 0.85, 1.0, 0.3
+    el = ramp.color_ramp.elements
+    el[0].position, el[0].color = 0.3, (*c0, 1)
+    el[1].position, el[1].color = 0.7, (*c1, 1)
+    nt.links.new(big.outputs["Fac"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], b.inputs["Base Color"])
+    rough.inputs["To Min"].default_value, rough.inputs["To Max"].default_value = r0, r1
+    nt.links.new(fine.outputs["Fac"], rough.inputs["Value"])
+    nt.links.new(rough.outputs["Result"], b.inputs["Roughness"])
+    bump.inputs["Strength"].default_value = strength
+    bump.inputs["Distance"].default_value = 0.02
+    nt.links.new(fine.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], b.inputs["Normal"])
+    nt.links.new(b.outputs["BSDF"], out.inputs["Surface"])
+
+
+def _tube(P, r: float, nseg: int = 6):
+    """Vertices and quads of a tube of radius r along the polyline P (n, 3): ``nseg`` vertices per point."""
+    P = np.asarray(P, float)
+    T = np.gradient(P, axis=0) if len(P) > 1 else np.array([[1.0, 0, 0]])
+    T /= np.linalg.norm(T, axis=1, keepdims=True) + 1e-30
+    up = np.where(np.abs(T[:, 2:3]) > 0.9, [[1.0, 0, 0]], [[0, 0, 1.0]])
+    N = np.cross(T, up)
+    N /= np.linalg.norm(N, axis=1, keepdims=True) + 1e-30
+    Bn = np.cross(T, N)
+    a = np.linspace(0, 2 * np.pi, nseg, endpoint=False)
+    V = P[:, None] + r * (np.cos(a)[None, :, None] * N[:, None] + np.sin(a)[None, :, None] * Bn[:, None])
+    i, j = np.meshgrid(np.arange(len(P) - 1), np.arange(nseg), indexing="ij")
+    F = np.stack([i * nseg + j, i * nseg + (j + 1) % nseg, (i + 1) * nseg + (j + 1) % nseg, (i + 1) * nseg + j], -1)
+    return V.reshape(-1, 3), F.reshape(-1, 4)
+
+
+def _trail_material(bpy, name: str, rgb_lin, alpha: float, cmap: str | None = None, lo: float = 0.0,
+                    hi: float = 1.0, strength: float = 1.5):
+    """Emission (a colour, or ``cmap`` over the point attribute "tval" from lo..hi) mixed with transparency by
+    ``alpha`` x the point attribute "tfade": a glowing trail that fades towards its tail."""
+    from .compose import stops
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    em, tr = nt.nodes.new("ShaderNodeEmission"), nt.nodes.new("ShaderNodeBsdfTransparent")
+    mix, out = nt.nodes.new("ShaderNodeMixShader"), nt.nodes.new("ShaderNodeOutputMaterial")
+    em.inputs["Strength"].default_value = strength
+    if cmap:
+        av, mr, rp = nt.nodes.new("ShaderNodeAttribute"), nt.nodes.new("ShaderNodeMapRange"), nt.nodes.new("ShaderNodeValToRGB")
+        av.attribute_type, av.attribute_name = "GEOMETRY", "tval"
+        mr.inputs["From Min"].default_value, mr.inputs["From Max"].default_value = lo, hi
+        st = stops(cmap)
+        el = rp.color_ramp.elements
+        rgb = lambda c: (*_lin(tuple(v / 255 for v in c)), 1)       # noqa: E731
+        el[0].position, el[0].color = 0.0, rgb(st[0][1])
+        el[1].position, el[1].color = 1.0, rgb(st[-1][1])
+        for t, c in st[1:-1]:
+            el.new(t).color = rgb(c)
+        nt.links.new(av.outputs["Fac"], mr.inputs["Value"])
+        nt.links.new(mr.outputs["Result"], rp.inputs["Fac"])
+        nt.links.new(rp.outputs["Color"], em.inputs["Color"])
+    else:
+        em.inputs["Color"].default_value = (*rgb_lin, 1)
+    af, mul = nt.nodes.new("ShaderNodeAttribute"), nt.nodes.new("ShaderNodeMath")
+    af.attribute_type, af.attribute_name = "GEOMETRY", "tfade"
+    mul.operation = "MULTIPLY"
+    mul.inputs[1].default_value = float(alpha)
+    nt.links.new(af.outputs["Fac"], mul.inputs[0])
+    nt.links.new(mul.outputs["Value"], mix.inputs["Fac"])
+    nt.links.new(tr.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(em.outputs["Emission"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+    if hasattr(m, "blend_method"):
+        m.blend_method = "BLEND"
+    return m
+
+
+def _set_tube(me, P, vals, fade, r: float, nseg: int = 6) -> None:
+    """Rebuild mesh ``me`` as a tube along P with the point attributes "tval" and "tfade" (one value per point)."""
+    me.clear_geometry()
+    if len(P) < 2:
+        return
+    V, F = _tube(P, r, nseg)
+    me.from_pydata(V.tolist(), [], F.tolist())
+    for nm, a in (("tval", vals), ("tfade", fade)):
+        at = me.attributes.get(nm) or me.attributes.new(nm, "FLOAT", "POINT")
+        at.data.foreach_set("value", np.repeat(np.asarray(a, np.float32), nseg))
+    me.shade_smooth()
+    me.update()
+
+
 def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None = None,
                      size: tuple[int, int] = (960, 540), samples: int = 16, camera: str = "chase",
                      camera_offset: Sequence[float] | None = None, lens: float = 35, field: str | None = None,
@@ -562,30 +704,39 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
                      background: str = "sky", vectors: bool = True, trails: bool | dict = True, lines: bool = True,
                      colorbars: bool | dict | Sequence[str] = True, colorbar_on: bool = True,
                      motion_blur: bool | float = False, dof: float | None = None, haze: float | None = None,
-                     exposure: float | None = None, name: str = "animation", log=None) -> dict:
+                     exposure: float | None = None, crf: int = 27, smooth: bool = True,
+                     name: str = "animation", log=None, _render_mask: Sequence[bool] | None = None) -> dict:
     """Render ``scene.animation`` (an :class:`~.animation.Animation`) frame by frame with Cycles (CPU, denoised),
     burn the HUD into each PNG and encode an MP4 (and a GIF). Returns ``{"frames": [png, ...], "mp4": path | None,
     "gif": path | None}``.
 
     frames: None (every frame), an int n (the animation resampled to n evenly spaced frames) or frame indices.
     camera: "chase" (behind the tracked body along its direction of travel, or at ``camera_offset`` in the body
-    frame), "chase_low" (behind, a little aside and below the body, kept just above the ground: a runway shot;
+    frame), "chase_low" (behind and a little aside of the body, the camera kept low over the ground, looking up at it
+    as it climbs away: a runway shot;
     ``camera_offset`` in the body frame also works), "follow" (at ``camera_offset`` in scene axes from the body,
     default from the 3/4 view), "side" (alongside the path, tracking the body), "tower" (fixed at ``camera_offset``
     in scene axes, default beside the middle of the path, looking at the body) or "fixed" (the whole scene and path
     in the 3/4 view). ``lens`` in mm.
     field: colour the surfaces by this static per-vertex field; animated surface fields are always shown.
-    trails: False, True, or ``{"radius": r, "alpha": a}`` overriding every trail's tube radius and opacity
-    (default radius 0.004 x the tracked body's size). lines: draw the scene's static Lines as translucent tubes.
+    trails: False, True, or ``{"radius": r, "alpha": a, "seconds": s}`` overriding every trail's tube radius,
+    opacity and time window (defaults: 0.003 x the tracked body's size, ``add_trail``'s alpha and trail_seconds);
+    a trail is the path of its last seconds behind the body, fading to transparent at its tail.
+    lines: draw the scene's static Lines as translucent glowing tubes (brighter when there is haze).
     colorbars: True / False, a dict ``{"field": bool, "vectors": bool, "trails": bool, "lines": bool}`` or the
     kinds to show; ``colorbar_on=False`` turns them all off.
     hud_keys: only these HUD entries in the caption; sparkline: a HUD key drawn as an inset chart (bottom-left).
-    motion_blur: True (shutter 0.5 frame) or the shutter; the tracked bodies and the camera are keyframed at every
-    rendered frame so the ground blurs in a chase view. dof: f-stop, focused on the tracked body each frame.
+    motion_blur: True (a 1/30 s shutter in scene time) or the shutter in seconds of scene time (not of the clip,
+    which may run faster than real time); the tracked bodies and the camera are keyframed at every rendered frame,
+    so the ground blurs in a chase view while the tracked body stays sharp. dof: f-stop, focused on the tracked body each frame.
     haze: cloud-like volumetric haze, ``haze`` = optical depth over ten camera-to-body distances (0.5 to 2 reads
     as light haze; costs render time). exposure: view exposure (default -0.3 sky, -0.2 studio).
     ground: True for a grey plane under the scene and path, or a height (scene up axis) for its level.
-    background: "sky" (physical sky) or "studio" (light gradient)."""
+    background: "sky" (physical sky with its sun disc lighting the scene) or "studio" (light gradient and a lamp).
+    Materials named "asphalt" and "grass" become procedural (colour patches, roughness variation, bump); surfaces
+    whose material contains "marking" are lifted (and "grass" lowered) a hair so coplanar paint stays crisp.
+    smooth: smooth shading with sharp edges above 35 degrees. crf: H.264 quality of the MP4 (higher = smaller).
+    Materials missing from ``MATERIALS`` and ``scene.materials`` render grey; their names are logged."""
     import bpy
     from mathutils import Quaternion, Vector
 
@@ -617,8 +768,11 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
     # surfaces with unique node names so the imported objects map back to them
     tagged = [Surface(f"s{i:04d}", s.vertices, s.faces, s.material, s.fields, s.group) for i, s in enumerate(scene.surfaces)]
     glb = os.path.join(tempfile.mkdtemp(), "scene.glb")
-    Scene(tagged, axes=scene.axes).save(glb)
+    Scene(tagged, axes=scene.axes, materials=dict(getattr(scene, "materials", {}) or {})).save(glb)
     studio = background == "studio"
+    missing = scene.unknown_materials() if hasattr(scene, "unknown_materials") else []
+    if missing:
+        (log or print)(f"render_animation: materials not in MATERIALS / scene.materials (rendered grey): {missing}")
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.context.preferences.edit.keyframe_new_interpolation_type = "LINEAR"
@@ -640,9 +794,12 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
     bs.view_settings.view_transform = "Standard" if studio else ("AgX" if "AgX" in names else "Filmic")
     bs.view_settings.exposure = exposure if exposure is not None else (-0.3 if not studio else -0.2)
     bs.render.image_settings.file_format = "PNG"
-    if motion_blur:
+    if motion_blur:                                            # shutter in scene seconds -> in (resampled) frames
+        tk = anim.times[ks] if len(ks) > 1 else anim.times
+        dt = float(np.median(np.diff(tk))) if len(tk) > 1 else 1.0
+        shutter_s = 1.0 / 30.0 if motion_blur is True else float(motion_blur)
         bs.render.use_motion_blur = True
-        bs.render.motion_blur_shutter = 0.5 if motion_blur is True else float(motion_blur)
+        bs.render.motion_blur_shutter = float(min(1.0, max(1e-3, shutter_s / dt)))
     bs.frame_start, bs.frame_end = 1, max(1, len(ks))
 
     bpy.ops.import_scene.gltf(filepath=glb)
@@ -650,6 +807,12 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
     for o in list(bs.objects):
         if o.type == "MESH" and o.name[:1] == "s" and o.name[1:5].isdigit():
             objs[int(o.name[1:5])] = o
+    if smooth:
+        _smooth([o for i, o in objs.items() if scene.surfaces[i].group in anim.tracks])
+    for m in bpy.data.materials:                               # procedural ground
+        base = m.name.split(".")[0]
+        if base in ("asphalt", "grass") and m.node_tree is not None:
+            _ground_material(bpy, m, base)
 
     # extent of the static scene and of the paths (for the ground, the fixed camera and the clip planes)
     static = [toB(s.vertices) for i, s in enumerate(scene.surfaces) if s.group not in anim.tracks]
@@ -658,6 +821,11 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
     s_lo, s_hi = pts.min(0), pts.max(0)
     extent = float(np.linalg.norm(s_hi - s_lo)) or 1.0
     ground_z = float(np.concatenate(static)[:, 2].min()) if static else None
+    decal = max(0.01, 2e-6 * extent)                           # coplanar paint over asphalt over grass
+    for i, o in objs.items():
+        mat = scene.surfaces[i].material
+        if scene.surfaces[i].group not in anim.tracks and ("marking" in mat or "grass" in mat):
+            o.location.z += decal if "marking" in mat else -decal
 
     # tracks: the surfaces of each group under an Empty
     empties, radius = {}, {}
@@ -729,7 +897,7 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
                     bs.collection.objects.link(ob)
                     pair.append(ob)
                 arrows.append((vs, i, pair, m, L))
-            if vs["values"] is not None and vs["range"] is not None:
+            if vs["values"] is not None and vs["range"] is not None and vs["range"][1] - vs["range"][0] > 1e-12:
                 bars.append(("vectors", vs["label"] or vs["name"], *vs["range"], vs.get("cmap", "jet")))
     # the arrow meshes are shared: each object gets its own material through an object-linked slot
     for _, _, pair, m, _ in arrows:
@@ -737,27 +905,26 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
             ob.material_slots[0].link = "OBJECT"
             ob.material_slots[0].material = m
 
-    # trails: thin tubes grown frame by frame, coloured point by point when they carry values
+    # trails: thin tubes along the last seconds of the path, coloured point by point when they carry values,
+    # fading to transparent at the tail
     trail_objs = []
     if trails:
         ov = trails if isinstance(trails, dict) else {}
-        for tr in anim.trails:
-            cu = bpy.data.curves.new(tr["name"], "CURVE")
-            r = ov.get("radius") or tr.get("radius") or 0.004 * body_size
+        for ti, tr in enumerate(anim.trails):
+            r = ov.get("radius") or tr.get("radius") or 0.003 * body_size
             alpha = ov.get("alpha", tr.get("alpha", 1.0))
-            cu.dimensions, cu.bevel_depth, cu.bevel_resolution = "3D", r, 2
             if tr.get("values") is not None:
                 cm = tr.get("cmap", "jet")
-                mats = _bucket_materials(bpy, f"trail_{tr['name']}_", cm, alpha)
                 rng = tr.get("range") or default_range(tr["values"], cm)
+                m = _trail_material(bpy, f"trail_{tr['name']}", None, alpha, cm, *rng)
                 bars.append(("trails", tr.get("label") or tr["name"], *rng, cm))
             else:
-                mats, rng = [_wisp_material(bpy, f"trail_{tr['name']}", _lin(_hex_rgb(tr["color"])), alpha, 1.5)], None
-            for m in mats:
-                cu.materials.append(m)
-            ob = bpy.data.objects.new(tr["name"], cu)
+                m = _trail_material(bpy, f"trail_{tr['name']}", _lin(_hex_rgb(tr["color"])), alpha)
+            me = bpy.data.meshes.new(f"trail_{tr['name']}")
+            me.materials.append(m)
+            ob = bpy.data.objects.new(f"trail_{tr['name']}", me)
             bs.collection.objects.link(ob)
-            trail_objs.append((ob, tr, toB(tr["points"]), rng, len(mats)))
+            trail_objs.append((ob, ti, toB(tr["points"]), r, ov.get("seconds")))
 
     # the scene's static Lines (streamlines, gust wisps): soft translucent tubes
     if lines and scene.lines:
@@ -774,10 +941,11 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
                 rng = getattr(L, "color_range", None) or (
                     default_range(allv, cm) if cm != "jet" else
                     (float(np.nanpercentile(allv, 1)), float(np.nanpercentile(allv, 99))))
-                mats = _bucket_materials(bpy, f"lines{li}_", cm, alpha, strength=1.0)
+                mats = _bucket_materials(bpy, f"lines{li}_", cm, alpha, strength=2.5 if haze else 1.0)
                 bars.append(("lines", L.label or L.name, *rng, cm))
             else:
-                rng, mats = (0.0, 1.0), [_wisp_material(bpy, f"lines{li}", (0.05 ** 2.2, 0.75 ** 2.2, 1.0), alpha)]
+                rng, mats = (0.0, 1.0), [_wisp_material(bpy, f"lines{li}", (0.05 ** 2.2, 0.75 ** 2.2, 1.0), alpha,
+                                                        2.5 if haze else 1.2)]
             for m in mats:
                 cu.materials.append(m)
             _fill_curve(cu, P, S, rng[0], rng[1], len(mats), step=2)
@@ -846,8 +1014,9 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
     iso /= np.linalg.norm(iso)
 
     def camera_at(k):
-        """(location, target) of the camera at frame k."""
+        """(location, look-at point, body centre) of the camera at frame k."""
         target, Rb = body_at(k)
+        look = None
         if camera in ("chase", "chase_low") and camera_offset is not None:
             loc = target + Rb @ (B @ np.asarray(camera_offset, float))
         elif camera == "chase":
@@ -856,8 +1025,12 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
             fwd = travel(k)
             dl = 0.7 * chase_d                                 # closer than "chase": the body fills more of the frame
             loc = target - fwd * dl * 0.95 + np.cross([0.0, 0.0, 1.0], fwd) * 0.3 * dl + np.array([0, 0, -0.12 * dl])
-            if ground_z is not None:
-                loc[2] = max(loc[2], ground_z + 0.02 * dl + 0.05 * body_size)
+            if ground_z is not None:                           # stays low over the runway while the body climbs away
+                h = max(0.0, float(target[2] - ground_z))
+                loc[2] = ground_z + 0.02 * dl + 0.05 * body_size + 0.3 * h
+                dist = float(np.linalg.norm(target - loc))
+                # aim a little below the body so the horizon stays in frame (the body sits above the centre)
+                look = target - np.array([0, 0, min(0.45 * h, 0.5 * math.tan(half) * dist)])
         elif camera == "follow":
             loc = target + (B @ np.asarray(camera_offset, float) if camera_offset is not None else iso * chase_d)
         elif camera == "side":
@@ -867,7 +1040,8 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
         else:                                                  # fixed
             target = 0.5 * (s_lo + s_hi)
             loc = target + iso * 0.5 * extent / math.tan(half) * 0.8
-        return np.asarray(loc, float), np.asarray(target, float)
+        body = target if camera != "fixed" else body_at(k)[0]
+        return np.asarray(loc, float), np.asarray(target if look is None else look, float), np.asarray(body, float)
 
     # pass 1: keyframe the bodies and the camera at every rendered frame (Blender frame j + 1), so motion blur
     # sees the motion between frames
@@ -880,7 +1054,7 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
             e.rotation_quaternion = qB(tr["quaternions"][k])
             e.keyframe_insert("location", frame=f)
             e.keyframe_insert("rotation_quaternion", frame=f)
-        loc, target = camera_at(k)
+        loc, target, body = camera_at(k)
         q = Vector(tuple(target - loc)).to_track_quat("-Z", "Y")
         if q_prev is not None and q.dot(q_prev) < 0:
             q.negate()
@@ -888,27 +1062,31 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
         cam.location, cam.rotation_quaternion = Vector(tuple(loc)), q
         cam.keyframe_insert("location", frame=f)
         cam.keyframe_insert("rotation_quaternion", frame=f)
-        d = max(float(np.linalg.norm(target - loc)), 1e-6)
+        d = max(float(np.linalg.norm(body - loc)), 1e-6)       # focus on the body, not on the aim point
         if dof:
             cam_data.dof.focus_distance = d
             cam_data.dof.keyframe_insert("focus_distance", frame=f)
-        cams.append((loc, d))
-    dmax = max(d for _, d in cams)
-    cam_data.clip_start = max(min(d for _, d in cams) * 1e-3, 1e-5)
+        fwd = (target - loc) / max(float(np.linalg.norm(target - loc)), 1e-9)
+        cams.append((loc, d, fwd))
+    dmax = max(c[1] for c in cams)
+    cam_data.clip_start = max(min(c[1] for c in cams) * 1e-3, 1e-5)
     cam_data.clip_end = max(dmax * 1e3, 3 * extent + dmax)
 
     if haze:
-        C = np.array([c for c, _ in cams] + list(path))
-        dref = float(np.median([d for _, d in cams]))
+        C = np.array([c[0] for c in cams] + list(path))
+        dref = float(np.median([c[1] for c in cams]))
         pad = np.array([20 * dref, 20 * dref, 0.0])
         lo = C.min(0) - pad
         hi = C.max(0) + pad
         lo[2] = (ground_z if ground_z is not None else C[:, 2].min() - 5 * dref) - 0.01 * dref
         hi[2] = C[:, 2].max() + 8 * dref
-        _haze(bpy, bs, lo, hi, float(haze) / (10 * dref), blob=4 * dref)
+        _haze(bpy, bs, lo, hi, float(haze) / (10 * dref), blob=4 * dref, clear_obj=empties.get(fg),
+              clear=(1.2 * dref, 5.0 * dref))                  # clear around the body: it and nearby lines stay crisp
 
     pngs = []
     for j, k in enumerate(ks):
+        if _render_mask is not None and not _render_mask[j]:
+            continue
         bs.frame_set(j + 1)
         for vs, i, (shaft, head), m, L in arrows:
             o, v = vs["origins"][k, i], vs["vectors"][k, i]
@@ -926,14 +1104,22 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
             head.location, head.rotation_quaternion, head.scale = Vector(tuple(o + u * (n - h))), q, (2.6 * r, 2.6 * r, h)
             if vs["values"] is not None and vs["range"] is not None:
                 lo, hi = vs["range"]
-                c = _lin(cmap_color(vs.get("cmap", "jet"), (vs["values"][k, i] - lo) / ((hi - lo) or 1)))
+                tt = (vs["values"][k, i] - lo) / (hi - lo) if hi - lo > 1e-12 else 0.5      # no range: neutral
+                c = _lin(cmap_color(vs.get("cmap", "jet"), tt))
                 b = m.node_tree.nodes["Principled BSDF"]
                 b.inputs["Base Color"].default_value = (*c, 1)
                 b.inputs["Emission Color"].default_value = (*c, 1)
-        for ob, tr, P, rng, nb in trail_objs:
-            vals = tr.get("values")
-            _fill_curve(ob.data, [P[:k + 1]], None if vals is None else [vals[:k + 1]],
-                        *(rng or (0.0, 1.0)), nb, step=1)
+        for ob, ti, P, r, sec in trail_objs:
+            idx, fade = anim.trail_window(ti, k, sec)
+            # a trail never runs through the camera: keep only its newest run of points at least 0.8 x the body
+            # distance in front of it; where it was cut, it fades out over what is left
+            cl, cd, cf = cams[j]
+            ahead = (P[idx] - cl) @ cf > 0.8 * cd
+            n_keep = len(idx) if ahead.all() else int(np.argmin(ahead[::-1]))
+            if n_keep < len(idx):
+                idx, fade = idx[len(idx) - n_keep:], fade[len(fade) - n_keep:] * np.linspace(0.0, 1.0, n_keep)
+            vals = anim.trails[ti].get("values")
+            _set_tube(ob.data, P[idx], np.zeros(len(idx)) if vals is None else vals[idx], fade, r)
         for sf, at, order, me in afields:
             vals = np.asarray(sf["values"][k], float)
             vals = np.where(np.isfinite(vals), vals, sf["range"][0])
@@ -958,7 +1144,27 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
             log(f"rendered {j + 1}/{len(ks)} frames")
     out = {"frames": pngs, "mp4": None, "gif": None}
     if mp4 and pngs:
-        out["mp4"] = _encode(pngs, os.path.join(out_dir, f"{name}.mp4"), fps)
+        out["mp4"] = _encode(pngs, os.path.join(out_dir, f"{name}.mp4"), fps, crf=crf)
     if gif and pngs:
         out["gif"] = _encode(pngs, os.path.join(out_dir, f"{name}.gif"), fps, gif=True)
     return out
+
+
+def render_still(scene, out_png: str, frame: int, *, size: tuple[int, int] = (1920, 1080), samples: int = 64,
+                 **kw) -> str:
+    """One high-quality frame of ``scene.animation`` (frame index ``frame``) as a PNG at ``out_png``; takes every
+    option of :func:`render_animation` (camera, dof, motion_blur, haze, hud_keys, sparkline, trails, lines, ...).
+    With motion blur the neighbouring frames are keyframed too, so the blur is that of the clip."""
+    import shutil as _sh
+    anim = scene.animation
+    if anim is None:
+        raise ValueError("scene.animation is None")
+    k = int(frame) % anim.n_frames
+    ks = [x for x in (k - 1, k, k + 1) if 0 <= x < anim.n_frames]
+    tmp = tempfile.mkdtemp()
+    kw = {**kw, "mp4": False, "gif": False}
+    r = render_animation(scene, tmp, frames=ks, size=size, samples=samples, _render_mask=[x == k for x in ks], **kw)
+    os.makedirs(os.path.dirname(os.path.abspath(out_png)) or ".", exist_ok=True)
+    _sh.move(r["frames"][0], out_png)
+    _sh.rmtree(tmp, ignore_errors=True)
+    return out_png

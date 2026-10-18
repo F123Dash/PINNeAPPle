@@ -233,7 +233,7 @@ function buildAnimation(gltf) {
     const M = vs.origins[0].length;
     let L = 0; for (const fr of vs.vectors) for (const v of fr) L = Math.max(L, Math.hypot(v[0], v[1], v[2]));
     L = L || 1;
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0, color: 0xffffff });
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0, color: 0xffffff, envMapIntensity: 0.5, toneMapped: false });
     const shaftGeo = new THREE.CylinderGeometry(1, 1, 1, 10).translate(0, 0.5, 0), headGeo = new THREE.ConeGeometry(1, 1, 14).translate(0, 0.5, 0);
     const shaft = new THREE.InstancedMesh(shaftGeo, mat, M), head = new THREE.InstancedMesh(headGeo, mat, M);
     shaft.frustumCulled = head.frustumCulled = false;
@@ -243,14 +243,15 @@ function buildAnimation(gltf) {
     A.arrows.push({ vs, shaft, head, L, r: 0.022 * L, h: 0.22 * L, stops: core.cmapStops(vs.cmap) });
   }
   for (const tr of an.trails) {
-    const P = new Float32Array(tr.points.length * 3); tr.points.forEach((p, i) => ax(p).toArray(P, 3 * i));
+    const n = tr.points.length, P = new Float32Array(n * 3); tr.points.forEach((p, i) => ax(p).toArray(P, 3 * i));
     const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(P, 3));
-    const mat = new THREE.LineBasicMaterial({ color: tr.values ? 0xffffff : new THREE.Color(tr.color || "#f59e0b"), vertexColors: !!tr.values,
-      transparent: (tr.alpha ?? 1) < 1, opacity: tr.alpha ?? 1 });
-    if (tr.values) {                                          // coloured point by point (e.g. the load factor)
-      const v = Float32Array.from(tr.values, (x) => (x === null ? NaN : x)), [lo, hi] = tr.range || core.autoRange(v, "full");
-      geo.setAttribute("color", new THREE.BufferAttribute(core.colorArray(v, lo, hi, core.cmapStops(tr.cmap)), 3));
-    }
+    // RGBA per point: colour from the values (e.g. the load factor) or the trail colour; alpha set per frame (fade)
+    const rgb = tr.values
+      ? core.colorArray(Float32Array.from(tr.values, (x) => (x === null ? NaN : x)), ...(tr.range || core.autoRange(tr.values, "full")), core.cmapStops(tr.cmap))
+      : (() => { const c = new THREE.Color(tr.color || "#f59e0b"), a = new Float32Array(3 * n); for (let i = 0; i < n; i++) c.toArray(a, 3 * i); return a; })();
+    const rgba = new Float32Array(4 * n); for (let i = 0; i < n; i++) { rgba.set(rgb.subarray(3 * i, 3 * i + 3), 4 * i); rgba[4 * i + 3] = tr.alpha ?? 1; }
+    geo.setAttribute("color", new THREE.BufferAttribute(rgba, 4));
+    const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false });
     const line = new THREE.Line(geo, mat);
     line.frustumCulled = false; model.add(line); A.trails.push({ tr, line }); A.paths.push(tr.points);
   }
@@ -287,13 +288,13 @@ function applyFrame(f) {
       a.shaft.setMatrixAt(i, _m.compose(o, _q, _s.set(r, len - h, r)));
       a.head.setMatrixAt(i, _m.compose(_p.copy(o).addScaledVector(d, len - h), _q, _s.set(2.6 * r, h, 2.6 * r)));
       if (vs.values) {
-        const c = sRGB(core.ramp(a.stops, (core.lerp(vs.values[k0][i], vs.values[k1][i], w) - lo) / ((hi - lo) || 1)));
+        const c = sRGB(core.ramp(a.stops, hi - lo > 1e-12 ? (core.lerp(vs.values[k0][i], vs.values[k1][i], w) - lo) / (hi - lo) : 0.5));
         a.shaft.setColorAt(i, c); a.head.setColorAt(i, c);
       }
     }
     for (const m of [a.shaft, a.head]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
-  for (const { tr, line } of A.trails) { line.geometry.setDrawRange(0, Math.max(1, Math.min(tr.points.length, k0 + 1 + (w > 0 ? 1 : 0)))); line.visible = A.vectors; }
+  A.trailLast = Math.min(an.times.length - 1, k0 + (w > 0 ? 1 : 0)); updateTrails();
   for (const { fd, o, n } of A.fields) {
     const v0 = fd.values[k0], v1 = fd.values[k1], v = new Float32Array(n);
     for (let i = 0; i < n; i++) v[i] = core.lerp(v0[i], v1[i], w) ?? NaN;
@@ -301,6 +302,24 @@ function applyFrame(f) {
   }
   if (A.follow) chase();
   hud();
+}
+
+// trails: the last trail_seconds behind the body, fading out; never running through the camera (only the newest
+// points at least 0.8 x the camera-target distance in front of the camera, fading out where cut). Called every frame.
+const _cf = new THREE.Vector3(), _cp = new THREE.Vector3();
+function updateTrails() {
+  if (!A.trails.length || A.trailLast === undefined) return;
+  const an = META.animation, last = A.trailLast;
+  camera.getWorldDirection(_cf); const dmin = 0.8 * camera.position.distanceTo(controls.target);
+  for (const { tr, line } of A.trails) {
+    const L = Math.min(tr.points.length - 1, last), [j0, fade] = core.trailWindow(an.times, L, tr.seconds, tr.fade, A.t);
+    const pos = line.geometry.attributes.position.array, col = line.geometry.attributes.color;
+    let j = L;                                                // newest run of points ahead of the camera
+    while (j > j0 && _cp.fromArray(pos, 3 * (j - 1)).sub(camera.position).dot(_cf) > dmin) j--;
+    const cut = j > j0, n = L - j + 1;
+    for (let i = j; i <= L; i++) col.array[4 * i + 3] = (tr.alpha ?? 1) * fade(i) * (cut ? (i - j) / Math.max(1, n - 1) : 1);
+    col.needsUpdate = true; line.geometry.setDrawRange(j, Math.max(1, n)); line.visible = A.vectors;
+  }
 }
 
 // chase camera: follows the body's translation (and its rotation when follow_frame is "body"); orbiting still works
@@ -350,7 +369,7 @@ function animBar() {
   $("#aspeed").onchange = (e) => (A.speed = +e.target.value);
   if ($("#afollow")) $("#afollow").onchange = (e) => setFollow(e.target.checked);
   if ($("#avec")) $("#avec").onchange = (e) => { A.vectors = e.target.checked; applyFrame(A.f); };
-  const bars = [...an.vectors.filter((v) => v.values && v.range).map((v) => [v.label || v.name, v.range, v.cmap]),
+  const bars = [...an.vectors.filter((v) => v.values && v.range && v.range[1] - v.range[0] > 1e-12).map((v) => [v.label || v.name, v.range, v.cmap]),
     ...(an.trails || []).filter((t) => t.values && t.range).map((t) => [t.label || t.name, t.range, t.cmap]),
     ...an.fields.map((f) => [f.label || f.surface, f.range, f.cmap])];
   if (bars.length) { $("#alegend").innerHTML = bars.map(([t, [lo, hi], c]) => core.colorbarHTML({ title: t, lo, hi, width: 220, stops: core.cmapStops(c) })).join('<div style="height:8px"></div>'); $("#alegend").style.display = "block"; }
@@ -385,6 +404,6 @@ let tPrev = performance.now();
     A.t += dt * A.speed; if (A.t > t1) A.t = t0 + ((A.t - t0) % ((t1 - t0) || 1));
     applyFrame(core.frameAt(T, A.t));
   }
-  controls.update(); clip(); renderer.render(scene, camera); requestAnimationFrame(loop);
+  controls.update(); clip(); if (A.on) updateTrails(); renderer.render(scene, camera); requestAnimationFrame(loop);
 })();
 main().catch((e) => { $("#load").textContent = "Could not load the scene: " + e.message; });

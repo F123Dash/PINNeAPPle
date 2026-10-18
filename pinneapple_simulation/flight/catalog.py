@@ -234,7 +234,11 @@ def regional_turboprop() -> Aircraft:
 
     def parts():
         import pinneapple as pp
-        return pp.geometries.build("turboprop_atr72").bodies
+        from pinneapple_tools.visualization.studio.scene import MATERIALS
+        g = pp.geometries.build("turboprop_atr72")
+        for k, v in g.spec.material_table().items():                 # the entry's livery, de-icing boots, tyres
+            MATERIALS.setdefault(k, v)
+        return g.bodies
 
     info = {"published": {"atr72_600": SOURCES["atr72_600"]},
             "assumptions": ["take-off mass 23,000 kg, normal take-off power 2 x 2,475 shp (published, see sources)",

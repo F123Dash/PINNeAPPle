@@ -197,11 +197,16 @@ render_animation(sc, "frames/", camera="chase", samples=16, gif=True)   # Cycles
   `"coolwarm"` / `"bwr"` (neutral midpoint, range symmetric about zero by default); the viewer and the Blender
   colour bars use the same stops (`compose.CMAPS`, `studio-core.js` `CMAPS`).
 - **Cinematic clips:** `render_animation(sc, "frames/", camera="chase_low", motion_blur=True, dof=5.6, haze=1.0,
-  sparkline="nz", hud_keys=["V", "nz"], trails={"alpha": 0.7}, colorbars={"lines": False}, exposure=-0.3)`.
-  Motion blur keyframes the bodies and the camera at every rendered frame; `dof` is the f-stop, focused on the
-  tracked body; `haze` is a noise-modulated volume (optical depth over ten camera distances) and costs time: one
-  720x405 frame at 12 samples took 6.6 s without and 16.8 s with `haze=1.0` on 4 shared CPU cores (setup included).
-  The scene's static Lines are drawn as translucent glowing tubes; trails grow frame by frame (0.004 x the body size).
+  sparkline="nz", hud_keys=["V", "nz"], trails={"alpha": 0.7}, colorbars={"lines": False}, crf=27)` and
+  `render_still(sc, "still.png", frame, size=(1920, 1080), samples=64, ...)` (same options, one frame).
+  Motion blur uses a shutter in scene seconds (default 1/30 s) and keyframes the bodies and the camera, so the
+  ground blurs and the tracked body stays sharp; `dof` is the f-stop, focused on the tracked body; `haze` is a
+  noise-modulated volume (optical depth over ten camera distances) that thins out near the tracked body. Imported
+  meshes are smooth-shaded with sharp edges above 35 degrees; materials named `asphalt` and `grass` become
+  procedural (colour patches, roughness variation, bump) and `marking` surfaces are lifted so the paint stays crisp.
+  Trails show the last `trail_seconds` (default 8 s) of the path, 0.003 x the body size thick, fading to
+  transparent at the tail and never running through the camera. Materials missing from `MATERIALS` and
+  `scene.materials` render grey and are named in the log: put a model's own material table in `scene.materials`.
 - **Panels:** `compose.compose_grid(pngs, "grid.png", labels=..., ncols=2, colorbar=(title, lo, hi, cmap))` and
   `compose.compose_grid_video(mp4s, "grid.mp4", labels=..., colorbar=..., crf=28, webm=True)` (ffmpeg `xstack`,
   H.264 yuv420p, optional VP9) put several clips side by side with one common colour bar.

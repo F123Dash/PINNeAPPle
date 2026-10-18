@@ -267,3 +267,46 @@ def test_blender_cinematic_render(tmp_path):
                          hud_keys=["V", "nz"], trails={"alpha": 0.6}, colorbars={"lines": False})
     assert len(r["frames"]) == 2 and Image.open(r["frames"][0]).size == (64, 36)
     assert r["mp4"] and os.path.getsize(r["mp4"]) > 0
+
+
+# ---------------------------------------------------------------------- trail window, scene materials, stills
+def test_trail_window_and_fade():
+    an = Animation(np.arange(20.0))
+    an.add_trail("p", np.c_[np.arange(20.0), np.zeros(20), np.zeros(20)], trail_seconds=4.0, alpha=0.8)
+    idx, fade = an.trail_window(0, 10)
+    assert idx.tolist() == [6, 7, 8, 9, 10] and fade[-1] == 1.0 and fade[0] == 0.0     # 4 s behind, fading out
+    assert np.all(np.diff(fade) > 0)
+    assert an.trail_window(0, 2)[0].tolist() == [0, 1, 2]                               # clipped at the start
+    assert an.trail_window(0, 10, seconds=1.0)[0].tolist() == [9, 10]
+    d = an.to_dict()["trails"][0]
+    assert (d["seconds"], d["fade"], d["alpha"]) == (4.0, True, 0.8)
+    b = Animation.from_dict(json.loads(json.dumps(an.to_dict())))
+    assert b.trail_window(0, 10)[0].tolist() == idx.tolist()
+    an.add_trail("all", np.zeros((20, 3)), trail_seconds=None, fade=False)
+    assert an.trail_window(1, 10)[0].tolist() == list(range(11)) and np.all(an.trail_window(1, 10)[1] == 1)
+
+
+def test_scene_materials_override_and_unknown():
+    V, F = _cube()
+    sc = Scene([Surface("a", V, F, "my_paint"), Surface("b", V, F, "grey")])
+    assert sc.unknown_materials() == ["my_paint"]
+    sc.materials["my_paint"] = {"color": [0.9, 0.1, 0.1], "metallic": 0.0, "roughness": 0.3, "clearcoat": 1.0}
+    assert sc.unknown_materials() == []
+    import struct
+    glb = sc.to_glb()
+    js = json.loads(glb[20:20 + struct.unpack("<I", glb[12:16])[0]])
+    m = next(x for x in js["materials"] if x["name"] == "my_paint")
+    assert m["pbrMetallicRoughness"]["baseColorFactor"][0] == pytest.approx(0.9 ** 2.2, abs=1e-4)
+    assert "KHR_materials_clearcoat" in m["extensions"]
+
+
+@pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
+def test_blender_render_still(tmp_path):
+    from PIL import Image
+
+    from pinneapple_tools.visualization.studio.blender import render_still
+    sc = _cinematic_scene()
+    sc.surfaces[0].material = "asphalt"                           # procedural ground material path
+    out = render_still(sc, str(tmp_path / "still.png"), 3, size=(64, 36), samples=1, camera="chase_low",
+                       motion_blur=True, dof=4.0)
+    assert Image.open(out).size == (64, 36)

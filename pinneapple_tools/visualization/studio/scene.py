@@ -107,6 +107,7 @@ class Scene:
     title: str = "PINNeAPPle scene"
     labels: Dict[str, str] = field(default_factory=dict)     # field name -> label with unit (for colour bars)
     lighting: Optional[Dict[str, Any]] = None                 # a lighting preset for the browser viewer (see .lighting)
+    materials: Dict[str, Dict[str, Any]] = field(default_factory=dict)   # extra / overriding entries of MATERIALS
     animation: Any = None                                     # an .animation.Animation (tracks, arrows, HUD per frame)
 
     # ------------------------------------------------------------------ construction
@@ -229,6 +230,11 @@ class Scene:
         self.lighting = threejs_config(preset)
         return self
 
+    def unknown_materials(self) -> List[str]:
+        """Material names of the surfaces found neither in ``MATERIALS`` nor in ``self.materials`` (they export as
+        plain grey)."""
+        return sorted({s.material for s in self.surfaces} - set(MATERIALS) - set(self.materials))
+
     def n_faces(self) -> int:
         return int(sum(len(s.faces) for s in self.surfaces))
 
@@ -262,11 +268,11 @@ class Scene:
         return path
 
     def to_glb(self, materials: Optional[Dict[str, Dict[str, Any]]] = None) -> bytes:
-        return write_glb(self.surfaces, AXES[self.axes], {**MATERIALS, **(materials or {})},
+        return write_glb(self.surfaces, AXES[self.axes], {**MATERIALS, **self.materials, **(materials or {})},
                          generator="PINNeAPPle pinneapple_tools.visualization.studio")
 
     def to_usda(self, materials: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
-        return write_usda(self.surfaces, {**MATERIALS, **(materials or {})}, self.title)
+        return write_usda(self.surfaces, {**MATERIALS, **self.materials, **(materials or {})}, self.title)
 
     def to_stl(self) -> bytes:
         return write_stl(self.surfaces, self.title)

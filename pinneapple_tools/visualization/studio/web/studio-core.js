@@ -211,3 +211,13 @@ export function hudLine(h, v) {
 // colour map stops by name ("jet", "coolwarm", "bwr"; anything else: jet)
 export const CMAPS = { jet: JET, coolwarm: COOLWARM, bwr: BWR };
 export const cmapStops = (name) => CMAPS[name] || JET;
+
+// first point index of a trail shown at frame `last` (its last `seconds`; null: all) and the opacity factor of point
+// i: 1 at the current time t, falling linearly to 0 at the tail end when `fade`
+export function trailWindow(times, last, seconds = null, fade = false, t = null) {
+  const tn = t === null ? times[last] : t;
+  let j0 = 0;
+  if (seconds !== null && seconds !== undefined) while (j0 < last && times[j0] < tn - seconds) j0++;
+  const span = seconds ?? ((tn - times[j0]) || 1);
+  return [j0, (i) => (fade ? Math.min(1, Math.max(0, 1 - (tn - times[i]) / span)) : 1)];
+}
