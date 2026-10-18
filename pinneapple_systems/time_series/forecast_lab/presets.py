@@ -16,7 +16,15 @@ from typing import Any
 
 from .. import synthetic as syn
 from .base import SeriesData
-from .baselines import ARForecaster, ARIMAForecaster, Climatology, ExponentialSmoothing, Persistence
+from .baselines import (
+    ARForecaster,
+    ARIMAForecaster,
+    Climatology,
+    ExponentialSmoothing,
+    Persistence,
+    PhaseClimatology,
+    SeasonalNaive,
+)
 from .hybrid import ResidualCorrectionForecaster, UDEForecaster
 from .learned import GBMForecaster, NeuralForecaster, PhysicsLossMLP
 from .physical import (
@@ -63,7 +71,9 @@ class Case:
 
 def baseline_specs(arima: bool = True) -> list[ModelSpec]:
     out = [ModelSpec("persistence", "baseline", Persistence), ModelSpec("climatology", "baseline", Climatology),
-           ModelSpec("ar", "baseline", ARForecaster), ModelSpec("exp_smoothing", "baseline", ExponentialSmoothing)]
+           ModelSpec("ar", "baseline", ARForecaster), ModelSpec("exp_smoothing", "baseline", ExponentialSmoothing),
+           ModelSpec("seasonal_naive", "baseline", SeasonalNaive),
+           ModelSpec("phase_climatology", "baseline", lambda **k: PhaseClimatology(**k), _grid(fit_cycles=[1, 3]))]
     if arima:
         out.append(ModelSpec("arima", "baseline", ARIMAForecaster))
     return out

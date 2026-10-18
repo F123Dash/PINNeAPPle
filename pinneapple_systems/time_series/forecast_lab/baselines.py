@@ -1,4 +1,5 @@
-"""Baselines every other forecaster must beat: persistence, climatology, AR(p), ARIMA and exponential smoothing."""
+"""Baselines every other forecaster must beat: persistence, climatology, AR(p), ARIMA, exponential smoothing, and
+for (near-)periodic series the seasonal-naive forecast and a phase-aligned mean cycle."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -8,7 +9,8 @@ import numpy as np
 from ..predictability import fit_ar
 from .base import Forecaster, train_end
 
-__all__ = ["Persistence", "Climatology", "ARForecaster", "ARIMAForecaster", "ExponentialSmoothing"]
+__all__ = ["Persistence", "Climatology", "ARForecaster", "ARIMAForecaster", "ExponentialSmoothing", "dominant_period",
+           "SeasonalNaive", "PhaseClimatology"]
 
 
 class Persistence(Forecaster):
@@ -177,3 +179,99 @@ class ExponentialSmoothing(Forecaster):
 
     def n_params(self):
         return 1
+
+
+def dominant_period(y, min_period: float = 2.0, max_frac: float = 0.25) -> float:
+    """Period (in samples) of the highest periodogram peak of ``y`` after removing the mean and a linear trend,
+    searched between ``min_period`` samples and ``max_frac`` of the series length."""
+    y = np.asarray(y, float)
+    t = np.arange(len(y))
+    y = y - np.polyval(np.polyfit(t, y, 1), t)
+    f = np.fft.rfftfreq(len(y))
+    p = np.abs(np.fft.rfft(y)) ** 2
+    ok = (f > 1.0 / (max_frac * len(y))) & (f <= 1.0 / min_period)
+    if not ok.any():
+        raise ValueError("series too short to estimate a period")
+    k = np.nonzero(ok)[0][np.argmax(p[ok])]
+    if 0 < k < len(p) - 1:                       # parabolic interpolation of the peak in log power
+        a, b, c = np.log(p[k - 1:k + 2] + 1e-300)
+        k = k + 0.5 * (a - c) / (a - 2 * b + c)
+    return float(1.0 / (k / len(y)))
+
+
+class SeasonalNaive(Forecaster):
+    """y_{t+h} = y_{t+h-kP} with k = ceil(h / P): the value one period (or the fewest whole periods) before the
+    target. ``period`` in samples; by default the dominant period of the training segment (rounded to an integer
+    number of samples)."""
+    name, family = "seasonal_naive", "baseline"
+
+    def __init__(self, period: float | None = None):
+        super().__init__()
+        self.period = period
+
+    def _fit(self, data, train_origins, val_origins):
+        P = self.period if self.period is not None else dominant_period(data.y[: train_end(train_origins,
+                                                                                            self.horizons)])
+        self.P_ = max(1, int(round(P)))
+        self.info = {"period": self.P_, "period_estimated": self.period is None}
+
+    def _predict_mean(self, data, origins):
+        h = self.horizons[None, :]
+        k = np.ceil(h / self.P_).astype(int)
+        idx = np.asarray(origins)[:, None] + h - k * self.P_
+        return data.y[np.maximum(idx, 0)]
+
+    def n_params(self):
+        return 1
+
+
+class PhaseClimatology(Forecaster):
+    """The mean cycle, aligned to the phase of each origin.
+
+    The training segment is folded at the (possibly non-integer) period P into ``round(P)`` phase bins to give a
+    mean cycle. At each origin the phase is re-estimated: the cycle offset that best fits the last
+    ``fit_cycles`` periods of observations in least squares (with a free mean) is taken, and the forecast is the
+    mean cycle continued from there. A near-periodic series whose phase drifts is thus followed; the amplitude and
+    shape are those of the average training cycle.
+    """
+    name, family = "phase_climatology", "baseline"
+
+    def __init__(self, period: float | None = None, fit_cycles: float = 1.0):
+        super().__init__()
+        self.period, self.fit_cycles = period, float(fit_cycles)
+
+    def _fit(self, data, train_origins, val_origins):
+        seg = data.y[: train_end(train_origins, self.horizons)]
+        self.P_ = float(self.period if self.period is not None else dominant_period(seg))
+        nb = max(2, int(round(self.P_)))
+        bins = np.floor((np.arange(len(seg)) % self.P_) / self.P_ * nb).astype(int) % nb
+        cyc = np.array([seg[bins == b].mean() if np.any(bins == b) else seg.mean() for b in range(nb)])
+        self.mean_ = float(seg.mean())
+        self.cycle_ = cyc - cyc.mean()
+        self.nb_ = nb
+        self.info = {"period": self.P_, "period_estimated": self.period is None, "n_bins": nb}
+
+    def _template(self, phase):
+        """Mean cycle at fractional phase (in cycles), periodic linear interpolation."""
+        x = (np.asarray(phase) % 1.0) * self.nb_
+        i0 = np.floor(x).astype(int) % self.nb_
+        w = x - np.floor(x)
+        return (1 - w) * self.cycle_[i0] + w * self.cycle_[(i0 + 1) % self.nb_]
+
+    def _predict_mean(self, data, origins):
+        origins = np.asarray(origins)
+        L = max(2, int(round(self.fit_cycles * self.P_)))
+        back = np.arange(-L + 1, 1)                               # last L samples, oldest first
+        idx = np.maximum(origins[:, None] + back[None, :], 0)
+        obs = data.y[idx]                                         # (n, L)
+        offs = np.linspace(0, 1, 4 * self.nb_, endpoint=False)    # candidate phases of the origin
+        T = self._template(offs[:, None] + back[None, :] / self.P_)   # (n_off, L)
+        Tc = T - T.mean(axis=1, keepdims=True)
+        oc = obs - obs.mean(axis=1, keepdims=True)
+        sse = (oc ** 2).sum(1)[:, None] - 2 * oc @ Tc.T + (Tc ** 2).sum(1)[None, :]
+        best = offs[np.argmin(sse, axis=1)]                       # (n,)
+        level = obs.mean(axis=1) - T[np.argmin(sse, axis=1)].mean(axis=1)
+        return level[:, None] + self._template(best[:, None] + self.horizons[None, :] / self.P_)
+
+    def n_params(self):
+        return self.nb_ + 1

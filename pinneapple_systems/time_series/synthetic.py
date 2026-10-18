@@ -29,7 +29,7 @@ import numpy as np
 
 __all__ = [
     "SyntheticSeries", "rk4_step", "lorenz63_rhs", "lorenz96_rhs", "mackey_glass_rhs", "double_well_drift",
-    "mackey_glass_step", "largest_lyapunov_benettin", "lorenz63", "lorenz96", "mackey_glass",
+    "mackey_glass_step", "largest_lyapunov_benettin", "mackey_glass_lyapunov", "lorenz63", "lorenz96", "mackey_glass",
     "ornstein_uhlenbeck", "stochastic_oscillator", "oscillator_transition", "double_well", "white_noise",
     "random_walk",
 ]
@@ -114,14 +114,33 @@ def largest_lyapunov_benettin(step: Callable[[np.ndarray], np.ndarray], x0: np.n
     for _ in range(int(transient)):
         x = step(x)
     v = rng.standard_normal(x.shape)
-    y = x + d0 * v / np.linalg.norm(v)
+    z = np.concatenate([x, x + d0 * v / np.linalg.norm(v)])        # both trajectories in one batched step
     total = 0.0
     for _ in range(int(n_steps)):
-        x, y = step(x), step(y)
-        d = float(np.linalg.norm(y - x))
+        z = step(z)
+        d = float(np.linalg.norm(z[1] - z[0]))
         total += np.log(d / d0)
-        y = x + (y - x) * (d0 / d)
+        z[1] = z[0] + (z[1] - z[0]) * (d0 / d)
     return total / (n_steps * step_time)
+
+
+def mackey_glass_lyapunov(*, dt_int: float = 0.1, total_time: float = 50000.0, transient_time: float = 2000.0,
+                          tau: float = 17.0, beta: float = 0.2, gamma: float = 0.1, n: float = 10.0,
+                          seed: int = 0) -> float:
+    """Largest Lyapunov exponent (per unit time, natural log) of the Mackey-Glass delay equation.
+
+    The state of a delay equation is its history on [t - tau, t]; here the tau / dt_int + 1 grid values. A random
+    perturbation of the whole history is followed with :func:`largest_lyapunov_benettin` (renormalised every
+    step, Euclidean norm over the grid) after a spin-up of 500 time units and a further ``transient_time``.
+    """
+    rng = np.random.default_rng(seed)
+    m = int(round(tau / dt_int))
+    hist = (1.2 + 0.05 * rng.standard_normal(m + 1))[None]
+    step = lambda h: mackey_glass_step(h, dt_int, beta, gamma, n)  # noqa: E731
+    for _ in range(int(500 / dt_int)):
+        hist = step(hist)
+    return largest_lyapunov_benettin(step, hist[0], step_time=dt_int, n_steps=int(total_time / dt_int),
+                                     transient=int(transient_time / dt_int), seed=seed)
 
 
 @dataclass
@@ -211,7 +230,7 @@ def lorenz96(n: int = 6000, *, K: int = 40, F: float = 8.0, dt: float = 0.05, su
 
 def mackey_glass(n: int = 6000, *, dt: float = 3.0, dt_int: float = 0.1, tau: float = 17.0, beta: float = 0.2,
                  gamma: float = 0.1, n_exp: float = 10.0, noise: float = 0.1, seed: int = 0,
-                 lyapunov_steps: int = 100000) -> SyntheticSeries:
+                 lyapunov_time: float = 50000.0) -> SyntheticSeries:
     """Mackey-Glass sampled every ``dt``, integrated with RK4 at ``dt_int`` (tau must be a multiple of dt_int)."""
     rng = np.random.default_rng(seed)
     m = int(round(tau / dt_int))
@@ -220,7 +239,8 @@ def mackey_glass(n: int = 6000, *, dt: float = 3.0, dt_int: float = 0.1, tau: fl
     step = lambda h: mackey_glass_step(h, dt_int, beta, gamma, n_exp)  # noqa: E731
     for _ in range(int(500 / dt_int)):
         hist = step(hist)
-    lam = largest_lyapunov_benettin(step, hist[0], step_time=dt_int, n_steps=lyapunov_steps, transient=0)
+    lam = mackey_glass_lyapunov(dt_int=dt_int, total_time=lyapunov_time, tau=tau, beta=beta, gamma=gamma, n=n_exp,
+                                seed=seed)
     out = np.empty(n)
     for i in range(n):
         out[i] = hist[0, -1]

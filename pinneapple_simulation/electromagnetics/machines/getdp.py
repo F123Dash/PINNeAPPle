@@ -325,3 +325,144 @@ def solve(geometry: MachineGeometry, theta: float, currents, steel, Br: float, m
     if not keep and workdir is None:
         shutil.rmtree(tmp, ignore_errors=True)
     return out
+
+
+# --------------------------------------------------------------------------------------------- 3-D end leakage
+def write_geo_3d(path, geometry: MachineGeometry, n_gap: int, layers_stack: int, end_air: float,
+                 layers_air: int) -> dict:
+    """The cross-section of :func:`write_geo` (rotor at angle 0) extruded over half the stack (``z`` from the
+    mid-stack plane to the end face) into prisms, plus an air extension of length ``end_air`` beyond the end face
+    (``end_air = 0``: none)."""
+    info = write_geo(Path(path).with_suffix(".2d.geo"), geometry, 0.0, n_gap)
+    text = Path(path).with_suffix(".2d.geo").read_text()
+    body = []
+    surf_of: dict[int, list[int]] = {}
+    for line in text.splitlines():
+        if line.startswith("Physical Surface("):
+            pid = int(line.split("(")[1].split(")")[0])
+            ids = [int(v) for v in line.split("{")[1].split("}")[0].split(",")]
+            surf_of[pid] = ids
+        elif not line.startswith("Physical Curve"):
+            body.append(line)
+    half = 0.5 * geometry.length
+    out = body[:]
+    vols: dict[int, list[str]] = {}
+    air_end = []
+    for pid, ids in surf_of.items():
+        for s in ids:
+            out.append(f"ex{s}[] = Extrude {{0, 0, {half:.12g}}} {{ Surface{{{s}}}; Layers{{{layers_stack}}}; "
+                       f"Recombine; }};")
+            vols.setdefault(pid, []).append(f"ex{s}[1]")
+            if end_air > 0:
+                out.append(f"ey{s}[] = Extrude {{0, 0, {end_air:.12g}}} {{ Surface{{ex{s}[0]}}; "
+                           f"Layers{{{layers_air}}}; Recombine; }};")
+                air_end.append(f"ey{s}[1]")
+    for pid, v in vols.items():
+        out.append(f"Physical Volume({pid}) = {{{', '.join(v)}}};")
+    if air_end:
+        out.append(f"Physical Volume(5) = {{{', '.join(air_end)}}};")
+    Path(path).write_text("\n".join(out) + "\n")
+    info["half_length"] = half
+    return info
+
+
+def write_pro_3d(path, info: dict, steel, Br: float, mu_r: float, stacking_factor: float, pole_half_angle: float,
+                 r_gap: tuple[float, float], with_end_air: bool) -> None:
+    """GetDP problem: magnetic scalar potential ``H = -grad(phi)``, ``div(mu H + Br) = 0``, nonlinear iron by Picard
+    iteration on the secant permeability (Newton on ``mu(h)`` diverges for this formulation),
+    natural boundaries (no flux through the shaft, outer and mid-stack surfaces), ``phi`` fixed at one node. Output:
+    the radial air-gap flux under pole 0 (volume integral of ``B_r`` over the gap divided by its radial thickness)."""
+    curve = steel.curve(stacking_factor)
+    h = np.concatenate([[0.0], np.logspace(-1, math.log10(float(curve.H[-1]) * 3), 300)])
+    b = np.interp(h, curve.H, curve.B)
+    beyond = h > curve.H[-1]
+    b[beyond] = curve.B[-1] + MU0 * (h[beyond] - curve.H[-1])
+    mu = np.where(h > 0, b / np.maximum(h, 1e-300), float(1.0 / curve.nu_init))
+    table = ", ".join(f"{x * x:.10g}, {y:.10g}" for x, y in zip(h, mu, strict=True))
+    mags = info["magnets"]
+    r1, r2 = r_gap
+    o = []
+    w = o.append
+    w("Group {")
+    w("  RotorIron = Region[1]; StatorIron = Region[2]; Air = Region[3]; Gap = Region[4];")
+    w(f"  Magnets = Region[{{{', '.join(str(100 + k) for k in mags)}}}];")
+    w(f"  Coils = Region[{{{', '.join(str(1000 + k) for k in info['slot_areas'])}}}];")
+    w(f"  EndAir = Region[{{{'5' if with_end_air else ''}}}];")
+    w("  Iron = Region[{RotorIron, StatorIron}];")
+    w("  DomainL = Region[{Air, Gap, Magnets, Coils, EndAir}]; DomainNL = Region[{Iron}];")
+    w("  Domain = Region[{DomainL, DomainNL}];")
+    w("}")
+    w("Function {")
+    w(f"  mu0 = {MU0:.17g};")
+    w("  mu[Region[{Air, Gap, Coils, EndAir}]] = mu0;")
+    w(f"  mu[Magnets] = mu0*{mu_r:.10g};")
+    w(f"  mu_fe[] = InterpolationAkima[$1]{{List[{{{table}}}]}};")
+    w("  mu[Iron] = mu_fe[SquNorm[$1]];")
+    for k, ang in mags.items():
+        w(f"  br[Region[{100 + k}]] = Vector[{Br * math.cos(ang):.12g}, {Br * math.sin(ang):.12g}, 0];")
+    w(f"  pole[] = (Fabs[Atan2[Y[], X[]]] < {pole_half_angle:.12g}) ? 1 : 0;")
+    w("}")
+    w("Constraint { { Name phi; Case { { Region RefNode; Value 0; } } } }")
+    w("Jacobian { { Name Vol; Case { { Region All; Jacobian Vol; } } } }")
+    w("Integration { { Name I1; Case { { Type Gauss; Case { { GeoElement Prism; NumberOfPoints 6; }"
+      " { GeoElement Tetrahedron; NumberOfPoints 4; } } } } } }")
+    w("FunctionSpace { { Name H1_phi; Type Form0;")
+    w("  BasisFunction { { Name sn; NameOfCoef phin; Function BF_Node; Support Domain; Entity NodesOf[All]; } }")
+    w("  Constraint { { NameOfCoef phin; EntityType NodesOf; NameOfConstraint phi; } } } }")
+    w("Formulation { { Name MagSta_phi; Type FemEquation;")
+    w("  Quantity { { Name phi; Type Local; NameOfSpace H1_phi; } }")
+    w("  Equation {")
+    w("    Galerkin { [ mu[-{d phi}] * Dof{d phi}, {d phi} ]; In Domain; Jacobian Vol; Integration I1; }")
+    w("    Galerkin { [ -br[], {d phi} ]; In Magnets; Jacobian Vol; Integration I1; }")
+    w("  } } }")
+    w("Resolution { { Name MagSta; System { { Name A; NameOfFormulation MagSta_phi; } }")
+    w("  Operation { InitSolution[A]; IterativeLoop[400, 1e-7, 1]{ GenerateJac[A]; SolveJac[A]; } SaveSolution[A]; } } }")
+    w("PostProcessing { { Name Post; NameOfFormulation MagSta_phi; Quantity {")
+    w("  { Name b; Value { Term { [ -mu[-{d phi}] * {d phi} ]; In DomainL; Jacobian Vol; } } }")
+    w(f"  {{ Name flux; Value {{ Integral {{ [ pole[] * (-mu[-{{d phi}}]*(CompX[{{d phi}}]*X[] + CompY[{{d phi}}]*Y[])"
+      f" / Sqrt[X[]^2 + Y[]^2]) / {r2 - r1:.12g} ]; In Gap; Jacobian Vol; Integration I1; }} }} }}")
+    w("} } }")
+    w("PostOperation { { Name Out; NameOfPostProcessing Post; Operation {")
+    w('  Print[ flux[Gap], OnGlobal, Format Table, File "flux.txt" ];')
+    w("} } }")
+    Path(path).write_text("\n".join(o) + "\n")
+
+
+def end_leakage_3d(geometry: MachineGeometry, steel, Br: float, mu_r: float, n_gap: int = 240,
+                   layers_stack: int = 6, end_air: float = 0.04, layers_air: int = 6, workdir=None,
+                   timeout: float = 3600.0) -> dict:
+    """No-load air-gap flux under a pole of the 3-D half stack with an air region beyond the end face, divided by the
+    same model without it (identical mesh in the stack: the 2-D field extruded). Returns both fluxes, the ratio, and
+    the element counts and times."""
+    if not available():
+        raise GmshGetDPError("gmsh and getdp executables are required")
+    tmp = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="getdp3d_"))
+    tmp.mkdir(parents=True, exist_ok=True)
+    out = {}
+    for label, ea in (("end_air", end_air), ("extruded_2d", 0.0)):
+        d = tmp / label
+        d.mkdir(exist_ok=True)
+        info = write_geo_3d(d / "m.geo", geometry, n_gap, layers_stack, ea, layers_air)
+        # reference node for phi: append one physical point (the first geometry point)
+        with open(d / "m.geo", "a") as f:
+            f.write("Physical Point(20) = {1};\n")
+        t0 = time.perf_counter()
+        r = subprocess.run(["gmsh", "-3", "m.geo", "-format", "msh22", "-o", "m.msh", "-v", "2"], cwd=d,
+                           capture_output=True, text=True, timeout=timeout)
+        if r.returncode or not (d / "m.msh").exists():
+            raise GmshGetDPError("gmsh failed: " + r.stderr[-2000:] + r.stdout[-2000:])
+        pro = d / "m.pro"
+        write_pro_3d(pro, info, steel, Br, mu_r, geometry.stacking_factor, math.pi / geometry.rotor.poles,
+                     (geometry.rotor.r_out, geometry.stator.r_in), ea > 0)
+        pro.write_text(pro.read_text().replace("Group {", "Group {\n  RefNode = Region[20];", 1))
+        t1 = time.perf_counter()
+        r = subprocess.run(["getdp", "m.pro", "-msh", "m.msh", "-solve", "MagSta", "-pos", "Out", "-v", "3"], cwd=d,
+                           capture_output=True, text=True, timeout=timeout)
+        if r.returncode or not (d / "flux.txt").exists():
+            raise GmshGetDPError("getdp failed: " + r.stderr[-3000:] + r.stdout[-3000:])
+        lines = (d / "m.msh").read_text().split("$Elements\n")[1].split("$EndElements")[0].splitlines()[1:]
+        out[label] = {"flux": _last_number(d / "flux.txt"), "prisms": sum(1 for ln in lines if ln.split()[1] == "6"),
+                      "mesh_s": t1 - t0, "solve_s": time.perf_counter() - t1}
+    out["ratio"] = out["end_air"]["flux"] / out["extruded_2d"]["flux"]
+    out["workdir"] = str(tmp)
+    return out

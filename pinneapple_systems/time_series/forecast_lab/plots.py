@@ -84,7 +84,7 @@ def plot_overfitting(studies: Sequence[dict], path: str) -> str:
     """Per series: train, validation and test error of every training variant (bars), and the cross-validation
     estimates of each scheme (markers) for the variants where they were computed."""
     plt = _plt()
-    fig, axes = plt.subplots(len(studies), 1, figsize=(10, 3.2 * len(studies)), squeeze=False)
+    fig, axes = plt.subplots(len(studies), 1, figsize=(12, 3.4 * len(studies)), squeeze=False)
     cols = {"train": "#9ec5f0", "val": "#2a78d6", "test": "#0b3d7a"}
     marks = {"shuffled_kfold": ("v", "#e34948"), "walk_forward_no_purge": ("s", "#eda100"),
              "purged_walk_forward": ("o", "#1baf7a"), "purged_kfold": ("D", "#6250d6")}
@@ -107,7 +107,7 @@ def plot_overfitting(studies: Sequence[dict], path: str) -> str:
         ax.set_ylabel("RMSE / RMSE persistence", fontsize=8, color=_MUTED)
         ax.axhline(1, color=_MUTED, lw=1, ls="--")
         ax.set_title(st["series"], fontsize=9, color=_INK)
-        ax.legend(fontsize=6, frameon=False, ncol=4, loc="upper left")
+        ax.legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     fig.tight_layout()
     fig.savefig(path, dpi=110)
     plt.close(fig)
@@ -161,26 +161,30 @@ def plot_pit(entries: list[dict], path: str, *, ncols: int = 4) -> str:
 
 
 def plot_fan_charts(panels: list[dict], path: str, *, ncols: int = 2) -> str:
-    """Forecast fans on the test period. Each panel: ``title``, ``t_hist``/``y_hist`` (observed before the origin),
-    ``t_future``/``y_future`` (what happened), ``horizons_t`` and ``quantiles`` (5 x n_h: 5, 25, 50, 75, 95 %)."""
+    """Forecast distributions on the test period, drawn only at the evaluated horizons: a marker at the median and
+    error bars for the central 50 % (thick) and 90 % (thin) intervals, with no line joining the horizons (the
+    forecasts are direct, made for those horizons only). Each panel: ``title``, ``t_hist``/``y_hist`` (observed up
+    to the origin), ``t_future``/``y_future`` (what happened), ``horizons_t`` and ``quantiles`` (5 x n: 5, 25, 50,
+    75, 95 %); a first column equal to the origin value is skipped."""
     plt = _plt()
     nrows = int(np.ceil(len(panels) / ncols))
-    fig, axes = plt.subplots(nrows, ncols, figsize=(5.2 * ncols, 2.5 * nrows), squeeze=False)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5.2 * ncols, 2.7 * nrows), squeeze=False)
     for ax, p in zip(axes.ravel(), panels, strict=False):
         _style(ax)
         c = FAMILY_COLORS.get(p.get("family"), "#2a78d6")
-        q = np.asarray(p["quantiles"])
-        ht = np.asarray(p["horizons_t"])
-        ax.fill_between(ht, q[0], q[4], color=c, alpha=0.18, lw=0, label="90 % interval")
-        ax.fill_between(ht, q[1], q[3], color=c, alpha=0.35, lw=0, label="50 % interval")
-        ax.plot(ht, q[2], color=c, lw=2, marker="o", ms=3, label="median (at the forecast horizons)")
-        ax.plot(p["t_hist"], p["y_hist"], color=_MUTED, lw=1.2, label="observed")
-        ax.plot(p["t_future"], p["y_future"], color=_INK, lw=1.2, ls=":", label="truth (test)")
+        q = np.asarray(p["quantiles"])[:, 1:]
+        ht = np.asarray(p["horizons_t"])[1:]
+        ax.plot(p["t_hist"], p["y_hist"], color=_MUTED, lw=1.0, label="observed")
+        ax.plot(p["t_future"], p["y_future"], color=_INK, lw=0.9, ls=":", label="truth (test)")
+        ax.vlines(ht, q[0], q[4], color=c, lw=1.2, alpha=0.6, label="90 % interval")
+        ax.vlines(ht, q[1], q[3], color=c, lw=4.0, alpha=0.8, label="50 % interval")
+        ax.scatter(ht, q[2], color="white", edgecolor=c, s=26, zorder=4, lw=1.5, label="median")
         ax.set_title(p["title"], fontsize=8, color=_INK)
-        ax.legend(fontsize=6, frameon=False, ncol=3, loc="upper left")
+    handles, labels = axes.ravel()[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=5, fontsize=8, frameon=False)
     for ax in axes.ravel()[len(panels):]:
         ax.axis("off")
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(path, dpi=110)
     plt.close(fig)
     return path
