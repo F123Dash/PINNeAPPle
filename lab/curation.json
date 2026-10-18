@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18 16:40 UTC",
+ "generated": "2026-10-18 16:42 UTC",
  "experiments": {
   "accretion_flow": {
    "tier": "B",
@@ -17007,7 +17007,9 @@
     "check": "drag_vs_wind_tunnel",
     "missing": "",
     "label": "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)",
-    "label_pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)"
+    "label_pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)",
+    "label_short": "drag vs wind tunnel (Ahmed 1984)",
+    "label_short_pt": "arrasto vs t\u00fanel de vento (Ahmed 1984)"
    },
    "plan": {
     "limitations": [
@@ -61654,7 +61656,9 @@
     "check": "drag_vs_wind_tunnel",
     "missing": "",
     "label": "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)",
-    "label_pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)"
+    "label_pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)",
+    "label_short": "drag vs wind tunnel (Ahmed 1984)",
+    "label_short_pt": "arrasto vs t\u00fanel de vento (Ahmed 1984)"
    },
    "tier_name": "flagship"
   },

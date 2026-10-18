@@ -1,6 +1,6 @@
 # PINNeAPPle Lab catalogue
 
-208 runs, generated 2026-10-18 16:40.
+208 runs, generated 2026-10-18 16:42.
 
 | experiment | runs | completed | failed validation | failed | datasets (samples) |
 |---|---|---|---|---|---|
