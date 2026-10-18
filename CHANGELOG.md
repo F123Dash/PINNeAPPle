@@ -21,6 +21,36 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   the magnets), and `magnet_temperature_sweep` (MTPA torque, back-EMF, L_d, L_q against the magnet temperature).
   Example `examples/electrodynamics/13_prius_thermal.py` (WLTC x 4 temperatures, peak-load time to 180 degC,
   demagnetisation maps), tests `tests/test_emachine_thermal.py`.
+- Design from intent (`pinneapple_design.intent`, `pp.design`): a goal in
+  plain language becomes a `RequirementSpec` (values with units checked by `physical_units`, each stated, answered,
+  defaulted with its source or missing; follow-up questions for missing critical values; an optional LLM behind
+  `IntentLLM` whose values must be quoted from the text), a `PhysicsPlan` from a registry of problem templates, a
+  multi-fidelity optimisation (closed-form screening, the design-study core on the reduced model or its GP surrogate,
+  the full solver on the chosen design, calls and wall time per fidelity), a Monte-Carlo robustness study, a trust
+  report and a verdict, and a `DesignPackage` (STEP / STL / glTF, bill of materials with cited properties, operating
+  window, build instructions, limits, `report.html` / `report.pdf`, `pinneapple check` inputs). Templates: toy car
+  loop-the-loop (energy balance, 1-D along-track ODE, Newton), angle bracket (beam theory, hexahedral FE, CalculiX),
+  plate-fin heat sink (the heat-sink sizer physics and its finite-volume base model), model glider wing (lifting
+  line, vortex lattice); out-of-scope requests are refused with what would be needed. `materials` holds the cited
+  material properties; `templates/example_spring.py` is the template-authoring example.
+- Design from intent from a shell and from agents: `pinneapple design "<goal>"` (`--answer slot=value`, `--out`,
+  `--templates`) and the MCP tool `design` (questions and refusals at once, the design as a job). Example
+  `examples/design_from_intent/design_from_intent.py` runs the five demos (loop car, bracket, heat sink, glider wing,
+  an out-of-scope motor) with their reports, geometry and figures in `_out/`; guide
+  `docs/guides/design_from_intent.md` with the template-authoring section.
+- `plate_fin_heatsink.evaluate` takes the starting fin-root temperature (`t_root_guess_c`): with `max_iter=1` the
+  convection coefficient is evaluated once at that temperature (a hand calculation).
+- 3-D case in the Surrogate Studio (day 14): the ROM Lab's solid FEM cantilever as a field dataset
+  (`pinneapple_analysis.surrogate.from_snapshots` / `snapshot_values` for snapshots on a node lattice). The page shows
+  held-out errors per field, per zone and on the tip displacement and the largest stress
+  (`pinneapple_analysis.surrogate.heldout`). It also shows the speed-up against a FEM solve timed on the machine,
+  and any held-out design on its body (surrogate, FEM, error) with the hosted endpoint's OOD gate verdict for it
+  (`pinneapple_registry.gateway.ood_verdict`), through `rom.views.prediction_view`, now shared by the ROM Lab and
+  the Surrogate Studio.
+- Surrogate studies keep declared outputs non-negative (`SurrogateData.meta["nonnegative"]`, e.g. a von Mises
+  stress): every method is trained on their square root and predicts their square (`methods.NonNegative`, also in
+  the TorchScript / ONNX export). `heldout_report` counts negative predictions of such fields and gives the
+  per-design errors next to the pooled one.
 - Drive model of synchronous machines (`pinneapple_simulation.electromagnetics.machines.drive`): FEA flux maps with
   speed-free loss data, constant-inductance reference with closed forms, torque envelope and least-loss operating
   points under current and voltage limits (MTPA, flux weakening, maximum torque per volt), efficiency maps, vehicle
@@ -1216,6 +1246,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   versions the manifest was generated with. All files and the manifest were regenerated. The self-intersection
   check measures distances about each triangle pair's centre with a size-relative tolerance (no false hits on flat
   caps far from the origin or on nearly parallel neighbours).
+- Geometry library: the vertices carry no negative zeros. Whether a coordinate that snaps to zero came out as -0 or
+  +0 depended on the SIMD kernels NumPy picks for the CPU (AVX-512 or not), and the STL, OBJ and USD writers keep the
+  sign, so the publishing job's SHA-256 check failed on runners unlike the machine that wrote the manifest (18 files:
+  aortic arch, KCS, H145, ATR 72). The light STL files and the manifest were regenerated (OBJ / STL / USD hashes;
+  glTF and STEP are unchanged); a test rebuilds an entry with NumPy's AVX-512 and AVX2 kernels disabled and requires
+  the same bytes.
 
 ### Documentation
 - Validation methods reference: measured behaviour of `crps_gaussian` / `crps_ensemble` (fair score unbiased for
