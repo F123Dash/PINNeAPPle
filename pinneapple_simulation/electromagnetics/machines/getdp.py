@@ -219,11 +219,14 @@ def write_geo(path, geometry: MachineGeometry, theta: float = 0.0, n_gap: int = 
             "r_gap": (rt.r_out, st.r_in), "n_points": len(g.pts)}
 
 
+NU_TABLE_POINTS = 300  # samples of nu(|B|^2) in the GetDP interpolation table, uniform in |B| up to 1.15 B_max
+
+
 def write_pro(path, geometry: MachineGeometry, info: dict, steel, Br: float, mu_r: float, layout: list,
               turns_per_slot: float, currents, parallel_paths: int = 1) -> None:
     """GetDP problem for the regions of :func:`write_geo`."""
     curve = steel.curve(geometry.stacking_factor)
-    b = np.linspace(0.0, float(curve.B[-1]) * 1.15, 300)[1:]
+    b = np.linspace(0.0, float(curve.B[-1]) * 1.15, NU_TABLE_POINTS)[1:]
     nu = curve.nu(b * b)
     b2 = np.concatenate([[0.0], b * b])
     nu = np.concatenate([[float(curve.nu_init)], nu])
