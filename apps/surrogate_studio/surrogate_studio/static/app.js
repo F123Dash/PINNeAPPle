@@ -157,11 +157,74 @@ function renderResults() {
       <p class="meta">${esc(L.ood_gate.rule)}. Policy of this endpoint: <b>${esc(RES.model.ood_policy)}</b>.</p>
       <p class="meta">Held-out runs flagged: ${L.gate_effect.n_flagged} (mean error ${pct(L.gate_effect.mean_error_flagged)}) vs ${L.gate_effect.n_inside} inside (${pct(L.gate_effect.mean_error_inside)}).</p>
       <h3>Worst held-out runs</h3><table><tbody>${L.worst_samples.map((w) => `<tr><td>${Object.entries(w.inputs).map(([k, v]) => `${esc(k)}=${fmt(v, 3)}`).join(", ")}</td><td class="num">${pct(w.error)}</td><td>${w.ood ? '<span class="pill warn">OOD</span>' : ""}</td></tr>`).join("")}</tbody></table></div></div>`;
+  if (RES.heldout3d) h += held3dHtml(RES.heldout3d);
   h += `<div class="panel" style="margin-top:14px"><h3 style="margin-top:0">Downloads</h3><div class="files">${RES.files.map((f) => `<a href="/api/studies/${JOB.id}/files/${f}" download>${esc(f)}</a>`).join("")}</div>
     <p class="meta">study_result.json, model_ref.json and dataset_spec.json follow pinneapple_data.contracts, so the next app (uncertainty, sensitivity, optimisation, the Model Gateway) reads them directly.</p>
     ${limitsHtml(S)}</div>`;
   $("#results").innerHTML = h;
   drawParity(); drawBins();
+  if (RES.heldout3d) { $$("#v3pick select").forEach((x) => x.onchange = () => view3d()); view3d(); }
+}
+
+// ------------------------------------------------------------------ held-out designs on the mesh (3-D)
+function held3dHtml(H) {
+  const T = H.test, Sh = H.shift, fields = Object.keys(T.fields);
+  const zones = Object.keys(T.fields[fields[0]].regions);
+  const row = (n) => `<tr><td><b>${esc(n)}</b> <span class="meta">${esc(T.fields[n].unit)}</span></td><td class="num">${pct(T.fields[n].rel_l2)}</td>${zones.map((z) => `<td class="num">${pct(T.fields[n].regions[z])}</td>`).join("")}<td class="num">${Sh.n ? pct(Sh.fields[n].rel_l2) : "—"}</td></tr>`;
+  const q = (x, y) => `<tr><td>${esc(x.name)} <span class="meta">${esc(x.unit)}</span></td><td class="num">${pct(x.rel_error_mean)}</td><td class="num">${pct(x.rel_error_max)}</td><td class="num">${y ? pct(y.rel_error_mean) : "—"}</td><td class="num">${y ? pct(y.rel_error_max) : "—"}</td></tr>`;
+  const opts = (rp, sp) => rp.samples.map((d, k) => `<option value="${sp}:${k}">${sp} #${k + 1}: ${Object.entries(d.params ? Object.fromEntries(RES.study.dataset.inputs.map((n, i) => [n, d.params[i]])) : {}).map(([n, v]) => `${esc(n)} ${fmt(v, 3)}`).join(", ")} · ${fields.map((n) => `${esc(n)} ${pct(d[n])}`).join(", ")}${d.gate ? ` · gate: ${esc(d.gate.verdict)}` : ""}</option>`).join("");
+  const gates = (rp) => rp.gate ? Object.entries(rp.gate).filter(([, c]) => c).map(([v, c]) => `${c} ${esc(v)}`).join(", ") : "—";
+  const nonneg = fields.filter((n) => T.fields[n].nonnegative);
+  return `<div class="panel" style="margin-top:14px"><h3 style="margin-top:0">Held-out designs on the mesh (3-D)</h3>
+    <div class="kpis">
+      <div class="kpi"><div class="l">FEM solve</div><div class="v">${sec(H.fem_s)}</div><div class="s">per design, measured here (${H.fem_timed_on} designs solved again)</div></div>
+      <div class="kpi"><div class="l">Surrogate</div><div class="v">${sec(H.infer_s)}</div><div class="s">per prediction (median of the study's timing)</div></div>
+      <div class="kpi"><div class="l">Speed-up</div><div class="v">${H.speedup ? fmt(H.speedup, 3) + "×" : "—"}</div><div class="s">FEM time / surrogate time, both measured</div></div>
+      <div class="kpi"><div class="l">Held-out designs</div><div class="v">${T.n} + ${Sh.n}</div><div class="s">test + shift (never trained on)</div></div></div>
+    <div class="grid2" style="margin-top:10px"><div><h4>Relative L2 error, pooled over the held-out designs</h4>
+      <table><thead><tr><th>field</th><th class="num">test</th>${zones.map((z) => `<th class="num">${esc(z)}</th>`).join("")}<th class="num">shift</th></tr></thead><tbody>${fields.map(row).join("")}</tbody></table>
+      <p class="meta">Zones: the dataset's clamp and loaded-tip node sets grown by 10 % of the body length; the zone columns are test designs.</p>
+      ${H.pooling_note ? `<p class="meta"><b>Why the field error is larger than the tip error:</b> ${esc(H.pooling_note)}</p>` : ""}
+      ${nonneg.map((n) => `<p class="meta"><b>${esc(n)} ≥ 0:</b> trained on its square root and predicted as its square, so a negative (physically invalid) value cannot occur. Negative values predicted on the held-out designs: <b>${T.fields[n].negative_values + (Sh.n ? Sh.fields[n].negative_values : 0)}</b>.</p>`).join("")}</div>
+      <div><h4>Quantities read off the fields</h4><table><thead><tr><th>quantity</th><th class="num">test mean</th><th class="num">test max</th><th class="num">shift mean</th><th class="num">shift max</th></tr></thead>
+      <tbody>${T.qois.map((x, i) => q(x, Sh.qois[i])).join("")}</tbody></table><p class="meta">Relative error of the surrogate's value against the FEM's, per design.</p></div></div>
+    <p class="meta">OOD gate on the held-out designs (the rule and policy of <code>/v1/models/${esc(RES.model.name)}/predict</code>, policy <b>${esc(H.ood_policy)}</b>): test ${gates(T)}; shift ${gates(Sh)}.</p>
+    <div id="v3pick" class="toolbar" style="margin-top:10px"><label>Held-out design <select>${opts(T, "test")}${Sh.n ? opts(Sh, "shift") : ""}</select></label></div>
+    <div id="v3gate"></div>
+    <div class="v3wrap"><div id="v3d"></div><div class="v3side" id="v3sum"></div></div></div>`;
+}
+let V3 = null;
+const whenViewer = () => new Promise((res) => window.FieldView3D ? res() : window.addEventListener("fieldview3d-ready", res, { once: true }));
+async function view3d() {
+  const [split, k] = $("#v3pick select").value.split(":");
+  $("#v3sum").innerHTML = '<p class="meta">computing the view…</p>';
+  let j;
+  try { j = await api(`/api/studies/${JOB.id}/view3d?split=${split}&k=${k}`); } catch (e) { $("#v3sum").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
+  $("#v3gate").innerHTML = gateHtml(j, split);
+  await whenViewer();
+  const prev = V3 && V3.field ? V3.field.name : null;
+  const start = prev && j.view.fields.some((f) => f.name === prev) ? prev : (j.view.fields.find((f) => f.kind === "error" && /mises/.test(f.name)) || j.view.fields[0]).name;
+  V3 = new FieldView3D($("#v3d"), { meta: j.view, glb: j.glb, field: start, height: 460, onField: (f) => sum3d(j, f) });
+}
+// the hosted endpoint's verdict on this design: what /v1/models/{name}/predict does with it under the published policy
+function gateHtml(j, split) {
+  const g = j.gate;
+  if (!g) return "";
+  const what = { "in range": "inside the validity range: the hosted endpoint returns this prediction.",
+    warn: "out of distribution: the hosted endpoint returns this prediction flagged as an extrapolation. Do not use it without checking against the FEM.",
+    refuse: "out of distribution: the hosted endpoint refuses this design and returns no prediction. The view below is shown only to compare with the FEM." }[g.verdict];
+  const cls = g.verdict === "in range" ? "ok" : g.verdict === "warn" ? "warn" : "bad";
+  return `<div class="gate ${cls}"><b>OOD gate: ${esc(g.verdict)}</b> (policy ${esc(j.ood_policy || "warn")}) · ${esc(split)} design — ${esc(what)}
+    ${g.reasons.length ? `<br><span class="meta">${g.reasons.map(esc).join("; ")}</span>` : `<br><span class="meta">nearest training design at ${fmt(g.knn_distance, 2)} × the typical spacing</span>`}</div>`;
+}
+function sum3d(j, f) {
+  const n = f.name.split(":")[0], e = j.errors[n];
+  if (!e) return;
+  $("#v3sum").innerHTML = `<h4>Where the error is: ${esc(n)}</h4>${e.summary.map((t) => `<p>${esc(t)}</p>`).join("")}
+    <table><thead><tr><th>zone</th><th class="num">share of squared error</th><th class="num">nodes</th><th class="num">RMS / overall</th></tr></thead><tbody>
+    ${e.regions.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${pct(g.share_error)}</td><td class="num">${pct(g.share_points)}</td><td class="num">${g.rms_ratio.toFixed(1)}×</td></tr>`).join("")}</tbody></table>
+    ${j.negative && n in j.negative ? `<p class="meta">Negative (invalid) ${esc(n)} values in this prediction: <b>${j.negative[n]}</b>.</p>` : ""}
+    <p class="meta">Design ${Object.entries(j.params).map(([k, v]) => `${esc(k)} = ${fmt(v, 3)}`).join(", ")}; this prediction took ${sec(j.predict_s)} (one call, including Python overhead).</p>`;
 }
 function limitsHtml(S) {
   const items = [
@@ -187,6 +250,8 @@ function drawParity() {
     const outs = Object.keys(P.test);
     el.innerHTML = `<div class="legend"><span><i style="background:#0f766e"></i>held-out test</span><span><i style="background:#d97706"></i>distribution shift</span></div>` +
       `<div class="grid2">${outs.map((o) => `<div class="parity"><b>${esc(o)}</b>${svgScatter([{ t: P.test[o].true, p: P.test[o].pred, c: "#0f766e" }, ...(P.shift ? [{ t: P.shift[o].true, p: P.shift[o].pred, c: "#d97706" }] : [])], 360, 260)}</div>`).join("")}</div>`;
+  } else if (P.coords.shape.length > 2) {
+    el.innerHTML = `<p class="meta">This field lives on a 3-D mesh (grid ${P.coords.shape.join(" × ")} with the channels ${esc((RES.study.dataset.meta.channels || []).join(", "))}): the held-out designs are shown on the body below.</p>`;
   } else {
     const W = (P.shift || P.test).worst, C = P.coords;
     el.innerHTML = `<p class="meta">Worst ${P.shift ? "shift" : "test"} run: ${Object.entries(W.inputs).map(([k, v]) => `${esc(k)} = ${fmt(v, 3)}`).join(", ")} (relative L2 ${pct(W.rel_l2)}). Axes: ${esc(C.names[0])} down, ${esc(C.names[1] || "")} across.</p>
@@ -238,11 +303,12 @@ async function renderPredict(name) {
       const o = r.ood[0];
       let h = `<div class="kpis">${Object.entries(r.outputs).map(([k, v]) => Array.isArray(v[0]) ? "" : `<div class="kpi"><div class="l">${esc(k)}</div><div class="v">${v[0] === null ? "refused" : fmt(v[0])}</div></div>`).join("")}<div class="kpi"><div class="l">Latency</div><div class="v">${fmt(r.latency_ms, 3)} ms</div><div class="s">server side, incl. the gate</div></div></div>`;
       const field = Object.entries(r.outputs).find(([, v]) => Array.isArray(v[0]));
-      if (field) h += `<div class="heat" style="margin-top:12px"><figure><figcaption>${esc(field[0])}</figcaption><canvas id="hp" style="width:420px;height:240px"></canvas></figure></div>`;
+      if (field && d.grid_shape.length > 2) h += `<p class="meta">${esc(field[0])}: ${field[1][0].flat(Infinity).length} values on a ${d.grid_shape.join(" × ")} grid (returned in the response).</p>`;
+      else if (field) h += `<div class="heat" style="margin-top:12px"><figure><figcaption>${esc(field[0])}</figcaption><canvas id="hp" style="width:420px;height:240px"></canvas></figure></div>`;
       h += o.ood ? `<div class="ood"><b>Out of distribution${r.ood_policy === "refuse" ? " — refused" : " — an extrapolation"}</b>${o.reasons.map((x) => `<div>${esc(x)}</div>`).join("")}</div>` : `<p class="meta">Inside the training distribution (nearest training run at ${fmt(o.knn_distance, 3)} × the typical spacing).</p>`;
       h += `<p class="meta">Request ${esc(r.request_id)} · logged in the run log (<a class="link" href="/v1/models/${encodeURIComponent(name)}/runs" target="_blank">runs</a>, <a class="link" href="/v1/metrics" target="_blank">metrics</a>).</p>`;
       $("#pout").innerHTML = h;
-      if (field && field[1][0]) { const f = field[1][0].flat(Infinity); heat($("#hp"), f, d.grid_shape, Math.min(...f), Math.max(...f)); }
+      if (field && field[1][0] && d.grid_shape.length <= 2) { const f = field[1][0].flat(Infinity); heat($("#hp"), f, d.grid_shape, Math.min(...f), Math.max(...f)); }
     } catch (e) { $("#pstatus").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
   };
 }

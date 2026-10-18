@@ -42,11 +42,21 @@ import numpy as np
 
 from .model_store import ModelStore, _check_publishable
 
-__all__ = ["ModelGateway", "OOD_POLICIES", "KINDS"]
+__all__ = ["ModelGateway", "OOD_POLICIES", "KINDS", "ood_verdict"]
 
 OOD_POLICIES = ("warn", "refuse")
 KINDS = ("pinneapple.surrogate", "pinneapple.zoo", "onnx", "remote")
 _POLICY_ORDER = {"warn": 0, "refuse": 1}
+
+
+def ood_verdict(flag: dict[str, Any], policy: str = "warn") -> str:
+    """What ``predict`` does with one assessed row under ``policy``: ``"in range"`` (predicted), ``"warn"``
+    (predicted and flagged as an extrapolation) or ``"refuse"`` (no prediction)."""
+    if policy not in OOD_POLICIES:
+        raise ValueError(f"ood_policy must be one of {OOD_POLICIES}")
+    if not flag.get("ood"):
+        return "in range"
+    return "refuse" if policy == "refuse" else "warn"
 
 
 def _now() -> str:
@@ -360,7 +370,7 @@ class ModelGateway(ModelStore):
             rec["rows"] = int(len(X))
             flags = p.assess(X)
             ood = np.array([f["ood"] for f in flags], bool)
-            ok = ~ood if policy == "refuse" else np.ones(len(X), bool)
+            ok = np.array([ood_verdict(f, policy) != "refuse" for f in flags], bool)
             outs: dict[str, list] = {}
             if ok.any():
                 res = p.run(X[ok])

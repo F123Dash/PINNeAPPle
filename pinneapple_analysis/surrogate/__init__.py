@@ -19,10 +19,12 @@ from .data import (
            SurrogateData,
            field_columns,
            from_arrays,
+           from_snapshots,
            from_table,
            grid_coords,
            inspect_table,
            read_table,
+           snapshot_values,
 )
 from .limits import OODGate, limitations
 from .methods import CANDIDATES, applicable, candidate_ids
@@ -32,6 +34,6 @@ from .splits import Splits, make_splits
 from .study import DEFAULT_TARGETS, StudyResult, evaluate, run_study
 
 __all__ = ["SurrogateData", "read_table", "from_table", "from_arrays", "field_columns", "inspect_table", "grid_coords",
-           "Splits", "make_splits",
+           "from_snapshots", "snapshot_values", "Splits", "make_splits",
            "CANDIDATES", "applicable", "candidate_ids", "PDE_TYPES", "parse_pde", "OODGate", "limitations",
            "SurrogateModel", "MODEL_KIND", "run_study", "StudyResult", "evaluate", "DEFAULT_TARGETS", "examples"]

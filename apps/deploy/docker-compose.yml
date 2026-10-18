@@ -516,6 +516,7 @@ services:
       SUR_FREE_TRAININGS: ${SUR_FREE_TRAININGS:-}
       SUR_FREE_INFERENCES: ${SUR_FREE_INFERENCES:-}
       SUR_FREE_HOSTED_MODELS: ${SUR_FREE_HOSTED_MODELS:-}
+      SUR_VIEW_MAX_FACES: ${SUR_VIEW_MAX_FACES:-250000}
     volumes:
       - surrogate_data:/data      # jobs, uploads, hosted models, usage, API keys
     expose: ["8097"]

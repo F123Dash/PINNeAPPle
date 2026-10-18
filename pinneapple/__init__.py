@@ -639,6 +639,7 @@ _LAZY_ATTRS = {
     "validate": ("pinneapple_analysis.validation.validate", "pp_validate"),
     "PhysicsOptimizer": ("pinneapple_core.optim", "PhysicsOptimizer"),
     "compile": ("pinneapple_physics.compile_api", "compile"),
+    "design": ("pinneapple_design.intent", "design"),
     "PhysicsModule": ("pinneapple_core.module", "PhysicsModule"),
     "Sequential": ("pinneapple_core.module", "Sequential"),
     "SolverModule": ("pinneapple_core.module", "SolverModule"),
