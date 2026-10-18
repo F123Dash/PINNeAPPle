@@ -149,13 +149,13 @@ references" section. `tests/test_flow_decisions.py` checks that every rule cites
 `pinneapple_flow.lab_status` reads, never computes, the quality letter of a validated item:
 
 * `seal_status(item, lab)` gives `{"letter", "name", "scale", "reason", "failing_check", "hint", "sealed", "source"}`.
-  The letter comes from the Lab curation record (`pinneapple_lab.curation`, tiers A-D today) or from its seal
-  letter (A-F, with the failing check and how to raise it) once the Lab provides that scale. `letter: null` means
+  The letter comes from the Lab curation (`pinneapple_lab.curation.TIERS`, A-F) through `pinneapple_lab.seal.seal_for`,
+  which also gives the failing check for E and F and the next step. `letter: null` means
   the item was never curated.
-* `next_steps(item, lab)` calls `pinneapple_lab.curation.next_steps` when it exists. Each gap keeps the Lab's
-  `action` / `command` / `params`, and `nodes` holds the registered node types that carry the action out: the
-  action names a node type, or a library call a registered node wraps. Without that API the result is
-  `available: false` with the curation's plain gaps, and no node suggestions.
+* `next_steps(item, lab)` calls `pinneapple_lab.curation.next_steps`. Each gap keeps the Lab's actions (`id`, `kind`,
+  `target`, `command`, `text`). Each action's `nodes` holds the registered node types that carry it out: the
+  action's dotted `target` is a library call a registered node declares in its `calls`. Command-line actions have
+  none. Without that API (an older Lab) the result is `available: false` with the curation's plain gaps.
 * `insert_nodes(flow, anchor, [{"type", "params"}])` adds registered node types and wires each input by port
   type: from the anchor first, then its upstream nodes, then any other node. One output feeds at most one input of
   a new node.

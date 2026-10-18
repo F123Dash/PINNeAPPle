@@ -40,12 +40,17 @@ export function SealPanel({ seals, onInsert }: {
                 {st.message && <div className="text-[10.5px] text-slate-500 italic" data-testid="next-steps-message">{st.message}</div>}
                 {st.gaps.length === 0 && !st.message && <div className="text-[11px] text-slate-500">nothing listed</div>}
                 {st.gaps.map((g, i) => (
-                  <div key={i} className="text-[11px] border-t border-slate-100 pt-1">
-                    <div>{g.gap}</div>
-                    {(g.action || g.command) && <div className="text-slate-500">action: {g.action}{g.command ? ` (${g.command})` : ""}</div>}
-                    {g.nodes.length > 0 && onInsert && (
-                      <button className="text-sky-700" onClick={() => onInsert(g.nodes)}>+ add {g.nodes.map((n) => n.type).join(", ")}</button>
-                    )}
+                  <div key={i} className="text-[11px] border-t border-slate-100 pt-1" data-testid="seal-gap">
+                    <div>{g.to ? <b className="mr-1">{g.to}</b> : null}{g.gap}</div>
+                    {g.why && g.why !== g.gap && <div className="text-slate-500">{g.why}</div>}
+                    {(g.actions && g.actions.length ? g.actions : (g.action || g.command) ? [{ id: "", kind: "", target: "", command: g.command, text: g.action, nodes: g.nodes }] : []).map((a, j) => (
+                      <div key={j} className="flex items-start gap-1 mt-0.5">
+                        <span className="text-slate-500 flex-1" title={a.command}>{a.text || a.command}{a.kind === "cli" ? " (command line)" : ""}</span>
+                        {a.nodes.length > 0 && onInsert && (
+                          <button className="text-sky-700 whitespace-nowrap" onClick={() => onInsert(a.nodes)} data-testid="seal-insert">+ {a.nodes.map((n) => n.type).join(", ")}</button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>

@@ -153,7 +153,7 @@ RULES: dict[str, Rule] = {r.id: r for r in [
     Rule("validation.threshold", "pass at relative L2 <= 2 % (the PINN validation default)",
          uncited="project convention: TOLERANCES['exact'] in pinneapple_analysis.validation.pinn",
          evidence=(("library", "pinneapple_analysis/validation/pinn.py", "TOLERANCES"),), topic="validation"),
-    Rule("validation.lab_tiers", "PINNeAPPle Lab tiers A-D and the seal on A/B",
+    Rule("validation.lab_tiers", "PINNeAPPle Lab seal letters A-F from the curation",
          uncited="the library's own curation rules", topic="validation",
          evidence=(("library", "pinneapple_lab/curation.py", "tier gates"),)),
     # ---- twin

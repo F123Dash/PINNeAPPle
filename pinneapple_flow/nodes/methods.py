@@ -30,7 +30,8 @@ def _plt():
                     help="scalar of the (final-time) field compared across the grids"),
               Param("safety_factor", "float", 1.25, minimum=1.0, maximum=3.0)],
       calls="pinneapple_simulation.numerical_solvers.symbolic_fd.solve_fd + "
-            "pinneapple_analysis.verification.convergence.richardson_extrapolate")
+            "pinneapple_analysis.verification.convergence.richardson_extrapolate + pinneapple_lab.uq.gci (the check "
+            "pinneapple_lab.uq.gci_check records)")
 def convergence(ctx, inputs, params):
     """Solve the problem by finite differences on three nested grids (ratio 2), measure the observed order of a
     scalar of the solution, extrapolate it (Richardson) and give the grid convergence index; with an exact solution
@@ -98,8 +99,15 @@ def convergence(ctx, inputs, params):
     order = rd.get("observed_order")
     ctx.summary(f"observed order {order:.2f}, GCI (fine) {rd.get('gci_fine', float('nan')):.2e}"
                 if isinstance(order, (int, float)) else "grid convergence computed")
+    from pinneapple_lab.uq import gci
+    g = gci(q, hs)                                       # the Lab's GCI, recorded as its gci_check does
+    ctx.metric("lab_gci", g["gci"], "pinneapple_lab.uq.gci: relative band of the fine-grid value")
     checks = [{"name": "grid_convergence_asymptotic", "passed": bool(rd.get("is_asymptotic")), "kind": "physics",
-               "value": rd.get("asymptotic_ratio"), "detail": "Richardson: the three grids are in the asymptotic range"}]
+               "value": rd.get("asymptotic_ratio"), "detail": "Richardson: the three grids are in the asymptotic range"},
+              {"name": f"{params['quantity']}_discretisation_uncertainty", "value": g["gci"], "max": 0.05,
+               "passed": bool(g["gci"] <= 0.05), "kind": "uncertainty",
+               "detail": f"grid convergence index of the fine-mesh value (3 meshes, order {g['order']:.2f}, "
+                         f"safety {g['safety']:g})"}]
     return {"metrics": {**{k: v for k, v in rd.items() if isinstance(v, (int, float, bool, str))}, "checks": checks,
                         "candidates": {}}, "figure": fa}
 

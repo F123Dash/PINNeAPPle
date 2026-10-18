@@ -58,5 +58,6 @@ export interface SealStatus {
   item: string; letter: string | null; name: string; scale: string; reason: string; failing_check: string; hint: string;
   sealed: boolean; source: string; curated?: string;
 }
-export interface Gap { gap: string; action: string; command: string; params: Record<string, any>; unlocks?: any; nodes: { type: string; params: Record<string, any> }[] }
+export interface GapAction { id: string; kind: string; target: string; command: string; text: string; nodes: { type: string; params: Record<string, any> }[] }
+export interface Gap { gap: string; why?: string; to?: string; check?: string; action: string; command: string; actions?: GapAction[]; nodes: { type: string; params: Record<string, any> }[] }
 export interface NextSteps { available: boolean; message: string; gaps: Gap[] }

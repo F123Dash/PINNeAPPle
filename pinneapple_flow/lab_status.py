@@ -69,29 +69,40 @@ def seal_status(item: str, lab: Any = None) -> dict[str, Any]:
         v = next((s[k] for k in keys if s.get(k)), None)
         if v:
             out[k_out] = v
+    if s.get("reason_kind") == "failing" and not out["failing_check"]:       # E / F: the reason is the failing check
+        out["failing_check"] = s.get("reason", "")
+    out["name"] = names.get(out["letter"], out["name"])
     return out
 
 
 # ------------------------------------------------------------------------------------------------ next steps
-def nodes_for(action: str = "", command: str = "", params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """Registered node types that carry out a Lab action: the action or command names a node type, or a library
-    callable that a registered node wraps. Parameters are kept only where the node has them."""
+def _norm_calls(text: str) -> str:
+    return re.sub(r"\bpp\.", "pinneapple.", (text or "").replace(":", "."))
+
+
+def nodes_for(action: str = "", command: str = "", params: dict[str, Any] | None = None,
+              target: str = "") -> list[dict[str, Any]]:
+    """Registered node types that carry out a Lab action: the action names a node type, or its ``target`` (a dotted
+    import path such as ``pinneapple.compare``) is a library call a registered node declares (its ``calls``: the
+    full path, or the module and the function name). Curated nodes come before generated ``auto.*`` ones;
+    parameters are kept only where the node has them."""
     from .registry import REGISTRY
-    want = [w for w in (command, action) if w]
-    hits = []
-    for w in want:
-        if w in REGISTRY:
-            hits = [REGISTRY[w]]
-            break
-        tok = re.split(r"[\s(]", w.strip())[0]
-        hits = [s for s in REGISTRY.specs() if not s.type.startswith("custom.") and tok and
-                tok in re.split(r"[\s+,]+", s.calls or "")]
-        if hits:
-            break
+    hits = [REGISTRY[w] for w in (action, command, target) if w and w in REGISTRY]
+    if not hits and target and not target.startswith("cli:"):
+        t = _norm_calls(target)
+        mod, _, name = t.rpartition(".")
+        specs = sorted((sp for sp in REGISTRY.specs() if not sp.type.startswith("custom.")),
+                       key=lambda sp: sp.type.startswith("auto."))
+        for sp in specs:
+            c = _norm_calls(sp.calls)
+            if re.search(rf"(^|[^\w.]){re.escape(t)}($|[^\w])", c) or (
+                    mod and mod in c and re.search(rf"\b{re.escape(name)}\b", c)):
+                hits.append(sp)
+                break
     out = []
-    for s in hits[:1]:
-        names = {p.name for p in s.params}
-        out.append({"type": s.type, "params": {k: v for k, v in (params or {}).items() if k in names}})
+    for sp in hits[:1]:
+        names = {p.name for p in sp.params}
+        out.append({"type": sp.type, "params": {k: v for k, v in (params or {}).items() if k in names}})
     return out
 
 
@@ -105,7 +116,7 @@ def next_steps(item: str, lab: Any = None) -> dict[str, Any]:
         except FileNotFoundError:
             rec = {}
         return {"available": False, "message": NOT_AVAILABLE,
-                "gaps": [{"gap": g if isinstance(g, str) else str(g), "action": "", "command": "", "params": {},
+                "gaps": [{"gap": g if isinstance(g, str) else str(g), "action": "", "command": "", "actions": [],
                           "nodes": []} for g in rec.get("gaps", [])]}
     try:
         try:
@@ -117,11 +128,25 @@ def next_steps(item: str, lab: Any = None) -> dict[str, Any]:
     out = []
     for g in gaps or []:
         d = _attrs(g)
-        action, command, params = str(d.get("action", "")), str(d.get("command", "")), d.get("params") or {}
-        out.append({"gap": str(d.get("gap") or d.get("missing") or d.get("description") or action),
-                    "action": action, "command": command, "params": params,
-                    "unlocks": d.get("unlocks") or d.get("next") or "",
-                    "nodes": nodes_for(action, command, params if isinstance(params, dict) else {})})
+        acts = []
+        for a in d.get("actions") or []:
+            a = _attrs(a)
+            acts.append({"id": a.get("id", ""), "kind": a.get("kind", ""), "target": a.get("target", ""),
+                         "command": a.get("command", ""), "text": a.get("text", ""),
+                         "nodes": nodes_for(a.get("id", ""), "", a.get("params") or {}, a.get("target", ""))})
+        if not acts and (d.get("action") or d.get("command")):        # a flat gap (action / command / params)
+            acts.append({"id": str(d.get("action", "")), "kind": "", "target": "", "command": str(d.get("command", "")),
+                         "text": str(d.get("action", "")),
+                         "nodes": nodes_for(str(d.get("action", "")), str(d.get("command", "")),
+                                            d.get("params") if isinstance(d.get("params"), dict) else {})})
+        nodes = []
+        for a in acts:
+            nodes += [n for n in a["nodes"] if n not in nodes]
+        out.append({"gap": str(d.get("short") or d.get("gap") or d.get("missing") or d.get("why") or ""),
+                    "why": str(d.get("why", "")), "to": str(d.get("to", "")), "check": str(d.get("check", "")),
+                    "measured": d.get("measured"), "actions": acts,
+                    "action": acts[0]["text"] if acts else "", "command": acts[0]["command"] if acts else "",
+                    "nodes": nodes})
     return {"available": True, "message": "", "gaps": out}
 
 

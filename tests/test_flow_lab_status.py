@@ -19,45 +19,49 @@ def _curation(tmp_path, **rec):
     return str(tmp_path)
 
 
-def test_seal_status_reads_the_curation_tier(tmp_path):
+def test_seal_status_reads_the_lab_seal(tmp_path):
     lab = _curation(tmp_path)
     st = ls.seal_status(ITEM, lab)
-    assert st["letter"] == "C" and st["name"] == "exploratory" and st["reason"] == "PASS rel_l2 vs exact"
-    assert not st["sealed"]                      # today's seal API seals A and B only
+    assert st["letter"] == "C" and st["reason"] == "PASS rel_l2 vs exact" and st["scale"] == "ABCDEF"
+    assert st["sealed"] and st["source"] == "pinneapple_lab.seal"          # every letter is sealed (A-F)
     assert ls.seal_status("unknown", lab)["letter"] is None
     assert ls.seal_status(ITEM, str(tmp_path / "empty"))["reason"].startswith("not curated")
 
 
-def test_seal_status_follows_a_full_scale_when_the_lab_has_it(tmp_path, monkeypatch):
-    from pinneapple_lab import curation
-    monkeypatch.setattr(curation, "SEALS", {k: k.lower() for k in "ABCDEF"}, raising=False)
-    lab = _curation(tmp_path, seal="E", seal_name="known problems", failing_check="mass balance 3% > 1%",
-                    how_to_raise="refine the mesh")
+def test_e_and_f_show_the_failing_check_and_the_next_step(tmp_path):
+    lab = _curation(tmp_path, tier="E", tier_name="known problems",
+                    headline={"label": "mass balance 3% > 1%", "kind": "failing"},
+                    next_steps=[{"type": "physics", "to": "D", "stage": "physics", "why": "a physics check fails",
+                                 "why_pt": "", "short": "make the physics check pass", "short_pt": "", "actions": []}])
     st = ls.seal_status(ITEM, lab)
-    assert (st["letter"], st["scale"], st["failing_check"], st["hint"]) == ("E", "ABCDEF", "mass balance 3% > 1%",
-                                                                           "refine the mesh")
+    assert (st["letter"], st["failing_check"]) == ("E", "mass balance 3% > 1%")
+    assert st["hint"] == "D: make the physics check pass"
 
 
-def test_next_steps_degrades_then_maps_lab_actions_to_registered_nodes(tmp_path, monkeypatch):
+def test_next_steps_map_lab_actions_to_registered_nodes(tmp_path):
+    act = {"id": "trust_card", "kind": "python", "target": "pinneapple.trust_card", "command": "pp.trust_card(...)",
+           "text": "run the trust card", "text_pt": "", "params": {}}
+    gci = {**act, "id": "gci", "target": "pinneapple_lab.uq.gci_check", "command": "gci_check(ctx, ...)"}
+    cli = {**act, "id": "review", "kind": "cli", "target": "cli:pinneapple_lab review", "command": "review"}
+    lab = _curation(tmp_path, next_steps=[
+        {"type": "reference", "to": "B", "stage": "model", "why": "no independent reference", "why_pt": "",
+         "short": "pass an independent check", "short_pt": "", "actions": [act, gci, cli]}])
+    out = ls.next_steps(ITEM, lab)
+    assert out["available"] and out["gaps"][0]["gap"] == "pass an independent check"
+    by_id = {a["id"]: a["nodes"] for a in out["gaps"][0]["actions"]}
+    assert by_id["trust_card"] == [{"type": "validate.compare", "params": {}}]
+    assert by_id["gci"] == [{"type": "verify.convergence", "params": {}}]
+    assert by_id["review"] == []                                       # a CLI step: no node, shown as text
+    assert {n["type"] for n in out["gaps"][0]["nodes"]} == {"validate.compare", "verify.convergence"}
+
+
+def test_next_steps_without_the_lab_api_degrade(tmp_path, monkeypatch):
     from pinneapple_lab import curation
     lab = _curation(tmp_path)
     monkeypatch.delattr(curation, "next_steps", raising=False)
     out = ls.next_steps(ITEM, lab)
     assert not out["available"] and out["message"] == ls.NOT_AVAILABLE
     assert out["gaps"][0]["gap"].startswith("compare") and out["gaps"][0]["nodes"] == []
-
-    def fake(item, lab=None):
-        return [{"gap": "no independent reference", "action": "validate.compare", "command": "", "params": {}},
-                {"gap": "no uncertainty", "action": "uq", "command": "pinneapple_analysis.sensitivity:sobol_indices",
-                 "params": {"n": 64, "bogus": 1}},
-                {"gap": "nothing registered", "action": "write a paper", "command": "", "params": {}}]
-    monkeypatch.setattr(curation, "next_steps", fake, raising=False)
-    out = ls.next_steps(ITEM, lab)
-    assert out["available"]
-    assert out["gaps"][0]["nodes"] == [{"type": "validate.compare", "params": {}}]
-    assert out["gaps"][1]["nodes"][0]["type"] == "lib.uq.sobol"
-    assert "bogus" not in out["gaps"][1]["nodes"][0]["params"]
-    assert out["gaps"][2]["nodes"] == []
 
 
 def test_insert_nodes_wires_by_port_type():

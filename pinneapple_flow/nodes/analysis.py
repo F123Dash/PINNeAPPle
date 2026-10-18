@@ -1,5 +1,5 @@
 """Validation nodes: compare solutions with a reference (exact, benchmark or another method), trust card, and the
-PINNeAPPle Lab curation (tiers A-D) with the quality seal on the figure."""
+PINNeAPPle Lab curation (seal letters A-F) with the quality seal on the figure."""
 from __future__ import annotations
 
 import hashlib
@@ -207,9 +207,10 @@ def _error_figure(base, cands, X, R, ref_name):
       outputs=[Port("report", "report"), Port("figure", "figure", required=False)],
       params=[Param("title", "str", "", help="item title in the Lab catalogue"),
               Param("baseline_check", "bool", True, help="count 'best of several methods' as a baseline check")],
-      calls="pinneapple_lab.runner.run + curation.curate (tiers A-D) + seal.seal_for / stamp_figure")
+      calls="pinneapple_lab.runner.run + curation.curate (letters A-F) + curation.next_steps + seal.seal_for / "
+            "stamp_figure")
 def lab(ctx, inputs, params):
-    """Record the validation as a PINNeAPPle Lab run, grade it (tier A-D: reference, baseline, physics checks,
+    """Record the validation as a PINNeAPPle Lab run, grade it (letter A-F: reference, baseline, physics checks,
     reproducibility, assets, documentation) and, for tiers A and B only, stamp the quality seal on the figure."""
     from pinneapple_lab.curation import curate
     from pinneapple_lab.runner import run as lab_run
@@ -261,7 +262,8 @@ def lab(ctx, inputs, params):
     item = cur["items"].get(name, {})
     tier = item.get("tier", "?")
     ctx.metric("lab_status", res.status)
-    ctx.metric("tier", tier, "pinneapple_lab.curation: A flagship, B solid, C exploratory, D failed")
+    from pinneapple_lab.curation import TIERS
+    ctx.metric("tier", tier, "pinneapple_lab.curation: " + ", ".join(f"{k} {v}" for k, v in TIERS.items()))
     ctx.metric("lab_run_id", res.run_id)
     from ..lab_status import next_steps, seal_status
     st = seal_status(name, root)                                 # the Lab's letter (A-F once it has that scale)
@@ -281,7 +283,7 @@ def lab(ctx, inputs, params):
         seal = seal_for(name, root)
     except (SealError, KeyError) as exc:
         ctx.warn(f"no seal: {exc}")
-        ctx.summary(f"tier {tier}: not sealed (only A and B are)")
+        ctx.summary(f"tier {tier}: not sealed ({exc})")
         return out
     if figure:
         sealed = stamp_file(figure, seal, out=str(ctx.path("validation_sealed.png")))

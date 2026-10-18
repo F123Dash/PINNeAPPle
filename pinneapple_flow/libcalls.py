@@ -329,6 +329,7 @@ def wrapped(call: LibCall) -> list[str]:
     except (OSError, TypeError, ImportError, AttributeError):
         return []
     out = [m for m in _LIB.findall(src) if not m.startswith(("pinneapple_flow", "pinneapple_core.workflows"))]
+    out += [f"pinneapple.{a}" for a in re.findall(r"\bpp\.([a-z_]+)\(", src)]      # import pinneapple as pp
     if "_solver(" in src:
         out.append("pinneapple_simulation.numerical_solvers.registry")
     return sorted(set(out))
