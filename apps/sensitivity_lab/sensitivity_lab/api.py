@@ -34,6 +34,7 @@ import uuid
 
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -283,6 +284,9 @@ def _design_spec(cfg: dict) -> dict:
     n = int(cfg.get("n_sobol", 256))
     so = bool(cfg.get("second_order", False))
     seed = int(cfg.get("seed", 0))
+    runs = n * ((2 * len(space) + 2) if so else (len(space) + 2))
+    if n < 1 or runs > MAX_EVALS:
+        raise HTTPException(422, f"n_sobol={n} gives {runs} runs: this server designs up to {MAX_EVALS}")
     return {"parameters": [p.to_dict() for p in space], "n_sobol": n, "second_order": so, "seed": seed,
             "outputs": cfg.get("outputs") or [], "threshold": float(cfg.get("threshold", 0.01))}
 
@@ -357,7 +361,7 @@ def run_given_data(cfg: dict, name: str | None = None, data: bytes | None = None
             progress(0.1 + 0.8 * k / len(outs), f"first-order indices of {o}")
             y = columns(df, [o])[:, 0]
             ok = np.isfinite(y) & np.all(np.isfinite(X), axis=1)
-            r = first_order_given_data(X[ok], y[ok], names=ins, n_boot=int(cfg.get("n_boot", 100)),
+            r = first_order_given_data(X[ok], y[ok], names=ins, n_boot=min(int(cfg.get("n_boot", 100)), 1000),
                                        seed=int(cfg.get("seed", 0)))
             r["sum_S1"] = float(np.sum(r["S1"]))
             r["dropped_rows"] = int((~ok).sum())
@@ -518,7 +522,7 @@ async def api_study(request: Request, config: str = _CONFIG, model: UploadFile |
     upload = await _save(request, model, cfg.pop("model_upload", None))
     if (cfg.get("model") or {}).get("source") == "onnx" and not upload:
         raise HTTPException(422, "Upload the ONNX file (field 'model', or model_upload from /api/uploads).")
-    return _submit(request, "study", {"config": cfg, "model_upload": upload},
+    return await run_in_threadpool(_submit, request, "study", {"config": cfg, "model_upload": upload},
                    {"studies": 1, "evaluations": cost["total"], "parameters": len(space)}, wait)
 
 
@@ -553,7 +557,7 @@ async def api_runs(request: Request, spec: str = _SPEC, runs: UploadFile | None 
         if k not in cfg:
             raise HTTPException(422, f"the spec has no {k!r}: use the first line of the design CSV")
     n = len(_space(cfg))
-    return _submit(request, "runs", {"spec": cfg, "runs_upload": upload}, {"studies": 1, "parameters": n}, wait)
+    return await run_in_threadpool(_submit, request, "runs", {"spec": cfg, "runs_upload": upload}, {"studies": 1, "parameters": n}, wait)
 
 
 @app.post("/api/given-data")
@@ -567,7 +571,7 @@ async def api_given_data(request: Request, config: str = _GD_CONFIG, data: Uploa
         raise HTTPException(422, "Upload a data table (field 'data') or name a pp.datasets dataset.")
     if not cfg.get("outputs"):
         raise HTTPException(422, "Name the output columns (outputs).")
-    return _submit(request, "given_data", {"config": cfg, "data_upload": upload},
+    return await run_in_threadpool(_submit, request, "given_data", {"config": cfg, "data_upload": upload},
                    {"studies": 1, "parameters": len(cfg.get("inputs") or [])}, wait)
 
 

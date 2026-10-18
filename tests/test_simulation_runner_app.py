@@ -25,7 +25,8 @@ def client(tmp_path, monkeypatch):
     sys.modules.pop("simulation_runner.api", None)
     api = importlib.import_module("simulation_runner.api")
     api.rt.jobs.poll_interval = 0.02
-    yield TestClient(api.app), api
+    # requests arrive from a private address, as from the deploy Caddy, so X-Forwarded-For names the client
+    yield TestClient(api.app, client=("172.18.0.2", 50000)), api
     api.rt.jobs.stop()
     sys.path.remove(str(ROOT / "apps" / "simulation_runner"))
 

@@ -94,3 +94,51 @@ def test_custom_space_with_uploaded_runs_drops_repeats(client):
 def test_invalid_requests(client, body, msg):
     r = client.post("/api/campaigns", json=body)
     assert r.status_code == 422 and msg in r.text
+
+
+def _finished(c, job, timeout=300):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        j = c.get(f"/api/jobs/{job['id']}").json()
+        if j["status"] in ("done", "failed", "cancelled"):
+            return j
+        time.sleep(0.1)
+    raise TimeoutError
+
+
+def _case_zip(extra: dict[str, str] | None = None) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("case/system/controlDict", "FoamFile {}\nendTime 1;\n")
+        z.writestr("case/constant/transportProperties", "nu 1e-5;\n")
+        for name, text in (extra or {}).items():
+            z.writestr(name, text)
+    return buf.getvalue()
+
+
+def _openfoam_job(client, zip_bytes, edits):
+    up = client.post("/api/uploads", files={"file": ("base.zip", zip_bytes)}).json()
+    body = {"preset": "cantilever", "n": 2, "openfoam": "base", "openfoam_base_upload": up["id"],
+            "openfoam_edits": edits}
+    r = client.post("/api/campaigns", json=body)
+    assert r.status_code == 200, r.text
+    return _finished(client, r.json())
+
+
+def test_base_case_zip_slip_refused(client, tmp_path):
+    j = _openfoam_job(client, _case_zip({"../../escaped.txt": "x"}), [])
+    assert j["status"] == "failed" and "'..'" in (j.get("error") or "")
+
+
+@pytest.mark.parametrize("target", ["../../../../runtime.sqlite", "/etc/hostname"])
+def test_openfoam_edit_outside_the_case_refused(client, target):
+    j = _openfoam_job(client, _case_zip(), [{"file": target, "key": "x", "value": "1"}])
+    assert j["status"] == "failed" and "outside the case" in (j.get("error") or "")
+
+
+def test_template_fields_restricted():
+    from pinneapple_simulation.external_solvers.openfoam.campaign import format_template
+    assert format_template("nu {nu:.3g};", {"nu": 1.5e-5}) == "nu 1.5e-05;"
+    for bad in ("{nu.__class__}", "{nu[0]}", "{nu:>999999999}", "{nu!a}"):
+        with pytest.raises(ValueError):
+            format_template(bad, {"nu": 1.0})

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import sys
 from pathlib import Path
@@ -87,3 +88,38 @@ def test_onnx_publish_with_api_key(client, tmp_path):
     with torch.no_grad():
         ref = float(net(torch.tensor([[0.5, 0.5]])))
     assert p["outputs"]["y"][0] == pytest.approx(ref, rel=1e-5) and p["ood"][1]["outside"] == ["a"]
+
+
+def _surrogate_zip(pkl: bytes) -> bytes:
+    import hashlib
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("model/model.pkl", pkl)
+        z.writestr("model/card.json", json.dumps({"model_sha256": hashlib.sha256(pkl).hexdigest()}))
+    return buf.getvalue()
+
+
+def test_pickled_surrogate_upload_off_by_default_and_scanned(client, monkeypatch):
+    """A model.zip whose card hash matches its own pickle proves nothing: uploads are off unless the operator opts
+    in, and then a pickle importing os/subprocess/eval is refused before anything loads it."""
+    import pickle
+
+    class Evil:
+        def __reduce__(self):
+            import os
+            return (os.system, ("true",))
+
+    z = _surrogate_zip(pickle.dumps(Evil()))
+    r = client.post("/api/models/surrogate", files={"file": ("m.zip", z)}, data={"name": "evil"}, headers=ADMIN)
+    assert r.status_code == 403 and "MDL_ALLOW_PICKLE_UPLOAD" in r.text
+    monkeypatch.setenv("MDL_ALLOW_PICKLE_UPLOAD", "1")
+    r = client.post("/api/models/surrogate", files={"file": ("m.zip", z)}, data={"name": "evil"}, headers=ADMIN)
+    assert r.status_code == 422 and "refused" in r.text
+
+
+@pytest.mark.parametrize("uri", ["http://127.0.0.1:8080/v1/models/x", "http://169.254.169.254/latest/meta-data",
+                                 "http://localhost/v1/models/x", "file:///etc/passwd"])
+def test_remote_ref_to_internal_address_refused(client, uri):
+    body = {"model_ref": {"name": "r", "uri": uri}}
+    assert client.post("/api/models/ref", json=body, headers=ADMIN).status_code == 422
