@@ -57,6 +57,7 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   ffmpeg) and `web.screenshot` (headless Chromium). The sky world of `render(background="sky")` works on Blender 5.
 - Cinematic studio clips: coloured trails and diverging colour maps (`coolwarm`, `bwr`) in the viewer and Blender, `Lines.cmap/alpha/radius/color_range` drawn as wisps, `render_animation(motion_blur=, dof=, haze=, camera="chase_low", hud_keys=, sparkline=, colorbars=, exposure=)`, and `studio.compose.compose_grid` / `compose_grid_video` panels.
 - Studio renders: `blender.render_still` (1080p stills), smooth shading, procedural asphalt and grass, motion blur in scene seconds, trails over their last `trail_seconds` with a fade (viewer and Blender), haze cleared around the tracked body, `Scene.materials` / `unknown_materials()`, MP4 `crf`, viewer arrows in true cmap colours.
+- Blender renders build the meshes, materials and field attributes directly instead of importing a glTF (bpy 4.2's glTF importer crashed the interpreter at exit); `blender.MIN_BPY = (4, 2)` with a clear error below it, render tests skip on older bpy.
 - Animated showcase panel (`pinneapple_lab.showcase.panel`, `python -m pinneapple_lab showcase --lang en,pt`):
   1080 x 1350 on #090C14, a Ken Burns hero, a 3 x 3 grid of Tier A tiles and a row of two Tier B tiles, each with
   its seal and its curation headline; animated figures play once per 8 s loop; MP4 (H.264, faststart), GIF (720

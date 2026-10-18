@@ -39,7 +39,9 @@ handles half models. `scene.labels["cp"] = "Pressure coefficient Cp"` sets the c
 ## Renders
 
 `pp.viz.render(scene, out, field=..., lines=..., slice=..., view="iso", background="studio")` needs
-`pip install bpy` (Blender as a Python module, CPU Cycles).
+`pip install "bpy>=4.2"` (Blender as a Python module, CPU Cycles; tested on 4.2 LTS and 5.2, older versions raise
+an error, `blender.MIN_BPY`). The surfaces are built directly as Blender meshes with their `MATERIALS` /
+`scene.materials` (no glTF import: Blender 4.2's importer crashes the interpreter at exit).
 
 - **Field colours:** CFD colours use the jet scale, blue for low and red for high. The colour bar, with five ticks,
   is burnt into the image.
