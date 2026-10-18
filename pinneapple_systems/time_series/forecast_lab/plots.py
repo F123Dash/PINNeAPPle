@@ -71,7 +71,7 @@ def plot_skill_vs_horizon(results: Sequence[dict], path: str, *, lyapunov: dict[
         ax.set_title((titles or {}).get(res["series"], res["series"]), fontsize=9, color=_INK)
         ax.set_xlabel("horizon [Lyapunov times]" if lam else "horizon [samples]", fontsize=8, color=_MUTED)
         ax.set_ylabel("RMSE skill vs " + ("best baseline" if key else "persistence"), fontsize=8, color=_MUTED)
-        ax.legend(fontsize=6, frameon=False, loc="lower left")
+        ax.legend(fontsize=6, frameon=False, loc="best")
     for ax in axes.ravel()[n:]:
         ax.axis("off")
     fig.tight_layout()
