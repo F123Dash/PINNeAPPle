@@ -14,6 +14,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- End effects of machines: `statics.filament_inductance` (Neumann's formula for thin conductors, reduced kernel,
+  closed-form self terms, iron-face image), `machines.endwinding` (end-winding resistance path and dq leakage
+  inductance), `Drive(..., L_end=...)`, and `getdp.end_leakage_3d` (3-D magnetostatic end leakage of the magnet
+  flux). Example `examples/electrodynamics/16_prius_end_effects.py`, tests `tests/test_emachine_ends.py`.
 - Second FEA code and interoperability for machines: `machines.getdp` (the same machine in gmsh + GetDP, nonlinear
   2-D A-formulation with Arkkio torque, as an independent cross-check) and `machines.interop` (pyleecan machine
   files in and out, FEMM Lua script, ElmerFEM case, MATLAB `.mat`, DXF, `ParameterSpace` / `DatasetSpec` contracts).

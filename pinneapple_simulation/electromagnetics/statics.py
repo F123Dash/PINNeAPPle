@@ -20,7 +20,7 @@ __all__ = [
     "parallel_plate_capacitance", "coax_capacitance", "coax_inductance", "spherical_capacitance",
     "point_charge_field", "line_charge_field", "infinite_wire_B", "biot_savart", "polyline_segments",
     "circle_segments", "helix_segments", "loop_field", "loop_on_axis_B", "finite_solenoid_on_axis_B",
-    "helmholtz_coil_center_B", "mutual_inductance_coaxial_loops", "loop_self_inductance",
+    "helmholtz_coil_center_B", "mutual_inductance_coaxial_loops", "loop_self_inductance", "filament_inductance",
 ]
 
 
@@ -195,3 +195,59 @@ def loop_self_inductance(R: float, a: float, internal: bool = True) -> float:
     ``Y = 1/4`` for uniform current (low frequency, ``internal=True``) and 0 at high frequency (Rosa & Grover,
     *Formulas and tables for the calculation of mutual and self-inductance*, Bull. Bureau of Standards 8, 1912)."""
     return MU0 * R * (math.log(8.0 * R / a) - 2.0 + (0.25 if internal else 0.0))
+
+
+def filament_inductance(paths, wire_radius, pieces_per_metre: float = 2000.0, gauss: int = 6,
+                        mirror_z: float | None = None) -> np.ndarray:
+    """Inductance matrix (H) of thin conductors along polylines ``paths`` (each an (n, 3) array, closed or open;
+    open paths give the partial inductances of their current segments).
+
+    Neumann's double integral with the thin-wire reduced kernel ``1 / sqrt(|x - x'|^2 + g^2)``, ``g`` the geometric
+    mean distance of the round wire cross-section from itself (``g = a e^-1/4`` for ``wire_radius = a``): a circle of
+    radius R then gives ``mu0 R (ln(8 R / a) - 7/4)``, Rosa's low-frequency loop inductance
+    (:func:`loop_self_inductance`). The paths are cut into straight pieces; the diagonal blocks are integrated in
+    closed form, the others with ``gauss``-point Gauss-Legendre rules. ``wire_radius``: one value or one per path.
+    ``mirror_z``: a plane ``z = mirror_z`` of infinitely permeable iron (the image of each element carries the same
+    tangential current), added to every mutual and self term."""
+    paths = [np.asarray(p, float) for p in paths]
+    radii = np.broadcast_to(np.asarray(wire_radius, float), (len(paths),))
+    segs = []
+    for k, P in enumerate(paths):
+        for a, b in zip(P[:-1], P[1:], strict=True):
+            L = float(np.linalg.norm(b - a))
+            n = max(1, int(math.ceil(L * pieces_per_metre)))
+            t = np.linspace(0.0, 1.0, n + 1)[:, None]
+            pts = a + t * (b - a)
+            for i in range(n):
+                segs.append((k, pts[i], pts[i + 1]))
+    owner = np.array([s_[0] for s_ in segs])
+    A = np.array([s_[1] for s_ in segs])
+    B = np.array([s_[2] for s_ in segs])
+    D = B - A
+    lens = np.linalg.norm(D, axis=1)
+    x, w = np.polynomial.legendre.leggauss(gauss)
+    x, w = 0.5 * (x + 1.0), 0.5 * w
+    Q = A[:, None, :] + x[None, :, None] * D[:, None, :]  # (m, gauss, 3)
+    g = (radii * math.exp(-0.25))[owner]
+    n_p = len(paths)
+    Lmat = np.zeros((n_p, n_p))
+    images = [None] if mirror_z is None else [None, mirror_z]
+    for img in images:
+        Qi, Di = Q, D
+        if img is not None:  # mirror image in z = img: positions reflected, tangential (x, y) components kept
+            Qi = Q.copy()
+            Qi[..., 2] = 2 * img - Q[..., 2]
+            Di = D.copy()
+            Di[:, 2] = -D[:, 2]
+        dots = D @ Di.T  # (m, m)
+        for i in range(len(segs)):
+            r = Q[i][:, None, None, :] - Qi[None, :, :, :]  # (gauss, m, gauss, 3)
+            gg = np.where(owner == owner[i], g[i], 0.0)  # the reduced kernel within one conductor only
+            dist = np.sqrt((r ** 2).sum(-1) + (gg[None, :, None] ** 2 if img is None else 0.0))
+            kern = (w[:, None, None] * w[None, None, :] / dist).sum((0, 2))
+            val = dots[i] * kern
+            if img is None:  # diagonal block in closed form
+                ln, gi = lens[i], g[i]
+                val[i] = 2.0 * (ln * math.asinh(ln / gi) - math.sqrt(ln * ln + gi * gi) + gi)
+            np.add.at(Lmat[owner[i]], owner, val)
+    return 1e-7 * Lmat
