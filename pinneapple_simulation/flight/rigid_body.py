@@ -19,7 +19,7 @@ The last term of q_dot pulls the quaternion back to unit norm (Baumgarte-type); 
 from __future__ import annotations
 
 import math
-from typing import Callable, Tuple
+from collections.abc import Callable
 
 import numpy as np
 
@@ -54,7 +54,7 @@ def euler_to_quat(phi: float, theta: float, psi: float) -> np.ndarray:
                      cr * cp * sy - sr * sp * cy])
 
 
-def quat_to_euler(q: np.ndarray) -> Tuple[float, float, float]:
+def quat_to_euler(q: np.ndarray) -> tuple[float, float, float]:
     """(phi, theta, psi) [rad]. At the gimbal lock (|theta| = 90 deg) only phi -+ psi is defined: the split puts it
     all in psi (phi = 0), so the result stays finite and round-trips the attitude."""
     q0, q1, q2, q3 = np.asarray(q, float) / np.linalg.norm(q)

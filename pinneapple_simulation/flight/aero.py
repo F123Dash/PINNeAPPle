@@ -24,12 +24,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 
 import numpy as np
 from scipy.linalg import lu_factor, lu_solve
 
-from pinneapple_design.aero.vlm import build_lattice, horseshoe_induced, solve as vlm_solve
+from pinneapple_design.aero.vlm import build_lattice, horseshoe_induced
+from pinneapple_design.aero.vlm import solve as vlm_solve
 
 T_AB = np.diag([-1.0, 1.0, -1.0])
 
@@ -60,7 +60,7 @@ class ControlSurface:
     eta_out: float
     cf_c: float = 0.25
     antisymmetric: bool = False
-    tau: Optional[float] = None
+    tau: float | None = None
 
     def effectiveness(self) -> float:
         return self.tau if self.tau is not None else flap_effectiveness(self.cf_c)
@@ -88,8 +88,8 @@ class AeroModel:
     af: object
     cg: np.ndarray                      # airframe axes
     cd0: float
-    fin: Optional[Fin]
-    controls: Dict[str, ControlSurface]
+    fin: Fin | None
+    controls: dict[str, ControlSurface]
     cma_fus: float = 0.0                # /rad, fuselage Munk moment on the wing area and MAC
     cnb_fus: float = 0.0                # /rad, fuselage yawing moment on the wing area and span
     cd_gear: float = 0.0
@@ -139,7 +139,7 @@ class AeroModel:
         self.oswald = 1 / (math.pi * af.aspect_ratio * self.k_induced)
 
     # ------------------------------------------------------------------ the solve
-    def circulation(self, V_ctl: np.ndarray, deflections: Dict[str, float]) -> np.ndarray:
+    def circulation(self, V_ctl: np.ndarray, deflections: dict[str, float]) -> np.ndarray:
         """Bound circulation [m^2/s] for relative air velocities at the control points (N, 3) in A axes."""
         n = self.L.nrm0.copy()
         for name, d in deflections.items():
@@ -148,10 +148,10 @@ class AeroModel:
         rhs = -np.einsum("ij,ij->i", n, V_ctl)
         return lu_solve(self.lu, rhs)
 
-    def loads(self, v_b: np.ndarray, omega_b: np.ndarray, rho: float, wind_b_strips: Optional[np.ndarray] = None,
-              wind_b_fin: Optional[np.ndarray] = None, wind_b_cg: Optional[np.ndarray] = None,
-              deflections: Optional[Dict[str, float]] = None, height_agl: float = np.inf,
-              gear_down: bool = False) -> Dict[str, object]:
+    def loads(self, v_b: np.ndarray, omega_b: np.ndarray, rho: float, wind_b_strips: np.ndarray | None = None,
+              wind_b_fin: np.ndarray | None = None, wind_b_cg: np.ndarray | None = None,
+              deflections: dict[str, float] | None = None, height_agl: float = np.inf,
+              gear_down: bool = False) -> dict[str, object]:
         """Aerodynamic force and moment about the CG in body axes.
 
         ``v_b``: aircraft velocity over the ground in body axes, ``omega_b`` body rates, ``wind_b_*`` the wind in body

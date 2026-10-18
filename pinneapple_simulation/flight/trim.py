@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, replace
-from typing import Dict, Optional
 
 import numpy as np
 from scipy.optimize import least_squares
@@ -87,7 +86,7 @@ def ground_equilibrium(ac: Aircraft, flap: float = 0.0, throttle: float = 0.0, p
     return x_of(sol.x)
 
 
-def _coeffs(ac: Aircraft, x, u: Controls) -> Dict[str, float]:
+def _coeffs(ac: Aircraft, x, u: Controls) -> dict[str, float]:
     ev = ac.evaluate(0.0, x, u)
     ae = ev["aero"]
     q, S, b, c = ae["q"], ac.af.wing_area, ac.af.span, ac.af.mac
@@ -101,13 +100,13 @@ def _coeffs(ac: Aircraft, x, u: Controls) -> Dict[str, float]:
 
 
 def stability_derivatives(ac: Aircraft, tr: TrimResult, d_angle: float = math.radians(0.5),
-                          d_rate: float = 0.01, d_ctl: float = math.radians(1.0)) -> Dict[str, float]:
+                          d_rate: float = 0.01, d_ctl: float = math.radians(1.0)) -> dict[str, float]:
     """Aerodynamic derivatives [/rad] about the trim state (engines included at the trim throttle: the thrust line
     contributes to Cm through its moment arm only through the trim, not the derivatives, which use the aero loads)."""
     x0, u0 = tr.x, tr.controls
     V = tr.V
     b, c = ac.af.span, ac.af.mac
-    out: Dict[str, float] = {}
+    out: dict[str, float] = {}
 
     def at(dalpha=0.0, dbeta=0.0, p=0.0, q=0.0, r=0.0, **dctl):
         a = tr.alpha + dalpha
@@ -143,7 +142,7 @@ def stability_derivatives(ac: Aircraft, tr: TrimResult, d_angle: float = math.ra
     return out
 
 
-def modes(ac: Aircraft, tr: TrimResult, eps: float = 1e-5) -> Dict[str, object]:
+def modes(ac: Aircraft, tr: TrimResult, eps: float = 1e-5) -> dict[str, object]:
     """Eigenvalues of the 12-state linearisation (position, velocity, attitude, rates; the quaternion's vector part
     as the attitude) about a trimmed state, with the controls fixed, by central differences of the full model."""
     from .rigid_body import quat_multiply
@@ -178,7 +177,7 @@ def modes(ac: Aircraft, tr: TrimResult, eps: float = 1e-5) -> Dict[str, object]:
     return {"A": A, "eigenvalues": ev}
 
 
-def classify_modes(eigs: np.ndarray, tol: float = 1e-6) -> Dict[str, Dict[str, float]]:
+def classify_modes(eigs: np.ndarray, tol: float = 1e-6) -> dict[str, dict[str, float]]:
     """Name the complex pairs by frequency (short period: the fastest longitudinal-looking pair is left to the caller
     with the eigenvectors; here only frequency, damping and the real roots are returned sorted)."""
     out = []
@@ -186,5 +185,5 @@ def classify_modes(eigs: np.ndarray, tol: float = 1e-6) -> Dict[str, Dict[str, f
         if lam.imag > tol:
             wn = abs(lam)
             out.append({"wn": float(wn), "zeta": float(-lam.real / wn), "period": float(2 * math.pi / lam.imag)})
-    real = sorted(float(l.real) for l in eigs if abs(l.imag) <= tol)
+    real = sorted(float(lam.real) for lam in eigs if abs(lam.imag) <= tol)
     return {"oscillatory": sorted(out, key=lambda d: -d["wn"]), "real": real}

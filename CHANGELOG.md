@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Studio animations: `pinneapple_tools.visualization.studio.animation.Animation` (rigid tracks with quaternions,
+  per-frame arrows, trails, animated per-vertex fields, HUD values, follow camera, `resample`, `at`/`pose`),
+  `Scene.animation` in scene.json, a play / slider / speed / follow bar in the browser viewer
+  (`window.studio.setFrame`, `play`), `blender.render_animation` (Cycles frames with HUD, MP4 and GIF through
+  ffmpeg) and `web.screenshot` (headless Chromium). The sky world of `render(background="sky")` works on Blender 5.
 - Slides of the e-machine study: `examples/electrodynamics/18_emachine_slides.py` builds 12 slides (PPTX, and PDF
   with LibreOffice) from the results of examples 10 to 17, every number read from the result files, each slide with
   its limits (needs `python-pptx`).

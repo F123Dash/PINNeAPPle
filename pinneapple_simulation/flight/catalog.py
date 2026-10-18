@@ -15,19 +15,25 @@ with its source, or in ``Aircraft.info["assumptions"]`` as an assumption. Nothin
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
 
 import numpy as np
 
+from pinneapple_design.aero.aircraft3d import (
+    MISC_D_OVER_Q,
+    fuselage_cd0,
+    htail_weight,
+    vtail_cd0,
+    vtail_weight,
+    wing_weight,
+)
 from pinneapple_design.aero.airframe import Airframe
 from pinneapple_design.aero.airliner import Airliner
-from pinneapple_design.aero.airliner3d import (MISC_CD0, TAIL_KG_M2, isa, wing_weight_transport)
-from pinneapple_design.aero.aircraft3d import (MISC_D_OVER_Q, fuselage_cd0, htail_weight, vtail_cd0,
-                                               vtail_weight, wing_weight)
+from pinneapple_design.aero.airliner3d import MISC_CD0, TAIL_KG_M2, isa, wing_weight_transport
 from pinneapple_design.aero.geometry import REFERENCE, properties
 
-from .aero import AeroModel, ControlSurface, Fin, flap_effectiveness, fuselage_moments
+from .aero import AeroModel, ControlSurface, Fin, fuselage_moments
 from .aircraft import Aircraft
 from .gear import GearLeg, size_gear
 from .mass import balance, cylinder, fin_plate, mass_properties, plate, point, rod
@@ -73,8 +79,8 @@ class ExplicitAirframe(Airframe):
     """An :class:`Airframe` whose wing height and tails are given explicitly (for a high wing on a T-tail aircraft,
     whose tail the parametric sizing rules would put on the fuselage)."""
     wing_z: float = 0.0
-    htail_spec: Optional[dict] = None
-    vtail_spec: Optional[dict] = None
+    htail_spec: dict | None = None
+    vtail_spec: dict | None = None
 
     def wing_z_root(self) -> float:
         return self.wing_z
@@ -87,10 +93,10 @@ class ExplicitAirframe(Airframe):
 
 
 def _assemble(name, af, mass_components, x_cg_target, engines, legs, controls, fin, cd0, cd_gear, cd_flap_per_rad,
-              cabin, tail_point, clmax_to, clmax_clean, flap_to_deg, info, parts_fn: Optional[Callable] = None,
+              cabin, tail_point, clmax_to, clmax_clean, flap_to_deg, info, parts_fn: Callable | None = None,
               nc=4, ns_wing=14, ns_tail=6) -> Aircraft:
     comps = balance(mass_components, x_cg_target, "fuselage_systems")
-    m, cg, I = mass_properties(comps)
+    m, cg, J = mass_properties(comps)
     wing_qc = (af.wing_x + 0.25 * af.root_chord) / af.length
     cma, cnb = fuselage_moments(af.length, af.width, _fuselage_volume(af), af.wing_area, af.mac, af.span, af.height,
                                 wing_qc)
@@ -104,7 +110,7 @@ def _assemble(name, af, mass_components, x_cg_target, engines, legs, controls, f
     info["fuselage_cma"], info["fuselage_cnb"] = cma, cnb
     tip = np.array([af.wing_x + af.span / 2 * math.tan(math.radians(af.sweep_le)) + 0.5 * af.root_chord * af.taper,
                     af.span / 2, af.wing_z_root() + af.span / 2 * math.tan(math.radians(af.dihedral))])
-    ac = Aircraft(name, af, aero, m, cg, I, engines, legs, cabin, tail_point=tail_point, wingtip=tip,
+    ac = Aircraft(name, af, aero, m, cg, J, engines, legs, cabin, tail_point=tail_point, wingtip=tip,
                   clmax_takeoff=clmax_to, clmax_clean=clmax_clean, flap_takeoff=math.radians(flap_to_deg), info=info)
     ac.parts_fn = parts_fn
     return ac
@@ -283,7 +289,7 @@ def a320() -> Aircraft:
     cdv = vtail_cd0(af, V, rho, mu)
     cd0 = (cdf + cdn) / af.wing_area + cdv + MISC_CD0 + profile_cd0(rho * V * af.mac / mu, tc) \
         + profile_cd0(rho * V * ht["root_chord"] / mu, 0.10) * ht["area"] / af.wing_area
-    engs = [Turbofan(27_000 * LB * 9.80665, position=p, name=f"engine_{n}") for p, n in zip(eng_pos, ("right", "left"))]
+    engs = [Turbofan(27_000 * LB * 9.80665, position=p, name=f"engine_{n}") for p, n in zip(eng_pos, ("right", "left"), strict=True)]
     xi_t = 0.88
     info = {"published": {"cfm56_5b4": SOURCES["cfm56_5b4"], "a320_tofl": SOURCES["a320_tofl"]},
             "assumptions": ["take-off mass 73,500 kg (the aero optimizer's A320-class MTOW, below the A320ceo's "
@@ -351,7 +357,7 @@ def motor_glider() -> Aircraft:
                      10.0, info, parts_fn=lambda: af.build("high"), ns_wing=20)
 
 
-CATALOG: Dict[str, Callable[[], Aircraft]] = {"light_ga": light_ga, "regional_turboprop": regional_turboprop,
+CATALOG: dict[str, Callable[[], Aircraft]] = {"light_ga": light_ga, "regional_turboprop": regional_turboprop,
                                                "a320": a320, "motor_glider": motor_glider}
 
 
@@ -359,5 +365,5 @@ def build(name: str) -> Aircraft:
     return CATALOG[name]()
 
 
-def names() -> List[str]:
+def names() -> list[str]:
     return list(CATALOG)

@@ -7,8 +7,9 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -37,15 +38,15 @@ class Controls:
     brake: float = 0.0
     gear_down: bool = True
 
-    def clipped(self) -> "Controls":
+    def clipped(self) -> Controls:
         d = {k: float(np.clip(getattr(self, k), -CONTROL_LIMITS[k] if k not in ("throttle", "brake") else 0.0,
                               CONTROL_LIMITS[k])) for k in CONTROL_LIMITS}
         return replace(self, **d)
 
-    def deflections(self) -> Dict[str, float]:
+    def deflections(self) -> dict[str, float]:
         return {"elevator": self.elevator, "aileron": self.aileron, "rudder": self.rudder, "flap": self.flap}
 
-    def as_dict(self) -> Dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
         return {k: float(getattr(self, k)) for k in ("elevator", "aileron", "rudder", "flap", "throttle", "steer",
                                                       "brake")}
 
@@ -60,15 +61,15 @@ class Aircraft:
     inertia: np.ndarray                         # body axes about the CG
     engines: Sequence[Any] = ()
     gear: Sequence[GearLeg] = ()
-    cabin: Dict[str, np.ndarray] = field(default_factory=dict)     # passenger stations (airframe axes)
-    tail_point: Optional[np.ndarray] = None     # lowest aft-fuselage point (tail-strike clearance)
-    wingtip: Optional[np.ndarray] = None        # right wing tip (left by symmetry), wing-strike clearance
+    cabin: dict[str, np.ndarray] = field(default_factory=dict)     # passenger stations (airframe axes)
+    tail_point: np.ndarray | None = None     # lowest aft-fuselage point (tail-strike clearance)
+    wingtip: np.ndarray | None = None        # right wing tip (left by symmetry), wing-strike clearance
     clmax_takeoff: float = float("nan")
     clmax_clean: float = float("nan")
     flap_takeoff: float = 0.0                   # rad
     field_elevation: float = 0.0
-    info: Dict[str, Any] = field(default_factory=dict)              # sources, assumptions, component masses
-    parts: Optional[List[Any]] = None           # visual geometry (airframe axes)
+    info: dict[str, Any] = field(default_factory=dict)              # sources, assumptions, component masses
+    parts: list[Any] | None = None           # visual geometry (airframe axes)
 
     def __post_init__(self):
         self.cg = np.asarray(self.cg, float)
@@ -96,12 +97,12 @@ class Aircraft:
     def atmosphere(self, x: np.ndarray):
         return isa(max(self.field_elevation - float(x[2]), 0.0))
 
-    def stall_speed(self, rho: float = 1.225, clmax: Optional[float] = None) -> float:
+    def stall_speed(self, rho: float = 1.225, clmax: float | None = None) -> float:
         c = self.clmax_takeoff if clmax is None else clmax
         return math.sqrt(2 * self.weight / (rho * self.af.wing_area * c))
 
     # ------------------------------------------------------------------ forces
-    def evaluate(self, t: float, x: np.ndarray, u: Controls, wind=None, ground_z: float = 0.0) -> Dict[str, Any]:
+    def evaluate(self, t: float, x: np.ndarray, u: Controls, wind=None, ground_z: float = 0.0) -> dict[str, Any]:
         u = u.clipped()
         C = quat_to_dcm(x[6:10])
         v, w = x[IDX_VEL], x[IDX_OMEGA]
@@ -118,7 +119,7 @@ class Aircraft:
         M = ae["M"].copy()
         # engines
         thrust = 0.0
-        for e, r, d in zip(self.engines, self.engine_r, self.engine_d):
+        for e, r, d in zip(self.engines, self.engine_r, self.engine_d, strict=True):
             T = e.thrust(ae["V"], rho, a, u.throttle)
             F += T * d
             M += np.cross(r, T * d)
@@ -136,7 +137,7 @@ class Aircraft:
         return {"dx": dx, "F": F, "M": M, "aero": ae, "thrust": thrust, "gear_loads": loads, "f_spec": f_spec,
                 "rho": rho, "a": a, "C": C, "controls": u, "wind_cg_b": Wc, "h_agl": h_agl}
 
-    def specific_force_at(self, ev: Dict[str, Any], x: np.ndarray, r_b: np.ndarray) -> np.ndarray:
+    def specific_force_at(self, ev: dict[str, Any], x: np.ndarray, r_b: np.ndarray) -> np.ndarray:
         """Specific force [m/s^2] in body axes at body point r_b: f_cg + omega_dot x r + omega x (omega x r)."""
         w = x[IDX_OMEGA]
         wd = ev["dx"][IDX_OMEGA]

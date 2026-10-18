@@ -14,8 +14,8 @@ at low speed (the surfaces then saturate at their limits).
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -44,8 +44,8 @@ class LoopDesign:
 class InnerLoops:
     """Attitude loops of one aircraft: :meth:`elevator`, :meth:`aileron`, :meth:`rudder` give surface increments."""
 
-    def __init__(self, ac: Aircraft, derivs: Dict[str, float], design: LoopDesign = LoopDesign()):
-        self.ac, self.d, self.k = ac, derivs, design
+    def __init__(self, ac: Aircraft, derivs: dict[str, float], design: LoopDesign | None = None):
+        self.ac, self.d, self.k = ac, derivs, design or LoopDesign()
         self.I = np.diag(ac.inertia)
         self.int_theta = 0.0
 
@@ -85,8 +85,8 @@ class Autopilot:
     """Altitude hold (through pitch attitude), wings level / heading hold (through bank), yaw damper (washed-out yaw
     rate), autothrottle on airspeed, about a trim state. ``loops`` scales the attitude bandwidths."""
 
-    def __init__(self, ac: Aircraft, trim, derivs: Dict[str, float], design: LoopDesign = LoopDesign(),
-                 altitude: Optional[float] = None, heading: Optional[float] = None, speed: Optional[float] = None,
+    def __init__(self, ac: Aircraft, trim, derivs: dict[str, float], design: LoopDesign | None = None,
+                 altitude: float | None = None, heading: float | None = None, speed: float | None = None,
                  omega_h: float = 0.25, tau_heading: float = 8.0, washout: float = 2.0, autothrottle: bool = True):
         self.ac, self.tr = ac, trim
         self.loops = InnerLoops(ac, derivs, design)
@@ -149,12 +149,12 @@ class TakeoffPilot:
     in the air the track is held along the runway by bank and the yaw damper keeps the turn coordinated. Records the
     events (t, x, V at V_R, lift-off) in ``events``."""
 
-    def __init__(self, ac: Aircraft, sched: TakeoffSchedule, derivs: Dict[str, float],
-                 design: LoopDesign = LoopDesign()):
+    def __init__(self, ac: Aircraft, sched: TakeoffSchedule, derivs: dict[str, float],
+                 design: LoopDesign | None = None):
         self.ac, self.s = ac, sched
         self.loops = InnerLoops(ac, derivs, design)
         self.phase = "roll"
-        self.events: Dict[str, Any] = {}
+        self.events: dict[str, Any] = {}
         self.t_last = None
         self.theta_c = None
         self.t_air = None

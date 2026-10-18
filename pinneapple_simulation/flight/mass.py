@@ -7,8 +7,8 @@ the parallel-axis theorem and returns the inertia tensor in body axes (x forward
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from typing import List, Sequence, Tuple
 
 import numpy as np
 
@@ -29,11 +29,11 @@ def point(name, mass, center) -> Component:
 
 def rod(name, mass, center, length, axis: int = 0) -> Component:
     """Slender rod of ``length`` along airframe axis ``axis``."""
-    I = np.zeros((3, 3))
+    J = np.zeros((3, 3))
     for k in range(3):
         if k != axis:
-            I[k, k] = mass * length ** 2 / 12
-    return Component(name, mass, np.asarray(center, float), I)
+            J[k, k] = mass * length ** 2 / 12
+    return Component(name, mass, np.asarray(center, float), J)
 
 
 def plate(name, mass, center, span, chord, taper: float = 1.0) -> Component:
@@ -42,14 +42,14 @@ def plate(name, mass, center, span, chord, taper: float = 1.0) -> Component:
     Ixx = m (b/2)^2 (1 + 3 taper) / (6 (1 + taper)), m b^2 / 12 for a rectangular plate."""
     ixx = mass * (span / 2) ** 2 * (1 + 3 * taper) / (6 * (1 + taper))
     iyy = mass * chord ** 2 / 12
-    I = np.diag([ixx, iyy, ixx + iyy])
-    return Component(name, mass, np.asarray(center, float), I)
+    J = np.diag([ixx, iyy, ixx + iyy])
+    return Component(name, mass, np.asarray(center, float), J)
 
 
 def fin_plate(name, mass, center, height, chord) -> Component:
     """Thin plate in the x-z plane (a vertical tail)."""
-    I = np.diag([mass * height ** 2 / 12, mass * (height ** 2 + chord ** 2) / 12, mass * chord ** 2 / 12])
-    return Component(name, mass, np.asarray(center, float), I)
+    J = np.diag([mass * height ** 2 / 12, mass * (height ** 2 + chord ** 2) / 12, mass * chord ** 2 / 12])
+    return Component(name, mass, np.asarray(center, float), J)
 
 
 def cylinder(name, mass, center, length, radius, shell: bool = False) -> Component:
@@ -59,18 +59,18 @@ def cylinder(name, mass, center, length, radius, shell: bool = False) -> Compone
     return Component(name, mass, np.asarray(center, float), np.diag([Ia, It, It]))
 
 
-def mass_properties(components: Sequence[Component]) -> Tuple[float, np.ndarray, np.ndarray]:
+def mass_properties(components: Sequence[Component]) -> tuple[float, np.ndarray, np.ndarray]:
     """(mass, cg in airframe axes, inertia about the CG in body axes)."""
     m = sum(c.mass for c in components)
     cg = sum(c.mass * np.asarray(c.center, float) for c in components) / m
-    I = np.zeros((3, 3))
+    J = np.zeros((3, 3))
     for c in components:
         d = np.asarray(c.center, float) - cg
-        I += c.inertia + c.mass * (float(d @ d) * np.eye(3) - np.outer(d, d))
-    return m, cg, T_AB @ I @ T_AB.T
+        J += c.inertia + c.mass * (float(d @ d) * np.eye(3) - np.outer(d, d))
+    return m, cg, T_AB @ J @ T_AB.T
 
 
-def balance(components: Sequence[Component], x_target: float, movable: str) -> List[Component]:
+def balance(components: Sequence[Component], x_target: float, movable: str) -> list[Component]:
     """Shift the component named ``movable`` along x so that the CG is at ``x_target`` (airframe axes)."""
     comps = list(components)
     m = sum(c.mass for c in comps)

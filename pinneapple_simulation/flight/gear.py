@@ -13,8 +13,8 @@ Defaults (assumptions, not measured tyre data): mu_roll 0.02 (dry hard runway, b
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Sequence
 
 import numpy as np
 
@@ -37,24 +37,24 @@ class GearLeg:
 
 
 def size_gear(legs: Sequence[GearLeg], mass: float, cg: np.ndarray, static_compression: float = 0.25,
-              zeta: float = 0.6, g: float = 9.80665) -> List[GearLeg]:
+              zeta: float = 0.6, g: float = 9.80665) -> list[GearLeg]:
     """Spring and damper of every leg so that the static compression under its share of the weight is
     ``static_compression``; the shares come from moment balance about the CG in x (nose / mains) and split equally
     between legs at the same x station (left / right)."""
-    xs = np.array([float(l.contact[0]) for l in legs])
+    xs = np.array([float(leg.contact[0]) for leg in legs])
     stations = sorted(set(np.round(xs, 3)))
     if len(stations) != 2:
         raise ValueError("size_gear expects two gear stations in x (nose and mains, or mains and tail)")
     xa, xb = stations
     x = float(cg[0])
     fb = (x - xa) / (xb - xa)                                   # share of the aft station
-    for l in legs:
-        st = xb if abs(float(l.contact[0]) - xb) < 1e-3 else xa
+    for leg in legs:
+        st = xb if abs(float(leg.contact[0]) - xb) < 1e-3 else xa
         n_at = sum(abs(float(m.contact[0]) - st) < 1e-3 for m in legs)
         share = (fb if st == xb else 1 - fb) / n_at
         W = share * mass * g
-        l.stiffness = W / static_compression
-        l.damping = 2 * zeta * math.sqrt(l.stiffness * share * mass)
+        leg.stiffness = W / static_compression
+        leg.damping = 2 * zeta * math.sqrt(leg.stiffness * share * mass)
     return list(legs)
 
 
@@ -65,28 +65,28 @@ def gear_forces(legs: Sequence[GearLeg], x: np.ndarray, C: np.ndarray, cg: np.nd
     F = np.zeros(3)
     M = np.zeros(3)
     loads = []
-    for l in legs:
-        r = T_AB @ (np.asarray(l.contact, float) - cg)
+    for leg in legs:
+        r = T_AB @ (np.asarray(leg.contact, float) - cg)
         p = pos + C @ r
         d = p[2] - ground_z
         if d <= 0:
             loads.append(0.0)
             continue
         vp = C @ (v + np.cross(w, r))
-        N = max(0.0, l.stiffness * d + l.damping * vp[2])
+        N = max(0.0, leg.stiffness * d + leg.damping * vp[2])
         if N == 0.0:
             loads.append(0.0)
             continue
-        s = steer if l.steerable else 0.0
+        s = steer if leg.steerable else 0.0
         dh = C @ np.array([math.cos(s), math.sin(s), 0.0])
         dh[2] = 0.0
         dh /= np.linalg.norm(dh) + 1e-12
         lh = np.array([-dh[1], dh[0], 0.0])
         vl, vs = float(vp @ dh), float(vp @ lh)
-        mu = l.mu_roll + (l.mu_brake * float(np.clip(brake, 0, 1)) if l.brakes else 0.0)
-        F_long = -mu * N * math.tanh(vl / l.v_reg)
+        mu = leg.mu_roll + (leg.mu_brake * float(np.clip(brake, 0, 1)) if leg.brakes else 0.0)
+        F_long = -mu * N * math.tanh(vl / leg.v_reg)
         slip = math.atan2(vs, abs(vl) + 1.0)
-        F_lat = -l.mu_side * N * math.tanh(slip / l.slip_ref)
+        F_lat = -leg.mu_side * N * math.tanh(slip / leg.slip_ref)
         Fn = np.array([0.0, 0.0, -N]) + F_long * dh + F_lat * lh
         Fb = C.T @ Fn
         F += Fb

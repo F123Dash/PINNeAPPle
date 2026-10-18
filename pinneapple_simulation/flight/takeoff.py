@@ -17,7 +17,7 @@ with the thrust taken at 0.7 V_LOF and the ground-roll CL, CD0, K from the same 
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 
@@ -44,14 +44,14 @@ def default_schedule(ac: Aircraft, kind: str = "transport") -> TakeoffSchedule:
                            V_climb=1.30 * Vs, flap=ac.flap_takeoff)
 
 
-def takeoff_derivatives(ac: Aircraft, V: float) -> Dict[str, float]:
+def takeoff_derivatives(ac: Aircraft, V: float) -> dict[str, float]:
     """Control derivatives for the pilot's gain design: about a trimmed climb-out at V with the take-off flap."""
     tr = trim(ac, V, 50.0, gamma=0.0, flap=ac.flap_takeoff, gear_down=True)
     return stability_derivatives(ac, tr)
 
 
-def simulate_takeoff(ac: Aircraft, schedule: Optional[TakeoffSchedule] = None, wind=None, t_max: float = 90.0,
-                     dt: float = 0.01, h_stop: float = 400 * FT, design: LoopDesign = LoopDesign(),
+def simulate_takeoff(ac: Aircraft, schedule: TakeoffSchedule | None = None, wind=None, t_max: float = 90.0,
+                     dt: float = 0.01, h_stop: float = 400 * FT, design: LoopDesign | None = None,
                      record_gamma: bool = False, record_every: int = 1, kind: str = "transport") -> FlightHistory:
     s = schedule or default_schedule(ac, kind)
     d = takeoff_derivatives(ac, s.V_climb)
@@ -76,14 +76,14 @@ def _point_heights(ac: Aircraft, hist: FlightHistory, pA) -> np.ndarray:
     return np.array([-(x[2] + (quat_to_dcm(x[6:10]) @ r)[2]) for x in hist.x])
 
 
-def takeoff_metrics(ac: Aircraft, hist: FlightHistory) -> Dict[str, Any]:
+def takeoff_metrics(ac: Aircraft, hist: FlightHistory) -> dict[str, Any]:
     ev = hist.events
     x0 = hist.x[0, :2]
     hdg = 0.0
     along = (hist.x[:, :2] - x0) @ np.array([math.cos(hdg), math.sin(hdg)])
     lat = (hist.x[:, :2] - x0) @ np.array([-math.sin(hdg), math.cos(hdg)])
     wheels = np.min([_point_heights(ac, hist, g.contact) for g in ac.gear], axis=0)
-    out: Dict[str, Any] = {"aircraft": ac.name, "mass_kg": ac.mass, "V_R": ev.get("V_R")}
+    out: dict[str, Any] = {"aircraft": ac.name, "mass_kg": ac.mass, "V_R": ev.get("V_R")}
     if "t_LOF" not in ev:
         out["lifted_off"] = False
         return out
@@ -126,8 +126,8 @@ def takeoff_metrics(ac: Aircraft, hist: FlightHistory) -> Dict[str, Any]:
     return out
 
 
-def raymer_takeoff(ac: Aircraft, V_LOF: Optional[float] = None, mu: float = 0.02, t_rotation: float = 3.0,
-                   h_obstacle: float = SCREEN, theta_ground: float = 0.0) -> Dict[str, float]:
+def raymer_takeoff(ac: Aircraft, V_LOF: float | None = None, mu: float = 0.02, t_rotation: float = 3.0,
+                   h_obstacle: float = SCREEN, theta_ground: float = 0.0) -> dict[str, float]:
     """Raymer's closed-form take-off distance with this aircraft's thrust, lift and drag (see the module text).
     ``V_LOF`` defaults to 1.1 V_stall (take-off flap). Ground-roll lift and drag from the lattice at the ground
     attitude with the take-off flap and the gear down, ground effect on the induced drag at the wing height."""

@@ -101,6 +101,7 @@ class Scene:
     title: str = "PINNeAPPle scene"
     labels: Dict[str, str] = field(default_factory=dict)     # field name -> label with unit (for colour bars)
     lighting: Optional[Dict[str, Any]] = None                 # a lighting preset for the browser viewer (see .lighting)
+    animation: Any = None                                     # an .animation.Animation (tracks, arrows, HUD per frame)
 
     # ------------------------------------------------------------------ construction
     @classmethod
@@ -222,13 +223,16 @@ class Scene:
     def n_faces(self) -> int:
         return int(sum(len(s.faces) for s in self.surfaces))
 
-    def decimate(self, max_faces: int) -> "Scene":
+    def decimate(self, max_faces: int, keep: Sequence[str] = ()) -> "Scene":
         """Reduce the surfaces (in place) to about ``max_faces`` triangles in total, each in proportion to its size,
-        by vertex clustering; fields are averaged over the merged vertices. Small parts are left alone."""
+        by vertex clustering; fields are averaged over the merged vertices. Small parts and the surfaces named in
+        ``keep`` (e.g. those carrying an animated per-vertex field) are left alone."""
         total = self.n_faces()
         if total <= max_faces:
             return self
         for i, srf in enumerate(self.surfaces):
+            if srf.name in keep:
+                continue
             target = max(200, int(len(srf.faces) * max_faces / total))
             if len(srf.faces) > target:
                 self.surfaces[i] = decimate_surface(srf, target)
@@ -259,7 +263,7 @@ class Scene:
         return write_stl(self.surfaces, self.title)
 
     def extras(self) -> Dict[str, Any]:
-        """Lines and slices as JSON (scene axes, same as the surfaces), with the field labels."""
+        """Lines, slices and the animation as JSON (scene axes, same as the surfaces), with the field labels."""
         r = lambda a, nd=4: np.round(np.asarray(a, float), nd).tolist()  # noqa: E731
         return {"axes": self.axes, "title": self.title, "labels": self.labels, "fields": self.field_names(),
                 **({"lighting": self.lighting} if self.lighting else {}),
@@ -267,7 +271,8 @@ class Scene:
                            "values": None if L.values is None else [r(v) for v in L.values]} for L in self.lines],
                 "slices": [{"name": s.name, "label": s.label, "group": s.group or s.name, "origin": r(s.origin), "u": r(s.u), "v": r(s.v),
                             "grid": [[None if not np.isfinite(t) else round(float(t), 5) for t in row] for row in s.grid]}
-                           for s in self.slices]}
+                           for s in self.slices],
+                **({"animation": self.animation.to_dict(surfaces=self.surfaces)} if self.animation is not None else {})}
 
 
 # ---------------------------------------------------------------------- helpers

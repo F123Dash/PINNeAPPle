@@ -11,8 +11,9 @@ circulation (for the surface loading in the viewer).
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -35,12 +36,12 @@ class FlightHistory:
     f_spec: np.ndarray                              # (n, 3) specific force at the CG, body axes [m/s^2]
     thrust: np.ndarray
     gear_loads: np.ndarray                          # (n, legs) [N]
-    controls: Dict[str, np.ndarray]
+    controls: dict[str, np.ndarray]
     wind_cg: np.ndarray                             # (n, 3) wind at the CG, body axes
-    cabin_nz: Dict[str, np.ndarray] = field(default_factory=dict)
-    cabin_ny: Dict[str, np.ndarray] = field(default_factory=dict)
-    gamma: Optional[np.ndarray] = None              # (n, panels) circulation [m^2/s]
-    events: Dict[str, Any] = field(default_factory=dict)
+    cabin_nz: dict[str, np.ndarray] = field(default_factory=dict)
+    cabin_ny: dict[str, np.ndarray] = field(default_factory=dict)
+    gamma: np.ndarray | None = None              # (n, panels) circulation [m^2/s]
+    events: dict[str, Any] = field(default_factory=dict)
 
     @property
     def position(self) -> np.ndarray:
@@ -53,21 +54,21 @@ class FlightHistory:
     @property
     def ground_speed(self) -> np.ndarray:
         from .rigid_body import quat_to_dcm
-        return np.array([np.linalg.norm(quat_to_dcm(q) @ v) for q, v in zip(self.x[:, 6:10], self.x[:, 3:6])])
+        return np.array([np.linalg.norm(quat_to_dcm(q) @ v) for q, v in zip(self.x[:, 6:10], self.x[:, 3:6], strict=True)])
 
-    def summary(self) -> Dict[str, float]:
+    def summary(self) -> dict[str, float]:
         return {"t_end": float(self.t[-1]), "nz_min": float(self.nz.min()), "nz_max": float(self.nz.max()),
                 "alpha_max_deg": float(np.degrees(self.alpha.max())), "V_min": float(self.airspeed.min())}
 
 
-def simulate(ac: Aircraft, x0: np.ndarray, controller: Callable[[float, np.ndarray, Optional[Dict]], Controls],
+def simulate(ac: Aircraft, x0: np.ndarray, controller: Callable[[float, np.ndarray, dict | None], Controls],
              t_end: float, dt: float = 0.01, wind=None, record_every: int = 1, record_gamma: bool = False,
-             stop: Optional[Callable[[float, np.ndarray, Dict], bool]] = None, t0: float = 0.0) -> FlightHistory:
+             stop: Callable[[float, np.ndarray, dict], bool] | None = None, t0: float = 0.0) -> FlightHistory:
     x = np.asarray(x0, float).copy()
     n = int(round((t_end - t0) / dt))
-    rec: Dict[str, List] = {k: [] for k in ("t", "x", "euler", "V", "alpha", "beta", "CL", "f", "thrust", "gear",
+    rec: dict[str, list] = {k: [] for k in ("t", "x", "euler", "V", "alpha", "beta", "CL", "f", "thrust", "gear",
                                             "wind", "gamma")}
-    ctl: Dict[str, List] = {k: [] for k in ("elevator", "aileron", "rudder", "flap", "throttle", "steer", "brake")}
+    ctl: dict[str, list] = {k: [] for k in ("elevator", "aileron", "rudder", "flap", "throttle", "steer", "brake")}
     cab = {k: [] for k in ac.cabin_b}
     last = None
     t = t0
@@ -98,7 +99,7 @@ def simulate(ac: Aircraft, x0: np.ndarray, controller: Callable[[float, np.ndarr
             break
         if k == n:
             break
-        x = rk4_step(lambda tt, xx: ac.evaluate(tt, xx, u, wind)["dx"], t, x, dt)
+        x = rk4_step(lambda tt, xx, u=u: ac.evaluate(tt, xx, u, wind)["dx"], t, x, dt)
         t = t0 + (k + 1) * dt
         if not np.all(np.isfinite(x)):
             raise FloatingPointError(f"state diverged at t = {t:.3f} s")
@@ -115,7 +116,7 @@ def simulate(ac: Aircraft, x0: np.ndarray, controller: Callable[[float, np.ndarr
     return hist
 
 
-def energy_check(ac: Aircraft, x0: np.ndarray, t_end: float = 5.0, dt: float = 0.01) -> Dict[str, float]:
+def energy_check(ac: Aircraft, x0: np.ndarray, t_end: float = 5.0, dt: float = 0.01) -> dict[str, float]:
     """Energy and momentum consistency of the integrator with the aerodynamics, engines and gear off (a body in
     vacuum under gravity, spinning): kinetic + potential energy and the angular momentum in NED are conserved."""
     from .rigid_body import angular_momentum_ned, gravity_body, rigid_body_derivative

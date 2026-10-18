@@ -156,6 +156,43 @@ optional field colour maps on the terrain and the parts with a colour bar, and E
 
 The lunar rover page ([Lunar rover terramechanics in 3D](lunar_rover_terramechanics.md)) shows these in use.
 
+## Animations: bodies moving through a scene
+
+`pinneapple_tools.visualization.studio.animation.Animation` adds time to a `Scene`: rigid tracks (an aircraft on a
+runway, a vehicle, a rotor), arrows per frame, a trail drawn up to the current time, per-vertex fields that change
+with time (e.g. a wing-load lattice) and head-up numbers. Surfaces whose `group` matches a track are given in the
+body frame and placed at frame k by `R(q_k) v + positions[k]`; quaternions are `[w, x, y, z]`, everything in the
+scene's axes.
+
+```python
+from pinneapple_tools.visualization.studio import Scene, Surface
+from pinneapple_tools.visualization.studio.animation import Animation
+from pinneapple_tools.visualization.studio.blender import render_animation
+from pinneapple_tools.visualization.studio.web import screenshot, web_viewer
+
+sc = Scene([Surface("runway", Vr, Fr, "concrete"), Surface("aircraft", Va, Fa, "paint", group="ac")])
+anim = Animation(t, camera="follow")                      # times (T,)
+anim.add_track("ac", positions, quaternions)              # (T, 3), (T, 4)
+anim.add_vectors("loads", origins, vectors, values=mag, attach="ac", label="Load [kN]")   # (T, M, 3), (T, M)
+anim.add_trail("path", positions)
+anim.add_hud("V", speed, "Speed", "m/s")
+sc.animation = anim.resample(200)                         # keeps scene.json small
+web_viewer(sc, "viewer/")                                 # play, time slider, speed, Follow, Vectors
+screenshot("viewer/", "f100.png", frame=100)              # headless Chromium (playwright)
+render_animation(sc, "frames/", camera="chase", samples=16, gif=True)   # Cycles PNGs + HUD, MP4 and GIF
+```
+
+- **Viewer:** a bottom bar with play / pause, a time slider, the playback speed (0.25x to 4x), the time, a *Follow*
+  checkbox (chase camera; orbiting still works) and a *Vectors* toggle; the HUD values sit top left and the colour
+  bars of arrows and animated fields top right. Between frames positions are linear and rotations slerp. The camera
+  fit covers the static scene and the trajectories, and the clip planes follow the distance, so a 3 km runway with a
+  37 m aircraft works. `window.studio.setFrame(k)` and `window.studio.play(true)` drive it from scripts.
+- **Blender:** `render_animation` imports the surfaces once, parents each tracked group to an Empty, draws the arrows
+  as cylinders and cones and the trails as growing tubes, burns the HUD into each PNG and encodes an H.264 MP4
+  (yuv420p) and optionally a GIF with ffmpeg. Cameras: `"chase"`, `"follow"`, `"side"`, `"tower"`, `"fixed"`.
+- `Animation.at(t)`, `pose(group, k)`, `frame(k)`, `transform(group, k, points)` give the transforms; `to_dict` /
+  `from_dict` round-trip the JSON.
+
 ## Particle process videos
 
 Thousands of spheres coloured by a value inside glass or steel equipment that moves (an impeller turning), rendered

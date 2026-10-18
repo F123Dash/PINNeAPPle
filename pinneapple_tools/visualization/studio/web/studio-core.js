@@ -170,3 +170,35 @@ export function setEdges(THREE, mesh, mode, color = 0x1e293b) {
   e.renderOrder = 1;
   mesh.add(e); mesh.userData.edges = e;
 }
+
+// ---------------------------------------------------------------- animation helpers (scene.json "animation")
+// fractional frame index of time t in the increasing times (clamped to the ends)
+export function frameAt(times, t) {
+  const n = times.length;
+  if (n < 2 || t <= times[0]) return 0;
+  if (t >= times[n - 1]) return n - 1;
+  let a = 0, b = n - 1;
+  while (b - a > 1) { const m = (a + b) >> 1; if (times[m] <= t) a = m; else b = m; }
+  return a + (t - times[a]) / ((times[b] - times[a]) || 1);
+}
+// the frame pair and weight of a fractional index: [k0, k1, w]
+export function bracket(f, n) {
+  const k0 = Math.max(0, Math.min(n - 1, Math.floor(f))), k1 = Math.min(n - 1, k0 + 1);
+  return [k0, k1, k1 === k0 ? 0 : f - k0];
+}
+export const lerp = (a, b, w) => (a === null || b === null ? (w < 0.5 ? a : b) : a + (b - a) * w);
+export const lerp3 = (a, b, w) => [lerp(a[0], b[0], w), lerp(a[1], b[1], w), lerp(a[2], b[2], w)];
+// scene axes -> three.js as a matrix C (rows); a rotation R in scene axes is C R C^T in three.js
+export const AXES_MATRIX = { z_up: [[1, 0, 0], [0, 0, 1], [0, -1, 0]], aircraft: [[0, 1, 0], [0, 0, 1], [1, 0, 0]], as_is: [[1, 0, 0], [0, 1, 0], [0, 0, 1]] };
+// quaternion [w, x, y, z] in scene axes -> three.js order [x, y, z, w]: C is a proper rotation, so C R C^T turns
+// about the axis C a by the same angle, i.e. the vector part maps like a point
+export function quatToThree(q, axes = "z_up") {
+  const C = AXES_MATRIX[axes] || AXES_MATRIX.z_up, v = [q[1], q[2], q[3]];
+  const r = C.map((row) => row[0] * v[0] + row[1] * v[1] + row[2] * v[2]);
+  return [r[0], r[1], r[2], q[0]];
+}
+// one head-up line: "label: value unit" with the entry's decimals
+export function hudLine(h, v) {
+  const s = v === null || v === undefined || !Number.isFinite(v) ? "–" : v.toFixed(h.nd ?? 1);
+  return `${h.label}: ${s}${h.unit ? " " + h.unit : ""}`;
+}

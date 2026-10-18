@@ -45,8 +45,8 @@ Figure 7) as tabulated in ``HIGH_ALTITUDE_SIGMA_FT_S``. Random Fourier modes: Kr
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
 
 import numpy as np
 from scipy.linalg import expm
@@ -114,7 +114,7 @@ def _high(h_ft: float, prob: float, model: str):
 
 
 def turbulence_spec(altitude: float, severity: str = "moderate", model: str = "von_karman", *,
-                    w20: Optional[float] = None, probability: Optional[float] = None) -> TurbulenceSpec:
+                    w20: float | None = None, probability: float | None = None) -> TurbulenceSpec:
     """Intensities and scale lengths at ``altitude`` [m] (above ground level for the low-altitude model) for a
     severity ``light`` / ``moderate`` / ``severe``. ``w20`` [m/s] overrides the 20 ft wind of the severity (low
     altitude), ``probability`` the exceedance probability (medium / high altitude, a key of
@@ -179,7 +179,7 @@ class WindField:
     def velocity(self, t: float, points: np.ndarray) -> np.ndarray:            # pragma: no cover - interface
         raise NotImplementedError
 
-    def __add__(self, other: "WindField") -> "WindField":
+    def __add__(self, other: WindField) -> WindField:
         return SumWind([self, other])
 
 
@@ -237,7 +237,7 @@ class FrozenLine(WindField):
     dx: float = 1.0
     heading_deg: float = 0.0
     origin: Sequence[float] = (0.0, 0.0, 0.0)
-    seed: Optional[int] = 0
+    seed: int | None = 0
     series: np.ndarray = field(init=False, repr=False)        # (3, n): u, v, w
 
     def __post_init__(self):
@@ -286,7 +286,7 @@ class DrydenFilter:
     filters are discretised exactly for the step ``dt`` (Van Loan), so the variance is exact at any step. ``step()``
     returns the next (u, v, w) sample in path axes."""
 
-    def __init__(self, spec: TurbulenceSpec, V: float, dt: float, seed: Optional[int] = 0):
+    def __init__(self, spec: TurbulenceSpec, V: float, dt: float, seed: int | None = 0):
         if spec.model != "dryden":
             spec = TurbulenceSpec(spec.sigma_u, spec.sigma_v, spec.sigma_w, spec.L_u, spec.L_v, spec.L_w, "dryden",
                                   spec.altitude, spec.severity)
@@ -324,13 +324,16 @@ class DrydenFilter:
         out = np.empty(3)
         for i, b in enumerate(self.blocks):
             Ad, Lq, C, x = b
-            out[i] = float(C @ x)
+            out[i] = (C @ x)[0]
             b[3] = Ad @ x + Lq @ self.rng.standard_normal(len(x))
         return out
 
     def series(self, n: int) -> np.ndarray:
-        """(n, 3) consecutive samples."""
-        return np.array([self.step() for _ in range(n)])
+        """(n, 3) consecutive samples (the same sequence as n calls of :meth:`step`)."""
+        out = np.empty((n, 3))
+        for k in range(n):
+            out[k] = self.step()
+        return out
 
 
 # ---------------------------------------------------------------------------------------------- 3-D frozen field
@@ -346,8 +349,8 @@ def von_karman_energy(k, L: float, sigma: float = 1.0):
 def _vk_const():
     from scipy.integrate import quad
     # integral of x^4 / (1 + x^2)^(17/6) dx over 0..inf, with k = x / (a L): integral E dk = C s^2 L I / (a L)
-    I = quad(lambda x: x ** 4 / (1 + x * x) ** (17 / 6), 0, np.inf, limit=400)[0]
-    return 1.5 * VK_A / I
+    integral = quad(lambda x: x ** 4 / (1 + x * x) ** (17 / 6), 0, np.inf, limit=400)[0]
+    return 1.5 * VK_A / integral
 
 
 _VK_E_CONST = _vk_const()
@@ -359,9 +362,9 @@ def isotropic_line_spectra(k1, L: float, sigma: float = 1.0):
     F11(k1) = int_k1^inf E(k)/k (1 - k1^2/k^2) dk, F22(k1) = 1/2 int_k1^inf E(k)/k (1 + k1^2/k^2) dk."""
     from scipy.integrate import quad
     k1 = np.atleast_1d(np.asarray(k1, float))
-    F11 = np.array([quad(lambda k: von_karman_energy(k, L, sigma) / k * (1 - q * q / (k * k)), q, np.inf,
+    F11 = np.array([quad(lambda k, q=q: von_karman_energy(k, L, sigma) / k * (1 - q * q / (k * k)), q, np.inf,
                          limit=400)[0] for q in k1])
-    F22 = np.array([0.5 * quad(lambda k: von_karman_energy(k, L, sigma) / k * (1 + q * q / (k * k)), q, np.inf,
+    F22 = np.array([0.5 * quad(lambda k, q=q: von_karman_energy(k, L, sigma) / k * (1 + q * q / (k * k)), q, np.inf,
                                limit=400)[0] for q in k1])
     return F11, F22
 
@@ -381,11 +384,11 @@ class FrozenField3D(WindField):
     spec: TurbulenceSpec
     n_shells: int = 96
     n_dirs: int = 24
-    k_min: Optional[float] = None
-    k_max: Optional[float] = None
+    k_min: float | None = None
+    k_max: float | None = None
     dx_min: float = 2.0
     heading_deg: float = 0.0
-    seed: Optional[int] = 0
+    seed: int | None = 0
 
     def __post_init__(self):
         rng = np.random.default_rng(self.seed)
