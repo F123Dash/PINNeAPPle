@@ -218,8 +218,9 @@ saturation must be in the optimisation loop for thin-featured designs.
   MTPA by golden-section search on the FEA torque, iron loss per element in its own frame (table or fit) and
   resistance-limited magnet eddy loss.
 
-The cross-check is against a published benchmark, not against FEMM or pyleecan (neither runs in this
-environment: FEMM is Windows-only, pyleecan's wheel needs a git-only dependency). The reference is the
+The FEA is checked against a published benchmark here and against a second, independent code (gmsh + GetDP) in the
+next section. FEMM (Windows-only) and pyleecan (its wheel needs a git-only dependency) do not run in this
+environment. The published reference is the
 torque against current angle of the Prius motor at 250 A peak computed by Yang, Krishnamurthy and Brown (IEEE IEMDC
 2013), as tabulated in pyleecan's test suite. Their model and pyleecan's geometry are not the same file (centre
 post, magnet temperature, steel data), so agreement within a few per cent is the expectation, not a mesh error.
@@ -290,6 +291,91 @@ Notes from the same run:
 - Prius IPM: torque vs current angle (Yang et al. 2013): peak 345.6 N m at Phi0 = 140 deg (published 353 N m at 140 deg); largest deviation +25.3 N m at 90 deg; rms 13.3 N m; an angle offset of -1.32 deg fits best (rms 12.2 -> 9.7 N m over 70..170 deg)
 - Prius IPM: mesh convergence of the peak torque: 480: 343.42 N m, 960: 345.65 N m, 1920: 344.22 N m; difference ratio 1.56
 <!-- machine-verification:end -->
+
+### Second code: gmsh + GetDP, and interoperability
+
+`pinneapple_simulation.electromagnetics.machines.getdp` solves the same machine with gmsh 4.12 and GetDP 3.2,
+external GPL programs called as executables (`apt install gmsh getdp`):
+
+* `write_geo` writes the same polygons as the mesher;
+* `write_pro` writes a 2-D A-formulation with the M400-50A curve as an Akima table of `nu(|B|^2)` and
+  Newton-Raphson (`JacNL`, tolerance 1e-9), a moving air gap, and the Arkkio torque and phase flux linkages
+  computed in GetDP;
+* `solve` runs both programs.
+
+Mesh, nonlinear solver and torque integral are GetDP's own; only the geometry, the materials and the currents are
+shared.
+
+`python examples/electrodynamics/14_prius_getdp_crosscheck.py` (run on 2026-10-18) uses 960 gap nodes in both
+codes: 29 936 elements here, 58 309 in GetDP. Two further runs add their results to
+`results/14_prius_getdp_crosscheck.json`: `--cogging-convergence` and `--cogging-diagnosis`. Figures:
+`14_prius_getdp_crosscheck.png` and `14_prius_cogging_convergence.png`. Mean torque at 250 A against current angle,
+over 12 rotor angles:
+
+| Phi0 (deg) | PINNeAPPle (N m) | GetDP (N m) | Difference | Yang 2013 (N m) |
+|---|---|---|---|---|
+| 60 | 91.97 | 90.94 | -1.03 | 79 |
+| 70 | 133.64 | 132.56 | -1.09 | 125 |
+| 80 | 175.84 | 174.76 | -1.09 | 160 |
+| 90 | 217.26 | 216.19 | -1.07 | 192 |
+| 100 | 255.97 | 254.94 | -1.03 | 237 |
+| 110 | 289.94 | 289.03 | -0.90 | 281 |
+| 120 | 318.15 | 317.34 | -0.81 | 319 |
+| 130 | 338.14 | 337.38 | -0.76 | 343 |
+| 140 | 345.65 | 344.98 | -0.66 | 353 |
+| 150 | 330.14 | 329.58 | -0.55 | 332 |
+| 160 | 267.13 | 267.29 | +0.16 | 266 |
+| 170 | 151.40 | 151.25 | -0.15 | 164 |
+| 180 | 0.00 | -0.24 | -0.24 | 22 |
+
+Per quantity:
+
+| Quantity | PINNeAPPle | GetDP | Difference | Published |
+|---|---|---|---|---|
+| Torque vs angle, max / rms difference | | | 1.09 / 0.81 N m (0.19 % at the peak) | |
+| Torque vs Yang 2013, rms / max | 13.3 / 25.3 N m | 12.9 / 24.2 N m | | Yang 2013 |
+| Back-EMF fundamental, 1000 rpm (60 positions) | 87.60 V | 87.64 V | +0.04 % | |
+| Phase back-EMF THD | 9.35 % | 9.04 % | -0.31 points | |
+| No-load d-axis flux linkage `psi_d0` | 0.20914 Wb | 0.20921 Wb | +0.03 % | |
+| Apparent `L_d` at 250 A, 50 deg | 1.370 mH | 1.385 mH | +1.1 % | |
+| Apparent `L_q` at 250 A, 50 deg | 1.856 mH | 1.864 mH | +0.4 % | |
+| Cogging pk-pk, 1920 gap nodes | 1.341 N m | 1.004 N m | -25 % | |
+
+The apparent inductances are `(psi_d - psi_d0) / i_d` and `psi_q / i_q` at the same point in both codes. They
+differ from the differential values in the MTPA table above.
+
+The two codes agree on everything except cogging. Cogging is the small difference of large forces, 0.4 % of the
+peak torque here. The cogging study:
+
+| Gap nodes | PINNeAPPle (elements) | GetDP (elements) |
+|---|---|---|
+| 480 | 1.698 N m (13 120) | 1.538 N m (28 777) |
+| 960 | 1.353 N m (29 936) | 1.046 N m (58 309) |
+| 1920 | 1.341 N m (77 904) | 1.004 N m (153 737) |
+
+* Both codes converge under mesh refinement (0.9 % and 4 % change in the last step), but to values 25 % apart.
+* With linear iron (`mu_r` 2500, no saturation) at 960 nodes they agree: 1.2225 against 1.2111 N m, 0.9 %.
+* A 10 times denser GetDP B-H table changes its cogging by 1e-5 N m.
+
+So the difference lies in the saturated iron: the 1.5 mm bridges carry about 2.4 T at no load. A symmetric machine
+has odd cogging. PINNeAPPle's mirrored mesh gives exactly odd cogging. GetDP's mesh is not symmetric, and its
+cogging carries an even part of up to 0.089 N m with nonlinear iron and 0.020 N m with linear iron, a measure of
+its discretisation error. Even comparing odd parts only, the codes differ by 23 %. Which value is closer to the real
+machine is not settled here: that needs a measurement or a third code. Cogging from either code carries this
+uncertainty.
+
+`pinneapple_simulation.electromagnetics.machines.interop`:
+
+* pyleecan: `from_pyleecan` reads pyleecan's `Toyota_Prius.json`, included under `tests/data/pyleecan`
+  (Apache-2.0). The test checks that it gives exactly `prius_2004()`. `to_pyleecan` writes the parameters back, and
+  the round trip is exact.
+* FEMM: `femm_lua` writes a Lua script for FEMM's magnetics module: geometry, B-H curve, magnets, circuits and the
+  analysis. It is checked by re-reading its nodes against the mesher's polygons, not by running FEMM.
+* ElmerFEM: `elmer_case` writes the gmsh geometry and a `MagnetoDynamics2D` `.sif`. It is not run here.
+* MATLAB: `to_mat` / `from_mat`. DXF: `to_dxf` / `read_dxf_polylines`, with one layer per region. Both round trips
+  are tested.
+* Data contracts: `rotor_parameter_space` gives a `ParameterSpace` of the rotor variables. `fluxmap_dataset` gives a
+  flux map as a `DatasetSpec` table, written to CSV, Parquet or HDF5 by `pinneapple_data.contracts.tables`.
 
 ### Drive model: MTPA, flux weakening, efficiency map, WLTC energy
 

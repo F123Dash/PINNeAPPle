@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Second FEA code and interoperability for machines: `machines.getdp` (the same machine in gmsh + GetDP, nonlinear
+  2-D A-formulation with Arkkio torque, as an independent cross-check) and `machines.interop` (pyleecan machine
+  files in and out, FEMM Lua script, ElmerFEM case, MATLAB `.mat`, DXF, `ParameterSpace` / `DatasetSpec` contracts).
+  Example `examples/electrodynamics/14_prius_getdp_crosscheck.py` (torque, back-EMF, inductances, cogging
+  convergence and diagnosis against GetDP), tests `tests/test_emachine_getdp.py`, `tests/test_emachine_interop.py`.
 - Thermal network and demagnetisation check of machines (`pinneapple_simulation.electromagnetics.machines.thermal`):
   lumped `ThermalNetwork` (steady state, backward Euler and trapezoidal transients), the seven-node
   `machine_network` of a water-jacketed machine, per-element demagnetisation margin against `Hcj(T)` of the NdFeB
