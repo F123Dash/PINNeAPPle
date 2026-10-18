@@ -24,13 +24,14 @@ internet ─▶ 80/443 ─▶ Caddy (TLS, headers, body limits, access log) ─�
 The GUI agent (FreeCAD/X11) and Ollama keep a writable root filesystem (`x-base-hardening`): their images write
 outside `/data` and `/tmp`. Everything else is read-only.
 
-### Upgrading a server whose volumes were written by root
+### Upgrading a server whose volumes were written by root (run once, before starting the new images)
 
 Before this change the containers ran as root, so existing named volumes hold root-owned files that uid 10001 can
 not write. Once, before starting the new images:
 
 ```bash
 cd apps/deploy
+docker compose down
 for v in $(docker volume ls -q | grep -E '^pinneapple-apps_(.*_data|obs_cache)$' | grep -v caddy_data); do
   docker run --rm -v "$v":/v alpine chown -R 10001:0 /v
 done
