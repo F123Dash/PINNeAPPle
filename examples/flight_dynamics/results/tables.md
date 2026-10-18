@@ -102,40 +102,40 @@
 
 | aircraft | controls | V [m/s] | W/S [Pa] | A = ρVCLα/2(W/S) [g per m/s] | A·σ_w [g] | RMS Δn_z CG [g] | spread over seeds | max Δn_z | min Δn_z | RMS bank [deg] | peak bank [deg] | RMS pitch [deg] | RMS n_y CG [g] | worst cabin station: RMS / peak Δn_z [g] | max α [deg] | α at clean CLmax [deg] | model validity |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Light GA (C172 class) | stick fixed | 55 | 666 | 0.1919 | 1.163 | 0.712 | 0.293 | 3.28 | -1.49 | 23.1 | 59.0 | 17.1 | 0.058 | rear seat: 0.734 / 3.42 | 12.7 | 14.1 | beyond stall |
-| Light GA (C172 class) | autopilot | 55 | 666 | 0.1919 | 1.380 | 0.355 | 0.062 | 1.20 | -1.23 | 8.4 | 22.5 | 4.6 | 0.033 | rear seat: 0.376 / 1.35 | 17.1 | 14.1 | beyond stall |
-| Turboprop (ATR 72 class) | stick fixed | 120 | 3698 | 0.0846 | 0.539 | 0.628 | 0.522 | 2.80 | -0.91 | 19.3 | 49.0 | 10.5 | 0.084 | aft row: 0.652 / 2.95 | 6.7 | 11.8 | valid |
-| Turboprop (ATR 72 class) | autopilot | 120 | 3698 | 0.0846 | 0.576 | 0.276 | 0.012 | 0.90 | -0.84 | 4.2 | 11.9 | 3.4 | 0.034 | aft row: 0.299 / 1.06 | 10.1 | 11.8 | valid |
-| Airliner (A320 class) | stick fixed | 128 | 5879 | 0.0520 | 0.331 | 0.365 | 0.122 | 1.44 | -0.72 | 15.4 | 40.3 | 10.1 | 0.040 | aft row: 0.401 / 1.66 | 13.5 | 14.1 | beyond stall |
-| Airliner (A320 class) | autopilot | 128 | 5879 | 0.0520 | 0.321 | 0.216 | 0.021 | 0.57 | -0.69 | 4.1 | 12.1 | 2.7 | 0.026 | aft row: 0.249 / 0.80 | 14.6 | 14.1 | beyond stall |
-| Motor glider (AR 28) | stick fixed | 40 | 446 | 0.2471 | 1.667 | 33.091 | 97.174 | 1743.49 | -15.98 | 39.0 | 98.4 | 20.4 | 1.073 | pilot: 32.332 / 1629.10 | 73.8 | 7.4 | departed |
-| Motor glider (AR 28) | autopilot | 40 | 446 | 0.2471 | 1.517 | 0.452 | 0.049 | 1.51 | -1.46 | 11.3 | 34.8 | 7.4 | 0.048 | pilot: 0.445 / 1.51 | 26.5 | 7.4 | departed |
+| Light GA (C172 class) | stick fixed | 55 | 666 | 0.1919 | 1.328 | 0.586 | 0.078 | 2.47 | -1.42 | 22.6 | 63.1 | 13.1 | 0.050 | rear seat: 0.609 / 2.59 | 12.7 | 14.1 | valid |
+| Light GA (C172 class) | autopilot | 55 | 666 | 0.1919 | 1.091 | 0.368 | 0.045 | 1.46 | -1.23 | 7.0 | 18.8 | 4.4 | 0.032 | rear seat: 0.389 / 1.52 | 16.4 | 14.1 | beyond stall |
+| Turboprop (ATR 72 class) | stick fixed | 120 | 3698 | 0.0846 | 0.626 | 0.566 | 0.072 | 2.18 | -1.08 | 14.9 | 39.0 | 12.7 | 0.067 | aft row: 0.590 / 2.26 | 10.1 | 11.8 | beyond stall |
+| Turboprop (ATR 72 class) | autopilot | 120 | 3698 | 0.0846 | 0.616 | 0.314 | 0.028 | 0.98 | -1.01 | 4.5 | 12.5 | 2.9 | 0.034 | aft row: 0.338 / 1.14 | 8.6 | 11.8 | valid |
+| Airliner (A320 class) | stick fixed | 128 | 5879 | 0.0520 | 0.358 | 0.287 | 0.072 | 1.16 | -0.80 | 14.7 | 39.4 | 6.4 | 0.040 | aft row: 0.331 / 1.32 | 14.1 | 14.1 | beyond stall |
+| Airliner (A320 class) | autopilot | 128 | 5879 | 0.0520 | 0.353 | 0.214 | 0.047 | 0.69 | -0.71 | 3.1 | 8.6 | 2.7 | 0.026 | aft row: 0.246 / 0.84 | 13.1 | 14.1 | valid |
+| Motor glider (AR 28) | stick fixed | 40 | 446 | 0.2471 | 1.522 | 0.935 | 0.113 | 4.65 | -1.91 | 29.5 | 92.2 | 24.8 | 0.096 | pilot: 0.938 / 4.72 | 67.9 | 7.4 | departed |
+| Motor glider (AR 28) | autopilot | 40 | 446 | 0.2471 | 1.510 | 68.935 | 205.378 | 4955.69 | -3218.43 | 29.9 | 78.0 | 16.1 | 55.532 | pilot: 68.986 / 4935.74 | 79.0 | 7.4 | departed |
 
 ## spanwise
 
 | aircraft | RMS bank, 3-D field [deg] | RMS bank, frozen line [deg] | RMS Δn_z, 3-D field [g] | RMS Δn_z, frozen line [g] |
 |---|---|---|---|---|
-| Light GA (C172 class) | 23.1 | 12.2 | 0.712 | 0.412 |
-| Turboprop (ATR 72 class) | 19.3 | 2.4 | 0.628 | 0.350 |
-| Airliner (A320 class) | 15.4 | 8.3 | 0.365 | 0.250 |
-| Motor glider (AR 28) | 39.0 | 34.9 | 33.091 | 0.935 |
+| Light GA (C172 class) | 22.6 | 12.2 | 0.586 | 0.412 |
+| Turboprop (ATR 72 class) | 14.9 | 2.4 | 0.566 | 0.350 |
+| Airliner (A320 class) | 14.7 | 8.3 | 0.287 | 0.250 |
+| Motor glider (AR 28) | 29.5 | 34.9 | 0.935 | 0.935 |
 
 ## intensity
 
 | aircraft | severity | σ [m/s] | RMS Δn_z [g] | max Δn_z [g] | RMS bank [deg] | max α [deg] | model validity |
 |---|---|---|---|---|---|---|---|
-| Airliner (A320 class) | light | 1.84 | 0.056 | 0.14 | 1.0 | 8.2 | valid |
-| Airliner (A320 class) | moderate | 2.88 | 0.084 | 0.24 | 1.5 | 9.4 | valid |
-| Airliner (A320 class) | severe (mean of seeds) | 7.05 | 0.216 | 0.57 | 4.1 | 14.6 | beyond stall |
-| Light GA (C172 class) | light | 1.84 | 0.100 | 0.30 | 2.1 | 7.1 | valid |
-| Light GA (C172 class) | moderate | 2.88 | 0.147 | 0.59 | 2.8 | 8.9 | valid |
-| Light GA (C172 class) | severe (mean of seeds) | 7.05 | 0.355 | 1.20 | 8.4 | 17.1 | beyond stall |
-| Motor glider (AR 28) | light | 1.84 | 0.118 | 0.42 | 2.4 | 4.5 | valid |
-| Motor glider (AR 28) | moderate | 2.88 | 0.185 | 0.58 | 3.5 | 8.6 | beyond stall |
-| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | 0.452 | 1.51 | 11.3 | 26.5 | departed |
-| Turboprop (ATR 72 class) | light | 1.84 | 0.081 | 0.26 | 1.1 | 3.0 | valid |
-| Turboprop (ATR 72 class) | moderate | 2.88 | 0.125 | 0.40 | 1.7 | 3.9 | valid |
-| Turboprop (ATR 72 class) | severe (mean of seeds) | 7.05 | 0.276 | 0.90 | 4.2 | 10.1 | valid |
+| Airliner (A320 class) | light | 1.84 | 0.051 | 0.18 | 0.7 | 8.5 | valid |
+| Airliner (A320 class) | moderate | 2.88 | 0.080 | 0.28 | 1.1 | 9.8 | valid |
+| Airliner (A320 class) | severe (mean of seeds) | 7.05 | 0.214 | 0.69 | 3.1 | 13.1 | valid |
+| Light GA (C172 class) | light | 1.84 | 0.101 | 0.31 | 2.4 | 7.4 | valid |
+| Light GA (C172 class) | moderate | 2.88 | 0.152 | 0.54 | 2.8 | 9.7 | valid |
+| Light GA (C172 class) | severe (mean of seeds) | 7.05 | 0.368 | 1.46 | 7.0 | 16.4 | beyond stall |
+| Motor glider (AR 28) | light | 1.84 | 0.112 | 0.46 | 1.7 | 6.0 | valid |
+| Motor glider (AR 28) | moderate | 2.88 | 0.159 | 0.47 | 2.8 | 13.5 | beyond stall |
+| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | 68.935 | 4955.69 | 29.9 | 79.0 | departed |
+| Turboprop (ATR 72 class) | light | 1.84 | 0.077 | 0.23 | 1.1 | 3.3 | valid |
+| Turboprop (ATR 72 class) | moderate | 2.88 | 0.127 | 0.35 | 1.6 | 4.5 | valid |
+| Turboprop (ATR 72 class) | severe (mean of seeds) | 7.05 | 0.314 | 0.98 | 4.5 | 8.6 | valid |
 
 ## pratt
 
