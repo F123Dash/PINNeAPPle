@@ -56,6 +56,9 @@ def test_seal_tier_always_from_the_curation(tmp_path):
     s = seal_for("a/x", root)
     assert s.tier == "A" and s.colour == "#2FBF71" and s.reason == "check of a/x"
     assert seal_for("b/y", root).colour == "#FFB020"
+    cur = load_curation(root)
+    cur["items"]["a/x"]["headline"]["label"] = "drag vs Ahmed 1984"   # the display label wins over the raw text
+    assert seal_for("a/x", cur).reason == "drag vs Ahmed 1984"
     with pytest.raises(SealError):
         seal_for("c/z", root)                                  # C and D are never sealed
     with pytest.raises(KeyError):

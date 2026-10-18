@@ -59,7 +59,7 @@ class Seal:
     item: str
     tier: str
     title: str
-    reason: str          # the curation headline: the check it was compared with
+    reason: str          # the curation headline: the check it was compared with (its display label when it has one)
     reason_kind: str     # "reference" or "benchmark"
     curated: str         # when the curation that gave the tier ran
     experiment: str
@@ -105,7 +105,7 @@ def seal_for(item: str, lab: Any = None) -> Seal:
     if tier not in SEALABLE:
         raise SealError(f"{item} is tier {tier} ({rec.get('tier_name', '')}): only tiers A and B are sealed")
     hl = rec.get("headline") or {}
-    return Seal(item=item, tier=tier, title=rec.get("title") or item, reason=hl.get("text", ""),
+    return Seal(item=item, tier=tier, title=rec.get("title") or item, reason=hl.get("label") or hl.get("text", ""),
                 reason_kind=hl.get("kind", ""), curated=str(cur.get("generated", "")),
                 experiment=rec.get("experiment", item.split("/")[0]), run_id=rec.get("best_run", ""))
 
