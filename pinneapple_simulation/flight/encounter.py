@@ -41,7 +41,18 @@ def gust_sensitivity(ac: Aircraft, V: float, rho: float, cl_alpha: float) -> flo
     return rho * V * cl_alpha / (2 * ac.wing_loading)
 
 
-def encounter_metrics(ac: Aircraft, hist: FlightHistory, t_skip: float = 5.0) -> dict[str, Any]:
+def stall_angle(ac: Aircraft, trim_alpha: float, trim_CL: float, cl_alpha: float) -> float:
+    """Angle of attack [rad] at which the linear lift reaches the aircraft's clean CLmax (``ac.clmax_clean``, an
+    assumption of the catalog): alpha_trim + (CLmax - CL_trim) / CL_alpha. Beyond it the linear lattice is outside
+    its validity (no stall in the model)."""
+    return trim_alpha + (ac.clmax_clean - trim_CL) / cl_alpha
+
+
+def encounter_metrics(ac: Aircraft, hist: FlightHistory, t_skip: float = 5.0,
+                      alpha_stall: float | None = None) -> dict[str, Any]:
+    """Statistics after ``t_skip``. With ``alpha_stall`` [rad] the run is also checked against the model's validity:
+    the fraction of time above the stall angle and ``departed`` (bank beyond 90 deg or alpha 10 deg past stall), in
+    which case the numbers describe a loss of control the quasi-steady linear model cannot represent."""
     sel = hist.t >= t_skip
     dn = hist.nz[sel] - 1.0
     phi, theta = hist.euler[sel, 0], hist.euler[sel, 1]
@@ -59,6 +70,11 @@ def encounter_metrics(ac: Aircraft, hist: FlightHistory, t_skip: float = 5.0) ->
         "wind_w_rms": rms(hist.wind_cg[sel, 2]), "wind_v_rms": rms(hist.wind_cg[sel, 1]),
         "wind_u_rms": rms(hist.wind_cg[sel, 0]),
         "cabin": {}}
+    if alpha_stall is not None:
+        a = hist.alpha[sel]
+        out["alpha_stall_deg"] = math.degrees(alpha_stall)
+        out["time_above_stall_frac"] = float(np.mean(a > alpha_stall))
+        out["departed"] = bool(out["phi_peak_deg"] > 90.0 or a.max() > alpha_stall + math.radians(10.0))
     for k in hist.cabin_nz:
         d = hist.cabin_nz[k][sel] - 1.0
         out["cabin"][k] = {"dnz_rms": rms(d), "dnz_peak": float(np.abs(d).max()),
@@ -84,7 +100,7 @@ def turbulence_encounter(ac: Aircraft, V: float, altitude: float, spec: Turbulen
                               seed=seed)
     ctl = StickFixed(tr.controls) if controller == "stick_fixed" else Autopilot(ac, tr, d, design)
     hist = simulate(ac, tr.x, ctl, duration, dt, wind=wind, record_gamma=record_gamma, record_every=record_every)
-    m = encounter_metrics(ac, hist, t_skip)
+    m = encounter_metrics(ac, hist, t_skip, stall_angle(ac, tr.alpha, tr.CL, d["CL_alpha"]))
     rho = ac.atmosphere(tr.x)[0]
     A = gust_sensitivity(ac, V, rho, d["CL_alpha"])
     m.update(controller=controller, field=field, V=V, altitude=altitude, wing_loading=ac.wing_loading,

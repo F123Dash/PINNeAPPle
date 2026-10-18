@@ -163,3 +163,107 @@ def test_blender_render_animation(tmp_path):
     assert len(r["frames"]) == 2 and all(os.path.getsize(p) > 0 for p in r["frames"])
     assert r["mp4"] and os.path.getsize(r["mp4"]) > 0
     assert r["gif"] and os.path.getsize(r["gif"]) > 0
+
+
+# ---------------------------------------------------------------------- colour maps, trails, lines, cinematic renders
+def _cinematic_scene(T=6):
+    sc = _scene(T)
+    an = sc.animation
+    an.trails.clear()
+    pos = an.tracks["body"]["positions"]
+    an.add_trail("path", pos, values=np.linspace(0.8, 1.6, T), label="n_z [g]", radius=0.02, alpha=0.8)
+    an.add_hud("nz", np.linspace(0.8, 1.6, T), "n_z", "g", "{:.2f}")
+    s = np.linspace(-3, 3, 12)
+    sc.add_lines([np.c_[s, 0 * s + y, 1 + 0.2 * np.sin(s)] for y in (-1, 1)], [np.sin(s), -np.sin(s)],
+                 name="wisps", label="w [m/s]", cmap="coolwarm", alpha=0.5, radius=0.03)
+    return sc
+
+
+def test_colormaps_and_symmetric_range():
+    from pinneapple_tools.visualization.studio.compose import cmap_color, default_range
+    assert cmap_color("jet", 0.0) == pytest.approx((0, 0, 143 / 255))
+    assert cmap_color("bwr", 0.5) == pytest.approx((1.0, 1.0, 1.0))           # neutral midpoint
+    assert cmap_color("coolwarm", 0.0)[2] > cmap_color("coolwarm", 0.0)[0]     # blue end
+    assert default_range([-0.2, 0.5], "coolwarm") == (-0.5, 0.5)
+    assert default_range([-0.2, 0.5], "jet") == (-0.2, 0.5)
+    with pytest.raises(ValueError):
+        Animation([0.0, 1.0]).add_trail("p", np.zeros((2, 3)), cmap="viridis_typo")
+
+
+def test_trail_values_round_trip_and_resample():
+    sc = _cinematic_scene()
+    an = sc.animation
+    d = json.loads(json.dumps(an.to_dict()))
+    tr = d["trails"][0]
+    assert tr["label"] == "n_z [g]" and tr["cmap"] == "jet" and tr["alpha"] == 0.8 and tr["radius"] == 0.02
+    assert tr["range"] == pytest.approx([0.8, 1.6]) and tr["values"][-1] == pytest.approx(1.6)
+    b = Animation.from_dict(d)
+    assert np.allclose(b.trails[0]["values"], an.trails[0]["values"])
+    r = an.resample(11)
+    assert r.trails[0]["values"].shape == (11,) and r.trails[0]["values"][-1] == pytest.approx(1.6)
+    v = Animation(an.times).add_vectors("g", np.zeros((6, 1, 3)), np.ones((6, 1, 3)), values=np.linspace(-1, 3, 6)[:, None],
+                                        cmap="bwr")
+    assert v.vectors[0]["range"] == (-3.0, 3.0) and v.to_dict()["vectors"][0]["cmap"] == "bwr"
+    assert an.hud_lines(5, keys=["nz"]) == ["t = 1.00 s", "n_z: 1.60 g"]
+
+
+def test_lines_cmap_alpha_in_scene_json(tmp_path):
+    from pinneapple_tools.visualization.studio.web import web_viewer
+    web_viewer(_cinematic_scene(), str(tmp_path))
+    meta = json.load(open(tmp_path / "scene.json"))
+    L = meta["lines"][0]
+    assert (L["cmap"], L["alpha"], L["radius"], L["range"]) == ("coolwarm", 0.5, 0.03, None)
+    assert meta["animation"]["trails"][0]["values"] is not None
+    assert "cmapStops" in open(tmp_path / "studio-core.js").read()
+
+
+def test_compose_grid(tmp_path):
+    from PIL import Image
+
+    from pinneapple_tools.visualization.studio.compose import compose_grid
+    ims = []
+    for i, c in enumerate([(200, 0, 0), (0, 200, 0), (0, 0, 200), (200, 200, 0)]):
+        p = tmp_path / f"p{i}.png"
+        Image.new("RGB", (80, 45), c).save(p)
+        ims.append(str(p))
+    out = compose_grid(ims, str(tmp_path / "grid.png"), labels=list("ABCD"), colorbar=("w [m/s]", -1, 1, "coolwarm"))
+    im = np.asarray(Image.open(out).convert("RGB"))
+    assert im.shape[1] == 160 and im.shape[0] > 90                    # 2 x 2 cells plus the colour bar strip
+    assert tuple(im[40, 5]) == (200, 0, 0) and tuple(im[85, 85]) == (200, 200, 0)
+
+
+def _ffmpeg():
+    import shutil
+    return shutil.which("ffmpeg") and shutil.which("ffprobe")
+
+
+@pytest.mark.skipif(not _ffmpeg(), reason="ffmpeg not installed")
+def test_compose_grid_video(tmp_path):
+    import subprocess
+
+    from pinneapple_tools.visualization.studio.compose import compose_grid_video
+    clips = []
+    for i in range(4):
+        p = str(tmp_path / f"c{i}.mp4")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                        f"testsrc=size=64x36:rate=4:duration={0.5 + 0.25 * i}", "-pix_fmt", "yuv420p", p], check=True)
+        clips.append(p)
+    r = compose_grid_video(clips, str(tmp_path / "grid.mp4"), labels=list("ABCD"), colorbar=("n_z", 0, 2, "jet"))
+    out = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-show_entries",
+                          "stream=codec_name,width,height,pix_fmt,nb_read_frames", "-of", "json", r["mp4"]],
+                         capture_output=True, text=True, check=True)
+    s = json.loads(out.stdout)["streams"][0]
+    assert (s["codec_name"], s["pix_fmt"], s["width"]) == ("h264", "yuv420p", 128)
+    assert s["height"] > 72 and s["height"] % 2 == 0 and int(s["nb_read_frames"]) >= 4   # the longest clip: 1.25 s
+
+
+@pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
+def test_blender_cinematic_render(tmp_path):
+    from PIL import Image
+
+    from pinneapple_tools.visualization.studio.blender import render_animation
+    r = render_animation(_cinematic_scene(), str(tmp_path), frames=[1, 4], size=(64, 36), samples=1,
+                         camera="chase_low", motion_blur=True, dof=4.0, haze=1.0, sparkline="nz",
+                         hud_keys=["V", "nz"], trails={"alpha": 0.6}, colorbars={"lines": False})
+    assert len(r["frames"]) == 2 and Image.open(r["frames"][0]).size == (64, 36)
+    assert r["mp4"] and os.path.getsize(r["mp4"]) > 0
