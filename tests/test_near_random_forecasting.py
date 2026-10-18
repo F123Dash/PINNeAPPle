@@ -262,3 +262,10 @@ def test_periodic_baselines_follow_a_drifting_cycle():
         rmse = np.sqrt(np.mean((m.predict(data, te).mean - yt) ** 2, axis=0))
         assert np.all(rmse[:upto] < 0.6 * clim[:upto]), (m.name, rmse, clim)
     assert SeasonalNaive().fit(data, tr, None, H).info["period"] in (12, 13)
+
+
+def test_mackey_glass_lyapunov_is_positive_and_converging():
+    from pinneapple_systems.time_series.forecast_lab.pipeline import lyapunov_study
+    st = lyapunov_study(dt_ints=(0.1,), total_times=(2000.0,), seeds=(0, 1), log=lambda *_: None)
+    row = st["rows"][0]
+    assert all(0.002 < v < 0.009 for v in row["values"]) and row["std"] < 0.002
