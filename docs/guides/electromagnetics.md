@@ -125,6 +125,63 @@ Poynting's theorem under PC103 (tolerances `maxwell-gauss`, `maxwell-faraday`, `
 `maxwell-continuity`, `maxwell-energy`). `save_maxwell_npz` writes the file with SI units and
 `check_config_entry` the configuration block. It runs without torch.
 
+## Time domain: FDTD on the Yee grid
+
+`pp.em.fdtd` solves the curl equations by the leapfrog scheme of Yee (1966): E at integer, H at half time
+steps, components staggered by half a cell (Taflove & Hagness, *Computational Electrodynamics*, 3rd ed., ch. 3).
+One code path covers 1-D, 2-D and 3-D: an axis with one node is a direction of invariance.
+
+```python
+import numpy as np
+from pinneapple_simulation.electromagnetics import fdtd, media
+
+grid = fdtd.YeeGrid((200, 200, 1), (1.5e-2, 1.5e-2, 1.5e-2))     # dt = 0.99 x the Courant limit
+sim = fdtd.FDTD(grid, {"x": "cpml", "y": "cpml"}, npml=10)
+sim.set_material(fdtd.fill_fraction(grid, lambda x, y, z: np.hypot(x - 1.5, y - 1.5) < 0.3), media.Medium(3.0))
+sim.add_plane_wave(fdtd.PlaneWaveTFSF("x", "Ez", fdtd.modulated_gaussian(1e9, 0.6e9), ((30, 170), (30, 170), (0, 1))))
+dft = sim.add_dft(["Ez", "Hx", "Hy"], [1e9])
+sim.run_until(40e-9)
+```
+
+* **Stability.** `dt <= 1 / (c sqrt(sum 1/dx_i^2))` (TH eq. 4.65). `YeeGrid` refuses a larger step; the test
+  shows grid-scale noise growing by 1e6 in 400 steps at 1.02 times the limit and staying bounded at 0.999.
+* **Numerical dispersion.** The scheme's waves obey `(sin(omega dt/2) / (c dt))^2 = sum_i (sin(k_i dx_i/2) / dx_i)^2`
+  (TH eq. 4.12, `numerical_dispersion`). The FDTD resonances match this relation to 1e-7 and the continuum at
+  second order.
+* **Energy.** The scheme conserves `(1/2) sum eps E^{n-1} . E^n + (1/2) sum mu |H^{n-1/2}|^2` exactly in a
+  lossless cavity (`energy()`; constant to 1e-12 in the test).
+* **Boundaries.** `pec`, `pmc`, `periodic`, `bloch` (Floquet phase `exp(-j k_b L)`, complex fields) and `cpml`,
+  the convolutional PML of Roden & Gedney (2000) with polynomial `sigma`, `kappa` and linear `alpha` grading
+  (TH sec. 7.9). Measured reflection 5 cells from the PML: -51 dB (5 cells), -87 dB (10), -106 dB (20).
+* **Dispersive media** by auxiliary differential equations solved with the E update: Drude (polarisation current,
+  trapezoidal), Debye (polarisation, trapezoidal), Lorentz (polarisation, central), TH sec. 9.4-9.6.
+* **Sources and plane waves.** Soft and hard E sources, impressed currents (a Hertzian dipole is one cell of `J`).
+  `PlaneWaveTFSF` is a total-field / scattered-field box driven by an auxiliary 1-D line with the same `dx` and
+  `dt`. The masked-curl form works for any box in 1-D, 2-D and 3-D, and the leakage into the scattered-field
+  region is 1e-16.
+* **Sub-cell averaging.** `fill_fraction` gives the fraction of each cell inside a shape, and `set_material` mixes
+  `eps` arithmetically with it at the nodes. Each E component then takes the harmonic mean of its two nodes (the
+  series rule for E normal to an interface; `harmonic_eps=False` switches it off). For E tangential to the surface
+  this is the exact first-order correction (Farjadpour et al., Opt. Lett. 31, 2006):
+  - the TMz cylinder converges at order 2, where the staircased one jumped between 1.2 % and 3.4 %;
+  - on a sphere (E normal to part of the surface) harmonic averaging cuts the Q_sca error from 9.7 % to 2 %, but
+    the error then plateaus near 2 % instead of converging. Full anisotropic (Kottke) smoothing is not implemented.
+* **Monitors and output.**
+  - Probes and running DFTs (phasors in this package's `exp(+j omega t)` convention, E and H stamped at their own
+    times).
+  - `poynting_flux_dft` gives the power through a plane.
+  - `NearToFarField` gives far-field patterns and radiated power from equivalent currents on a closed box (Balanis,
+    *Advanced Engineering Electromagnetics*, eq. 6-122).
+  - `snapshot()` returns node- and time-centred fields in the layout of `maxwell_checks`, so an FDTD run can be
+    checked like any other field.
+
+Figures and animations: `pinneapple_tools.visualization.electromagnetics` (`field_movie` writes GIF with Pillow
+or MP4 with ffmpeg, `field_map` adds a material outline and Poynting arrows, `radiation_pattern` draws polar
+patterns). `examples/electrodynamics/08_fdtd_gallery.py` writes `results/fdtd_cylinder_scattering.gif` / `.mp4`,
+`results/fdtd_cylinder_field_map.png` and `results/fdtd_dipole_pattern.png`. Each figure comes with its check:
+the cylinder's field against the series of cylinder functions (1.7 % at 30 cells per wavelength), the snapshots
+through `maxwell_trust_report` (APPROVED), and the dipole pattern and power against the closed forms.
+
 ## Electric machines
 
 The A_z solver includes a polar ring mesher with a moving band, magnets, coils, (anti-)periodic constraints,
@@ -234,6 +291,162 @@ Notes from the same run:
 - Prius IPM: mesh convergence of the peak torque: 480: 343.42 N m, 960: 345.65 N m, 1920: 344.22 N m; difference ratio 1.56
 <!-- machine-verification:end -->
 
+### Drive model: MTPA, flux weakening, efficiency map, WLTC energy
+
+`pinneapple_simulation.electromagnetics.machines.drive` turns a machine into a drive under inverter limits:
+
+* `FluxMap.from_fea(machine, I_max)`: mean torque and dq flux linkages of the FEA on an `(i_d, i_q)` grid (saturation
+  and cross-saturation included, odd/even symmetry in `i_q`), and per grid point the speed-free iron-loss sums and
+  magnet-loss coefficient (`IPMMachine.loss_components`), so the core loss at any speed is
+  `k_h f^alpha S_h + k_c f^2 S_c + k_e f^1.5 S_e + c_m f^2` without new field solutions. `LinearDQ` is the
+  constant-inductance model with closed-form MTPA and flux-weakening torque.
+* `Drive(machine, R, I_max, V_max)`: steady state `v_d = R i_d - w psi_q`, `v_q = R i_q + w psi_d`, current and
+  voltage amplitude limits (`v_max_svpwm(V_dc) = V_dc / sqrt 3`). `max_torque(speed)` searches the outer boundary of
+  the feasible current set (current circle, voltage ellipse, so maximum-torque-per-volt operation is included);
+  `operating_point(T, speed)` returns the currents of least copper + core loss for a torque (MTPA at low speed,
+  flux weakening at high speed); `efficiency_map` evaluates a speed x torque grid.
+* `Vehicle` and `cycle_energy`: road load and inertia over a speed trace, a single gear, regeneration up to the
+  braking envelope (the rest goes to the friction brakes), battery-side energy of the drive.
+  `wltc_class3b()` is the WLTC class 3b trace of UN GTR No. 15, Annex 1 (1800 s, 23.266 km, 131.3 km/h).
+
+`python examples/electrodynamics/11_prius_drive.py --write-docs` (run on 2026-10-17) builds the flux map of the
+Prius model (9 x 9 currents up to 250 A, 480 gap nodes, 12 rotor angles; loss data on 5 x 5 points, 24 angles per
+electrical period) and evaluates the drive with stated assumptions: 250 A peak, 500 V DC link with SVPWM (288.7 V
+phase peak), phase resistance 93.6 mOhm at 100 degC from the winding data (72 series turns, 8.49 mm^2 conductors,
+end turn 0.16 m per side estimated), and an illustrative compact car (1450 kg, C_rr 0.009, C_d A 0.58 m^2, wheel
+0.30 m, gear 4.113, 97 %). Results (`results/11_prius_drive.json`, `11_prius_drive.png`):
+
+* envelope: 343.6 N m up to 2000 rpm, then flux weakening (181.0 N m at 3750 rpm, 104.4 N m at 6000 rpm); peak
+  electromagnetic power 77.7 kW at 2500 rpm under these limits. The Prius's published rating (50 kW, 400 N m,
+  quoted in pyleecan's test suite) comes from its own inverter current and thermal limits, which are not modelled;
+* peak efficiency 96.2 % at 2750 rpm, 70.7 N m (copper + iron + magnet loss; no inverter or mechanical loss; the map
+  is evaluated up to the motoring and braking envelopes at every speed from 100 to 6000 rpm);
+* WLTC class 3b: motoring 11.52 MJ, regenerated 2.97 MJ, drive losses 0.98 MJ, no friction braking needed within
+  the braking envelope, battery-side 102.1 Wh/km for this car.
+
+The optimiser is checked against the closed forms of the linear machine and against energy bookkeeping:
+
+<!-- drive-verification:start -->
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Drive: torque envelope vs closed form (linear dq) | max torque, 500..10000 rpm, both signs | MTPA / circle-ellipse intersection (R = 0) | 1.31e-14 | - | pass |
+| Drive: least-loss currents vs MTPA closed form | currents of least copper loss, 4 torques | i_d = (psi - sqrt(psi^2 + 8 (L_q - L_d)^2 I^2)) / (4 (L_q - L_d)) | 1.97e-08 | - | pass |
+| Drive cycle: WLTC class 3b energy balance | battery energy of a lossless drive | road-load work (kinetic energy returns to zero) | 0.00e+00 | - | pass |
+| Prius flux map: interpolation vs direct FEA | torque at 3 off-grid currents (7 x 7 grid) | FEA at the same currents | 2.72e-04 | - | pass |
+
+Notes from the same run:
+
+- Drive: torque envelope vs closed form (linear dq): L_d = 0.6 mH, L_q = 2.4 mH, psi_m = 0.2 Wb, 250 A, 500 V SVPWM
+- Drive cycle: WLTC class 3b energy balance: trace: 23266.3 m (GTR 15: 23 266 m), max 131.3 km/h, sum 83758.6 km/h s
+- Prius flux map: interpolation vs direct FEA: error relative to 300 N m
+<!-- drive-verification:end -->
+
+### Magnet temperature, thermal network and demagnetisation
+
+`pinneapple_simulation.electromagnetics.machines.thermal`:
+
+* `ThermalNetwork`: isothermal nodes with heat capacities, conductances between nodes and to fixed-temperature
+  boundaries, time-dependent sources; steady state and transients (backward Euler or trapezoidal rule).
+  `machine_network(geometry)` builds the seven-node model of a water-jacketed machine (stator yoke, teeth, winding in
+  the slots, end windings, rotor, magnets, shaft path) from the cross-section: cylindrical-shell conduction
+  `2 pi k L / ln(r2/r1)`, slot insulation, axial conduction to the end windings, convection across the gap and at the
+  end windings. The material, contact and heat-transfer data are the stated defaults of `MachineThermalData`
+  (coolant 65 degC). They are inputs, not correlations fitted here, and illustrative: none is measured on a Prius.
+* `IPMMachine(..., magnet_temperature=T)`: remanence `Br(T) = Br20 (1 + alpha_Br (T - 20))`, with
+  `alpha_Br = -0.1 %/K` (the pyleecan Prius magnet). `magnet_temperature_sweep` evaluates MTPA torque, back-EMF and
+  `L_d`, `L_q` with the FEA at each temperature.
+* `demagnetisation_margin(machine, solution, Hcj)`: in every magnet element, the field opposing the magnetisation
+  `H_rev = -(B . m - Br) / (mu0 mu_r)` against the intrinsic coercivity (the knee of a square-loop sintered NdFeB
+  magnet). It returns the per-element ratio `H_rev / Hcj` and the demagnetised area fraction (ratio > 1).
+  `intrinsic_coercivity(Hcj20, T, beta) = Hcj20 (1 + beta (T - 20))`. `NDFEB_HCJ_MIN_KAM` holds the minimum `Hcj`
+  at 20 degC of each grade letter (N 12, M 14, H 17, SH 20, UH 25, EH 30, AH 35 kOe), the manufacturers' grade
+  convention. `beta = -0.55 %/K` is a typical datasheet value for sintered NdFeB and an assumption here: use the
+  grade's datasheet.
+
+`python examples/electrodynamics/13_prius_thermal.py` (run on 2026-10-18, 960 gap nodes) gives
+`results/13_prius_thermal.json`, `13_prius_thermal.png` and `13_prius_demag.png`.
+
+Performance against the magnet temperature (MTPA at 250 A; EMF is the phase fundamental, peak, at 1000 rpm):
+
+| Magnets (degC) | Br (T) | Torque (N m) | MTPA angle (deg) | EMF (V) | L_d (mH) | L_q (mH) |
+|---|---|---|---|---|---|---|
+| 20 | 1.240 | 345.6 | 50.3 | 87.6 | 1.386 | 2.435 |
+| 60 | 1.190 | 338.7 | 50.6 | 84.0 | 1.386 | 2.443 |
+| 100 | 1.141 | 331.6 | 51.0 | 80.2 | 1.388 | 2.458 |
+| 150 | 1.079 | 322.6 | 51.4 | 75.4 | 1.389 | 2.474 |
+
+From 20 to 150 degC, Br falls by 13.0 % and the EMF by 13.9 %. The torque at 250 A falls by only 6.7 %, because the
+reluctance torque does not depend on the magnets. `L_q` rises by 1.6 % as the weaker magnets saturate the q-axis
+iron less.
+
+The thermal network takes the drive model's per-second losses over four WLTC class 3b cycles. Copper loss is split
+between the slots and the end windings by length. Iron loss is split by the FEA loss density at 250 A: yoke 26 %,
+teeth 63 %, rotor 10 %. The magnet loss goes to the magnets. Mean losses are copper 298 W, iron 247 W and magnet
+0.2 W. The peak temperatures are:
+
+* teeth 82.5 degC;
+* winding 80.3 degC;
+* magnets 78.5 degC;
+* end winding 75.1 degC;
+* yoke 71.9 degC.
+
+The network then runs at peak load from the end-of-cycle state: 343.2 N m at 1500 rpm, with copper 8.75 kW, iron
+382 W and magnet 30 W. The hotter winding node reaches 180 degC (class H) after 237 s. The magnets settle at
+127.4 degC.
+
+Demagnetisation at that magnet temperature, at the full d-axis current (`i_d = -250 A`) and at the peak of a
+three-phase short circuit estimated as `2 psi_pm / L_d = -165 A` (demagnetised area fraction of the magnets;
+`H_rev` is the worst element):
+
+| Grade | Hcj at 127 degC (kA/m) | -250 A, H_rev 719 kA/m | -165 A, H_rev 517 kA/m |
+|---|---|---|---|
+| N | 391 | 99.4 % | 31.8 % |
+| M | 456 | 93.3 % | 3.2 % |
+| H | 554 | 18.6 % | 0 |
+| SH | 651 | 2.4 % | 0 |
+| UH | 814 | 0 | 0 |
+
+The worst elements sit at the outer magnet corners and at the V tip. `13_prius_demag.png` shows the per-element
+ratio for grades H and SH in both cases.
+
+The table above uses the default mesh: 784 magnet elements, 2.2 mm mean size. To test how much the fractions depend
+on the magnet mesh, `demagnetisation_refinement` refines the magnets over four levels. It lowers the element-size
+growth away from the gap, keeping the gap mesh fixed (`13_prius_demag_mesh.png`). Each cell gives the demagnetised
+area, the area above `0.9 Hcj` and the worst-element ratio `H_rev / Hcj`:
+
+| Magnet elements (size) | H, -250 A | SH, -250 A | UH, -250 A | M, -165 A | H, -165 A |
+|---|---|---|---|---|---|
+| 784 (2.24 mm) | 18.6 / 83.4 % / 1.30 | 2.4 / 7.6 % / 1.10 | 0 / 0 % / 0.88 | 3.2 / 10.9 % / 1.13 | 0 / 2.0 % / 0.93 |
+| 1920 (1.43 mm) | 19.4 / 85.5 % / 1.43 | 2.6 / 8.3 % / 1.21 | 0 / 0.7 % / 0.97 | 3.3 / 12.3 % / 1.25 | 0.2 / 1.0 % / 1.03 |
+| 4224 (0.96 mm) | 18.6 / 85.5 % / 1.46 | 2.0 / 7.5 % / 1.24 | 0 / 0.7 % / 0.99 | 4.1 / 14.0 % / 1.28 | 0.4 / 1.1 % / 1.06 |
+| 7216 (0.74 mm) | 18.8 / 85.1 % / 1.52 | 2.3 / 8.6 % / 1.29 | 0.2 / 0.5 % / 1.03 | 3.6 / 14.0 % / 1.33 | 0.3 / 1.0 % / 1.10 |
+
+The area fractions settle. The demagnetised fraction stays within 0.9 percentage points across the four levels,
+and within 0.6 between the two finest. The area above `0.9 Hcj` stays within 3.1 points across the levels (M at
+-165 A rises from 10.9 to 14.0 %) and within 1.1 between the two finest. The worst-element ratio does not converge. It grows by 4 to 6 % at each level because the field is
+singular at the sharp corners where the magnet meets the pocket. A demagnetised fraction of a few tenths of a
+percent at the finest mesh is a corner effect of the same kind, as for UH at -250 A and H at the short circuit.
+
+The conclusions therefore rest on the area fractions, not on the worst element. When hot, grade H loses about
+19 % of the magnet area at the full d-axis current, and about 85 % of the area lies within 10 % of the knee. Grade
+SH loses about 2 %, with 8 % within 10 % of the knee. In UH, only the corners reach the knee. Corner-level
+demagnetisation is not resolved by this model: the real corners are rounded and their field is not singular.
+
+The grade rows are a comparison of candidate grades, not a statement about the real car. We found no accessible
+public source that states the grade of the 2004 Prius magnets. Neither does the pyleecan model this geometry comes
+from: it gives `Br` and `mu_r` only. So the "N demagnetises" row says nothing about the production motor, whose
+magnets were chosen by Toyota for its own current and temperature limits.
+
+The network and the demagnetisation field are checked against closed forms (`machines.verification`):
+
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Thermal network: first-order transient | node temperature at t = tau, dt halved | T_b + P/G (1 - e^-1) (closed form) | 4.79e-06 | 2.00, 2.00, 2.00 (expected 2) | pass |
+| Thermal network: cylindrical conduction | series of thin flat shells, n doubled | 2 pi k L / ln(r2/r1) | 5.08e-06 | 2.00, 2.00, 2.00 (expected 2) | pass |
+| Demagnetisation field in a magnetised ring | reverse field in the magnet, h halved | closed form of the magnetised ring | 5.99e-03 | 1.02, 0.89, 0.95 (expected 1) | pass |
+
+The element-wise B of P1 elements is first order, hence the observed order of the demagnetisation field.
+
 ## Verification
 
 Each case compares a solver or reference implementation with an independent result; where the mesh or step is
@@ -241,6 +454,7 @@ refined the observed order is measured. The table is the output of
 `python examples/electrodynamics/07_em_verification.py` (`pinneapple_simulation.electromagnetics.verification`,
 asserted by `tests/test_em_verification.py`):
 
+<!-- verification-table:start -->
 | Case | Quantity | Reference | Error (finest) | Observed order | Status |
 |---|---|---|---|---|---|
 | Coaxial capacitor (P1 FEM) | capacitance per metre | 2 pi eps / ln(b/a) | 3.87e-04 | 1.99, 2.00, 2.00 (expected 2) | pass |
@@ -262,6 +476,19 @@ asserted by `tests/test_em_verification.py`):
 | Froehlich-Kennelly iron ring (Newton) | \|B\| in saturated iron | B(H) at H = I / (2 pi r) | 5.08e-04 | - | pass |
 | Jiles-Atherton integrator | M along a major loop vs RK4 sub-steps | 256 sub-steps; c = 1 stays anhysteretic | 1.28e-09 | 2.77, 1.11, 2.88, 2.20 | pass |
 | Maxwell residual checks on an exact cavity mode | Ampere-Maxwell residual vs grid | exact TM12 mode (residual -> 0) | 2.33e-04 | 2.28, 2.22 (expected 2) | pass |
+| FDTD 1-D dielectric half-space (Fresnel) | \|r(f)\|, 0.6-1.4 f0 | (n1 - n2)/(n1 + n2) | 2.02e-03 | 2.11, 2.03 (expected 2) | pass |
+| FDTD dispersive half-spaces (Drude, Debye, Lorentz ADE) | \|r(f)\| of each medium, 0.6-1.4 f0 | Fresnel with eps(omega) of the pole | 8.74e-04 | 2.05, 2.02 (expected 2) | pass |
+| FDTD 2-D PEC cavity resonance (TM11) | resonance frequency | c/2 sqrt(1/a^2 + 1/b^2) | 1.36e-05 | 2.01, 1.98 (expected 2) | pass |
+| FDTD 3-D PEC box resonance (TE101) | resonance frequency | rectangular cavity formula | 2.37e-04 | 2.01, 2.00 (expected 2) | pass |
+| FDTD rectangular waveguide TE10 propagation constant | beta at 1.5 f_c (2-D section) | k sqrt(1 - (fc/f)^2) | 3.89e-05 | 1.53, 1.25 | pass |
+| FDTD bulk plasma (Drude) dispersion | k at omega = 1.67 omega_p | omega^2 = omega_p^2 + c^2 k^2 | 9.89e-05 | 1.83, 1.11 | pass |
+| FDTD dielectric cylinder, TF/SF plane wave | total Ez on a ring r = lambda/2 | series of cylinder functions (Harrington 5-9) | 4.23e-03 | 1.97, 2.12, 1.95 (expected 2) | pass |
+| FDTD Hertzian dipole (3-D) | phasor E_z at r = 0.8 lambda, theta = 30-120 deg | complete dipole fields (Balanis 4-8) | 1.17e-02 | 2.11, 1.98 (expected 2) | pass |
+| FDTD Bloch-periodic oblique incidence (Floquet) | \|r_s\| at 25 degrees | Fresnel coefficient | 1.01e-03 | 2.05, 2.01 (expected 2) | pass |
+| FDTD CPML reflection | max \|E - E_ref\| / max \|E_ref\| 5 cells from the PML | same run in a domain too large to reflect | 4.25e-05 | - | pass |
+| FDTD fields through the Maxwell checks | Ampere-Maxwell residual of the snapshots | 0 for a solution of Maxwell's equations | 1.78e-03 | 1.51, 1.50 | pass |
+| FDTD near-to-far-field transform (dipole pattern and power) | far-field E_theta(theta) | eta k \|I l\| sin(theta) / (4 pi) | 2.90e-03 | 2.08, 2.06 (expected 2) | pass |
+| FDTD dielectric sphere vs Mie (3-D, TF/SF + near-to-far field) | Q_sca, eps = 4, x = 1.57 | Mie series | 2.41e-02 | - | pass |
 
 Notes from the same run:
 
@@ -276,6 +503,19 @@ Notes from the same run:
 - Froehlich-Kennelly iron ring (Newton): Newton: 8 iterations to residual 1.9e-12
 - Jiles-Atherton integrator: c = 1 deviation from the anhysteretic curve 1.2e-05 Ms (orders irregular: the pinning switch makes dM/dH non-smooth)
 - Maxwell residual checks on an exact cavity mode: a 20 % wrong frequency gives 0.181 (rejected) and Poynting imbalance 0.218
+- FDTD 1-D dielectric half-space (Fresnel): errors 3.56e-02, 8.25e-03, 2.02e-03 at 20/40/80 cells per wavelength
+- FDTD dispersive half-spaces (Drude, Debye, Lorentz ADE): Drude: errors 2.7e-03, 6.5e-04, 1.6e-04, orders 2.05, 2.02; Debye: errors 6.5e-03, 1.6e-03, 4.0e-04, orders 2.02, 2.01; Lorentz: errors 1.4e-02, 3.5e-03, 8.7e-04, orders 2.03, 2.01
+- FDTD 2-D PEC cavity resonance (TM11): against the scheme's own dispersion relation: max 1.6e-07
+- FDTD rectangular waveguide TE10 propagation constant: errors 2.7e-04, 9.3e-05, 3.9e-05; against the scheme's own dispersion relation max 2.5e-05 (the phase-slope measurement floor)
+- FDTD bulk plasma (Drude) dispersion: errors 7.6e-04, 2.1e-04, 9.9e-05
+- FDTD dielectric cylinder, TF/SF plane wave: eps = 3, a = 0.3 lambda, sub-cell (arithmetic) averaging of eps; errors 3.8e-02, 1.7e-02, 9.3e-03, 4.2e-03 at 20/30/40/60 cells per wavelength
+- FDTD Hertzian dipole (3-D): errors 4.9e-02, 2.1e-02, 1.2e-02 at 10, 15, 20 cells per wavelength
+- FDTD Bloch-periodic oblique incidence (Floquet): errors 1.7e-02, 4.1e-03, 1.0e-03
+- FDTD CPML reflection: 5 cells: 2.8e-03 (-51 dB), 10 cells: 4.2e-05 (-87 dB), 20 cells: 5.3e-06 (-106 dB)
+- FDTD fields through the Maxwell checks: Poynting imbalance 6e-05, 4e-06, 9e-07; residuals 1.4e-02, 5.0e-03, 1.8e-03
+- FDTD near-to-far-field transform (dipole pattern and power): radiated power errors 8.0e-03, 3.6e-03, 2.0e-03 vs eta k^2 |I l|^2 / (12 pi)
+- FDTD dielectric sphere vs Mie (3-D, TF/SF + near-to-far field): errors 2.1e-02, 1.8e-02, 2.4e-02 at 10, 15, 20 cells per wavelength: a plateau near 2 %, not a convergence order (harmonic/arithmetic sub-cell averaging is not the full anisotropic smoothing an oblique surface needs; arithmetic averaging alone gives 9.7 % at 10 cells)
+<!-- verification-table:end -->
 
 ## Fixed while building this
 
@@ -293,6 +533,13 @@ Notes from the same run:
 
 * The FEM solvers are 2-D (planar or axisymmetric for `eddy_current_fdm`), first order (P1), and resolve
   geometry on the mesh (polar grids are staircased in angle).
+* FDTD: uniform grids only. The sub-cell averaging is not the full anisotropic smoothing: curved surfaces with E
+  normal to them keep an error of a few percent that does not converge (2 % on the Mie sphere below). The CPML is tuned for vacuum; inside
+  dispersive or negative-permittivity media its reflection is not measured. Surface plasmon polaritons are
+  verified only in closed form: an FDTD SPP run on a lossless Drude interface did not converge cleanly at
+  affordable resolutions (4.9 % at 80 cells per wavelength), so no FDTD SPP number is claimed. NumPy, single
+  thread: a 60^3 grid takes 19 ms per step with PEC walls and 38 ms with CPML on all sides (measured in the
+  development container).
 * The differential compiler kinds do not differentiate material maps: jumps of `eps`, `mu` or `nu` are only seen
   by the integral kinds.
 * `maxwell_checks` uses central differences on tensor grids: fields with discontinuities (material interfaces,
@@ -301,6 +548,15 @@ Notes from the same run:
   iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
   magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
   M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.
+* Thermal: a lumped network whose material, contact and heat-transfer data are illustrative defaults, not
+  measured or fitted to a Prius; one temperature per node (no hot spot inside the slot, magnets uniform). `Hcj(T)`
+  is the grade minimum with an assumed -0.55 %/K coefficient. The demagnetisation check is static, a square-loop
+  knee test on the 2-D field (no recoil-line modelling, no partial demagnetisation of later operation). The
+  worst-element ratio does not converge under mesh refinement (field singular at the sharp magnet corners), so
+  only area fractions are reported as results. The
+  short-circuit peak `2 psi_pm / L_d` is an estimate, not a transient simulation.
+* Drive: steady state only (no current-controller dynamics, no PWM ripple or harmonics losses), no inverter,
+  mechanical or battery losses; the voltage limit is that of linear space-vector modulation.
 * `JilesAtherton` is the scalar model; its parameters must be fitted to measured loops of the material.
   `illustrative_steel` is a formula, not a measured grade.
 

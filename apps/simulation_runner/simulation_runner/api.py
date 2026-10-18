@@ -10,10 +10,13 @@ Environment (all optional; runtime variables in apps/_shared/README.md):
   RUNNER_MAX_CASES                cases per run (default 60)
   RUNNER_MAX_JOBS                 runs executing at once (default 2)
   RUNNER_FREE_JOBS_RUN, RUNNER_FREE_COMPUTE_SECONDS, RUNNER_FREE_STORAGE_MB   free use per month
+  RUNNER_VIEW_MAX_FACES           triangles of a step's 3-D result view before it is decimated (default 250,000)
 """
 from __future__ import annotations
 
+import hashlib
 import io
+import json
 import os
 import sys
 import time
@@ -36,6 +39,7 @@ from pinneapple_core.workflows import (
     id_column_of,
     read_cases,
 )
+from pinneapple_tools.visualization.studio.solver_view import solver_result_view
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
 from appkit import install, install_runtime, principal  # noqa: E402
@@ -45,6 +49,8 @@ HERE = os.path.dirname(__file__)
 STATIC = os.path.join(HERE, "static")
 SELF_HOSTED = (os.environ.get("RUNNER_SELF_HOSTED") or "").lower() in ("1", "true", "yes")
 MAX_CASES = int(os.environ.get("RUNNER_MAX_CASES") or 60)
+VIEW_MAX_FACES = int(os.environ.get("RUNNER_VIEW_MAX_FACES") or 250_000)
+VIEW_KINDS = ("calculix", "openfoam")                # steps whose result opens in the 3-D view
 DATASET_FORMATS = {"csv": "text/csv", "parquet": "application/octet-stream", "json": "application/json",
                    "h5": "application/x-hdf5"}
 
@@ -314,6 +320,11 @@ def get_run(request: Request, run_id: str):
         except KeyError:
             job = None
     steps = RUNNER.steps(run_id)
+    kinds = {st["id"]: st["kind"] for st in run["workflow"]["steps"]}
+    for s in steps:
+        s["kind"] = kinds.get(s["step_id"])
+        s["viewable"] = s["kind"] in VIEW_KINDS and s["status"] in ("done", "skipped") \
+            and not (s["outputs"] or {}).get("dry_run")
     return {"id": run_id, "name": run["name"], "status": run["status"], "created": run["created"],
             "started": run["started"], "finished": run["finished"], "counts": run["counts"], "metadata": meta_,
             "job": job and {k: job[k] for k in ("id", "status", "progress", "message", "error", "attempts")},
@@ -328,6 +339,44 @@ def get_run(request: Request, run_id: str):
 def step_log(request: Request, run_id: str, step_id: str):
     _run(request, run_id)
     return Response(RUNNER.log(run_id, step_id), media_type="text/plain")
+
+
+def _step_view(request: Request, run_id: str, step_id: str) -> tuple[dict, Any]:
+    """The 3-D view of a finished CalculiX or OpenFOAM step (cached until the step runs again)."""
+    run = _run(request, run_id)
+    st = next((s for s in RUNNER.steps(run_id) if s["step_id"] == step_id), None)
+    kind = next((x["kind"] for x in run["workflow"]["steps"] if x["id"] == step_id), None)
+    if st is None:
+        raise HTTPException(404, "unknown step")
+    if kind not in VIEW_KINDS or st["status"] not in ("done", "skipped") or (st["outputs"] or {}).get("dry_run"):
+        raise HTTPException(409, "only finished CalculiX and OpenFOAM steps (not dry runs) have a result to view")
+    key = hashlib.sha256(f"{run_id}/{step_id}/{st['hash']}/{st['finished']}/{VIEW_MAX_FACES}".encode()).hexdigest()[:24]
+    d = RUNNER.root / "views"
+    js, glb = d / f"{key}.json", d / f"{key}.glb"
+    if not (js.is_file() and glb.is_file()):
+        try:
+            fv, info = solver_result_view(RUNNER.step_workdir(run_id, step_id), max_faces=VIEW_MAX_FACES)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from None
+        d.mkdir(parents=True, exist_ok=True)
+        glb.write_bytes(fv.glb())
+        js.write_text(json.dumps(to_jsonable({"view": fv.meta, "info": info})))
+    return json.loads(js.read_text()), glb
+
+
+@app.get("/api/runs/{run_id}/steps/{step_id}/view3d")
+def step_view(request: Request, run_id: str, step_id: str):
+    """The result of a CalculiX or OpenFOAM step in 3-D, as a check before its numbers are used: the mesh, its
+    fields, the deformed shape (CalculiX) and the boundary-condition and load regions the case defines. The glTF is at
+    ``view3d.glb``; meshes above RUNNER_VIEW_MAX_FACES triangles are decimated."""
+    out, _ = _step_view(request, run_id, step_id)
+    return {**out, "glb": f"/api/runs/{run_id}/steps/{step_id}/view3d.glb"}
+
+
+@app.get("/api/runs/{run_id}/steps/{step_id}/view3d.glb")
+def step_view_glb(request: Request, run_id: str, step_id: str):
+    _, glb = _step_view(request, run_id, step_id)
+    return FileResponse(glb, media_type="model/gltf-binary")
 
 
 @app.get("/api/runs/{run_id}/steps/{step_id}/files/{name}")
