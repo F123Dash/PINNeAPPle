@@ -2,7 +2,7 @@
  "flow": "aircraft_takeoff",
  "title": "Aircraft take-off (flight library)",
  "status": "failed",
- "wall_seconds": 3.6,
+ "wall_seconds": 3.8,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -31,5 +31,6 @@
    "tables": null,
    "figures": []
   }
- }
+ },
+ "cached_nodes": []
 }

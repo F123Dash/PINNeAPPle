@@ -2,7 +2,7 @@
  "flow": "poisson_2d",
  "title": "Poisson 2D: FEM, FD and PINN with the trust card",
  "status": "done",
- "wall_seconds": 58.0,
+ "wall_seconds": 0.4,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,8 +11,8 @@
  "nodes": {
   "geo": {
    "type": "geometry.domain",
-   "status": "done",
-   "seconds": 0.001735687255859375,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "rectangle in 2-D, coordinates ['x', 'y']",
    "metrics": {
@@ -24,8 +24,8 @@
   },
   "mesh": {
    "type": "geometry.mesh",
-   "status": "done",
-   "seconds": 0.0012736320495605469,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -58,8 +58,8 @@
   },
   "eq": {
    "type": "equations.system",
-   "status": "done",
-   "seconds": 0.1963040828704834,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "poisson (linear), 1 PDE(s), 1 condition(s)",
    "metrics": {
@@ -96,8 +96,8 @@
   },
   "fd": {
    "type": "solver.classical",
-   "status": "done",
-   "seconds": 0.25745487213134766,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "FD on 41x41 points in 0.12 s",
    "metrics": {
@@ -118,8 +118,8 @@
   },
   "fem": {
    "type": "solver.classical",
-   "status": "done",
-   "seconds": 0.6363797187805176,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "FEM on 41x41 points in 0.48 s",
    "metrics": {
@@ -137,8 +137,8 @@
   },
   "pinn": {
    "type": "train.pinn",
-   "status": "done",
-   "seconds": 55.746344327926636,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "PINN trained in 55.3 s; validation passed",
    "metrics": {
@@ -213,8 +213,8 @@
   },
   "validate": {
    "type": "validate.compare",
-   "status": "done",
-   "seconds": 0.4969065189361572,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "FD: 5.14e-04, FEM: 1.55e-03, PINN: 6.93e-04 (vs exact solution)",
    "metrics": {
@@ -419,8 +419,8 @@
   },
   "view3d": {
    "type": "viz.field3d",
-   "status": "done",
-   "seconds": 0.0714271068572998,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -432,8 +432,8 @@
   },
   "lab": {
    "type": "validate.lab",
-   "status": "done",
-   "seconds": 0.1817479133605957,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "tier B, sealed",
    "metrics": {

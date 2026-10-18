@@ -2,7 +2,7 @@
  "flow": "operator_burgers",
  "title": "Neural operators: DeepONet and FNO on Burgers",
  "status": "done",
- "wall_seconds": 152.8,
+ "wall_seconds": 320.9,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,8 +11,8 @@
  "nodes": {
   "data": {
    "type": "data.grf_burgers",
-   "status": "done",
-   "seconds": 17.412646770477295,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -26,25 +26,25 @@
   "deeponet": {
    "type": "surrogate.train",
    "status": "done",
-   "seconds": 21.31943440437317,
+   "seconds": 320.8218185901642,
    "error": null,
-   "summary": "deeponet: test rel. L2 0.118, 99329 parameters",
+   "summary": "deeponet: test rel. L2 0.0474, 99329 parameters",
    "metrics": {
     "train_rel_l2": {
-     "value": 0.1135389655828476,
+     "value": 0.026924263685941696,
      "how": "mean relative L2 over the samples of that split (held out from training for val/test)"
     },
     "val_rel_l2": {
-     "value": 0.11378564685583115,
+     "value": 0.04503536969423294,
      "how": "mean relative L2 over the samples of that split (held out from training for val/test)"
     },
     "test_rel_l2": {
-     "value": 0.11835784465074539,
+     "value": 0.04742489382624626,
      "how": "mean relative L2 over the samples of that split (held out from training for val/test)"
     },
     "n_parameters": 99329,
     "train_seconds": {
-     "value": 20.7,
+     "value": 319.29,
      "how": "wall clock on this machine"
     }
    },
@@ -59,83 +59,83 @@
      "rows": [
       [
        63,
-       0.15428908339669417
+       0.0703598886894399
       ],
       [
        464,
-       0.18016197335886508
+       0.07181477757356611
       ],
       [
        109,
-       0.11893265701350204
+       0.06023074973432249
       ],
       [
        339,
-       0.20322032099003703
+       0.027621849124100293
       ],
       [
        285,
-       0.0557746462351357
+       0.017333893834950695
       ],
       [
        88,
-       0.052083750790841335
+       0.026824357801686356
       ],
       [
        209,
-       0.08479783489472693
+       0.031183733478777616
       ],
       [
        119,
-       0.08091102495113087
+       0.07640049840374101
       ],
       [
        367,
-       0.024623227775410813
+       0.009276844834745135
       ],
       [
        208,
-       0.2116683075889833
+       0.07003923147856099
       ],
       [
        388,
-       0.18463838706741842
+       0.10665276966213025
       ],
       [
        338,
-       0.08862908211513691
+       0.03966060297994481
       ],
       [
        251,
-       0.2741677105089127
+       0.12309339512720331
       ],
       [
        456,
-       0.06294440143126935
+       0.04720376966891495
       ],
       [
        153,
-       0.08946019492536049
+       0.025397732083013658
       ],
       [
        68,
-       0.1028677729292593
+       0.019318144816223643
       ],
       [
        221,
-       0.07624603768113382
+       0.023689914952547873
       ],
       [
        349,
-       0.11538580163424214
+       0.02493171320604391
       ],
       [
        124,
-       0.09807362774623675
+       0.026277899094425163
       ],
       [
        312,
-       0.17356996669360303
+       0.02909823548746399
       ]
      ]
     }
@@ -146,8 +146,8 @@
   },
   "fno": {
    "type": "surrogate.train",
-   "status": "done",
-   "seconds": 113.90384197235107,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "fno: test rel. L2 0.00473, 69889 parameters",
    "metrics": {
@@ -268,10 +268,12 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.0014371871948242188,
+   "seconds": 0.0015702247619628906,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
+    "decisions": 1,
+    "decisions_without_reference": 0,
     "items": 2
    },
    "warnings": [],
