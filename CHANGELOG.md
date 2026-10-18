@@ -51,6 +51,15 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   Reports, `lab/CURATION.md` and the catalogue show the six tiers and, for E and F, the problem and the next step.
   Migration: the committed lab re-curated (19 A, 50 B, 0 C, 6 D, 1 E, 5 F items; A and B items and headlines
   identical); legend and stamped examples in `docs/assets/seals/`; guide in `docs/core_concepts/lab.md`.
+- What an item lacks for the next letter, and how to get there with PINNeAPPle (`pinneapple_lab.next_steps`,
+  `pinneapple_lab.curation.next_steps(item) -> list[Gap]`). Every curated item records its gaps (failing checks with
+  the measured value against the threshold, unanswered trust-card stages, missed flagship gates, and for A what would
+  strengthen it), each with actions from a tested registry (lab rerun / refinement sweep, `pinneapple check`,
+  `ctx.check`, `pp.compare`, `pp.trust_card`, `pp.validate`, `validate_pinn`, `TrustGate`, `gci_check`,
+  `coverage_check`, `pp.benchmark.run`, ...) with the item's parameters filled in, EN and PT. The seal's full form
+  carries a "↑ next" line; `python -m pinneapple_lab seal --explain <item>`, reports and the catalogue show the full
+  list; `python -m pinneapple_lab improve <item> [--run]` (dry run by default) runs only the registered lab commands
+  and re-curates.
 - Flight dynamics, `pinneapple_simulation.flight`: a 6-DOF rigid aircraft (body axes, quaternion attitude) whose
   wing and tail loads come from the vortex lattice of `pinneapple_design.aero.vlm` solved every step with the local
   velocity at each panel (rates, gusts that differ along the span), plus fin and fuselage build-up, engines

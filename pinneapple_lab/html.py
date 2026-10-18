@@ -133,7 +133,7 @@ def collect(store, *, thumbs_per_run: int = 1, max_runs_per_experiment: int = 40
                       "tier": it["tier"], "tier_name": it["tier_name"], "score": it["best_score"],
                       "best_run": it["best_run"], "story": it.get("story", ""), "runs": it["runs"],
                       "usable": it["usable_fraction"], "plan": it["plan"], "description": it.get("description", ""),
-                      "headline": it.get("headline", {})})
+                      "headline": it.get("headline", {}), "next_steps": it.get("next_steps", [])})
     gallery, seen = [], set()
     for _, exp, rid, f in sorted(showcase, key=lambda t: -t[0]):
         key = (exp, os.path.basename(f))

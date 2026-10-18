@@ -17,6 +17,8 @@
     python -m pinneapple_lab stamp --all --out export/sealed                         # every figure of every item, A-F
     python -m pinneapple_lab stamp --all --tiers A,B --out export/validated          # only the validated items
     python -m pinneapple_lab legend --lang pt -o seal_legend_pt.png                  # the six seals, A to F
+    python -m pinneapple_lab seal --explain em_pinn/em_tm_cavity --lang pt          # what it lacks, and how
+    python -m pinneapple_lab improve em_pinn/em_tm_cavity [--run]                   # dry run, or run and re-curate
     python -m pinneapple_lab showcase --lang en,pt --out docs/assets/showcase         # the animated panel
 Use ``--root`` (or ``$PINNEAPPLE_LAB``) to choose the database folder.
 """
@@ -41,6 +43,10 @@ def _kv(items):
         k, _, v = it.partition("=")
         out[k] = _val(v)
     return out
+
+
+TIER_NAMES_PT = {"A": "referência independente", "B": "referência pendente", "C": "verificação parcial",
+                 "D": "exploratório", "E": "problemas conhecidos", "F": "não utilizável"}
 
 
 def main(argv=None) -> int:
@@ -103,7 +109,10 @@ def main(argv=None) -> int:
     st.add_argument("out", nargs="?", default="docs/lab")
     se = sub.add_parser("seal", help="write the quality seal of a curated item (tier from the curation)")
     se.add_argument("item")
-    se.add_argument("-o", "--out", required=True, help="seal.svg or seal.png")
+    se.add_argument("-o", "--out", default=None, help="seal.svg or seal.png")
+    se.add_argument("--explain", action="store_true",
+                    help="print what the item lacks for the next letter and the PINNeAPPle actions for each gap")
+    se.add_argument("--no-next", action="store_true", help="leave out the next-letter line (A-D only)")
     se.add_argument("--height", type=int, default=96)
     se.add_argument("--no-reason", action="store_true", help="drop the evidence line (E and F always keep theirs)")
     se.add_argument("--lang", default="en", choices=["en", "pt"])
@@ -120,6 +129,13 @@ def main(argv=None) -> int:
     sp.add_argument("--size", type=float, default=0.24, help="seal width / image width")
     sp.add_argument("--opacity", type=float, default=0.95)
     sp.add_argument("--no-reason", action="store_true", help="drop the evidence line (E and F always keep theirs)")
+    sp.add_argument("--no-next", action="store_true", help="leave out the next-letter line (A-D only)")
+    im = sub.add_parser("improve", help="the suggested actions for an item's next letter; --run runs the registered "
+                                        "lab commands among them and re-curates")
+    im.add_argument("item")
+    im.add_argument("--run", action="store_true", help="run them (default: dry run, print only)")
+    im.add_argument("--dry-run", action="store_true", help="print only (the default)")
+    im.add_argument("--lang", default="en", choices=["en", "pt"])
     lg = sub.add_parser("legend", help="the legend of the six seals, A to F (PNG)")
     lg.add_argument("-o", "--out", required=True)
     lg.add_argument("--lang", default="en", choices=["en", "pt"])
@@ -141,8 +157,24 @@ def main(argv=None) -> int:
         except SealError as e:
             print(e, file=sys.stderr)
             return 2
-        print(save_seal(s, a.out, height=a.height, reason=not a.no_reason, lang=a.lang))
+        if a.explain:
+            from .curation import next_steps
+            from .next_steps import explain
+            name = TIER_NAMES_PT if a.lang == "pt" else None
+            print(explain(next_steps(a.item, LabStore(a.root)), a.lang,
+                          f"{a.item}: {'nível' if a.lang == 'pt' else 'tier'} {s.tier}"
+                          + (f" ({name[s.tier]})" if name else "")
+                          + (f"\n{'problema' if a.lang == 'pt' else 'problem'}: {s.text(a.lang)[0]}"
+                             if s.tier in ("E", "F") else "")))
+            if not a.out:
+                return 0
+        if not a.out:
+            ap.error("seal needs -o/--out (or --explain)")
+        print(save_seal(s, a.out, height=a.height, reason=not a.no_reason, lang=a.lang, next_step=not a.no_next))
         return 0
+    if a.cmd == "improve":
+        from .improve import improve
+        return improve(a.item, LabStore(a.root), run=a.run and not a.dry_run, lang=a.lang)
     if a.cmd == "legend":
         from .seal import render_legend
         os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
@@ -151,7 +183,8 @@ def main(argv=None) -> int:
         return 0
     if a.cmd == "stamp":
         from .seal import SealError, seal_for, stamp_all, stamp_file
-        kw = {"corner": a.corner, "size": a.size, "opacity": a.opacity, "reason": not a.no_reason, "lang": a.lang}
+        kw = {"corner": a.corner, "size": a.size, "opacity": a.opacity, "reason": not a.no_reason, "lang": a.lang,
+              "next_step": not a.no_next}
         if a.all:
             man = stamp_all(LabStore(a.root), a.out or "export/sealed", tiers=a.tiers, **kw)
             for k, v in man["items"].items():

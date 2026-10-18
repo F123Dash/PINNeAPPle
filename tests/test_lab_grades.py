@@ -7,8 +7,9 @@ import os
 import numpy as np
 import pytest
 
-from pinneapple_lab import Experiment, LabStore, register, sweep
-from pinneapple_lab.curation import TIER_HISTORY, TIERS, curate, problem
+from pinneapple_lab import Experiment, LabStore, register, run, sweep
+from pinneapple_lab.curation import TIER_HISTORY, TIERS, curate, next_steps, problem
+from pinneapple_lab.next_steps import ACTIONS, GAP_TYPES, NO_ACTION, Gap, explain
 from pinneapple_lab.seal import (
     SEALABLE,
     TIER_COLOURS,
@@ -67,7 +68,7 @@ class _Grade(Experiment):
             ctx.check("mass_balance", False, kind="physics")
             ctx.check("drag_vs_wind_tunnel", True, kind="reference")
         elif c == "F_contradicts":                        # every reference check fails, nothing else independent
-            ctx.check("drag_vs_wind_tunnel", False, kind="reference")
+            ctx.check("drag_vs_wind_tunnel", value=0.4, reference=0.3, rtol=0.05, kind="reference")
             ctx.check("lift_vs_wind_tunnel", False, kind="reference")
             ctx.check("loss_decreased", True, kind="sanity")
 
@@ -181,8 +182,9 @@ def test_every_letter_renders(graded, tier, lang):
         for svg in (svg_full, svg_small, render_seal(s, fmt="svg", reason=False, compact=True, lang=lang)):
             assert "✗" in svg and "↑" in svg and hint.split(": ", 1)[1][:12] in svg
     else:
-        assert full.height == 96 and small.height == 40 and small.width < full.width
-        assert "TIER" not in svg_small
+        assert full.height >= 96 and "\u2191" in svg_full                    # the next-letter line
+        assert render_seal(s, height=96, lang=lang, compact=False, next_step=False).height == 96
+        assert small.height == 40 and small.width < full.width and "TIER" not in svg_small
 
 
 def test_colours_are_readable():
@@ -227,3 +229,120 @@ def test_stamp_any_letter_and_the_tiers_filter(graded, tmp_path, capsys):
     with pytest.raises(ValueError):
         stamp_all(root, str(tmp_path / "bad"), tiers="A,G")
     assert cli(["legend", "--lang", "pt", "-o", str(tmp_path / "legend.png")]) == 0
+
+
+# ---------------------------------------------------------------------------------------------- the path to the next letter
+@register
+class _Fixable(Experiment):
+    name = "_test_fixable"
+    description = "A result whose error against its reference is a parameter, so a fix can be simulated."
+    params = {"error": 0.5, "steps": 10}
+
+    def run(self, ctx):
+        ctx.check("deflection_vs_beam_theory", value=ctx.params["error"], max=0.05, kind="reference")
+        ctx.check("energy_balance", True, kind="physics")
+
+
+EXPECTED_GAPS = {"A": {"uncertainty", "review"}, "B": {"no_reference", "assets"}, "C": {"no_independent"},
+                 "D": {"no_evidence"}, "E_reference": {"fix_reference"}, "E_generalization": {"fix_generalization"},
+                 "E_baseline": {"fix_baseline"}, "F_crashed": {"fix_crashed"}, "F_diverged": {"fix_diverged"},
+                 "F_physics": {"fix_physics"}, "F_contradicts": {"fix_contradicts"}}
+NEXT = {"A": "A+", "B": "A", "C": "B", "D": "C", "E": "D", "F": "E"}
+
+
+@pytest.mark.parametrize("case", list(CASES))
+def test_gaps_per_letter(graded, case):
+    root, out = graded
+    gaps = next_steps(f"_test_grade/{case}", root)
+    assert gaps and all(isinstance(g, Gap) for g in gaps)
+    assert EXPECTED_GAPS[case] <= {g.type for g in gaps}
+    assert gaps[0].to == NEXT[CASES[case]]                     # the first gap is the one to the next letter up
+    assert all(g.type in GAP_TYPES and g.why and g.why_pt and g.short_pt for g in gaps)
+    for g in gaps:
+        assert g.actions or explain([g]).endswith(NO_ACTION[0])
+
+
+def test_measured_value_against_threshold(graded):
+    root, _ = graded
+    g = next(g for g in next_steps("_test_grade/F_contradicts", root) if g.check == "drag_vs_wind_tunnel")
+    assert g.measured == {"value": 0.4, "threshold": 0.3, "op": "±", "tolerance": pytest.approx(0.015)}
+    assert "value 0.4, reference 0.3 ± 0.015" in g.why and "valor 0.4" in g.why_pt
+    b = {g.type: g for g in next_steps("_test_grade/B", root)}
+    assert b["assets"].measured["op"] == "score" and b["assets"].measured["threshold"] == 0.6
+    assert next_steps("_test_grade/B", root)[0].actions[0].params["experiment"] == "_test_grade"
+
+
+def test_every_gap_type_maps_to_an_existing_action():
+    import importlib
+
+    from pinneapple_lab.__main__ import main as lab_main
+    from pinneapple_lab.curation import path_to_next
+    for t, spec in GAP_TYPES.items():
+        assert spec["actions"], t                                # at least one registered action per gap type
+        assert all(a in ACTIONS for a in spec["actions"]), t
+    for aid, spec in ACTIONS.items():
+        target = spec["target"]
+        if target.startswith("cli:pinneapple_lab "):
+            with pytest.raises(SystemExit) as e:
+                lab_main([target.split()[1], "--help"])
+            assert e.value.code == 0, aid
+        elif target == "cli:pinneapple check":
+            from pinneapple_check.cli import main as check_main
+            with pytest.raises(SystemExit) as e:
+                check_main(["check", "--help"])
+            assert e.value.code == 0
+        else:                                                    # a dotted path to something that exists
+            parts = target.split(".")
+            obj = None
+            for i in range(len(parts), 0, -1):
+                try:
+                    obj = importlib.import_module(".".join(parts[:i]))
+                except ImportError:
+                    continue
+                for attr in parts[i:]:
+                    obj = getattr(obj, attr)
+                break
+            assert obj is not None, aid
+    import re as _re
+    emitted = set(_re.findall(r'G\("(\w+)"', inspect.getsource(path_to_next)))
+    emitted |= set(_re.findall(r'"(fix_\w+)"', inspect.getsource(path_to_next)))
+    emitted |= set(_re.findall(r'dim_gap\("(\w+)"', inspect.getsource(path_to_next)))
+    assert emitted and emitted <= set(GAP_TYPES), emitted - set(GAP_TYPES)
+
+
+def test_explain_and_the_seal_next_line(graded, capsys):
+    root, _ = graded
+    from pinneapple_lab.__main__ import main as cli
+    assert cli(["--root", root, "seal", "--explain", "_test_grade/F_contradicts"]) == 0
+    out = capsys.readouterr().out
+    assert "tier F" in out and "why: failing check" in out and "-> " in out and "problem:" in out
+    assert cli(["--root", root, "seal", "--explain", "_test_grade/B", "--lang", "pt"]) == 0
+    out = capsys.readouterr().out
+    assert "nível B" in out and "porquê" in out
+    s = seal_for("_test_grade/B", root)
+    assert s.hint.startswith("A: ") and s.hint_pt.startswith("A: ")
+    assert "\u2191 A: " in render_seal(s, fmt="svg") and "\u2191" not in render_seal(s, fmt="svg", next_step=False)
+    assert render_seal(s, next_step=False).height == 96 < render_seal(s).height
+
+
+def test_improve_dry_run_then_a_fix_raises_the_letter(tmp_path, capsys):
+    root = str(tmp_path)
+    from pinneapple_lab.__main__ import main as cli
+    run("_test_fixable", {}, root=root)
+    out = curate(LabStore(root))
+    assert out["items"]["_test_fixable"]["tier"] == "E"
+    gaps = next_steps("_test_fixable", root)
+    assert gaps[0].type == "fix_reference" and gaps[0].measured["value"] == 0.5
+    refine = next(a for a in gaps[0].actions if a.id == "lab_sweep_refine")
+    assert refine.command == "python -m pinneapple_lab sweep _test_fixable -g steps=10,20 -p error=0.5"
+    before = json.load(open(os.path.join(root, "curation.json")))
+    assert cli(["--root", root, "improve", "_test_fixable"]) == 0               # dry run by default
+    assert "Dry run" in capsys.readouterr().out
+    assert json.load(open(os.path.join(root, "curation.json"))) == before       # nothing ran
+    assert cli(["--root", root, "improve", "_test_fixable", "--run"]) in (0, 1)  # registered commands, re-curated
+    assert "_test_fixable: E -> E" in capsys.readouterr().out                   # the error is not fixed by rerunning
+    fixed = run("_test_fixable", {"error": 0.01}, root=root)                    # the simulated fix
+    out = curate(LabStore(root))
+    assert out["runs"][fixed.run_id]["tier"] == "B"                             # E -> B for the fixed run
+    assert out["items"]["_test_fixable"]["tier"] == "C"                         # E -> C: most runs still fail
+    assert next_steps("_test_fixable", root)[0].type == "consistency"           # ... which is now the first gap

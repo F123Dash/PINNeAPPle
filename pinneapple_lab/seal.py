@@ -83,7 +83,7 @@ class Seal:
     curated: str         # when the curation that gave the tier ran
     experiment: str
     run_id: str
-    hint: str = ""       # E / F: the next step to the tier above ("D: fix the failing check")
+    hint: str = ""       # the next step to the tier above ("D: fix the failing check"; "A+: ..." for A)
     reason_pt: str = ""
     hint_pt: str = ""
 
@@ -163,8 +163,17 @@ def seal_for(item: str, lab: Any = None, tiers=None) -> Seal:
     return Seal(item=item, tier=tier, title=rec.get("title") or item, reason=reason,
                 reason_kind=hl.get("kind", ""), curated=str(cur.get("generated", "")),
                 experiment=rec.get("experiment", item.split("/")[0]), run_id=rec.get("best_run", ""),
-                hint=hl.get("hint", ""), reason_pt=hl.get("label_pt") or hl.get("text_pt", "") or reason,
-                hint_pt=hl.get("hint_pt", ""))
+                hint=hl.get("hint") or _first_step(rec), reason_pt=hl.get("label_pt") or hl.get("text_pt", "") or reason,
+                hint_pt=hl.get("hint_pt") or _first_step(rec, "pt"))
+
+
+def _first_step(rec: dict[str, Any], lang: str = "en") -> str:
+    """The seal's "next" line: the first gap of the item's path to the next letter (``rec["next_steps"]``)."""
+    steps = rec.get("next_steps") or []
+    if not steps:
+        return ""
+    g = steps[0]
+    return f"{g['to']}: {g['short_pt'] if lang == 'pt' else g['short']}"
 
 
 def run_dir(seal: Seal, lab: Any = None) -> str:
@@ -243,7 +252,8 @@ def _mark(seal: Seal) -> str:
     return {"reference": "\u2713 ", "failing": "\u2717 ", "": ""}.get(seal.reason_kind, "\u25d0 ")
 
 
-def _layout(seal: Seal, height: float, reason: bool, compact: bool, lang: str = "en") -> dict[str, Any]:
+def _layout(seal: Seal, height: float, reason: bool, compact: bool, lang: str = "en",
+            next_step: bool = True) -> dict[str, Any]:
     """Positions in pixels for a badge ``height`` tall (both renderers use it). An E or F badge is never compact and
     always has the reason and the next-step lines, so it is taller than ``height`` by one small-print line."""
     h = float(height)
@@ -263,8 +273,9 @@ def _layout(seal: Seal, height: float, reason: bool, compact: bool, lang: str = 
         why, hint = seal.text(lang)
         if reason and why:
             lines.append((_mark(seal) + why, 0.13 * h, "#E6E9F0", False, pad + top + 0.40 * h))
-        if must and hint:
-            lines.append(("\u2191 " + hint, 0.13 * h, seal.line, False, pad + top + (0.40 + _LINE_STEP) * h))
+        if (must or next_step) and hint:
+            lines.append(("\u2191 " + hint, 0.13 * h, seal.line, False,
+                          pad + top + (0.40 + _LINE_STEP * (len(lines) - 2)) * h))
     H = h + _LINE_STEP * h * max(0, len(lines) - 3)
     widths = []
     for text, size, _, bold, _ in lines:
@@ -290,13 +301,15 @@ def _layout(seal: Seal, height: float, reason: bool, compact: bool, lang: str = 
 
 
 def render_seal(seal: Seal, *, height: int = 96, fmt: str = "png", reason: bool = True,
-                compact: bool | None = None, opacity: float = 1.0, lang: str = "en"):
+                compact: bool | None = None, opacity: float = 1.0, lang: str = "en", next_step: bool = True):
     """The badge as a PIL RGBA image (``fmt="png"``) or an SVG string (``fmt="svg"``). Below 56 px it switches to
     the compact form (mark, wordmark and tier letter) so it stays legible; ``compact`` forces either form. ``lang``
     ("en", "pt") sets the language of the tier line, the reason and the hint. E and F seals ignore ``compact`` and
-    ``reason=False``: they always show the failing check and the next step (and are one line taller)."""
+    ``reason=False``: they always show the failing check and the next step (and are one line taller). The full form
+    of an A-D seal also carries the "next" line (what the item lacks for the next letter, ``seal.hint``) unless
+    ``next_step=False``."""
     compact = height < 56 if compact is None else compact
-    L = _layout(seal, height, reason, compact, lang)
+    L = _layout(seal, height, reason, compact, lang, next_step)
     return _svg(seal, L, opacity) if fmt == "svg" else _png(seal, L, opacity)
 
 
@@ -448,19 +461,20 @@ def corner_scores(frames, w: int, h: int, margin: int, avoid=()) -> dict[str, fl
     return scores
 
 
-def _size_badge(seal: Seal, W: int, H: int, size: float, reason: bool, lang: str = "en"):
+def _size_badge(seal: Seal, W: int, H: int, size: float, reason: bool, lang: str = "en", next_step: bool = True):
     """The badge scaled so its width is ``size`` x the image width (at least 28 px tall, at most 30 % of it). E and
     F badges keep their full form, so they are at least 56 px tall unless the image is too small for that."""
-    probe = render_seal(seal, height=100, reason=reason, lang=lang)
+    probe = render_seal(seal, height=100, reason=reason, lang=lang, next_step=next_step)
     aspect = probe.width / probe.height
     lo = 56 if seal.tier in MUST_EXPLAIN else 28
     hgt = int(min(max(size * W / aspect, lo), max(0.3 * H, 28)))
-    return render_seal(seal, height=hgt, reason=reason, lang=lang)
+    return render_seal(seal, height=hgt, reason=reason, lang=lang, next_step=next_step)
 
 
 # ---------------------------------------------------------------------------------------------- stamping
 def stamp_image(image, seal: Seal, *, corner: str = "auto", size: float = 0.24, opacity: float = 0.95,
-                margin: float = 0.02, reason: bool = True, avoid=(), extend: str | bool = "auto", lang: str = "en"):
+                margin: float = 0.02, reason: bool = True, avoid=(), extend: str | bool = "auto", lang: str = "en",
+                next_step: bool = True):
     """Stamp a PIL image (or an array, or a path) and return the stamped PIL image. With ``corner="auto"`` the
     badge goes in the emptiest corner; when every corner is busy (a plot filled to its edges) and ``extend`` is
     "auto", the canvas grows by a strip in the image's border colour and the badge sits there, covering nothing.
@@ -470,7 +484,7 @@ def stamp_image(image, seal: Seal, *, corner: str = "auto", size: float = 0.24, 
         Image.fromarray(np.asarray(image)) if not hasattr(image, "convert") else image
     mode = im.mode
     base = im.convert("RGBA")
-    badge = _size_badge(seal, base.width, base.height, size, reason, lang)
+    badge = _size_badge(seal, base.width, base.height, size, reason, lang, next_step)
     m = int(round(margin * min(base.size)))
     rgb = np.asarray(base.convert("RGB"))
     if corner == "auto":
@@ -498,7 +512,8 @@ def _extend(base, dh: int, rgb: np.ndarray):
 
 
 def stamp_figure(fig, seal: Seal, *, corner: str = "auto", size: float = 0.24, opacity: float = 0.95,
-                 margin: float = 0.015, reason: bool = True, extend: str | bool = "auto", lang: str = "en"):
+                 margin: float = 0.015, reason: bool = True, extend: str | bool = "auto", lang: str = "en",
+                next_step: bool = True):
     """Stamp a matplotlib figure in place (an image axes in figure coordinates, drawn on top) and return it. With
     ``corner="auto"`` it keeps off colour bars and picks the emptiest remaining corner; when every corner is busy
     (``extend="auto"``) the figure grows by a strip at the bottom, its contents move up, and the seal goes there.
@@ -508,7 +523,7 @@ def stamp_figure(fig, seal: Seal, *, corner: str = "auto", size: float = 0.24, o
             ax.remove()
     fig.canvas.draw()
     W, H = fig.canvas.get_width_height()
-    badge = _size_badge(seal, W, H, size, reason, lang)
+    badge = _size_badge(seal, W, H, size, reason, lang, next_step)
     m = int(round(margin * min(W, H)))
     if corner == "auto":
         rgb = np.asarray(fig.canvas.buffer_rgba())[..., :3]
@@ -596,7 +611,8 @@ def _video_frames(path: str, n: int = 5) -> tuple[list[np.ndarray], int, int]:
 
 
 def stamp_video(src: str, seal: Seal, out: str, *, corner: str = "auto", size: float = 0.24, opacity: float = 0.95,
-                margin: float = 0.02, reason: bool = True, extend: str | bool = "auto", lang: str = "en") -> str:
+                margin: float = 0.02, reason: bool = True, extend: str | bool = "auto", lang: str = "en",
+                next_step: bool = True) -> str:
     """Stamp a GIF (frame by frame, keeping the frame times) or an MP4 / WebM / MOV (ffmpeg overlay, H.264 yuv420p,
     faststart, audio copied). The corner is chosen once, on several frames; when every corner is busy the frames
     grow by a strip that carries the badge (``extend``, as for images)."""
@@ -608,7 +624,7 @@ def stamp_video(src: str, seal: Seal, out: str, *, corner: str = "auto", size: f
             frames.append(fr.convert("RGB"))
             durs.append(fr.info.get("duration", g.info.get("duration", 100)))
         probe = [np.asarray(f) for f in frames[:: max(1, len(frames) // 5)]]
-        badge = _size_badge(seal, frames[0].width, frames[0].height, size, reason, lang)
+        badge = _size_badge(seal, frames[0].width, frames[0].height, size, reason, lang, next_step)
         m = int(round(margin * min(frames[0].size)))
         c = corner
         if corner == "auto":
@@ -616,12 +632,12 @@ def stamp_video(src: str, seal: Seal, out: str, *, corner: str = "auto", size: f
             if extend == "auto":
                 extend = bool(min(corner_scores(probe, badge.width, badge.height, m).values()) > QUIET)
         outs = [stamp_image(f, seal, corner=c, size=size, opacity=opacity, margin=margin, reason=reason,
-                            extend=extend is True, lang=lang) for f in frames]
+                            extend=extend is True, lang=lang, next_step=next_step) for f in frames]
         outs[0].save(out, save_all=True, append_images=outs[1:], duration=durs, loop=g.info.get("loop", 0),
                      optimize=False, disposal=2)
         return out
     frames, W, H = _video_frames(src)
-    badge = _size_badge(seal, W, H, size, reason, lang)
+    badge = _size_badge(seal, W, H, size, reason, lang, next_step)
     m = int(round(margin * min(W, H)))
     c = corner
     if corner == "auto":
@@ -718,17 +734,23 @@ LEGEND = {   # what each letter means, printed in the legend's sample seals (no 
            "A": "compared with an independent reference", "B": "physics, baseline or unseen-data check passes",
            "C": "checks pass, trust card partly answered", "D": "runs, no failing check, no evidence yet",
            "E": "the failing check", "F": "the crash, divergence or failed physics check",
+           "hint_A": "A+: what would strengthen it", "hint_B": "A: what it lacks for A",
+           "hint_C": "B: what it lacks for B", "hint_D": "C: what it lacks for C",
            "hint_E": "D: the next step from the curation", "hint_F": "E: the next step from the curation",
-           "note": "The tier comes from the Lab curation (lab/curation.json), never set by hand. E and F always show "
-                   "the main problem and the next step; they have no compact form."},
+           "note": "The tier comes from the Lab curation (lab/curation.json), never set by hand. The ↑ line is what "
+                   "the item lacks for the next letter. E and F always show the main problem and the next step; they "
+                   "have no compact form."},
     "pt": {"title": "Selos de qualidade PINNeAPPle", "light": "sobre figura clara", "dark": "sobre figura escura",
            "compact": "compacto",
            "A": "comparado com uma referência independente", "B": "física, baseline ou dados não vistos passam",
            "C": "verificações passam, cartão em parte respondido", "D": "executa, nada falha, ainda sem evidência",
            "E": "a verificação que falha", "F": "a falha, a divergência ou a física que falha",
+           "hint_A": "A+: o que a reforçaria", "hint_B": "A: o que falta para A",
+           "hint_C": "B: o que falta para B", "hint_D": "C: o que falta para C",
            "hint_E": "D: o próximo passo segundo a curadoria", "hint_F": "E: o próximo passo segundo a curadoria",
-           "note": "O nível vem da curadoria do Lab (lab/curation.json), nunca definido à mão. E e F mostram sempre "
-                   "o problema principal e o próximo passo; não têm forma compacta."},
+           "note": "O nível vem da curadoria do Lab (lab/curation.json), nunca definido à mão. A linha ↑ é o que "
+                   "falta para o nível seguinte. E e F mostram sempre o problema principal e o próximo passo; não "
+                   "têm forma compacta."},
 }
 _LEGEND_KIND = {"A": "reference", "B": "benchmark", "C": "verification", "D": "", "E": "failing", "F": "failing"}
 

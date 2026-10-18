@@ -165,6 +165,69 @@ last error line, and `hint` / `hint_pt`, the action that would lift it one lette
 
 `lab/CURATION.md` lists every E and F item with both.
 
+#### What is missing for the next letter, and how to get there
+
+Every item also records its **path to the next letter** (`next_steps` in `lab/curation.json`), computed from the same
+evidence and thresholds that gave the letter:
+
+| letter | gaps it lists |
+|---|---|
+| F, E | every failing check, with the measured value against its tolerance or bound (`value 1.33, max 0.05`), or the crash |
+| D | the trust-card stages (model, physics, benchmark) no passing check answers |
+| C | no independent check passes; reproducibility score below 0.6 |
+| B | each flagship gate it misses: reference, baseline or physics, unseen data (learned models), reproducibility below 0.75, figures or documentation score below 0.6 |
+| A | what would strengthen it (`A+`): a second independent reference, a check that quantifies uncertainty, a baseline or benchmark comparison, a human review |
+| any | lowered because fewer than half of its runs are A or B: that comes first |
+
+Each gap carries the PINNeAPPle actions that address it, from a curated registry (`pinneapple_lab.next_steps.ACTIONS`),
+with the item's experiment and parameters filled in: a rerun or a refinement sweep (`python -m pinneapple_lab run` /
+`sweep`), `pinneapple check` on the run folder, `ctx.check(..., kind="reference" | "physics" | "generalization")`,
+`pp.compare`, `pp.trust_card`, `pp.validate`, `validate_pinn` (PINNs), `TrustGate` (narrow the validity range),
+`pinneapple_lab.uq.gci_check` / `coverage_check`, `ensemble_study`, `pp.benchmark.run`, `ctx.figure`,
+`pp.viz.field_view`, `Experiment.references`, `python -m pinneapple_lab review`. A test resolves every action's import
+path or command and checks every gap type the curation can emit has at least one; a gap without one would print "no
+PINNeAPPle action yet" (none does today).
+
+```python
+from pinneapple_lab.curation import next_steps
+
+for gap in next_steps("solid_fem/cantilever"):          # list[pinneapple_lab.next_steps.Gap]
+    print(gap.to, gap.short, gap.why, gap.measured)
+    for a in gap.actions:                               # Action: id, kind, target, command, params, text, runnable
+        print("  ", a.command)
+```
+
+`Gap` and `Action` are the stable API (`to_dict` / `from_dict`); the Flow Studio reads them to offer the suggested
+nodes. On the command line:
+
+```bash
+python -m pinneapple_lab seal --explain em_pinn/em_tm_cavity            # gap, why, the suggested commands
+python -m pinneapple_lab seal --explain em_pinn/em_tm_cavity --lang pt
+python -m pinneapple_lab improve em_pinn/em_tm_cavity                   # dry run: what --run would execute
+python -m pinneapple_lab improve em_pinn/em_tm_cavity --run             # run them, then re-curate
+```
+
+`improve` executes only the registry's runnable lab commands (rerun, refinement sweep, seed sweep, `pinneapple
+check`), and only with `--run`; everything else is printed for a person to do. A rerun cannot fix a result whose
+method is wrong: the re-curation then reports the same letter.
+
+Example (`seal --explain em_pinn/em_tm_cavity`, first gap):
+
+```text
+em_pinn/em_tm_cavity: tier F
+problem: Ez vs closed form (+2 more)
+1. [E] agree with the reference
+   why: failing check Ez vs closed form (value 1.33, max 0.05)
+   -> diagnose the PINN on fresh points (residual, failure modes such as a collapsed or spectrally biased solution) before retraining
+      validate_pinn(net, problem)
+   -> rerun with epochs doubled and see whether the result converges
+      python -m pinneapple_lab sweep em_pinn -g epochs=3000,6000 -p case=em_tm_cavity -p n_collocation=2048 -p seed=0 -p tolerance=0.05
+   -> compare on the same points with a reference or a baseline solver at equal budget
+      pp.compare(problem, [result, "fem"], reference="exact")
+```
+
+Reports (HTML, Markdown, PDF) and the catalogue's roadmap and report sheet show the same list.
+
 **Lab items per letter.** Measured by `python -m pinneapple_lab curate` over the committed lab runs
 (`lab/curation.json`, 2026-10-18); an item is an experiment, or one case of it when the experiment declares
 `case_param`.
@@ -270,6 +333,9 @@ Every letter has a seal, so a figure always says where its result stands, not on
   panel, so it reads the same on light and dark figures; on that panel the tier line and each letter on its disc
   have a WCAG contrast ratio of at least 4.5 (`contrast_ratio`, checked by a test). F's outline and tier line use a
   lighter red (`#FF8A80`) because dark red is too dark on the panel; its letter is white.
+* The full form carries a **↑ next** line: the first gap of the item's path to the next letter ("A: compare with an
+  independent reference", "A+: quantify the uncertainty"); `next_step=False` (`--no-next`) leaves it out of an A–D
+  seal.
 * Below 56 px tall an A–D badge drops the small print (mark, wordmark, letter) so it stays legible.
 * `lang="pt"` writes the tier line, the reason (the display label's Portuguese form when the experiment gives one)
   and the next step in Portuguese.

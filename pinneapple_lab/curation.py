@@ -46,6 +46,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from . import next_steps as _ns
+
 try:                                                   # the shared vocabulary of the verification layer
     from pinneapple_veriphysics.applicability import (
         FAIL,
@@ -129,6 +131,7 @@ class Assessment:
     reviewed: bool = False
     stages: dict[str, dict[str, Any]] = field(default_factory=dict)
     headline: dict[str, Any] = field(default_factory=dict)
+    next_steps: list[dict[str, Any]] = field(default_factory=list)    # pinneapple_lab.next_steps.Gap.to_dict()
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -324,6 +327,11 @@ def assess_run(store, row: dict[str, Any], *, meta: dict[str, Any] | None = None
             gaps.append("document it (docs page, references)")
         if dims["reproducibility"].score < 0.75:
             gaps.append("rerun from a committed tree with a code snapshot")
+    nctx = _ns.context_for(row["experiment"], row.get("params") or {},
+                           os.path.join(os.path.basename(store.root), os.path.relpath(d, store.root)), tags, is_ml,
+                           meta.get("params"))
+    steps = path_to_next(tier, issue, checks, dims, evidence, ok, is_ml, nctx, reviewed=bool((reviews or {}).get(
+        row["experiment"])))
 
     # readiness per use ----------------------------------------------------------------------------------
     approved = set((rv or {}).get("approved_for", []) if isinstance((rv or {}).get("approved_for"), list) else
@@ -361,7 +369,97 @@ def assess_run(store, row: dict[str, Any], *, meta: dict[str, Any] | None = None
     stages = {k: {"title": STAGES[k][0], "question": STAGES[k][1], **v} for k, v in stages.items()}
     return Assessment(row["run_id"], row["experiment"], row["status"], tier, None if score is None else round(score, 1),
                       round(coverage, 2), dims, readiness, gaps, reviewed=bool(rv), stages=stages,
-                      headline=problem_headline(issue) if issue else headline(checks, tier, meta.get("check_labels")))
+                      headline=problem_headline(issue) if issue else headline(checks, tier, meta.get("check_labels")),
+                      next_steps=[g.to_dict() for g in steps])
+
+
+# ---------------------------------------------------------------------- the path to the next letter
+def path_to_next(tier: str, issue: dict[str, Any] | None, checks: list[dict[str, Any]], dims: dict[str, Dimension],
+                 evidence: dict[str, dict[str, Any]], ok, is_ml: bool, ctx: dict[str, Any], *,
+                 reviewed: bool = False) -> list[Any]:
+    """The gaps between ``tier`` and the next letter up (for A: what would strengthen it), each with its PINNeAPPle
+    actions (``pinneapple_lab.next_steps``). Computed from the same evidence and thresholds as the letter."""
+    G = _ns.make_gap
+    out = []
+    if tier in ("E", "F"):
+        if issue["rule"] == "crashed":
+            out.append(G("fix_crashed", "E", ctx, why=(issue["text"], issue["text_pt"])))
+        for c in checks:
+            if c.get("passed") or (issue["rule"] == "crashed" and c.get("name") == "exits_cleanly"):
+                continue                                  # a crash's own "exits cleanly" check is the crash
+            k = c.get("kind") or infer_check_kind(c)
+            if k == "sanity" and re.search(_DIVERGED, str(c.get("name", "")).lower()):
+                t = "fix_diverged"
+            elif k == "physics":
+                t = "fix_physics"
+            elif k == "reference":
+                t = "fix_contradicts" if issue["rule"] == "contradicts" else "fix_reference"
+            else:
+                t = {"generalization": "fix_generalization", "baseline": "fix_baseline"}.get(k, "fix_check")
+            out.append(G(t, "E" if t in _ns.F_CAUSING else "D", ctx, check=c))
+        out.sort(key=lambda g: g.to != "E")
+        return out
+    score = lambda k: dims[k].score or 0.0  # noqa: E731
+
+    def dim_gap(t, to, k, thr):
+        m = {"value": round(score(k), 2), "threshold": thr, "op": "score"}
+        en, pt = _ns.GAP_TYPES[t]["short"]
+        return G(t, to, ctx, meas=m, why=(f"{k} {_ns.measured_text(m)}: {en}", f"{k} {_ns.measured_text(m, 'pt')}: {pt}"))
+
+    if tier == "D":
+        open_ = [k for k in ("model", "physics", "benchmark") if evidence[k]["status"] != _ANSWERED]
+        pt = {"model": "modelo", "physics": "física", "benchmark": "benchmark"}
+        out.append(G("no_evidence", "C", ctx, why=(
+            f"no passing check answers the trust card's {', '.join(open_)} stages",
+            f"nenhuma verificação responde às etapas {', '.join(pt[k] for k in open_)} do cartão")))
+        return out
+    if tier == "C":
+        if not (ok("reference") or ok("baseline") or ok("physics") or ok("generalization")):
+            out.append(G("no_independent", "B", ctx, why=(
+                "no reference, baseline, physics or unseen-data check passes (verification against a code that shares "
+                "the inputs does not count)", "nenhuma verificação de referência, baseline, física ou dados não vistos "
+                "passa (verificar contra um código com as mesmas entradas não conta)")))
+        if score("reproducibility") < 0.6:
+            out.append(dim_gap("reproducibility", "B", "reproducibility", 0.6))
+        return out
+    if tier == "B":
+        if not ok("reference"):
+            out.append(G("no_reference", "A", ctx))
+        if not (ok("baseline") or ok("physics")):
+            out.append(G("no_baseline_or_physics", "A", ctx))
+        if is_ml and not ok("generalization"):
+            out.append(G("generalization", "A", ctx))
+        if score("reproducibility") < 0.75:
+            out.append(dim_gap("reproducibility", "A", "reproducibility", 0.75))
+        if score("assets") < 0.6:
+            out.append(dim_gap("assets", "A", "assets", 0.6))
+        if score("documentation") < 0.6:
+            out.append(dim_gap("documentation", "A", "documentation", 0.6))
+        return out
+    refs = [c for c in checks if c.get("passed") and c.get("kind") == "reference"]
+    if len(refs) < 2:
+        out.append(G("second_reference", _ns.STRENGTHEN, ctx, why=(
+            f"{len(refs)} passing independent reference check", f"{len(refs)} verificação de referência independente")))
+    if evidence["uncertainty"]["status"] != _ANSWERED:
+        out.append(G("uncertainty", _ns.STRENGTHEN, ctx, why=(
+            f"uncertainty stage {evidence['uncertainty']['status']}: no check quantifies it",
+            f"etapa de incerteza {evidence['uncertainty']['status']}: nenhuma verificação a quantifica")))
+    if not ok("baseline"):
+        out.append(G("benchmark_row", _ns.STRENGTHEN, ctx))
+    if not reviewed:
+        out.append(G("review", _ns.STRENGTHEN, ctx))
+    return out
+
+
+def next_steps(item: str, lab: Any = None) -> list[Any]:
+    """The path to the next letter of a curated item (``experiment`` or ``experiment/case``), read from the curation
+    record: a list of :class:`pinneapple_lab.next_steps.Gap`, each with its suggested actions. ``lab`` as for
+    :func:`pinneapple_lab.seal.load_curation`."""
+    from .seal import load_curation
+    rec = load_curation(lab).get("items", {}).get(item)
+    if rec is None:
+        raise KeyError(f"{item!r} is not in the curation")
+    return [_ns.Gap.from_dict(g) for g in rec.get("next_steps", [])]
 
 
 # ---------------------------------------------------------------------- E and F: what is wrong, and the next step
@@ -752,7 +850,18 @@ def assess_experiment(runs: list[Assessment]) -> dict[str, Any]:
     return {"tier": tier, "tier_name": TIERS[tier], "best_run": best.run_id, "best_score": best.score,
             "runs": len(runs), "tier_counts": counts, "usable_fraction": round(usable, 2),
             "readiness": best.readiness, "gaps": best.gaps, "reviewed": best.reviewed, "stages": best.stages,
-            "headline": best.headline}
+            "headline": best.headline, "next_steps": _consistency(tier, best, usable)}
+
+
+def _consistency(tier: str, best: Assessment, usable: float) -> list[dict[str, Any]]:
+    """The best run's gaps; when the item was lowered because most of its runs fail, that comes first."""
+    if tier == best.tier:
+        return best.next_steps
+    ctx = _ns.context_for(best.experiment, {}, "", set(), False, {})
+    g = _ns.make_gap("consistency", best.tier, ctx, meas={"value": usable, "threshold": 0.5, "op": "score"},
+                     why=(f"only {round(100 * usable)} % of its runs are A or B", f"só {round(100 * usable)} % das "
+                          "execuções são A ou B"))
+    return [g.to_dict()] + best.next_steps
 
 
 def curate(store, path_json: str | None = None, path_md: str | None = None) -> dict[str, Any]:
@@ -768,7 +877,7 @@ def curate(store, path_json: str | None = None, path_md: str | None = None) -> d
                     "references": list(getattr(cls, "references", []) or []),
                     "limitations": getattr(cls, "limitations", []) or [],
                     "case_param": getattr(cls, "case_param", "") or "",
-                    "check_labels": getattr(cls, "check_labels", {}) or {}}
+                    "check_labels": getattr(cls, "check_labels", {}) or {}, "params": dict(cls.params)}
         except KeyError:
             cls = None
             meta = {"description": "", "tags": []}
@@ -784,7 +893,7 @@ def curate(store, path_json: str | None = None, path_md: str | None = None) -> d
             sib = by_params[key] if len(by_params[key]) > 1 else None
             a = assess_run(store, r, meta=meta, reviews=reviews, siblings=sib)
             assessed.append(a)
-            out["runs"][a.run_id] = a.to_dict()
+            out["runs"][a.run_id] = {k: v for k, v in a.to_dict().items() if k != "next_steps"}   # on items only
         if assessed:
             lim_all = meta.get("limitations", [])
             m0 = {**meta, "limitations": lim_all if isinstance(lim_all, list) else []}

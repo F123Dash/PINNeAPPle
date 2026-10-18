@@ -107,7 +107,7 @@ def gather(store, cur: dict[str, Any], key: str, n_figures: int = 3) -> dict[str
             "tags": tags, "references": refs + papers, "run": it["best_run"], "runs": it["runs"],
             "usable": it["usable_fraction"], "metrics": metrics, "checks": _load(os.path.join(d, "validation.json"), []),
             "dimensions": run["dimensions"], "coverage": run["coverage"], "plan": it["plan"],
-            "stages": run.get("stages", {}), "problem": _problem(it),
+            "stages": run.get("stages", {}), "problem": _problem(it), "next_steps": it.get("next_steps", []),
             "figures": _figures(d, n_figures), "git": rec.get("git"), "code": rec.get("code", {}).get("files", []),
             "datasets": rec.get("datasets", {}), "command": cmd, "seconds": rec.get("seconds")}
 
@@ -199,6 +199,11 @@ def render_html(store, groups: list[dict[str, Any]], title: str, filters: str = 
             L.append(f"<p class=\"problem\"><b>Main problem:</b> ✗ {_e(g['problem']['text'])}<br>"
                      f"<b>To raise it:</b> ↑ {_e(g['problem']['hint'])}</p>")
         L.append(f"<p>{_e(g['description'])}</p>")
+        if g["next_steps"]:
+            L.append("<h3>Next letter: what is missing and how</h3><ol>" + "".join(
+                f"<li><b>{_e(x['to'])}: {_e(x['short'])}</b> <span class=\"muted\">{_e(x['why'])}</span><ul>"
+                + ("".join(f"<li>{_e(a['text'])}<br><code>{_e(a['command'])}</code></li>" for a in x["actions"])
+                   or "<li>no PINNeAPPle action yet</li>") + "</ul></li>" for x in g["next_steps"]) + "</ol>")
         if g["figures"]:
             imgs = []
             for f in g["figures"]:
@@ -277,6 +282,12 @@ def render_md(groups: list[dict[str, Any]], title: str, filters: str = "") -> st
         if g["problem"]:
             L += [f"**Main problem:** ✗ {g['problem']['text']}  ", f"**To raise it:** ↑ {g['problem']['hint']}", ""]
         L += [g["description"], ""]
+        if g["next_steps"]:
+            L += ["**Next letter: what is missing and how**", ""]
+            for i, x in enumerate(g["next_steps"], 1):
+                L.append(f"{i}. **{x['to']}: {x['short']}** ({x['why']})")
+                L += [f"   - {a['text']}: `{a['command']}`" for a in x["actions"]] or ["   - no PINNeAPPle action yet"]
+            L.append("")
         if g["stages"]:
             L += ["**Trust card**", "", "| stage | question | status | evidence | next |", "|---|---|---|---|---|"]
             L += [f"| {s_['title']} | {s_['question']} | {s_['status']} | {'; '.join(s_['evidence'][:2])} | {s_['next']} |"
@@ -336,6 +347,12 @@ def render_pdf(groups: list[dict[str, Any]], title: str, filters: str = "") -> b
             S.append(Paragraph(f"<b>Main problem:</b> {_e(g['problem']['text'])}<br/>"
                                f"<b>To raise it:</b> {_e(g['problem']['hint'])}", body))
         S.append(Paragraph(_e(g["description"]), body))
+        if g["next_steps"]:
+            S.append(Paragraph("Next letter: what is missing and how", st["Heading4"]))
+            for x in g["next_steps"]:
+                acts = "<br/>".join(f"&rarr; {_e(a['text'])}: <font face=\"Courier\">{_e(a['command'])}</font>"
+                                    for a in x["actions"]) or "&rarr; no PINNeAPPle action yet"
+                S.append(Paragraph(f"<b>{_e(x['to'])}: {_e(x['short'])}</b> ({_e(x['why'])})<br/>{acts}", body))
         for f in g["figures"][:2]:
             im = _img_data(f, 1100)
             if im:

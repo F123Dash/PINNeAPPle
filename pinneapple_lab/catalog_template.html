@@ -97,6 +97,7 @@ pre.err { background: var(--paper); border: 1px solid var(--line); border-radius
 .tier.tA { background: #2FBF71; color: #0F1420 } .tier.tB { background: #A6D96A; color: #0F1420 }
 .tier.tC { background: #FFE066; color: #0F1420 } .tier.tD { background: #FDAE61; color: #0F1420 }
 .tier.tE { background: #F0603C; color: #0F1420 } .tier.tF { background: #A50026; color: #FFFFFF }
+.next code { font-size: 12px; overflow-wrap: anywhere } .next ol { padding-left: 18px }
 .problem { border-left: 4px solid var(--bad); padding: 6px 10px; margin: 6px 0; font-size: 13px }
 h2 .tier { font-size: 12px; margin-right: 4px }
 .gaps { color: var(--muted); font-size: 13px; margin: 6px 0 0 }
@@ -237,6 +238,9 @@ let state = { q: "", status: "all", tag: "all", tier: "all" };
 const TIER = { A: ["A · flagship"], B: ["B · solid"], C: ["C · plausible"], D: ["D · exploratory"],
                E: ["E · known problems"], F: ["F · not usable"] };
 const UNUSABLE = (t) => t === "E" || t === "F";
+const nextSteps = (it) => (it.next_steps || []).length ? `<div class="next"><h5>Next letter: what is missing and how</h5><ol>${it.next_steps.map((g) =>
+  `<li><b>${esc(g.to)}: ${esc(g.short)}</b> <span class="unl">${esc(g.why)}</span><ul>${g.actions.length ? g.actions.map((a) =>
+    `<li>${esc(a.text)}<br><code>${esc(a.command)}</code></li>`).join("") : "<li>no PINNeAPPle action yet</li>"}</ul></li>`).join("")}</ol></div>` : "";
 const problem = (it) => UNUSABLE(it.tier) && it.headline && it.headline.kind === "failing"
   ? `<p class="problem"><b>Main problem:</b> ✗ ${esc(it.headline.text)}<br><b>To raise it:</b> ↑ ${esc(it.headline.hint || "")}</p>` : "";
 const tierBadge = (q) => q ? `<span class="tier t${q.tier}" title="Quality tier (pinneapple_lab.curation)">${TIER[q.tier][0]}</span>` : "";
@@ -377,7 +381,7 @@ function portfolio() {
     return `<details class="rm" id="rm-${esc(it.key)}"><summary>${tierBadge(it)} <b>${esc(it.title)}</b>
       <span class="rm-meta">${esc(it.experiment)}${it.case ? "" : ""} · ${cu ? `closest: ${USE_LABEL[cu]} (${pl.uses[cu].distance} pts)` : "ready for every use"}
       ${pl.limitations.length ? ` · ${pl.limitations.length} limitation${pl.limitations.length > 1 ? "s" : ""}` : ""}</span></summary>
-      <div class="rm-body">${problem(it)}${it.story ? `<p class="story">“${esc(it.story)}”</p>` : ""}
+      <div class="rm-body">${problem(it)}${nextSteps(it)}${it.story ? `<p class="story">“${esc(it.story)}”</p>` : ""}
       <div><h5>Limitations</h5>${pl.limitations.length ? `<ul>${pl.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : "<p class='lede'>None declared or detected.</p>"}</div>
       <div><h5>Path forward</h5>${acts ? `<ol>${acts}</ol>` : "<p class='lede'>Nothing missing.</p>"}</div>
       <p><button class="rep-btn sm" data-rep="${esc(it.key)}">Report on this item</button></p>
@@ -404,7 +408,7 @@ function report(keys, title) {
                             : r.thumbs.map((t) => `<img alt="figure" src="${t}">`).join("")) : "";
     const checks = r && r.checks.length ? `<table class="tbl">${r.checks.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.kind || "")}</td><td class="${c.passed ? "pass" : "fail"}">${c.passed ? "PASS" : "FAIL"}</td><td>${esc(c.detail || "")}</td></tr>`).join("")}</table>` : "<p class='lede'>No checks.</p>";
     return `<article class="rep-item"><div class="eyebrow">${esc(it.experiment)}${it.case ? " / " + esc(it.case) : ""}</div>
-      <h3>${tierBadge(it)} ${esc(it.title)}</h3>${problem(it)}${it.story ? `<p class="story">“${esc(it.story)}”</p>` : ""}<p>${esc(it.description || "")}</p>
+      <h3>${tierBadge(it)} ${esc(it.title)}</h3>${problem(it)}${nextSteps(it)}${it.story ? `<p class="story">“${esc(it.story)}”</p>` : ""}<p>${esc(it.description || "")}</p>
       ${img ? `<div class="rep-figs">${img}</div>` : ""}
       <h4>Readiness</h4><table class="tbl">${U.map((u) => `<tr><td>${USE_LABEL[u]}</td><td>${it.plan.uses[u].status === "gap" ? "missing: " + it.plan.uses[u].missing.map(esc).join(", ") : it.plan.uses[u].status}</td></tr>`).join("")}</table>
       <h4>Validation</h4>${checks}
