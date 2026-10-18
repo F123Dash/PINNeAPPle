@@ -37,6 +37,7 @@ from pinneapple_simulation.electromagnetics.machines.drive import (
 from pinneapple_simulation.electromagnetics.machines.thermal import (
     NDFEB_HCJ_MIN_KAM,
     demagnetisation_margin,
+    demagnetisation_refinement,
     intrinsic_coercivity,
     machine_network,
     magnet_temperature_sweep,
@@ -129,6 +130,14 @@ def main() -> dict:
             print(f"{label}, grade {grade}: Hcj {Hcj / 1e3:.0f} kA/m, worst reverse field {d['H_rev_max'] / 1e3:.0f} "
                   f"kA/m, demagnetised fraction {d['demagnetised_fraction']:.4f}", flush=True)
             maps[(label, grade)] = (ms, d)
+    hcj = {gr: intrinsic_coercivity(NDFEB_HCJ_MIN_KAM[gr] * 1e3, T_mag, BETA_HCJ) for gr in ("N", "M", "H", "SH", "UH")}
+    study = demagnetisation_refinement(g, T_mag, cases, hcj, n_gap=N_GAP)
+    for lv in study:
+        print(f"grading {lv['grading']}: {lv['magnet_elements']} magnet elements, "
+              f"{1e3 * lv['magnet_element_size_m']:.2f} mm;",
+              {c: {gr: (round(v["ratio_max"], 3), round(v["demagnetised_fraction"], 4),
+                        round(v["fraction_above_margin"], 4)) for gr, v in r.items()} for c, r in lv["cases"].items()},
+              flush=True)
     res = {"magnet_temperature_sweep": sweep, "iron_split": split, "wltc_cycles": cycles,
            "peak_temperatures_C": hot,
            "mean_losses_W": {"copper": float(np.mean(E["loss_copper"])), "iron": float(np.mean(E["loss_iron"])),
@@ -136,15 +145,16 @@ def main() -> dict:
            "peak_load": {"torque_Nm": op["T"], "rpm": 1500, "copper_W": op["copper"], "iron_W": op["iron"],
                          "magnet_W": op["magnet"], "time_to_180C_winding_s": t_limit},
            "demagnetisation": {"magnet_temperature_C": T_mag, "beta_Hcj_per_K": BETA_HCJ,
-                               "short_circuit_peak_estimate_A": i_sc, "cases": demag},
+                               "short_circuit_peak_estimate_A": i_sc, "cases": demag,
+                               "mesh_refinement": study},
            "seconds": time.perf_counter() - t0}
     OUT.mkdir(exist_ok=True)
     (OUT / "13_prius_thermal.json").write_text(json.dumps(res, indent=1, default=float))
-    _figures(times, T, net.names, ts, Tp, t_limit, sweep, maps, m, list(cases))
+    _figures(times, T, net.names, ts, Tp, t_limit, sweep, maps, m, list(cases), study, T0)
     return res
 
 
-def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, labels):
+def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, labels, study, T0):
     import matplotlib
 
     matplotlib.use("Agg")
@@ -153,8 +163,10 @@ def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, labels):
 
     fig, ax = plt.subplots(1, 3, figsize=(17, 4.3))
     for i, nm in enumerate(names):
-        ax[0].plot(times / 60, T[:, i], label=nm)
-        ax[1].plot(ts / 60, Tp[:, i], label=nm)
+        # rotor and magnets coincide (contact conductance ~340 W/K against ~0.2 W magnet loss): magnets dashed on top
+        kw = {"ls": (0, (3, 2)), "lw": 1.6} if nm == "magnets" else {"lw": 2.6 if nm == "rotor" else 1.2}
+        ax[0].plot(times / 60, T[:, i], label=nm, **kw)
+        ax[1].plot(ts / 60, Tp[:, i], label=nm, **kw)
     ax[0].set_xlabel("time (min), 4 x WLTC class 3b")
     ax[0].set_ylabel("temperature (degC)")
     ax[0].legend(fontsize=8)
@@ -174,7 +186,13 @@ def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, labels):
     ax[2].set_xlabel("magnet temperature (degC)")
     ax[2].set_ylabel("relative to 20 degC")
     ax[2].legend(fontsize=8)
-    fig.tight_layout()
+    fig.text(0.01, 0.01, f"All nodes start at the coolant temperature {T0:.0f} degC. Boundaries: water jacket on the "
+             f"stator back (h A 300 W/K, coolant {T0:.0f} degC), end windings to {T0:.0f} degC air (h 40 W/m^2 K), "
+             f"rotor through shaft and bearings (2 W/K to {T0:.0f} degC). Rotor and magnet curves coincide (dashed "
+             "magnets over the rotor): the magnet loss is about 0.2 W, the rotor-magnet contact about 340 W/K. "
+             "Thermal data are illustrative defaults (MachineThermalData), not measured on a Prius.", fontsize=7,
+             wrap=True)
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
     fig.savefig(OUT / "13_prius_thermal.png", dpi=130)
     plt.close(fig)
 
@@ -199,6 +217,29 @@ def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, labels):
         fig.colorbar(pc, ax=ax, shrink=0.8, label="H_rev / Hcj (> 1: irreversible)")
     fig.tight_layout()
     fig.savefig(OUT / "13_prius_demag.png", dpi=130)
+    plt.close(fig)
+
+    fig, axs = plt.subplots(1, 3, figsize=(16, 4.4))
+    h = np.array([1e3 * lv["magnet_element_size_m"] for lv in study])
+    for label, ls in zip(labels, ("-", "--"), strict=True):
+        for grade in ("M", "H", "SH"):
+            r = [lv["cases"][label][grade] for lv in study]
+            short = label.split(",")[0] if label.startswith("i_d") else "short circuit"
+            axs[0].plot(h, [x["ratio_max"] for x in r], "o" + ls, label=f"{grade}, {short}")
+            axs[1].plot(h, [100 * x["demagnetised_fraction"] for x in r], "o" + ls, label=f"{grade}, {short}")
+            axs[2].plot(h, [100 * x["fraction_above_margin"] for x in r], "o" + ls, label=f"{grade}, {short}")
+    for a, t in zip(axs, ("worst element H_rev / Hcj", "area with H_rev > Hcj (%)",
+                          "area with H_rev > 0.9 Hcj (%)"), strict=True):
+        a.set_xlabel("mean magnet element size (mm)")
+        a.set_title(t, fontsize=10)
+        a.invert_xaxis()
+    axs[0].axhline(1.0, color="k", lw=0.6)
+    axs[0].legend(fontsize=7)
+    fig.text(0.01, 0.01, "Mesh refinement inside the magnets (element-size growth away from the gap reduced at a fixed "
+             f"gap mesh of {N_GAP} nodes); magnets at {m.magnet_temperature:.0f} degC, rotor at 0. Solid: i_d = -250 A; "
+             "dashed: short-circuit peak estimate.", fontsize=7)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.savefig(OUT / "13_prius_demag_mesh.png", dpi=130)
     plt.close(fig)
 
 

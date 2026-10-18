@@ -96,3 +96,16 @@ def test_thermal_verification_case(name):
 
     r = mv.run([name], quick=True)[0]
     assert r.passed, r.row() + " " + r.detail
+
+
+def test_demagnetisation_refinement_shrinks_the_magnet_elements():
+    from pinneapple_simulation.electromagnetics.machines import prius_2004
+    from pinneapple_simulation.electromagnetics.machines.thermal import demagnetisation_refinement
+
+    out = demagnetisation_refinement(prius_2004(), 100.0, {"d": -250.0}, {"H": 6.0e5}, gradings=(0.2, 0.1), n_gap=192)
+    assert out[1]["magnet_elements"] > out[0]["magnet_elements"]
+    assert out[1]["magnet_element_size_m"] < out[0]["magnet_element_size_m"]
+    for lv in out:
+        r = lv["cases"]["d"]["H"]
+        assert 0.0 <= r["demagnetised_fraction"] <= r["fraction_above_margin"] <= 1.0
+        assert r["ratio_max"] > 0

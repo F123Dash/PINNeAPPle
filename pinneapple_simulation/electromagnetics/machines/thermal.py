@@ -28,7 +28,7 @@ from ..constants import MU0
 
 __all__ = ["ThermalNetwork", "cylinder_conductance", "machine_network", "MachineThermalData",
            "demagnetisation_margin", "reverse_field", "NDFEB_HCJ_MIN_KAM", "intrinsic_coercivity",
-           "magnet_temperature_sweep"]
+           "magnet_temperature_sweep", "demagnetisation_refinement"]
 
 # Minimum intrinsic coercivity of sintered NdFeB at 20 degC by grade suffix (the grade-letter convention of magnet
 # manufacturers): N 12, M 14, H 17, SH 20, UH 25, EH 30, AH 35 kOe (1 kOe = 79.577 kA/m).
@@ -191,18 +191,51 @@ def reverse_field(B: np.ndarray, angle: np.ndarray, Br: float, mu_r: float) -> n
     return -(Bm - Br) / (MU0 * mu_r)
 
 
-def demagnetisation_margin(machine, ms, Hcj: float) -> dict:
+def demagnetisation_margin(machine, ms, Hcj: float, margin_ratio: float = 0.9) -> dict:
     """Field opposing the magnetisation in every magnet element of the solution ``ms`` of ``machine`` (an
     :class:`~.pmsm.IPMMachine`), against ``Hcj`` (A/m at the magnet temperature; the knee of a square-loop NdFeB
     magnet). Returns the worst reverse field, the margin ``Hcj - H_rev`` (A/m), the demagnetised area fraction
-    (``H_rev > Hcj``), and per magnet element the element index and ``H_rev / Hcj``."""
+    (``H_rev > Hcj``), the area fraction within ``margin_ratio`` of the knee (``H_rev > margin_ratio Hcj``; less
+    sensitive to single corner elements than the knee crossing), and per magnet element the element index and
+    ``H_rev / Hcj``."""
     mask = machine._magnet
     H_rev = reverse_field(ms.B[mask], machine.mm.magnet_angle[mask] + ms.theta, machine.Br, machine.magnet.mu_r)
     area = ms.sol.geometry.area[mask]
     bad = H_rev > Hcj
     return {"H_rev_max": float(H_rev.max()), "margin": float(Hcj - H_rev.max()), "Hcj": float(Hcj),
             "demagnetised_fraction": float(area[bad].sum() / area.sum()),
+            "margin_ratio": float(margin_ratio),
+            "fraction_above_margin": float(area[H_rev > margin_ratio * Hcj].sum() / area.sum()),
             "elements": np.where(mask)[0], "ratio": H_rev / Hcj}
+
+
+def demagnetisation_refinement(geometry, magnet_temperature: float, currents_d: dict, Hcj: dict,
+                               gradings=(0.2, 0.1, 0.05, 0.025), n_gap: int = 960, margin_ratio: float = 0.9,
+                               magnet=None) -> list[dict]:
+    """Mesh study of :func:`demagnetisation_margin`: the machine meshed with decreasing ``grading`` (element size
+    growth away from the gap, :class:`~.mesher.MachineMesh`), so the magnet elements shrink at a fixed gap mesh.
+    ``currents_d``: label -> d-axis current (A, rotor at 0); ``Hcj``: grade -> intrinsic coercivity (A/m). Per level:
+    number and mean size of the magnet elements, and per case and grade the worst ``H_rev / Hcj``, the demagnetised
+    fraction and the fraction above ``margin_ratio``."""
+    from .pmsm import IPMMachine
+
+    out = []
+    for gr in gradings:
+        m = IPMMachine(geometry, n_gap=n_gap, grading=float(gr), magnet_temperature=magnet_temperature,
+                       **({"magnet": magnet} if magnet else {}))
+        level = {"grading": float(gr), "magnet_elements": int(m._magnet.sum()), "cases": {}}
+        for label, i_d in currents_d.items():
+            ms = m.solve(0.0, m.currents_dq(0.0, float(i_d), 0.0))
+            area = ms.sol.geometry.area[m._magnet]
+            level["magnet_element_size_m"] = float(np.sqrt(2.0 * area.mean()))
+            level["cases"][label] = {}
+            for grade, H in Hcj.items():
+                d = demagnetisation_margin(m, ms, H, margin_ratio)
+                level["cases"][label][grade] = {"ratio_max": float(d["ratio"].max()),
+                                                "demagnetised_fraction": d["demagnetised_fraction"],
+                                                "fraction_above_margin": d["fraction_above_margin"]}
+        out.append(level)
+    return out
 
 
 def magnet_temperature_sweep(geometry, temperatures, I_peak: float = 250.0, n_gap: int = 960,

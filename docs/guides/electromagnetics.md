@@ -406,9 +406,36 @@ three-phase short circuit estimated as `2 psi_pm / L_d = -165 A` (demagnetised a
 | SH | 651 | 2.4 % | 0 |
 | UH | 814 | 0 | 0 |
 
-The worst elements sit at the magnet corners next to the air-gap side and at the V tip (`13_prius_demag.png`
-shows the per-element ratio for grades H and SH in both cases). With these assumptions, the magnets need a grade of SH or above
-to survive full negative d-axis current when hot, and UH to keep every element below the knee.
+The worst elements sit at the outer magnet corners and at the V tip. `13_prius_demag.png` shows the per-element
+ratio for grades H and SH in both cases.
+
+The table above uses the default mesh: 784 magnet elements, 2.2 mm mean size. To test how much the fractions depend
+on the magnet mesh, `demagnetisation_refinement` refines the magnets over four levels. It lowers the element-size
+growth away from the gap, keeping the gap mesh fixed (`13_prius_demag_mesh.png`). Each cell gives the demagnetised
+area, the area above `0.9 Hcj` and the worst-element ratio `H_rev / Hcj`:
+
+| Magnet elements (size) | H, -250 A | SH, -250 A | UH, -250 A | M, -165 A | H, -165 A |
+|---|---|---|---|---|---|
+| 784 (2.24 mm) | 18.6 / 83.4 % / 1.30 | 2.4 / 7.6 % / 1.10 | 0 / 0 % / 0.88 | 3.2 / 10.9 % / 1.13 | 0 / 2.0 % / 0.93 |
+| 1920 (1.43 mm) | 19.4 / 85.5 % / 1.43 | 2.6 / 8.3 % / 1.21 | 0 / 0.7 % / 0.97 | 3.3 / 12.3 % / 1.25 | 0.2 / 1.0 % / 1.03 |
+| 4224 (0.96 mm) | 18.6 / 85.5 % / 1.46 | 2.0 / 7.5 % / 1.24 | 0 / 0.7 % / 0.99 | 4.1 / 14.0 % / 1.28 | 0.4 / 1.1 % / 1.06 |
+| 7216 (0.74 mm) | 18.8 / 85.1 % / 1.52 | 2.3 / 8.6 % / 1.29 | 0.2 / 0.5 % / 1.03 | 3.6 / 14.0 % / 1.33 | 0.3 / 1.0 % / 1.10 |
+
+The area fractions settle. The demagnetised fraction stays within 0.9 percentage points across the four levels,
+and within 0.6 between the two finest. The area above `0.9 Hcj` stays within 3.1 points across the levels (M at
+-165 A rises from 10.9 to 14.0 %) and within 1.1 between the two finest. The worst-element ratio does not converge. It grows by 4 to 6 % at each level because the field is
+singular at the sharp corners where the magnet meets the pocket. A demagnetised fraction of a few tenths of a
+percent at the finest mesh is a corner effect of the same kind, as for UH at -250 A and H at the short circuit.
+
+The conclusions therefore rest on the area fractions, not on the worst element. When hot, grade H loses about
+19 % of the magnet area at the full d-axis current, and about 85 % of the area lies within 10 % of the knee. Grade
+SH loses about 2 %, with 8 % within 10 % of the knee. In UH, only the corners reach the knee. Corner-level
+demagnetisation is not resolved by this model: the real corners are rounded and their field is not singular.
+
+The grade rows are a comparison of candidate grades, not a statement about the real car. We found no accessible
+public source that states the grade of the 2004 Prius magnets. Neither does the pyleecan model this geometry comes
+from: it gives `Br` and `mu_r` only. So the "N demagnetises" row says nothing about the production motor, whose
+magnets were chosen by Toyota for its own current and temperature limits.
 
 The network and the demagnetisation field are checked against closed forms (`machines.verification`):
 
@@ -525,6 +552,8 @@ Notes from the same run:
   measured or fitted to a Prius; one temperature per node (no hot spot inside the slot, magnets uniform). `Hcj(T)`
   is the grade minimum with an assumed -0.55 %/K coefficient. The demagnetisation check is static, a square-loop
   knee test on the 2-D field (no recoil-line modelling, no partial demagnetisation of later operation). The
+  worst-element ratio does not converge under mesh refinement (field singular at the sharp magnet corners), so
+  only area fractions are reported as results. The
   short-circuit peak `2 psi_pm / L_d` is an estimate, not a transient simulation.
 * Drive: steady state only (no current-controller dynamics, no PWM ripple or harmonics losses), no inverter,
   mechanical or battery losses; the voltage limit is that of linear space-vector modulation.
