@@ -263,6 +263,7 @@ services:
       RUNNER_FREE_JOBS_RUN: ${RUNNER_FREE_JOBS_RUN:-}
       RUNNER_FREE_COMPUTE_SECONDS: ${RUNNER_FREE_COMPUTE_SECONDS:-}
       RUNNER_FREE_STORAGE_MB: ${RUNNER_FREE_STORAGE_MB:-}
+      RUNNER_VIEW_MAX_FACES: ${RUNNER_VIEW_MAX_FACES:-250000}
       # RUNNER_SELF_HOSTED=1 runs any workflow the caller sends: never on a public server
     volumes:
       - runner_data:/data         # runs, step files, job queue, keys and usage: keep this volume
@@ -346,6 +347,8 @@ services:
       VAL_PASSWORD: ${VAL_PASSWORD:-}
       VAL_MAX_HEAVY: ${VAL_MAX_HEAVY:-2}
       VAL_MAX_MB: ${VAL_MAX_MB:-200}
+      VAL_VIEW_MAX_FACES: ${VAL_VIEW_MAX_FACES:-250000}
+      VAL_VIEWS_KEPT: ${VAL_VIEWS_KEPT:-300}
     expose: ["8107"]
     mem_limit: ${VAL_MEM_LIMIT:-1g}
 
@@ -513,10 +516,144 @@ services:
       SUR_FREE_TRAININGS: ${SUR_FREE_TRAININGS:-}
       SUR_FREE_INFERENCES: ${SUR_FREE_INFERENCES:-}
       SUR_FREE_HOSTED_MODELS: ${SUR_FREE_HOSTED_MODELS:-}
+      SUR_VIEW_MAX_FACES: ${SUR_VIEW_MAX_FACES:-250000}
     volumes:
       - surrogate_data:/data      # jobs, uploads, hosted models, usage, API keys
     expose: ["8097"]
     mem_limit: ${SUR_MEM_LIMIT:-1g}
+
+  arena:
+    build:
+      context: ../..
+      dockerfile: apps/benchmark_arena/Dockerfile
+    image: pinneapple/benchmark-arena:latest
+    restart: unless-stopped
+    environment:
+      ARN_USER: ${ARN_USER:-}
+      ARN_PASSWORD: ${ARN_PASSWORD:-}
+      ARN_ADMIN_TOKEN: ${ARN_ADMIN_TOKEN:-}
+      ARN_REQUIRE_API_KEY: ${ARN_REQUIRE_API_KEY:-0}
+      ARN_MAX_JOBS: ${ARN_MAX_JOBS:-1}
+      ARN_MAX_BUDGET_S: ${ARN_MAX_BUDGET_S:-20}
+      ARN_MAX_SEEDS: ${ARN_MAX_SEEDS:-5}
+      ARN_FREE_BENCHMARKS: ${ARN_FREE_BENCHMARKS:-}
+    volumes:
+      - arena_data:/data      # private benchmark jobs, uploads, usage, API keys
+    expose: ["8105"]
+    mem_limit: ${ARN_MEM_LIMIT:-1g}
+
+  models:
+    build:
+      context: ../..
+      dockerfile: apps/model_gateway/Dockerfile
+    image: pinneapple/model-gateway:latest
+    restart: unless-stopped
+    environment:
+      MDL_USER: ${MDL_USER:-}
+      MDL_PASSWORD: ${MDL_PASSWORD:-}
+      MDL_ADMIN_TOKEN: ${MDL_ADMIN_TOKEN:-}
+      MDL_REQUIRE_API_KEY: ${MDL_REQUIRE_API_KEY:-0}
+      MDL_MAX_ROWS: ${MDL_MAX_ROWS:-5000}
+      MDL_FREE_INFERENCES: ${MDL_FREE_INFERENCES:-}
+      MDL_FREE_HOSTED_MODELS: ${MDL_FREE_HOSTED_MODELS:-}
+    volumes:
+      - models_data:/data      # published models, run log, usage, API keys
+    expose: ["8114"]
+    mem_limit: ${MDL_MEM_LIMIT:-1g}
+
+  twin:
+    build:
+      context: ../..
+      dockerfile: apps/twin_runtime/Dockerfile
+    image: pinneapple/twin-runtime:latest
+    restart: unless-stopped
+    environment:
+      TWIN_USER: ${TWIN_USER:-}
+      TWIN_PASSWORD: ${TWIN_PASSWORD:-}
+      TWIN_MAX_JOBS: ${TWIN_MAX_JOBS:-2}
+      TWIN_MAX_ASSETS: ${TWIN_MAX_ASSETS:-4}
+      TWIN_DB_URL: ${TWIN_DB_URL:-}
+      TWIN_MQTT_URL: ${TWIN_MQTT_URL:-}
+      TWIN_MQTT_HOST: ${TWIN_MQTT_HOST:-}
+      TWIN_MQTT_PORT: ${TWIN_MQTT_PORT:-}
+    volumes:
+      - twin_data:/data          # jobs, uploads, usage, twin history (SQLite): keep this volume
+    expose: ["8103"]
+    mem_limit: ${TWIN_MEM_LIMIT:-1g}
+
+  anomaly:
+    build:
+      context: ../..
+      dockerfile: apps/anomaly_detector/Dockerfile
+    image: pinneapple/anomaly-detector:latest
+    restart: unless-stopped
+    environment:
+      ANOMALY_USER: ${ANOMALY_USER:-}
+      ANOMALY_PASSWORD: ${ANOMALY_PASSWORD:-}
+      ANOMALY_MAX_JOBS: ${ANOMALY_MAX_JOBS:-2}
+      ANOMALY_MAX_ROWS: ${ANOMALY_MAX_ROWS:-500000}
+    volumes:
+      - anomaly_data:/data          # jobs, uploads, usage: keep this volume
+    expose: ["8111"]
+    mem_limit: ${ANOMALY_MEM_LIMIT:-1g}
+
+  control:
+    build:
+      context: ../..
+      dockerfile: apps/control_lab/Dockerfile
+    image: pinneapple/control-lab:latest
+    restart: unless-stopped
+    environment:
+      CONTROL_USER: ${CONTROL_USER:-}
+      CONTROL_PASSWORD: ${CONTROL_PASSWORD:-}
+      CONTROL_MAX_JOBS: ${CONTROL_MAX_JOBS:-2}
+    volumes:
+      - control_data:/data          # jobs, uploads, usage: keep this volume
+    expose: ["8112"]
+    mem_limit: ${CONTROL_MEM_LIMIT:-1g}
+
+  # Engineering Design Optimizer (day 17): jobs, API keys and usage live in the optimize_data volume
+  optimize:
+    build:
+      context: ../..
+      dockerfile: apps/engineering_optimizer/Dockerfile
+    image: pinneapple/engineering-optimizer:latest
+    restart: unless-stopped
+    environment:
+      EDO_USER: ${EDO_USER:-}
+      EDO_PASSWORD: ${EDO_PASSWORD:-}
+      EDO_MAX_JOBS: ${EDO_MAX_JOBS:-2}
+      EDO_ADMIN_TOKEN: ${EDO_ADMIN_TOKEN:-}
+      EDO_REQUIRE_API_KEY: ${EDO_REQUIRE_API_KEY:-0}
+      EDO_FREE_EVALUATIONS: ${EDO_FREE_EVALUATIONS:-}
+      EDO_FREE_CAMPAIGNS: ${EDO_FREE_CAMPAIGNS:-}
+      EDO_FREE_REFERENCE_RUNS: ${EDO_FREE_REFERENCE_RUNS:-}
+      EDO_SOLVERS: ${EDO_SOLVERS:-}
+    volumes:
+      - optimize_data:/data          # jobs, uploads, API keys and usage (SQLite): keep this volume
+    expose: ["8100"]
+    mem_limit: ${EDO_MEM_LIMIT:-1g}
+
+  # Physics Design Optimizer (day 23): jobs, API keys and usage live in the design_data volume
+  design:
+    build:
+      context: ../..
+      dockerfile: apps/physics_design/Dockerfile
+    image: pinneapple/physics-design:latest
+    restart: unless-stopped
+    environment:
+      PDO_USER: ${PDO_USER:-}
+      PDO_PASSWORD: ${PDO_PASSWORD:-}
+      PDO_MAX_JOBS: ${PDO_MAX_JOBS:-2}
+      PDO_ADMIN_TOKEN: ${PDO_ADMIN_TOKEN:-}
+      PDO_REQUIRE_API_KEY: ${PDO_REQUIRE_API_KEY:-0}
+      PDO_FREE_EVALUATIONS: ${PDO_FREE_EVALUATIONS:-}
+      PDO_FREE_CAMPAIGNS: ${PDO_FREE_CAMPAIGNS:-}
+      PDO_FREE_SOLVER_RUNS: ${PDO_FREE_SOLVER_RUNS:-}
+    volumes:
+      - design_data:/data          # jobs, uploads, API keys and usage (SQLite): keep this volume
+    expose: ["8106"]
+    mem_limit: ${PDO_MEM_LIMIT:-1g}
 
   caddy:
     image: caddy:2
@@ -552,15 +689,27 @@ services:
       ROM_DOMAIN: ${ROM_DOMAIN:-rom.localhost}
       MESHLESS_DOMAIN: ${MESHLESS_DOMAIN:-meshless.localhost}
       SUR_DOMAIN: ${SUR_DOMAIN:-surrogate.localhost}
+      ARN_DOMAIN: ${ARN_DOMAIN:-arena.localhost}
+      MDL_DOMAIN: ${MDL_DOMAIN:-models.localhost}
+      TWIN_DOMAIN: ${TWIN_DOMAIN:-twin.localhost}
+      ANOMALY_DOMAIN: ${ANOMALY_DOMAIN:-anomaly.localhost}
+      CONTROL_DOMAIN: ${CONTROL_DOMAIN:-control.localhost}
+      EDO_DOMAIN: ${EDO_DOMAIN:-optimize.localhost}
+      PDO_DOMAIN: ${PDO_DOMAIN:-design.localhost}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data          # certificates: keep this volume
       - caddy_config:/config
-    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate]
+    depends_on: [heatsink, pcb, datahealth, standardizer, simmeta, udr, inverse, preflight, mesh, compare, lineage, interop, aero, lab, observatory, playground, uncertainty, campaign, runner, sensitivity, validate, evidence, calibration, identifiability, inverse-studio, rom, meshless, surrogate, arena, models, twin, anomaly, control, optimize, design]
 
 volumes:
   surrogate_data:
+  arena_data:
+  models_data:
+  twin_data:
+  anomaly_data:
+  control_data:
   calibration_data:
   evidence_data:
   identifiability_data:
@@ -573,6 +722,8 @@ volumes:
   rom_data:
   meshless_data:
   runner_data:
+  optimize_data:
+  design_data:
   obs_cache:
   caddy_data:
   caddy_config:

@@ -68,6 +68,29 @@ class MethodComparison:
             out = out.extend(e)
         return out, labels
 
+    def union_result(self) -> OptimizationResult | None:
+        """The comparison as one :class:`~.methods.OptimizationResult` (method ``"comparison: <methods>"``, the
+        first seed, every run's evaluations and the summed budget and wall time), e.g. for
+        :func:`~.report.study_result`. None when no run produced evaluations."""
+        ev, _ = self.union()
+        if ev is None:
+            return None
+        methods = list(dict.fromkeys(r.method for r in self.results))
+        return OptimizationResult(self.problem, "comparison: " + ", ".join(methods), self.results[0].seed,
+                                  self.budget * len(self.results), ev, float(sum(r.wall_s for r in self.results)))
+
+    def fronts(self, seed: int | None = None) -> dict[str, list[list[float]]]:
+        """Pareto front of each method's run with ``seed`` (default: the first seed), in the objectives' own units
+        and senses (one list of objective values per member)."""
+        seed = self.results[0].seed if seed is None and self.results else seed
+        names = [o.name for o in self.problem.objectives]
+        out = {}
+        for r in self.results:
+            if r.evaluations is None or r.seed != seed:
+                continue
+            out[r.method] = [[float(r.evaluations.Y[k][i]) for k in names] for i in r.pareto()]
+        return out
+
     def winner(self) -> str | None:
         t = [r for r in self.table() if r["hv_mean"] is not None]
         return max(t, key=lambda r: (r["hv_mean"], -(r["wall_s"] or 0)))["method"] if t else None
