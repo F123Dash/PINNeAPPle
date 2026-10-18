@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18 21:57 UTC",
+ "generated": "2026-10-18 23:14 UTC",
  "experiments": {
   "accretion_flow": {
    "tier": "B",
@@ -4136,6 +4136,352 @@
     "next_tier": "A"
    },
    "description": "AI-Lorenz style equation discovery (De Florio, Kevrekidis & Karniadakis 2024): noisy, subsampled observations of the Lorenz system are fitted window by window with an extreme learning machine (the free function of X-TFC), whose analytic derivatives feed SINDy over quadratic monomials; the recovered system is integrated and compared with the true attractor.",
+   "story": ""
+  },
+  "manifest": {
+   "tier": "B",
+   "tier_name": "solid",
+   "best_run": "manifest-74bb64b79576",
+   "best_score": 91.9,
+   "runs": 4,
+   "tier_counts": {
+    "A": 0,
+    "B": 3,
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
+   },
+   "usable_fraction": 0.75,
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "comparison with a reference",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a validated headline number",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset"
+     ]
+    }
+   },
+   "gaps": [
+    "compare with an independent reference (exact solution, experiment, published value)",
+    "add figures (a movie, a render or a 3-D view for communication)",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "answered",
+     "evidence": [
+      "inputs recorded: manifest, params",
+      "PASS take-off: light_ga lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: regional_turboprop lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: a320 lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: motor_glider lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))"
+     ],
+     "next": ""
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS trim residual, light_ga (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, regional_turboprop (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, a320 (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, motor_glider (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "answered",
+     "evidence": [
+      "PASS energy conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS energy conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS energy conserved, dt 0.005 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS angular momentum conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS angular momentum conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)"
+     ],
+     "next": ""
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "open",
+     "evidence": [
+      "no comparison with a solver, data or baseline"
+     ],
+     "next": "compare with a reference or a simple baseline"
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "partial",
+     "evidence": [
+      "reported: turbulence_sigma_FrozenLine_dryden_u, turbulence_sigma_FrozenLine_dryden_v, turbulence_sigma_FrozenLine_dryden_w, turbulence_sigma_FrozenLine_von_karman_u"
+     ],
+     "next": "calibrate it (coverage check)"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "partial",
+     "evidence": [
+      "tier B (solid)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "benchmark",
+    "text": "energy conserved, dt 0.02 s \u00b7 value < 1e-8, the threshold of\u2026",
+    "check": "energy conserved, dt 0.02 s",
+    "missing": "independent reference"
+   },
+   "next_steps": [
+    {
+     "type": "no_reference",
+     "to": "A",
+     "stage": "benchmark",
+     "why": "no passing reference check (exact solution, measurement, published value)",
+     "why_pt": "nenhuma verifica\u00e7\u00e3o de refer\u00eancia passa (solu\u00e7\u00e3o exata, medi\u00e7\u00e3o, valor publicado)",
+     "short": "compare with an independent reference",
+     "short_pt": "comparar com uma refer\u00eancia independente",
+     "check": "",
+     "measured": null,
+     "actions": [
+      {
+       "id": "ctx_check_reference",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.check",
+       "command": "ctx.check(\"<quantity>_vs_<source>\", value=v, reference=ref, rtol=tol, kind=\"reference\", label=\"<quantity> vs <source>\")",
+       "text": "compare with an exact solution, a measurement or a published value, with its source",
+       "text_pt": "comparar com uma solu\u00e7\u00e3o exata, medi\u00e7\u00e3o ou valor publicado, com a fonte",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "compare_reference",
+       "kind": "python",
+       "target": "pinneapple.compare",
+       "command": "pp.compare(problem, [result, \"fem\"], reference=\"exact\")",
+       "text": "compare on the same points with a reference or a baseline solver at equal budget",
+       "text_pt": "comparar nos mesmos pontos com uma refer\u00eancia ou um solver de base, com o mesmo or\u00e7amento",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    },
+    {
+     "type": "assets",
+     "to": "A",
+     "stage": "decision",
+     "why": "assets score 0 < 0.6: add figures: three plots, a movie, a render or a 3-D view",
+     "why_pt": "assets pontua\u00e7\u00e3o 0 < 0.6: adicionar figuras: tr\u00eas gr\u00e1ficos, v\u00eddeo, render ou vista 3-D",
+     "short": "add figures: three plots, a movie, a render or a 3-D view",
+     "short_pt": "adicionar figuras: tr\u00eas gr\u00e1ficos, v\u00eddeo, render ou vista 3-D",
+     "check": "",
+     "measured": {
+      "value": 0.0,
+      "threshold": 0.6,
+      "op": "score"
+     },
+     "actions": [
+      {
+       "id": "ctx_figure",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.figure",
+       "command": "ctx.figure(\"<name>\", fig); ctx.gif(\"<name>\", frames)",
+       "text": "save the key plots, a movie or a render with the run",
+       "text_pt": "salvar os gr\u00e1ficos principais, um v\u00eddeo ou um render com a execu\u00e7\u00e3o",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "field_view",
+       "kind": "python",
+       "target": "pinneapple.viz.field_view",
+       "command": "pp.viz.field_view(mesh, fields)",
+       "text": "a 3-D view of the field on its mesh",
+       "text_pt": "uma vista 3-D do campo na malha",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    },
+    {
+     "type": "documentation",
+     "to": "A",
+     "stage": "decision",
+     "why": "documentation score 0.4 < 0.6: document it: references and a docs page",
+     "why_pt": "documentation pontua\u00e7\u00e3o 0.4 < 0.6: documentar: refer\u00eancias e uma p\u00e1gina",
+     "short": "document it: references and a docs page",
+     "short_pt": "documentar: refer\u00eancias e uma p\u00e1gina",
+     "check": "",
+     "measured": {
+      "value": 0.4,
+      "threshold": 0.6,
+      "op": "score"
+     },
+     "actions": [
+      {
+       "id": "experiment_references",
+       "kind": "python",
+       "target": "pinneapple_lab.spec.Experiment.references",
+       "command": "references = [\"<paper or data source>\"]  # in the Experiment class",
+       "text": "cite the papers or data the experiment reproduces, and cite `manifest` in a docs page",
+       "text_pt": "citar os artigos ou dados que o experimento reproduz e citar `manifest` numa p\u00e1gina da documenta\u00e7\u00e3o",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    }
+   ],
+   "plan": {
+    "limitations": [
+     "detected: evidence only inferred (not measured by a check) for uncertainty, documentation",
+     "detected: only 52 % of the evidence dimensions have data"
+    ],
+    "actions": [
+     {
+      "gap": "review",
+      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "marketing"
+      ]
+     },
+     {
+      "gap": "baseline",
+      "action": "Compare with the simplest method that could do the job",
+      "effort": "S",
+      "unlocks": [
+       "paper"
+      ]
+     },
+     {
+      "gap": "data",
+      "action": "Save the fields as a dataset with a card (ctx.dataset)",
+      "effort": "S",
+      "unlocks": [
+       "training_data"
+      ]
+     },
+     {
+      "gap": "assets",
+      "action": "Add a movie, a photoreal render (pp.viz.render) or the 3-D viewer (pp.viz.web_viewer) of the key result",
+      "effort": "S",
+      "unlocks": [
+       "tier A"
+      ]
+     },
+     {
+      "gap": "documentation",
+      "action": "Write a docs page and cite the reference papers (Experiment.references)",
+      "effort": "S",
+      "unlocks": [
+       "tier A"
+      ]
+     },
+     {
+      "gap": "generalization",
+      "action": "Hold out designs or an out-of-distribution regime and report the error there",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     },
+     {
+      "gap": "reference",
+      "action": "Add a check against an exact solution, a measurement or a published value",
+      "effort": "M",
+      "unlocks": [
+       "tier A"
+      ]
+     }
+    ],
+    "uses": {
+     "product": {
+      "status": "gap",
+      "run": "manifest-74bb64b79576",
+      "distance": 3,
+      "missing": [
+       "generalization evidence"
+      ]
+     },
+     "paper": {
+      "status": "gap",
+      "run": "manifest-34cf05f02e9b",
+      "distance": 2,
+      "missing": [
+       "baseline or physics check",
+       "novelty review >= 3/5"
+      ]
+     },
+     "marketing": {
+      "status": "gap",
+      "run": "manifest-34cf05f02e9b",
+      "distance": 1,
+      "missing": [
+       "a one-line story (review)"
+      ]
+     },
+     "training_data": {
+      "status": "gap",
+      "run": "manifest-74bb64b79576",
+      "distance": 1,
+      "missing": [
+       "a documented dataset"
+      ]
+     }
+    },
+    "closest_use": "marketing",
+    "next_tier": "A"
+   },
+   "description": "An experiment described by its manifest (experiment.json), imported for curation.",
    "story": ""
   },
   "oscillator": {
@@ -19625,6 +19971,1294 @@
    "story": "",
    "description": "AI-Lorenz style equation discovery (De Florio, Kevrekidis & Karniadakis 2024): noisy, subsampled observations of the Lorenz system are fitted window by window with an extreme learning machine (the free function of X-TFC), whose analytic derivatives feed SINDy over quadratic monomials; the recovered system is integrated and compared with the true attractor.",
    "title": "lorenz_discovery"
+  },
+  "manifest/examples/flight_dynamics": {
+   "tier": "B",
+   "tier_name": "solid",
+   "best_run": "manifest-74bb64b79576",
+   "best_score": 91.9,
+   "runs": 1,
+   "tier_counts": {
+    "A": 0,
+    "B": 1,
+    "C": 0,
+    "D": 0,
+    "E": 0,
+    "F": 0
+   },
+   "usable_fraction": 1.0,
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "comparison with a reference",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a validated headline number",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset"
+     ]
+    }
+   },
+   "gaps": [
+    "compare with an independent reference (exact solution, experiment, published value)",
+    "add figures (a movie, a render or a 3-D view for communication)",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "answered",
+     "evidence": [
+      "inputs recorded: manifest, params",
+      "PASS take-off: light_ga lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: regional_turboprop lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: a320 lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: motor_glider lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))"
+     ],
+     "next": ""
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS trim residual, light_ga (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, regional_turboprop (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, a320 (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, motor_glider (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "answered",
+     "evidence": [
+      "PASS energy conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS energy conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS energy conserved, dt 0.005 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS angular momentum conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS angular momentum conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)"
+     ],
+     "next": ""
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "open",
+     "evidence": [
+      "no comparison with a solver, data or baseline"
+     ],
+     "next": "compare with a reference or a simple baseline"
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "partial",
+     "evidence": [
+      "reported: turbulence_sigma_FrozenLine_dryden_u, turbulence_sigma_FrozenLine_dryden_v, turbulence_sigma_FrozenLine_dryden_w, turbulence_sigma_FrozenLine_von_karman_u"
+     ],
+     "next": "calibrate it (coverage check)"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "partial",
+     "evidence": [
+      "tier B (solid)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "benchmark",
+    "text": "energy conserved, dt 0.02 s \u00b7 value < 1e-8, the threshold of\u2026",
+    "check": "energy conserved, dt 0.02 s",
+    "missing": "independent reference"
+   },
+   "next_steps": [
+    {
+     "type": "no_reference",
+     "to": "A",
+     "stage": "benchmark",
+     "why": "no passing reference check (exact solution, measurement, published value)",
+     "why_pt": "nenhuma verifica\u00e7\u00e3o de refer\u00eancia passa (solu\u00e7\u00e3o exata, medi\u00e7\u00e3o, valor publicado)",
+     "short": "compare with an independent reference",
+     "short_pt": "comparar com uma refer\u00eancia independente",
+     "check": "",
+     "measured": null,
+     "actions": [
+      {
+       "id": "ctx_check_reference",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.check",
+       "command": "ctx.check(\"<quantity>_vs_<source>\", value=v, reference=ref, rtol=tol, kind=\"reference\", label=\"<quantity> vs <source>\")",
+       "text": "compare with an exact solution, a measurement or a published value, with its source",
+       "text_pt": "comparar com uma solu\u00e7\u00e3o exata, medi\u00e7\u00e3o ou valor publicado, com a fonte",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "compare_reference",
+       "kind": "python",
+       "target": "pinneapple.compare",
+       "command": "pp.compare(problem, [result, \"fem\"], reference=\"exact\")",
+       "text": "compare on the same points with a reference or a baseline solver at equal budget",
+       "text_pt": "comparar nos mesmos pontos com uma refer\u00eancia ou um solver de base, com o mesmo or\u00e7amento",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    },
+    {
+     "type": "assets",
+     "to": "A",
+     "stage": "decision",
+     "why": "assets score 0 < 0.6: add figures: three plots, a movie, a render or a 3-D view",
+     "why_pt": "assets pontua\u00e7\u00e3o 0 < 0.6: adicionar figuras: tr\u00eas gr\u00e1ficos, v\u00eddeo, render ou vista 3-D",
+     "short": "add figures: three plots, a movie, a render or a 3-D view",
+     "short_pt": "adicionar figuras: tr\u00eas gr\u00e1ficos, v\u00eddeo, render ou vista 3-D",
+     "check": "",
+     "measured": {
+      "value": 0.0,
+      "threshold": 0.6,
+      "op": "score"
+     },
+     "actions": [
+      {
+       "id": "ctx_figure",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.figure",
+       "command": "ctx.figure(\"<name>\", fig); ctx.gif(\"<name>\", frames)",
+       "text": "save the key plots, a movie or a render with the run",
+       "text_pt": "salvar os gr\u00e1ficos principais, um v\u00eddeo ou um render com a execu\u00e7\u00e3o",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "field_view",
+       "kind": "python",
+       "target": "pinneapple.viz.field_view",
+       "command": "pp.viz.field_view(mesh, fields)",
+       "text": "a 3-D view of the field on its mesh",
+       "text_pt": "uma vista 3-D do campo na malha",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    },
+    {
+     "type": "documentation",
+     "to": "A",
+     "stage": "decision",
+     "why": "documentation score 0.4 < 0.6: document it: references and a docs page",
+     "why_pt": "documentation pontua\u00e7\u00e3o 0.4 < 0.6: documentar: refer\u00eancias e uma p\u00e1gina",
+     "short": "document it: references and a docs page",
+     "short_pt": "documentar: refer\u00eancias e uma p\u00e1gina",
+     "check": "",
+     "measured": {
+      "value": 0.4,
+      "threshold": 0.6,
+      "op": "score"
+     },
+     "actions": [
+      {
+       "id": "experiment_references",
+       "kind": "python",
+       "target": "pinneapple_lab.spec.Experiment.references",
+       "command": "references = [\"<paper or data source>\"]  # in the Experiment class",
+       "text": "cite the papers or data the experiment reproduces, and cite `manifest` in a docs page",
+       "text_pt": "citar os artigos ou dados que o experimento reproduz e citar `manifest` numa p\u00e1gina da documenta\u00e7\u00e3o",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    }
+   ],
+   "plan": {
+    "limitations": [
+     "detected: evidence only inferred (not measured by a check) for uncertainty, documentation",
+     "detected: only 52 % of the evidence dimensions have data"
+    ],
+    "actions": [
+     {
+      "gap": "reference",
+      "action": "Add a check against an exact solution, a measurement or a published value",
+      "effort": "M",
+      "unlocks": [
+       "paper",
+       "marketing",
+       "tier A"
+      ]
+     },
+     {
+      "gap": "review",
+      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "marketing"
+      ]
+     },
+     {
+      "gap": "assets",
+      "action": "Add a movie, a photoreal render (pp.viz.render) or the 3-D viewer (pp.viz.web_viewer) of the key result",
+      "effort": "S",
+      "unlocks": [
+       "marketing",
+       "tier A"
+      ]
+     },
+     {
+      "gap": "data",
+      "action": "Save the fields as a dataset with a card (ctx.dataset)",
+      "effort": "S",
+      "unlocks": [
+       "training_data"
+      ]
+     },
+     {
+      "gap": "documentation",
+      "action": "Write a docs page and cite the reference papers (Experiment.references)",
+      "effort": "S",
+      "unlocks": [
+       "tier A"
+      ]
+     },
+     {
+      "gap": "generalization",
+      "action": "Hold out designs or an out-of-distribution regime and report the error there",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     }
+    ],
+    "uses": {
+     "product": {
+      "status": "gap",
+      "run": "manifest-74bb64b79576",
+      "distance": 3,
+      "missing": [
+       "generalization evidence"
+      ]
+     },
+     "paper": {
+      "status": "gap",
+      "run": "manifest-74bb64b79576",
+      "distance": 4,
+      "missing": [
+       "comparison with a reference",
+       "novelty review >= 3/5"
+      ]
+     },
+     "marketing": {
+      "status": "gap",
+      "run": "manifest-74bb64b79576",
+      "distance": 5,
+      "missing": [
+       "strong visuals (movie, render or 3-D view)",
+       "a validated headline number",
+       "a one-line story (review)"
+      ]
+     },
+     "training_data": {
+      "status": "gap",
+      "run": "manifest-74bb64b79576",
+      "distance": 1,
+      "missing": [
+       "a documented dataset"
+      ]
+     }
+    },
+    "closest_use": "training_data",
+    "next_tier": "A"
+   },
+   "experiment": "manifest",
+   "case": "examples/flight_dynamics",
+   "story": "",
+   "description": "An experiment described by its manifest (experiment.json), imported for curation.",
+   "title": "flight dynamics"
+  },
+  "manifest/examples/enso_forecasting": {
+   "tier": "B",
+   "tier_name": "solid",
+   "best_run": "manifest-34cf05f02e9b",
+   "best_score": 90.3,
+   "runs": 1,
+   "tier_counts": {
+    "A": 0,
+    "B": 1,
+    "C": 0,
+    "D": 0,
+    "E": 0,
+    "F": 0
+   },
+   "usable_fraction": 1.0,
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence",
+      "uncertainty estimate"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "baseline or physics check",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset"
+     ]
+    }
+   },
+   "gaps": [
+    "show it beats a baseline or satisfies a physical law it was not trained on",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "partial",
+     "evidence": [
+      "inputs recorded: manifest, params"
+     ],
+     "next": "add a mesh-convergence or domain check"
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS Kelvin wave speed vs theory (|value| < 0.01, the threshold of tests/test_enso.py:49; value from results/solver_checks.j)",
+      "PASS Rossby wave speed vs theory (|value| < 0.06, the threshold of tests/test_enso.py:56; value from results/solver_checks.j)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "open",
+     "evidence": [
+      "no conservation, symmetry or boundary-condition check"
+     ],
+     "next": "check a law the result was not fitted to (mass, energy, divergence, equilibrium)"
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS Kelvin wave speed vs theory (|value| < 0.01, the threshold of tests/test_enso.py:49; value from results/solver_checks.j)",
+      "PASS Rossby wave speed vs theory (|value| < 0.06, the threshold of tests/test_enso.py:56; value from results/solver_checks.j)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "open",
+     "evidence": [
+      "no uncertainty and no declared limitation"
+     ],
+     "next": "declare the limitations and quantify the spread"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "partial",
+     "evidence": [
+      "tier B (solid)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "Kelvin wave speed vs theory \u00b7 |value| < 0.01, the threshold of\u2026",
+    "check": "Kelvin wave speed vs theory",
+    "missing": "flagship gates (see gaps)"
+   },
+   "next_steps": [
+    {
+     "type": "no_baseline_or_physics",
+     "to": "A",
+     "stage": "physics",
+     "why": "no passing baseline or physics check",
+     "why_pt": "nenhuma verifica\u00e7\u00e3o de baseline ou f\u00edsica passa",
+     "short": "pass a baseline or physics check",
+     "short_pt": "passar numa verifica\u00e7\u00e3o de baseline ou f\u00edsica",
+     "check": "",
+     "measured": null,
+     "actions": [
+      {
+       "id": "ctx_check_physics",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.check",
+       "command": "ctx.check(\"<law>_balance\", passed, detail=\"...\", kind=\"physics\")",
+       "text": "record a law the result was not fitted to (mass, energy, equilibrium) as a check",
+       "text_pt": "registrar uma lei que o resultado n\u00e3o ajustou (massa, energia, equil\u00edbrio)",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "compare_reference",
+       "kind": "python",
+       "target": "pinneapple.compare",
+       "command": "pp.compare(problem, [result, \"fem\"], reference=\"exact\")",
+       "text": "compare on the same points with a reference or a baseline solver at equal budget",
+       "text_pt": "comparar nos mesmos pontos com uma refer\u00eancia ou um solver de base, com o mesmo or\u00e7amento",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "physics_check_cli",
+       "kind": "cli",
+       "target": "cli:pinneapple check",
+       "command": "pinneapple check lab/runs/manifest/manifest-34cf05f02e9b",
+       "text": "lint the run's fields for conservation, boundary conditions, residual and units",
+       "text_pt": "verificar conserva\u00e7\u00e3o, condi\u00e7\u00f5es de contorno, res\u00edduo e unidades nos campos",
+       "params": {
+        "experiment": "manifest",
+        "run_dir": "lab/runs/manifest/manifest-34cf05f02e9b"
+       },
+       "runnable": true,
+       "argv": [
+        "check",
+        "lab/runs/manifest/manifest-34cf05f02e9b"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "documentation",
+     "to": "A",
+     "stage": "decision",
+     "why": "documentation score 0.4 < 0.6: document it: references and a docs page",
+     "why_pt": "documentation pontua\u00e7\u00e3o 0.4 < 0.6: documentar: refer\u00eancias e uma p\u00e1gina",
+     "short": "document it: references and a docs page",
+     "short_pt": "documentar: refer\u00eancias e uma p\u00e1gina",
+     "check": "",
+     "measured": {
+      "value": 0.4,
+      "threshold": 0.6,
+      "op": "score"
+     },
+     "actions": [
+      {
+       "id": "experiment_references",
+       "kind": "python",
+       "target": "pinneapple_lab.spec.Experiment.references",
+       "command": "references = [\"<paper or data source>\"]  # in the Experiment class",
+       "text": "cite the papers or data the experiment reproduces, and cite `manifest` in a docs page",
+       "text_pt": "citar os artigos ou dados que o experimento reproduz e citar `manifest` numa p\u00e1gina da documenta\u00e7\u00e3o",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    }
+   ],
+   "plan": {
+    "limitations": [
+     "detected: evidence only inferred (not measured by a check) for documentation"
+    ],
+    "actions": [
+     {
+      "gap": "baseline",
+      "action": "Compare with the simplest method that could do the job",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "tier A"
+      ]
+     },
+     {
+      "gap": "review",
+      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "marketing"
+      ]
+     },
+     {
+      "gap": "data",
+      "action": "Save the fields as a dataset with a card (ctx.dataset)",
+      "effort": "S",
+      "unlocks": [
+       "training_data"
+      ]
+     },
+     {
+      "gap": "documentation",
+      "action": "Write a docs page and cite the reference papers (Experiment.references)",
+      "effort": "S",
+      "unlocks": [
+       "tier A"
+      ]
+     },
+     {
+      "gap": "generalization",
+      "action": "Hold out designs or an out-of-distribution regime and report the error there",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     },
+     {
+      "gap": "uncertainty",
+      "action": "Report an ensemble spread or intervals and check their calibration (pinneapple_veriphysics.robustness: ensemble_study, calibration_against_reference)",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     }
+    ],
+    "uses": {
+     "product": {
+      "status": "gap",
+      "run": "manifest-34cf05f02e9b",
+      "distance": 6,
+      "missing": [
+       "generalization evidence",
+       "uncertainty estimate"
+      ]
+     },
+     "paper": {
+      "status": "gap",
+      "run": "manifest-34cf05f02e9b",
+      "distance": 2,
+      "missing": [
+       "baseline or physics check",
+       "novelty review >= 3/5"
+      ]
+     },
+     "marketing": {
+      "status": "gap",
+      "run": "manifest-34cf05f02e9b",
+      "distance": 1,
+      "missing": [
+       "a one-line story (review)"
+      ]
+     },
+     "training_data": {
+      "status": "gap",
+      "run": "manifest-34cf05f02e9b",
+      "distance": 1,
+      "missing": [
+       "a documented dataset"
+      ]
+     }
+    },
+    "closest_use": "marketing",
+    "next_tier": "A"
+   },
+   "experiment": "manifest",
+   "case": "examples/enso_forecasting",
+   "story": "",
+   "description": "An experiment described by its manifest (experiment.json), imported for curation.",
+   "title": "enso forecasting"
+  },
+  "manifest/examples/bricks": {
+   "tier": "B",
+   "tier_name": "solid",
+   "best_run": "manifest-7d8c77b59860",
+   "best_score": 90.3,
+   "runs": 1,
+   "tier_counts": {
+    "A": 0,
+    "B": 1,
+    "C": 0,
+    "D": 0,
+    "E": 0,
+    "F": 0
+   },
+   "usable_fraction": 1.0,
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence",
+      "uncertainty estimate"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "baseline or physics check",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset"
+     ]
+    }
+   },
+   "gaps": [
+    "show it beats a baseline or satisfies a physical law it was not trained on",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "partial",
+     "evidence": [
+      "inputs recorded: manifest, params"
+     ],
+     "next": "add a mesh-convergence or domain check"
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS harmonic stack (6 blocks): stability limit / closed form (recorded by the study in _out/summary.json)",
+      "PASS single block overhang limit / length (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x4 on 1 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x8 on 2 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS tower of 8 2x2 bricks: tipping push at the top (recorded by the study in _out/summary.json)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "open",
+     "evidence": [
+      "no conservation, symmetry or boundary-condition check"
+     ],
+     "next": "check a law the result was not fitted to (mass, energy, divergence, equilibrium)"
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS harmonic stack (6 blocks): stability limit / closed form (recorded by the study in _out/summary.json)",
+      "PASS single block overhang limit / length (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x4 on 1 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x8 on 2 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS tower of 8 2x2 bricks: tipping push at the top (recorded by the study in _out/summary.json)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "open",
+     "evidence": [
+      "no uncertainty and no declared limitation"
+     ],
+     "next": "declare the limitations and quantify the spread"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "partial",
+     "evidence": [
+      "tier B (solid)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "harmonic stack (6 blocks): stability limit / closed form",
+    "check": "harmonic stack (6 blocks): stability limit / closed form",
+    "missing": "flagship gates (see gaps)"
+   },
+   "next_steps": [
+    {
+     "type": "no_baseline_or_physics",
+     "to": "A",
+     "stage": "physics",
+     "why": "no passing baseline or physics check",
+     "why_pt": "nenhuma verifica\u00e7\u00e3o de baseline ou f\u00edsica passa",
+     "short": "pass a baseline or physics check",
+     "short_pt": "passar numa verifica\u00e7\u00e3o de baseline ou f\u00edsica",
+     "check": "",
+     "measured": null,
+     "actions": [
+      {
+       "id": "ctx_check_physics",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.check",
+       "command": "ctx.check(\"<law>_balance\", passed, detail=\"...\", kind=\"physics\")",
+       "text": "record a law the result was not fitted to (mass, energy, equilibrium) as a check",
+       "text_pt": "registrar uma lei que o resultado n\u00e3o ajustou (massa, energia, equil\u00edbrio)",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "compare_reference",
+       "kind": "python",
+       "target": "pinneapple.compare",
+       "command": "pp.compare(problem, [result, \"fem\"], reference=\"exact\")",
+       "text": "compare on the same points with a reference or a baseline solver at equal budget",
+       "text_pt": "comparar nos mesmos pontos com uma refer\u00eancia ou um solver de base, com o mesmo or\u00e7amento",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "physics_check_cli",
+       "kind": "cli",
+       "target": "cli:pinneapple check",
+       "command": "pinneapple check lab/runs/manifest/manifest-7d8c77b59860",
+       "text": "lint the run's fields for conservation, boundary conditions, residual and units",
+       "text_pt": "verificar conserva\u00e7\u00e3o, condi\u00e7\u00f5es de contorno, res\u00edduo e unidades nos campos",
+       "params": {
+        "experiment": "manifest",
+        "run_dir": "lab/runs/manifest/manifest-7d8c77b59860"
+       },
+       "runnable": true,
+       "argv": [
+        "check",
+        "lab/runs/manifest/manifest-7d8c77b59860"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "documentation",
+     "to": "A",
+     "stage": "decision",
+     "why": "documentation score 0.4 < 0.6: document it: references and a docs page",
+     "why_pt": "documentation pontua\u00e7\u00e3o 0.4 < 0.6: documentar: refer\u00eancias e uma p\u00e1gina",
+     "short": "document it: references and a docs page",
+     "short_pt": "documentar: refer\u00eancias e uma p\u00e1gina",
+     "check": "",
+     "measured": {
+      "value": 0.4,
+      "threshold": 0.6,
+      "op": "score"
+     },
+     "actions": [
+      {
+       "id": "experiment_references",
+       "kind": "python",
+       "target": "pinneapple_lab.spec.Experiment.references",
+       "command": "references = [\"<paper or data source>\"]  # in the Experiment class",
+       "text": "cite the papers or data the experiment reproduces, and cite `manifest` in a docs page",
+       "text_pt": "citar os artigos ou dados que o experimento reproduz e citar `manifest` numa p\u00e1gina da documenta\u00e7\u00e3o",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      }
+     ]
+    }
+   ],
+   "plan": {
+    "limitations": [
+     "detected: evidence only inferred (not measured by a check) for documentation"
+    ],
+    "actions": [
+     {
+      "gap": "baseline",
+      "action": "Compare with the simplest method that could do the job",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "tier A"
+      ]
+     },
+     {
+      "gap": "review",
+      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "marketing"
+      ]
+     },
+     {
+      "gap": "data",
+      "action": "Save the fields as a dataset with a card (ctx.dataset)",
+      "effort": "S",
+      "unlocks": [
+       "training_data"
+      ]
+     },
+     {
+      "gap": "documentation",
+      "action": "Write a docs page and cite the reference papers (Experiment.references)",
+      "effort": "S",
+      "unlocks": [
+       "tier A"
+      ]
+     },
+     {
+      "gap": "generalization",
+      "action": "Hold out designs or an out-of-distribution regime and report the error there",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     },
+     {
+      "gap": "uncertainty",
+      "action": "Report an ensemble spread or intervals and check their calibration (pinneapple_veriphysics.robustness: ensemble_study, calibration_against_reference)",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     }
+    ],
+    "uses": {
+     "product": {
+      "status": "gap",
+      "run": "manifest-7d8c77b59860",
+      "distance": 6,
+      "missing": [
+       "generalization evidence",
+       "uncertainty estimate"
+      ]
+     },
+     "paper": {
+      "status": "gap",
+      "run": "manifest-7d8c77b59860",
+      "distance": 2,
+      "missing": [
+       "baseline or physics check",
+       "novelty review >= 3/5"
+      ]
+     },
+     "marketing": {
+      "status": "gap",
+      "run": "manifest-7d8c77b59860",
+      "distance": 1,
+      "missing": [
+       "a one-line story (review)"
+      ]
+     },
+     "training_data": {
+      "status": "gap",
+      "run": "manifest-7d8c77b59860",
+      "distance": 1,
+      "missing": [
+       "a documented dataset"
+      ]
+     }
+    },
+    "closest_use": "marketing",
+    "next_tier": "A"
+   },
+   "experiment": "manifest",
+   "case": "examples/bricks",
+   "story": "",
+   "description": "An experiment described by its manifest (experiment.json), imported for curation.",
+   "title": "bricks"
+  },
+  "manifest/examples/pinneapple_and_physicsnemo": {
+   "tier": "D",
+   "tier_name": "exploratory",
+   "best_run": "manifest-a6e175a845bc",
+   "best_score": 69.0,
+   "runs": 1,
+   "tier_counts": {
+    "A": 0,
+    "B": 0,
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
+   },
+   "usable_fraction": 0.0,
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence",
+      "uncertainty estimate",
+      "reference or physics check"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "comparison with a reference",
+      "baseline or physics check",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a validated headline number",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset",
+      "validated runs"
+     ]
+    }
+   },
+   "gaps": [
+    "record validation checks",
+    "compare with an independent reference (exact solution, experiment, published value)",
+    "show it beats a baseline or satisfies a physical law it was not trained on",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "partial",
+     "evidence": [
+      "inputs recorded: manifest, params"
+     ],
+     "next": "add a mesh-convergence or domain check"
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "open",
+     "evidence": [
+      "the solver is not verified on a problem with a known answer"
+     ],
+     "next": "add a verification case (exact solution or mesh convergence)"
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "open",
+     "evidence": [
+      "no conservation, symmetry or boundary-condition check"
+     ],
+     "next": "check a law the result was not fitted to (mass, energy, divergence, equilibrium)"
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "open",
+     "evidence": [
+      "no comparison with a solver, data or baseline"
+     ],
+     "next": "compare with a reference or a simple baseline"
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "open",
+     "evidence": [
+      "no uncertainty and no declared limitation"
+     ],
+     "next": "declare the limitations and quantify the spread"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "open",
+     "evidence": [
+      "tier D (exploratory)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "",
+    "text": "",
+    "check": "",
+    "missing": "a passing check"
+   },
+   "next_steps": [
+    {
+     "type": "no_evidence",
+     "to": "C",
+     "stage": "physics",
+     "why": "no passing check answers the trust card's model, physics, benchmark stages",
+     "why_pt": "nenhuma verifica\u00e7\u00e3o responde \u00e0s etapas modelo, f\u00edsica, benchmark do cart\u00e3o",
+     "short": "record a physics or reference check",
+     "short_pt": "registrar uma verifica\u00e7\u00e3o f\u00edsica ou de refer\u00eancia",
+     "check": "",
+     "measured": null,
+     "actions": [
+      {
+       "id": "ctx_check_physics",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.check",
+       "command": "ctx.check(\"<law>_balance\", passed, detail=\"...\", kind=\"physics\")",
+       "text": "record a law the result was not fitted to (mass, energy, equilibrium) as a check",
+       "text_pt": "registrar uma lei que o resultado n\u00e3o ajustou (massa, energia, equil\u00edbrio)",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "ctx_check_reference",
+       "kind": "python",
+       "target": "pinneapple_lab.context.RunContext.check",
+       "command": "ctx.check(\"<quantity>_vs_<source>\", value=v, reference=ref, rtol=tol, kind=\"reference\", label=\"<quantity> vs <source>\")",
+       "text": "compare with an exact solution, a measurement or a published value, with its source",
+       "text_pt": "comparar com uma solu\u00e7\u00e3o exata, medi\u00e7\u00e3o ou valor publicado, com a fonte",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "trust_card",
+       "kind": "python",
+       "target": "pinneapple.trust_card",
+       "command": "pp.trust_card(grid, values, pde=..., dirichlet=..., reference=...)",
+       "text": "check the field's PDE residual, boundary conditions and conservation",
+       "text_pt": "verificar res\u00edduo da EDP, condi\u00e7\u00f5es de contorno e conserva\u00e7\u00e3o do campo",
+       "params": {
+        "experiment": "manifest"
+       },
+       "runnable": false,
+       "argv": []
+      },
+      {
+       "id": "physics_check_cli",
+       "kind": "cli",
+       "target": "cli:pinneapple check",
+       "command": "pinneapple check lab/runs/manifest/manifest-a6e175a845bc",
+       "text": "lint the run's fields for conservation, boundary conditions, residual and units",
+       "text_pt": "verificar conserva\u00e7\u00e3o, condi\u00e7\u00f5es de contorno, res\u00edduo e unidades nos campos",
+       "params": {
+        "experiment": "manifest",
+        "run_dir": "lab/runs/manifest/manifest-a6e175a845bc"
+       },
+       "runnable": true,
+       "argv": [
+        "check",
+        "lab/runs/manifest/manifest-a6e175a845bc"
+       ]
+      }
+     ]
+    }
+   ],
+   "plan": {
+    "limitations": [
+     "detected: evidence only inferred (not measured by a check) for generalization, documentation",
+     "detected: only 40 % of the evidence dimensions have data"
+    ],
+    "actions": [
+     {
+      "gap": "reference",
+      "action": "Add a check against an exact solution, a measurement or a published value",
+      "effort": "M",
+      "unlocks": [
+       "product",
+       "paper",
+       "marketing",
+       "tier C"
+      ]
+     },
+     {
+      "gap": "baseline",
+      "action": "Compare with the simplest method that could do the job",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "tier C"
+      ]
+     },
+     {
+      "gap": "review",
+      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "marketing"
+      ]
+     },
+     {
+      "gap": "assets",
+      "action": "Add a movie, a photoreal render (pp.viz.render) or the 3-D viewer (pp.viz.web_viewer) of the key result",
+      "effort": "S",
+      "unlocks": [
+       "marketing"
+      ]
+     },
+     {
+      "gap": "data",
+      "action": "Save the fields as a dataset with a card (ctx.dataset)",
+      "effort": "S",
+      "unlocks": [
+       "training_data"
+      ]
+     },
+     {
+      "gap": "documentation",
+      "action": "Write a docs page and cite the reference papers (Experiment.references)",
+      "effort": "S",
+      "unlocks": [
+       "tier C"
+      ]
+     },
+     {
+      "gap": "generalization",
+      "action": "Hold out designs or an out-of-distribution regime and report the error there",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     },
+     {
+      "gap": "uncertainty",
+      "action": "Report an ensemble spread or intervals and check their calibration (pinneapple_veriphysics.robustness: ensemble_study, calibration_against_reference)",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     },
+     {
+      "gap": "fix",
+      "action": "Fix the failing checks or the crash",
+      "effort": "M",
+      "unlocks": [
+       "training_data"
+      ]
+     }
+    ],
+    "uses": {
+     "product": {
+      "status": "gap",
+      "run": "manifest-a6e175a845bc",
+      "distance": 9,
+      "missing": [
+       "generalization evidence",
+       "uncertainty estimate",
+       "reference or physics check"
+      ]
+     },
+     "paper": {
+      "status": "gap",
+      "run": "manifest-a6e175a845bc",
+      "distance": 5,
+      "missing": [
+       "comparison with a reference",
+       "baseline or physics check",
+       "novelty review >= 3/5"
+      ]
+     },
+     "marketing": {
+      "status": "gap",
+      "run": "manifest-a6e175a845bc",
+      "distance": 5,
+      "missing": [
+       "strong visuals (movie, render or 3-D view)",
+       "a validated headline number",
+       "a one-line story (review)"
+      ]
+     },
+     "training_data": {
+      "status": "gap",
+      "run": "manifest-a6e175a845bc",
+      "distance": 4,
+      "missing": [
+       "a documented dataset",
+       "validated runs"
+      ]
+     }
+    },
+    "closest_use": "training_data",
+    "next_tier": "C"
+   },
+   "experiment": "manifest",
+   "case": "examples/pinneapple_and_physicsnemo",
+   "story": "",
+   "description": "An experiment described by its manifest (experiment.json), imported for curation.",
+   "title": "pinneapple and physicsnemo"
   },
   "oscillator": {
    "tier": "B",
@@ -54312,6 +55946,906 @@
    },
    "tier_name": "solid"
   },
+  "manifest-74bb64b79576": {
+   "run_id": "manifest-74bb64b79576",
+   "experiment": "manifest",
+   "status": "completed",
+   "tier": "B",
+   "score": 91.9,
+   "coverage": 0.52,
+   "dimensions": {
+    "validation": {
+     "name": "validation",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "18/18 checks pass"
+     ]
+    },
+    "reference": {
+     "name": "reference",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no reference check"
+     ]
+    },
+    "baseline": {
+     "name": "baseline",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no baseline check"
+     ]
+    },
+    "physics": {
+     "name": "physics",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "PASS energy conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verification.json)",
+      "PASS energy conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verification.json)",
+      "PASS energy conserved, dt 0.005 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verification.json)",
+      "PASS angular momentum conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verification.json)",
+      "PASS angular momentum conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verification.json)",
+      "PASS angular momentum conserved, dt 0.005 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verification.json)",
+      "PASS take-off: light_ga keeps its stall margin (CL reached below the assumed take-off CLmax; recorded in results/takeoff.json (nominal.*.stall_margin_ok))",
+      "PASS take-off: regional_turboprop keeps its stall margin (CL reached below the assumed take-off CLmax; recorded in results/takeoff.json (nominal.*.stall_margin_ok))",
+      "PASS take-off: a320 keeps its stall margin (CL reached below the assumed take-off CLmax; recorded in results/takeoff.json (nominal.*.stall_margin_ok))",
+      "PASS take-off: motor_glider keeps its stall margin (CL reached below the assumed take-off CLmax; recorded in results/takeoff.json (nominal.*.stall_margin_ok))"
+     ]
+    },
+    "generalization": {
+     "name": "generalization",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no generalization check"
+     ]
+    },
+    "uncertainty": {
+     "name": "uncertainty",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "reported: turbulence_sigma_FrozenLine_dryden_u, turbulence_sigma_FrozenLine_dryden_v, turbulence_sigma_FrozenLine_dryden_w, turbulence_sigma_FrozenLine_von_karman_u"
+     ]
+    },
+    "reproducibility": {
+     "name": "reproducibility",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "code snapshot: 1 files",
+      "git c31f0955",
+      "ran from a dirty tree (diff saved)"
+     ]
+    },
+    "data": {
+     "name": "data",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no dataset"
+     ]
+    },
+    "assets": {
+     "name": "assets",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "0 figures, 0 movies"
+     ]
+    },
+    "documentation": {
+     "name": "documentation",
+     "score": 0.4,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "description 81 chars",
+      "docs: none",
+      "papers: 0"
+     ]
+    },
+    "review": {
+     "name": "review",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no human review yet"
+     ]
+    }
+   },
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "comparison with a reference",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a validated headline number",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset"
+     ]
+    }
+   },
+   "gaps": [
+    "compare with an independent reference (exact solution, experiment, published value)",
+    "add figures (a movie, a render or a 3-D view for communication)",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "answered",
+     "evidence": [
+      "inputs recorded: manifest, params",
+      "PASS take-off: light_ga lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: regional_turboprop lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: a320 lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))",
+      "PASS take-off: motor_glider lifts off (recorded in results/takeoff.json (nominal.*.lifted_off))"
+     ],
+     "next": ""
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS trim residual, light_ga (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, regional_turboprop (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, a320 (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)",
+      "PASS trim residual, motor_glider (value < 1e-8, the threshold of tests/test_flight_dynamics.py:68; value from results/verifi)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "answered",
+     "evidence": [
+      "PASS energy conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS energy conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS energy conserved, dt 0.005 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS angular momentum conserved, dt 0.02 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)",
+      "PASS angular momentum conserved, dt 0.01 s (value < 1e-8, the threshold of tests/test_flight_dynamics.py:51; value from results/verifi)"
+     ],
+     "next": ""
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "open",
+     "evidence": [
+      "no comparison with a solver, data or baseline"
+     ],
+     "next": "compare with a reference or a simple baseline"
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "partial",
+     "evidence": [
+      "reported: turbulence_sigma_FrozenLine_dryden_u, turbulence_sigma_FrozenLine_dryden_v, turbulence_sigma_FrozenLine_dryden_w, turbulence_sigma_FrozenLine_von_karman_u"
+     ],
+     "next": "calibrate it (coverage check)"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "partial",
+     "evidence": [
+      "tier B (solid)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "benchmark",
+    "text": "energy conserved, dt 0.02 s \u00b7 value < 1e-8, the threshold of\u2026",
+    "check": "energy conserved, dt 0.02 s",
+    "missing": "independent reference"
+   },
+   "tier_name": "solid"
+  },
+  "manifest-34cf05f02e9b": {
+   "run_id": "manifest-34cf05f02e9b",
+   "experiment": "manifest",
+   "status": "completed",
+   "tier": "B",
+   "score": 90.3,
+   "coverage": 0.6,
+   "dimensions": {
+    "validation": {
+     "name": "validation",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "2/2 checks pass"
+     ]
+    },
+    "reference": {
+     "name": "reference",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "PASS Kelvin wave speed vs theory (|value| < 0.01, the threshold of tests/test_enso.py:49; value from results/solver_checks.json)",
+      "PASS Rossby wave speed vs theory (|value| < 0.06, the threshold of tests/test_enso.py:56; value from results/solver_checks.json)"
+     ]
+    },
+    "baseline": {
+     "name": "baseline",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no baseline check"
+     ]
+    },
+    "physics": {
+     "name": "physics",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no physics check"
+     ]
+    },
+    "generalization": {
+     "name": "generalization",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no generalization check"
+     ]
+    },
+    "uncertainty": {
+     "name": "uncertainty",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no uncertainty reported"
+     ]
+    },
+    "reproducibility": {
+     "name": "reproducibility",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "code snapshot: 1 files",
+      "git c31f0955",
+      "ran from a dirty tree (diff saved)"
+     ]
+    },
+    "data": {
+     "name": "data",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no dataset"
+     ]
+    },
+    "assets": {
+     "name": "assets",
+     "score": 0.8,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "10 figures, 1 movies"
+     ]
+    },
+    "documentation": {
+     "name": "documentation",
+     "score": 0.4,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "description 81 chars",
+      "docs: none",
+      "papers: 0"
+     ]
+    },
+    "review": {
+     "name": "review",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no human review yet"
+     ]
+    }
+   },
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence",
+      "uncertainty estimate"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "baseline or physics check",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset"
+     ]
+    }
+   },
+   "gaps": [
+    "show it beats a baseline or satisfies a physical law it was not trained on",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "partial",
+     "evidence": [
+      "inputs recorded: manifest, params"
+     ],
+     "next": "add a mesh-convergence or domain check"
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS Kelvin wave speed vs theory (|value| < 0.01, the threshold of tests/test_enso.py:49; value from results/solver_checks.j)",
+      "PASS Rossby wave speed vs theory (|value| < 0.06, the threshold of tests/test_enso.py:56; value from results/solver_checks.j)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "open",
+     "evidence": [
+      "no conservation, symmetry or boundary-condition check"
+     ],
+     "next": "check a law the result was not fitted to (mass, energy, divergence, equilibrium)"
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS Kelvin wave speed vs theory (|value| < 0.01, the threshold of tests/test_enso.py:49; value from results/solver_checks.j)",
+      "PASS Rossby wave speed vs theory (|value| < 0.06, the threshold of tests/test_enso.py:56; value from results/solver_checks.j)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "open",
+     "evidence": [
+      "no uncertainty and no declared limitation"
+     ],
+     "next": "declare the limitations and quantify the spread"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "partial",
+     "evidence": [
+      "tier B (solid)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "Kelvin wave speed vs theory \u00b7 |value| < 0.01, the threshold of\u2026",
+    "check": "Kelvin wave speed vs theory",
+    "missing": "flagship gates (see gaps)"
+   },
+   "tier_name": "solid"
+  },
+  "manifest-7d8c77b59860": {
+   "run_id": "manifest-7d8c77b59860",
+   "experiment": "manifest",
+   "status": "completed",
+   "tier": "B",
+   "score": 90.3,
+   "coverage": 0.6,
+   "dimensions": {
+    "validation": {
+     "name": "validation",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "9/9 checks pass"
+     ]
+    },
+    "reference": {
+     "name": "reference",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "PASS harmonic stack (6 blocks): stability limit / closed form (recorded by the study in _out/summary.json)",
+      "PASS single block overhang limit / length (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x4 on 1 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x8 on 2 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS tower of 8 2x2 bricks: tipping push at the top (recorded by the study in _out/summary.json)",
+      "PASS plate beam: sum of support reactions (recorded by the study in _out/summary.json)",
+      "PASS voxel FEA plate beam: mid-span deflection (Timoshenko) (recorded by the study in _out/summary.json)",
+      "PASS Newton harmonic stack (4 blocks): stands iff factor < 1, factors != 1 (recorded by the study in _out/summary.json)",
+      "PASS Newton table edge: brick with centre of mass inside stays, outside falls (recorded by the study in _out/summary.json)"
+     ]
+    },
+    "baseline": {
+     "name": "baseline",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no baseline check"
+     ]
+    },
+    "physics": {
+     "name": "physics",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no physics check"
+     ]
+    },
+    "generalization": {
+     "name": "generalization",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no generalization check"
+     ]
+    },
+    "uncertainty": {
+     "name": "uncertainty",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no uncertainty reported"
+     ]
+    },
+    "reproducibility": {
+     "name": "reproducibility",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "code snapshot: 1 files",
+      "git c31f0955",
+      "ran from a dirty tree (diff saved)"
+     ]
+    },
+    "data": {
+     "name": "data",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no dataset"
+     ]
+    },
+    "assets": {
+     "name": "assets",
+     "score": 0.8,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "40 figures, 8 movies"
+     ]
+    },
+    "documentation": {
+     "name": "documentation",
+     "score": 0.4,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "description 81 chars",
+      "docs: none",
+      "papers: 0"
+     ]
+    },
+    "review": {
+     "name": "review",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no human review yet"
+     ]
+    }
+   },
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence",
+      "uncertainty estimate"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "baseline or physics check",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset"
+     ]
+    }
+   },
+   "gaps": [
+    "show it beats a baseline or satisfies a physical law it was not trained on",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "partial",
+     "evidence": [
+      "inputs recorded: manifest, params"
+     ],
+     "next": "add a mesh-convergence or domain check"
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS harmonic stack (6 blocks): stability limit / closed form (recorded by the study in _out/summary.json)",
+      "PASS single block overhang limit / length (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x4 on 1 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x8 on 2 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS tower of 8 2x2 bricks: tipping push at the top (recorded by the study in _out/summary.json)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "open",
+     "evidence": [
+      "no conservation, symmetry or boundary-condition check"
+     ],
+     "next": "check a law the result was not fitted to (mass, energy, divergence, equilibrium)"
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS harmonic stack (6 blocks): stability limit / closed form (recorded by the study in _out/summary.json)",
+      "PASS single block overhang limit / length (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x4 on 1 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS stud cantilever brick_1x8 on 2 stud(s): tension per stud (recorded by the study in _out/summary.json)",
+      "PASS tower of 8 2x2 bricks: tipping push at the top (recorded by the study in _out/summary.json)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "open",
+     "evidence": [
+      "no uncertainty and no declared limitation"
+     ],
+     "next": "declare the limitations and quantify the spread"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "partial",
+     "evidence": [
+      "tier B (solid)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "harmonic stack (6 blocks): stability limit / closed form",
+    "check": "harmonic stack (6 blocks): stability limit / closed form",
+    "missing": "flagship gates (see gaps)"
+   },
+   "tier_name": "solid"
+  },
+  "manifest-a6e175a845bc": {
+   "run_id": "manifest-a6e175a845bc",
+   "experiment": "manifest",
+   "status": "completed",
+   "tier": "D",
+   "score": 69.0,
+   "coverage": 0.4,
+   "dimensions": {
+    "validation": {
+     "name": "validation",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "the run records no check"
+     ]
+    },
+    "reference": {
+     "name": "reference",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no reference check"
+     ]
+    },
+    "baseline": {
+     "name": "baseline",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no baseline check"
+     ]
+    },
+    "physics": {
+     "name": "physics",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no physics check"
+     ]
+    },
+    "generalization": {
+     "name": "generalization",
+     "score": 0.5,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "metrics on unseen data, no check: test_mse_u_VanillaPINN, test_mse_u_VPINN, test_mse_u_PINNsFormer, test_mse_u_PIELM_wrap_"
+     ]
+    },
+    "uncertainty": {
+     "name": "uncertainty",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no uncertainty reported"
+     ]
+    },
+    "reproducibility": {
+     "name": "reproducibility",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "code snapshot: 1 files",
+      "git 8f323527",
+      "ran from a dirty tree (diff saved)"
+     ]
+    },
+    "data": {
+     "name": "data",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no dataset"
+     ]
+    },
+    "assets": {
+     "name": "assets",
+     "score": 0.6000000000000001,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "10 figures, 0 movies"
+     ]
+    },
+    "documentation": {
+     "name": "documentation",
+     "score": 0.4,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "description 81 chars",
+      "docs: none",
+      "papers: 0"
+     ]
+    },
+    "review": {
+     "name": "review",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no human review yet"
+     ]
+    }
+   },
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence",
+      "uncertainty estimate",
+      "reference or physics check"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "comparison with a reference",
+      "baseline or physics check",
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a validated headline number",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "a documented dataset",
+      "validated runs"
+     ]
+    }
+   },
+   "gaps": [
+    "record validation checks",
+    "compare with an independent reference (exact solution, experiment, published value)",
+    "show it beats a baseline or satisfies a physical law it was not trained on",
+    "document it (docs page, references)"
+   ],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "partial",
+     "evidence": [
+      "inputs recorded: manifest, params"
+     ],
+     "next": "add a mesh-convergence or domain check"
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "open",
+     "evidence": [
+      "the solver is not verified on a problem with a known answer"
+     ],
+     "next": "add a verification case (exact solution or mesh convergence)"
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "open",
+     "evidence": [
+      "no conservation, symmetry or boundary-condition check"
+     ],
+     "next": "check a law the result was not fitted to (mass, energy, divergence, equilibrium)"
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "open",
+     "evidence": [
+      "no comparison with a solver, data or baseline"
+     ],
+     "next": "compare with a reference or a simple baseline"
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "open",
+     "evidence": [
+      "no uncertainty and no declared limitation"
+     ],
+     "next": "declare the limitations and quantify the spread"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "open",
+     "evidence": [
+      "tier D (exploratory)"
+     ],
+     "next": "generalization evidence"
+    }
+   },
+   "headline": {
+    "kind": "",
+    "text": "",
+    "check": "",
+    "missing": "a passing check"
+   },
+   "tier_name": "exploratory"
+  },
   "oscillator-efa577483dc5": {
    "run_id": "oscillator-efa577483dc5",
    "experiment": "oscillator",
@@ -68486,7 +71020,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -68701,7 +71235,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -68919,7 +71453,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -69135,7 +71669,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -69351,7 +71885,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -69569,7 +72103,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -69786,7 +72320,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -70003,7 +72537,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -70217,7 +72751,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -70431,7 +72965,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -70646,7 +73180,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -70866,7 +73400,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -71087,7 +73621,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -71309,7 +73843,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -71560,7 +74094,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -71779,7 +74313,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -71999,7 +74533,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -72221,7 +74755,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -72438,7 +74972,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -72650,7 +75184,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -72868,7 +75402,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -73089,7 +75623,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -73308,7 +75842,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -73525,7 +76059,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
@@ -73749,7 +76283,7 @@
      "tier": "VERIFIED",
      "evidence": [
       "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
+      "docs: docs/core_concepts/lab.md, docs/guides/adding_an_experiment.md, README.md",
       "papers: 0"
      ]
     },
