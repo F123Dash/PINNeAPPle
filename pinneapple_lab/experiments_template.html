@@ -97,7 +97,7 @@ function filtered() {
   let out = D.entries.filter((e) => (!S.letter || (S.letter === "none" ? !e.tier : e.tier === S.letter))
     && (!S.domain || e.domain === S.domain) && (!S.method || e.methods.includes(S.method)) && (!S.ready || e.ready.length));
   if (S.q) { const w = S.q.toLowerCase().split(/\s+/).filter(Boolean);
-    out = out.filter((e) => w.every((x) => [e.title, e.description, e.domain, e.key, ...e.methods].join(" ").toLowerCase().includes(x))); }
+    out = out.filter((e) => w.every((x) => [e.title, e.description, e.domain, e.key, e.search || "", ...e.methods].join(" ").toLowerCase().includes(x))); }
   if (S.sort === "date") out.sort((a, b) => (b.date || 0) - (a.date || 0));
   else out.sort((a, b) => ((a.tier ? tierOrder.indexOf(a.tier) : 9) - (b.tier ? tierOrder.indexOf(b.tier) : 9)) || a.title.localeCompare(b.title));
   return out;
@@ -138,8 +138,11 @@ function detail(e) {
   const stages = Object.entries(e.stages || {}).map(([k, s]) => `<tr><td>${esc(L === "pt" ? s.title_pt : s.title)}</td>
     <td class="st-${esc(s.status)}">${esc(s.status)}</td><td>${(s.evidence || []).map(esc).join("<br>")}${s.next ? `<br><i>${esc(s.next)}</i>` : ""}</td></tr>`).join("");
   const metrics = (e.metrics || []).map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(typeof m.value === "number" ? Number(m.value.toPrecision(6)) : m.value)}${m.unit ? " " + esc(m.unit) : ""}</td><td>${esc(m.how)}</td></tr>`).join("");
-  const next = (e.next_steps || []).map((g) => `<li><b>${esc(g.to)}: ${esc(L === "pt" ? g.short_pt : g.short)}</b> <span class="meta">${t.why}: ${esc(L === "pt" ? g.why_pt : g.why)}</span>
-    <ul>${g.actions.length ? g.actions.map((a) => `<li>${esc(L === "pt" ? a.text_pt : a.text)}<br><code>${esc(a.command)}</code></li>`).join("") : `<li>${t.no_action}</li>`}</ul></li>`).join("");
+  const groups = [], gi = {};                       // gaps sharing the same commands: the actions are listed once
+  for (const g of e.next_steps || []) { const k = JSON.stringify(g.actions.map((a) => a.command));
+    if (k in gi) groups[gi[k]].gaps.push(g); else { gi[k] = groups.length; groups.push({ gaps: [g], actions: g.actions }); } }
+  const next = groups.map((grp) => `<li>${grp.gaps.map((g) => `<div><b>${esc(g.to)}: ${esc(L === "pt" ? g.short_pt : g.short)}</b> <span class="meta">${t.why}: ${esc(L === "pt" ? g.why_pt : g.why)}</span></div>`).join("")}
+    <ul>${grp.actions.length ? grp.actions.map((a) => `<li>${esc(L === "pt" ? a.text_pt : a.text)}<br><code>${esc(a.command)}</code></li>`).join("") : `<li>${t.no_action}</li>`}</ul></li>`).join("");
   const figs = e.media.filter((m) => m.kind === "figure");
   const vids = e.media.filter((m) => m.kind === "video");
   const links = [e.links.guide ? `<a href="${gh(e.links.guide)}">${t.guide}</a>` : "", e.links.script ? `<a href="${gh(e.links.script)}">${t.script}: ${esc(e.links.script)}</a>` : "",
@@ -151,7 +154,7 @@ function detail(e) {
     <p>${esc(e.description)}</p>
     ${e.curate ? `<section><h3>${t.how_curate}</h3><code>${esc(e.curate)}</code></section>` : ""}
     ${e.problem ? `<section><h3>${t.problem}</h3><p class="problem">✗ ${esc(pick(e.problem, "text"))}</p><p>↑ ${esc(pick(e.problem, "hint"))}</p></section>` : ""}
-    ${(e.items || []).length ? `<section><h3>${t.items}</h3>${e.items.map((i) => `<div>${disc(i.tier)} ${esc(i.title)} <code>${esc(i.key)}</code></div>`).join("")}</section>` : ""}
+    ${(e.items || []).length ? `<section><h3>${t.items}</h3>${e.items.map((i) => `<div>${disc(i.tier)} ${esc(pick(i, "title"))} <code>${esc(i.key)}</code>${i.reason ? ` <span class="meta">· ${esc(i.reason)}</span>` : ""}</div>`).join("")}</section>` : ""}
     ${stages ? `<section><h3>${t.trust}</h3><table>${stages}</table></section>` : ""}
     <section><h3>${t.metrics}</h3>${metrics ? `<table>${metrics}</table>` : `<p class="meta">${t.none}</p>`}</section>
     ${next ? `<section><h3>${t.next}</h3><ol class="next">${next}</ol></section>` : ""}

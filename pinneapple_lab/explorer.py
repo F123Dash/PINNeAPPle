@@ -105,7 +105,7 @@ def _lab_entry(key: str, rec: dict[str, Any], cur: dict[str, Any], root: str) ->
     title = rec.get("title") or key
     if exp != "example_script" and "/" in (rec.get("case") or ""):
         title = rec["case"]                            # a case name with a slash ("60/40 brass") stays whole
-    title = title[:1].upper() + title[1:]
+    title = proper(title)
     title, title_pt = TITLES.get(key, (title, title))   # the curated display names, where there are some
     desc = rec.get("description") or meta["description"]
     script = rec.get("case") if exp == "example_script" else meta["module"]
@@ -129,20 +129,30 @@ def _lab_entry(key: str, rec: dict[str, Any], cur: dict[str, Any], root: str) ->
     }
 
 
-def _manifest_entry(path: str, m: M.Manifest, lab_items: dict[str, dict[str, Any]]) -> dict[str, Any]:
+_PROPER = {"em": "EM", "tm": "TM", "te": "TE", "pinn": "PINN", "pinns": "PINNs", "cfd": "CFD", "fem": "FEM",
+           "lbm": "LBM", "rom": "ROM", "pmsm": "PMSM", "spm": "SPM", "fdtd": "FDTD", "xtfc": "X-TFC", "gnn": "GNN",
+           "fno": "FNO", "era5": "ERA5", "enso": "ENSO", "aoa": "AoA", "1d": "1-D", "2d": "2-D", "3d": "3-D",
+           "ode": "ODE", "pde": "PDE", "bh": "BH", "uq": "UQ", "az": "Az", "ml": "ML", "sst": "SST", "pdr": "PDR"}
+
+
+def proper(title: str) -> str:
+    """A title made from a key, with acronyms in capitals ("em tm cavity" -> "EM TM cavity")."""
+    words = [_PROPER.get(w.lower(), w) for w in re.split(r"(\s+)", title.replace("_", " "))]
+    out = "".join(words)
+    return out[:1].upper() + out[1:]
+
+
+def _manifest_entry(path: str, m: M.Manifest, cur: dict[str, Any], root: str) -> dict[str, Any]:
     base = os.path.dirname(path)
     rel = os.path.relpath(base, M.REPO)
-    linked = sorted(k for k, it in lab_items.items() if it.get("experiment") == "example_script"
-                    and (it.get("case") or "").startswith(rel + "/"))
-    own = f"manifest/{m.id}" if f"manifest/{m.id}" in lab_items else None
-    keys = sorted(([own] if own else []) + linked, key=lambda k: (k != own, SEALABLE.index(lab_items[k]["tier"]), k))
-    tiers = [lab_items[k]["tier"] for k in keys]                     # best letter first
-    tier = min(tiers, key=SEALABLE.index) if tiers else None
+    items = cur.get("items", {})
+    keys = M.lab_items_for(rel, cur)                               # best letter first
+    tier = items[keys[0]]["tier"] if keys else None
     media = [{"kind": "figure", "repo": f"{rel}/{f}", "name": os.path.basename(f)} for f in m.files.get("figures", [])
              if f.lower().endswith(FIG_EXT)]
     media += [{"kind": "video" if f.lower().endswith(VID_EXT) else "figure", "repo": f"{rel}/{f}",
                "name": os.path.basename(f)} for f in m.files.get("videos", [])]
-    return {
+    e = {
         "key": m.id, "source": "manifest", "title": m.title, "description": m.description, "domain": m.domain,
         "methods": m.methods, "status": "curated" if tier else "not curated", "tier": tier,
         "tier_name": TIERS[tier] if tier else "", "seal": None, "problem": None, "stages": {},
@@ -150,15 +160,33 @@ def _manifest_entry(path: str, m: M.Manifest, lab_items: dict[str, dict[str, Any
         "next_steps": [], "ready": [], "media": media, "viewers": [f"{rel}/{v}" for v in m.files.get("viewers", [])],
         "links": {"guide": m.links.get("guide", ""), "script": m.links.get("script", ""),
                   "pr": list(m.links.get("pr", []))},
-        "items": [{"key": k, "tier": lab_items[k]["tier"], "title": lab_items[k].get("title", k)} for k in keys],
-        "curate": None if tier else f"python -m pinneapple_lab register {rel}",
+        "items": [], "curate": None if tier else f"python -m pinneapple_lab register {rel}",
         "date": 0, "modules": m.modules, "scripts": m.scripts, "seal_key": keys[0] if keys else None,
     }
+    for k in keys:                                                 # the Lab items that grade the folder
+        try:
+            lab = _lab_entry(k, items[k], cur, root)
+        except Exception:  # noqa: BLE001
+            continue
+        e["items"].append({"key": k, "tier": lab["tier"], "title": lab["title"], "title_pt": lab["title_pt"],
+                           "reason": (lab["seal"] or {}).get("reason", "")})
+        if k == keys[0]:                                           # the best one's evidence speaks for the folder
+            e.update({x: lab[x] for x in ("seal", "problem", "stages", "next_steps", "ready") if lab[x]})
+            e["metrics"] = e["metrics"] or lab["metrics"]
+            e["date"] = lab["date"]
+            if not e["media"]:
+                e["media"] = lab["media"]
+                e["viewers"] = e["viewers"] or lab["viewers"]
+                e["media_source"] = "lab"
+    e["search"] = " ".join(f"{i['title']} {i['key']}" for i in e["items"])
+    return e
 
 
 def collect(store, examples: str | None = None) -> dict[str, Any]:
     """Every experiment the page shows (see the module doc), the per-letter counts counted from them, the filter
-    facets and the coverage list."""
+    facets and the coverage list. A Lab item that grades an ``examples/*`` folder (its scripts' runs, a
+    ``repo_results`` source reading its results, its own manifest) is shown inside that folder's entry, so every
+    study is counted once."""
     root = os.path.abspath(store.root)
     try:
         cur = load_curation(store)
@@ -166,27 +194,18 @@ def collect(store, examples: str | None = None) -> dict[str, Any]:
         from .curation import curate
         cur = curate(store)
     items = cur.get("items", {})
+    folders = [(p, m) for p, m in M.scan([examples or os.path.join(M.REPO, "examples")], lab="")]
+    folded = {k for p, _ in folders for k in M.lab_items_for(os.path.relpath(os.path.dirname(p), M.REPO), cur)}
     entries = []
     for key, rec in sorted(items.items()):
-        if rec.get("experiment") == "example_script":
+        if key in folded or rec.get("experiment") == "example_script":
             continue                                   # shown inside its examples/ folder's entry
         try:
             entries.append(_lab_entry(key, rec, cur, root))
         except Exception:  # noqa: BLE001 - one unreadable run must not hide the rest
             continue
-    for path, m in M.scan([examples or os.path.join(M.REPO, "examples")], lab=""):
-        e = _manifest_entry(path, m, items)
-        if f"manifest/{m.id}" in items:                # the Lab item made from this manifest: keep one entry
-            entries = [x for x in entries if x["key"] != f"manifest/{m.id}"]
-            lab = _lab_entry(f"manifest/{m.id}", items[f"manifest/{m.id}"], cur, root)
-            e.update({k: lab[k] for k in ("seal", "problem", "stages", "next_steps", "ready", "metrics")
-                      if lab[k]})
-        else:
-            for it in e["items"][:1]:                  # a folder curated through its scripts: the best item's evidence
-                lab = _lab_entry(it["key"], items[it["key"]], cur, root)
-                e.update({k: lab[k] for k in ("seal", "problem", "stages", "next_steps", "metrics") if lab[k]})
-                e["date"] = lab["date"]
-        entries.append(e)
+    for path, m in folders:
+        entries.append(_manifest_entry(path, m, cur, root))
     counts = {t: sum(e["tier"] == t for e in entries) for t in SEALABLE}
     counts["not curated"] = sum(e["tier"] is None for e in entries)
     return {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "curated": cur.get("generated", ""),
@@ -236,7 +255,7 @@ def filter_entries(entries: list[dict[str, Any]], *, letter: str | None = None, 
     if q:
         words = q.lower().split()
         out = [e for e in out if all(w in " ".join([e["title"], e["description"], e["domain"], *e["methods"],
-                                                     e["key"]]).lower() for w in words)]
+                                                     e["key"], e.get("search", "")]).lower() for w in words)]
     if sort == "date":
         return sorted(out, key=lambda e: -(e["date"] or 0))
     order = {t: i for i, t in enumerate(SEALABLE)}
