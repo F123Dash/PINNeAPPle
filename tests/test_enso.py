@@ -249,3 +249,38 @@ def test_slab_scene_has_the_surfaces_and_the_sst_field():
     names = [s.name for s in sc.surfaces]
     assert names == ["sea_surface", "thermocline", "equator_curtain", "floor"]
     assert "sst" in sc.surfaces[0].fields and len(sc.surfaces[0].fields["sst"]) == len(sc.surfaces[0].vertices)
+
+
+def test_skill_against_climatology_tests_every_model_with_holm():
+    from pinneapple_systems.time_series import synthetic as syn
+    from pinneapple_systems.time_series.enso.pipeline import skill_against
+    from pinneapple_systems.time_series.forecast_lab import (
+        ARForecaster,
+        Climatology,
+        Persistence,
+        SeriesData,
+    )
+    from pinneapple_systems.time_series.forecast_lab.study import ModelSpec, Protocol, run_zoo
+    s = syn.ornstein_uhlenbeck(n=800, noise=0.0, seed=4)
+    data = SeriesData(s.obs, 0, s.dt, s.name)
+    specs = [ModelSpec("persistence", "baseline", Persistence), ModelSpec("climatology", "baseline", Climatology),
+             ModelSpec("ar", "data", ARForecaster)]
+    z = run_zoo(data, specs, Protocol([1, 5], min_history=8, n_folds=2), keep_forecasts=[x.name for x in specs],
+                log=lambda *_: None)
+    out = skill_against(z, "climatology")
+    assert out["models"]["climatology"]["skill_rmse"] == [0.0, 0.0]
+    ar = out["models"]["ar"]
+    assert ar["skill_rmse"][0] > 0.3 and ar["significant"][0] and len(ar["p_holm"]) == 2      # OU dt = 0.1: AR(1)
+
+
+def test_slab_scene_colours_the_thermocline_by_its_depth_anomaly():
+    from pinneapple_systems.time_series.enso.render import slab_scene
+    lon, lat = np.arange(121, 280, 2.0), np.arange(-19.5, 20, 1.0)
+    sst = 25 + np.zeros((len(lat), len(lon)))
+    sst[19, 3] = np.nan                                                   # a land cell on the band's wall row
+    sc = slab_scene(lon, lat, sst, np.full((len(lat), len(lon)), 120.0),
+                    d20_anom=np.linspace(-30, 30, len(lon))[None].repeat(len(lat), 0))
+    th = next(x for x in sc.surfaces if x.name == "thermocline")
+    assert "dz" in th.fields and th.fields["dz"].min() == -30
+    wall = next(x for x in sc.surfaces if x.name == "equator_curtain")
+    assert np.isfinite(wall.fields["sst"]).all() and np.allclose(wall.fields["sst"], 25)

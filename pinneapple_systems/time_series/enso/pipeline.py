@@ -24,7 +24,7 @@ from . import evaluation as E
 from . import intermediate as IM
 from . import oscillators as O
 
-__all__ = ["solver_checks", "enso_scores", "case_panels", "spring_barrier_hindcasts", "phase_portrait",
+__all__ = ["solver_checks", "enso_scores", "case_panels", "skill_against", "spring_barrier_hindcasts", "phase_portrait",
            "shallow_water_pinn_study", "slab_frames", "markdown_tables", "QUANTILES"]
 
 QUANTILES = (0.05, 0.25, 0.5, 0.75, 0.95)
@@ -85,34 +85,84 @@ def case_panels(parts: dict[str, dict], merged: dict[str, Any], data, *, familie
                 leads: Sequence[int] = (1, 3, 6, 9, 12, 18, 24)) -> list[dict]:
     """Plume panels: for every case-study origin, the representative of each family (from ``merged``) with its
     quantiles at the evaluated leads. ``parts[name]["_cases"]`` holds forecasts from origins after the development
-    period; ``events[label][name]`` (from :func:`.study.event_hindcast`) those of refitted models."""
+    period; ``events[label][name]`` (from :func:`.study.event_hindcast`) those of refitted models.
+
+    Each panel's ``sample`` says whether the forecasts are out of sample and why: "test period", "after the test
+    period", "refit: data to <month>" (an event refit; no data after that month entered the fit) or "in-sample
+    (training period)" (a model fitted on data that include the target years); the title carries it."""
     months = data.meta["months"]
     Hall = list(merged["protocol"]["horizons"])
     keep = [Hall.index(h) for h in leads if h in Hall]
     H = np.asarray(Hall)[keep]
     reps = merged.get("family_representative", {})
+    proto = merged["protocol"]
+    dev_end = int(proto["dev_end"])
+    last_test = int(proto["n"]) - max(Hall) - 1
     by_origin: dict[tuple[str, int], list[dict]] = {}
+    sample: dict[tuple[str, int], str] = {}
     for fam in families:
         name = reps.get(fam)
         if name is None:
             continue
-        srcs = [(lab, rec) for lab, rec in parts.get(name, {}).get("_cases", {}).items()]
-        srcs += [(lab, ev[name]) for lab, ev in (events or {}).items() if name in ev]
-        for lab, rec in srcs:
+        srcs = [(lab, rec, None) for lab, rec in parts.get(name, {}).get("_cases", {}).items()]
+        srcs += [(lab, ev[name], ev[name].get("data_end")) for lab, ev in (events or {}).items() if name in ev]
+        for lab, rec, data_end in srcs:
             q = rec["forecast"].quantiles(QUANTILES)[:, :, keep]        # (5, n, n_leads)
             for i, o in enumerate(rec["origins"]):
-                by_origin.setdefault((lab, int(o)), []).append(
-                    {"family": fam, "name": name, "t": [_ym_float(months[min(int(o) + h, len(months) - 1)])
-                                                       if int(o) + h < len(months) else
-                                                       _ym_float(months[int(o)]) + h / 12 for h in H],
+                o = int(o)
+                if data_end is not None:
+                    tag = f"out-of-sample: refit, data to {data_end}"
+                elif o >= dev_end:
+                    tag = "out-of-sample: test period" if o <= last_test else "out-of-sample: after the test period"
+                else:
+                    tag = "in-sample (training period)"
+                sample.setdefault((lab, o), tag)
+                by_origin.setdefault((lab, o), []).append(
+                    {"family": fam, "name": name, "t": [_ym_float(months[min(o + h, len(months) - 1)])
+                                                       if o + h < len(months) else
+                                                       _ym_float(months[o]) + h / 12 for h in H],
                      "q": q[:, i, :].tolist()})
     panels = []
     for (lab, o), fams in sorted(by_origin.items(), key=lambda kv: kv[0][1]):
         lo, hi = max(0, o - months_before), min(len(months), o + int(max(Hall)) + 1)
-        panels.append({"title": f"{lab}: forecasts from {months[o]}", "event": lab, "origin": months[o],
+        panels.append({"title": f"{lab}: forecasts from {months[o]} [{sample[(lab, o)]}]", "event": lab,
+                       "origin": months[o], "sample": sample[(lab, o)],
                        "origin_t": _ym_float(months[o]), "t_obs": [_ym_float(m) for m in months[lo:hi]],
                        "y_obs": data.y[lo:hi].tolist(), "fams": fams})
     return panels
+
+
+def skill_against(merged: dict[str, Any], reference: str = "climatology", alpha: float = 0.05) -> dict[str, Any]:
+    """RMSE skill 1 - RMSE / RMSE(reference) on the test period for every model of ``merged`` (with its kept
+    forecasts), and one-sided Diebold-Mariano tests (squared errors, HLN, long-run variance over the h-step
+    overlap) of each non-baseline model against the reference, Holm-adjusted across those models at each lead."""
+    from ..metrics_ext.comparison import diebold_mariano, holm
+    H = list(merged["protocol"]["horizons"])
+    stride = merged["protocol"].get("test_stride", 1)
+    fc = merged["_forecasts"]
+    ref = fc[reference]
+    e_ref = ref["forecast"].mean - ref["y"]
+    rmse_ref = np.sqrt(np.mean(e_ref ** 2, axis=0))
+    out: dict[str, Any] = {"reference": reference, "horizons": H, "models": {}}
+    learned = [n for n, m in merged["models"].items() if "test" in m and m["family"] != "baseline" and n in fc]
+    pvals = {n: [] for n in learned}
+    for name, m in merged["models"].items():
+        if "test" not in m or name not in fc:
+            continue
+        e = fc[name]["forecast"].mean - fc[name]["y"]
+        sk = 1 - np.sqrt(np.mean(e ** 2, axis=0)) / rmse_ref
+        out["models"][name] = {"family": m["family"], "skill_rmse": sk.tolist()}
+        if name in pvals:
+            for j, h in enumerate(H):
+                r = diebold_mariano(e[:, j], e_ref[:, j], max_lag=int(np.ceil(h / stride)) - 1)
+                pvals[name].append(r.p_value_better)
+    for j in range(len(H)):
+        adj = holm({n: pvals[n][j] for n in learned})
+        for n in learned:
+            out["models"][n].setdefault("p_holm", []).append(float(adj[n]))
+    for n in learned:
+        out["models"][n]["significant"] = [p < alpha for p in out["models"][n]["p_holm"]]
+    return out
 
 
 def spring_barrier_hindcasts(data, prot, makers: dict[str, Any], *, block: int = 48) -> dict[str, Any]:
@@ -266,7 +316,7 @@ def slab_frames(ds, oisst, casts, start: str, end: str, *, spin_months: int = 36
                                        fill_value=None)(P).reshape(LA.shape)
         m = ds.months[k]
         sst = oisst.values["sst"][oisst.time.index(m)][la][:, lo]
-        frames.append({"lon": oisst.lon[lo], "lat": oisst.lat[la], "sst": sst, "d20": np.clip(base + anom, 5, None),
+        frames.append({"lon": oisst.lon[lo], "lat": oisst.lat[la], "sst": sst, "d20": np.clip(base + anom, 5, None), "d20_anom": anom,
                        "label": f"{['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][int(m[5:7]) - 1]} {m[:4]}",
                        "month": m})
     return frames
@@ -340,6 +390,21 @@ def markdown_tables(res: dict[str, Any], leads: Sequence[int] = (1, 3, 6, 9, 12,
                         f"{_f(c['hit_rate']['neutral'])} | {_f(c['false_alarm_ratio']['el_nino'])} | "
                         f"{_f(c['false_alarm_ratio']['la_nina'])} | {_f(c['accuracy'])} | {_f(c['heidke'])} |")
     T["categorical"] = "\n".join(rows)
+
+    if "skill_vs_climatology" in res:
+        sv = res["skill_vs_climatology"]
+        Hs = sv["horizons"]
+        lj = [Hs.index(h) for h in leads if h in Hs]
+        rows = ["| model | family | RMSE skill vs climatology (h=" + ",".join(str(Hs[i]) for i in lj) + ") | "
+                "significant vs climatology (one-sided DM, Holm) at h |", "|---" * 4 + "|"]
+        for n in order:
+            v = sv["models"].get(n)
+            if v is None:
+                continue
+            sig = [str(h) for h, k in zip(Hs, v.get("significant", []), strict=False) if k]
+            rows.append(f"| {n} | {v['family']} | " + " ".join(_f(v["skill_rmse"][i]) for i in lj) + " | "
+                        + (", ".join(sig) or "none" if v["family"] != "baseline" else "–") + " |")
+        T["skill_vs_climatology"] = "\n".join(rows)
 
     if "spring_barrier" in res:
         rows = ["| model | origins | ACC h=6, target Jan-Mar | ACC h=6, target Jun-Aug | ACC h=6, target Sep-Nov |",
