@@ -68,6 +68,11 @@ class FlowStore:
             sa.Column("node_id", sa.String(64), primary_key=True), sa.Column("status", sa.String(20)),
             sa.Column("outputs", sa.Text), sa.Column("report", sa.Text), sa.Column("error", sa.Text),
             sa.Column("seconds", sa.Float), sa.Column("workdir", sa.Text), sa.Column("updated", sa.Float))
+        self.decisions = sa.Table(
+            "decisions", md, sa.Column("id", sa.String(40), primary_key=True), sa.Column("flow_id", sa.String(64)),
+            sa.Column("version", sa.Integer), sa.Column("run_id", sa.String(80)), sa.Column("node_id", sa.String(64)),
+            sa.Column("topic", sa.String(40)), sa.Column("confidence", sa.Float), sa.Column("no_reference", sa.Boolean),
+            sa.Column("record", sa.Text), sa.Column("created", sa.Float))
         md.create_all(self.engine)
         self.sa = sa
 
@@ -87,7 +92,35 @@ class FlowStore:
                                                      created=now, updated=now, latest_version=version))
             c.execute(self.versions.insert().values(flow_id=flow.id, version=version, document=flow.to_json(0),
                                                     note=note[:500], created=now))
+        from .decisions import collect
+        self.record_decisions(flow.id, collect(flow), version=version)
         return version
+
+    # -- decisions -------------------------------------------------------------------------------------------------
+    def record_decisions(self, flow_id: str, decisions: list[dict[str, Any]], *, version: int | None = None,
+                         run_id: str | None = None) -> None:
+        """Keep decision records (pinneapple_flow.decisions) with the flow version or the run they belong to."""
+        sa, now = self.sa, time.time()
+        with self.engine.begin() as c:
+            for d in decisions:
+                rid = f"{run_id or 'v' + str(version)}:{d['id']}"[:40]
+                c.execute(self.decisions.delete().where(self.decisions.c.id == rid))
+                c.execute(self.decisions.insert().values(
+                    id=rid, flow_id=flow_id, version=version, run_id=run_id, node_id=d.get("node") or "",
+                    topic=d.get("topic"), confidence=d.get("confidence"), no_reference=bool(d.get("no_reference")),
+                    record=json.dumps(d, default=str), created=now))
+        del sa
+
+    def get_decisions(self, flow_id: str, *, version: int | None = None, run_id: str | None = None
+                      ) -> list[dict[str, Any]]:
+        sa = self.sa
+        q = sa.select(self.decisions.c.record).where(self.decisions.c.flow_id == flow_id)
+        if version is not None:
+            q = q.where(self.decisions.c.version == version)
+        if run_id is not None:
+            q = q.where(self.decisions.c.run_id == run_id)
+        with self.engine.connect() as c:
+            return [json.loads(r[0]) for r in c.execute(q.order_by(self.decisions.c.created))]
 
     def get_flow(self, flow_id: str, version: int | None = None) -> dict[str, Any]:
         sa = self.sa
@@ -139,6 +172,14 @@ class FlowStore:
                                                         & (self.nodes.c.node_id == nid)).values(**vals))
                 else:
                     c.execute(self.nodes.insert().values(run_id=run_id, node_id=nid, **vals))
+
+    def record_run_decisions(self, run_id: str, flow_id: str, states: dict[str, dict[str, Any]]) -> None:
+        decs = []
+        for nid, s in states.items():
+            for d in (s.get("report") or {}).get("decisions") or []:
+                decs.append({**d, "node": d.get("node") or nid})
+        if decs:
+            self.record_decisions(flow_id, decs, run_id=run_id)
 
     def finish_run(self, run_id: str, status: str) -> None:
         with self.engine.begin() as c:

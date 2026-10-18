@@ -1,5 +1,5 @@
 // Thin client of the Flow Studio API (apps/flow_studio/backend/app.py -> pinneapple_flow.service).
-import type { Catalog, FlowDoc, PlanResult, RunStatus, NodeResult } from "./types";
+import type { Catalog, DecisionsResult, FlowDoc, PlanResult, RunStatus, NodeResult } from "./types";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, {
@@ -38,6 +38,12 @@ export const api = {
   run: (flow: FlowDoc, from_node?: string) => post<{ run_id: string }>("/api/runs", { flow, from_node }),
   status: (runId: string) => call<RunStatus>(`/api/runs/${runId}`),
   cancel: (runId: string) => post<{ cancelled: boolean }>(`/api/runs/${runId}/cancel`, {}),
+  decisions: (flow: FlowDoc, run_id?: string | null) => post<DecisionsResult>("/api/decisions", { flow, run_id }),
+  references: () => call<any[]>("/api/references"),
+  checkReference: (r: any) => post<any>("/api/references/check", r),
+  customNodes: () => call<any[]>("/api/custom-nodes"),
+  saveCustomNode: (spec: any) => post<any>("/api/custom-nodes", spec),
+  libraryCalls: () => call<any[]>("/api/library-calls"),
   node: (runId: string, nodeId: string) => call<NodeResult>(`/api/runs/${runId}/nodes/${encodeURIComponent(nodeId)}`),
 };
 

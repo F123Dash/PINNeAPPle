@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { memo } from "react";
-import { PORT_COLORS, STATUS_STYLE, type NodeType, type Status } from "../types";
+import { PORT_COLORS, STATUS_STYLE, type Decision, type NodeType, type Status } from "../types";
+import { DecisionBadge } from "./DecisionsPanel";
 
 export interface FlowNodeData extends Record<string, unknown> {
   spec: NodeType;
@@ -9,6 +10,7 @@ export interface FlowNodeData extends Record<string, unknown> {
   status: Status;
   summary?: string;
   error?: string;
+  decisions?: Decision[];
 }
 
 const CATEGORY_ACCENT: Record<string, string> = {
@@ -31,9 +33,12 @@ function FlowNodeView({ data, selected }: NodeProps) {
           <div className="text-[13px] font-semibold text-slate-800 truncate">{d.label || s.title}</div>
           <div className="text-[10.5px] text-slate-400 truncate">{s.type}</div>
         </div>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${STATUS_STYLE[d.status] || STATUS_STYLE.idle}`} data-testid="node-status">
-          {d.status}
-        </span>
+        <div className="flex flex-col items-end gap-0.5">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${STATUS_STYLE[d.status] || STATUS_STYLE.idle}`} data-testid="node-status">
+            {d.status}
+          </span>
+          <DecisionBadge decisions={d.decisions} />
+        </div>
       </div>
       <div className="relative" style={{ height: rows * 20 + 6 }}>
         {s.inputs.map((p, i) => (

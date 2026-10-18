@@ -63,7 +63,9 @@ class NodeContext:
         self.should_stop = should_stop
         self.meta = meta or {}
         self.report: dict[str, Any] = {"metrics": {}, "figures": [], "tables": [], "views": {}, "warnings": [],
-                                       "summary": ""}
+                                       "summary": "", "decisions": []}
+        self.upstream_reports: dict[str, dict[str, Any]] = {}
+        self.explicit: set[str] = set()                 # parameters the flow document set (not defaults)
 
     # -- logging and report ----------------------------------------------------------------------------------------
     def log(self, msg: str) -> None:
@@ -88,6 +90,24 @@ class NodeContext:
         """A rich result for the GUI: ``"architecture"`` (layer graph), ``"scene"`` (three.js payload),
         ``"equations"`` (parsed system), ``"plan"``..."""
         self.report["views"][kind] = data
+
+    def decide(self, rule_id: str, what: str, value: Any = None, *, rationale: str = "",
+               extra: tuple[str, ...] = ()) -> None:
+        """Record a decision this node takes while running (a rule with its references and evidence)."""
+        from .decisions import rule_decision
+        self.report["decisions"].append(rule_decision(rule_id, what=what, node=self.node_id, value=_plain(value),
+                                                      rationale=rationale, extra=extra).to_dict())
+
+    def auto(self, rule_id: str, what: str, *keys: str, value: Any = None, rationale: str = "") -> None:
+        """Record a decision for parameters the node filled with its defaults (those the flow set explicitly are
+        already recorded by the planner or as the user's edits)."""
+        if not any(k in self.explicit for k in keys):
+            self.decide(rule_id, what, value, rationale=rationale)
+
+    def user_choice(self, topic: str, what: str, value: Any = None) -> None:
+        """Record that a value the node used was set by the user (not by a rule)."""
+        from .decisions import user_decision
+        self.report["decisions"].append(user_decision(self.node_id, topic, what, _plain(value)).to_dict())
 
     def check_stop(self) -> None:
         if self.should_stop():
@@ -205,6 +225,8 @@ class FlowNodeAdapter(Adapter):
             pspec = spec.input(port)
             inputs[port] = vals if (pspec is not None and pspec.multiple) else (vals[0] if vals else None)
         nctx = NodeContext(ctx.step.id, spec.type, ctx.workdir, ctx.log, ctx.should_stop, p.get("meta") or {})
+        nctx.upstream_reports = {k: (v.get("outputs") or {}).get("report") or {} for k, v in ctx.upstream.items()}
+        nctx.explicit = set((p.get("params") or {}).keys())
         params = spec.resolved(p.get("params") or {})
         ctx.log(f"{spec.type}: {spec.calls or spec.title}")
         out = spec.fn(nctx, inputs, params) or {}
@@ -221,6 +243,14 @@ if ADAPTER_KIND not in ADAPTERS:
 
 
 # ----------------------------------------------------------------------------------------------- compile and run
+COLLECTORS = {"export.report"}
+
+
+def _flow_decisions(flow: Flow) -> list[dict[str, Any]]:
+    from .decisions import collect
+    return collect(flow)
+
+
 def to_workflow(flow: Flow, *, nodes: set[str] | None = None, force: set[str] = frozenset(), token: str = "",
                 max_parallel: int = 1) -> Workflow:
     """The engine workflow of ``flow`` (only ``nodes`` when given); ``force`` nodes get a fresh token in their
@@ -233,10 +263,20 @@ def to_workflow(flow: Flow, *, nodes: set[str] | None = None, force: set[str] = 
         ins: dict[str, list[list[str]]] = {}
         for e in flow.incoming(nid):
             ins.setdefault(e.target_port, []).append([e.source, e.source_port])
-        params = {"node_type": n.type, "params": n.params, "inputs": ins, "meta": {"flow_id": flow.id}}
+        meta: dict[str, Any] = {"flow_id": flow.id}
+        needs = flow.upstream_ids(nid)
+        if n.type in COLLECTORS:
+            # a report collects the whole flow: it runs after every node that is not downstream of it, and gets
+            # the flow-level decisions (planner, user edits)
+            later = flow.downstream(nid) | {nid}
+            needs = list(dict.fromkeys(needs + [x for x in flow.order() if x not in later
+                                                and (nodes is None or x in nodes)]))
+            meta["flow_decisions"] = _flow_decisions(flow)
+            meta["flow_name"] = flow.name
+        params = {"node_type": n.type, "params": n.params, "inputs": ins, "meta": meta}
         if nid in force:
             params["force"] = token
-        steps.append(Step(id=nid, kind=ADAPTER_KIND, params=params, needs=flow.upstream_ids(nid)))
+        steps.append(Step(id=nid, kind=ADAPTER_KIND, params=params, needs=needs))
     return Workflow(flow.name or "flow", steps, max_parallel=max_parallel, metadata={"flow_id": flow.id})
 
 
@@ -330,6 +370,7 @@ def run(flow: Flow | dict | str | Path, *, workdir: str | Path | None = None, fr
     status = summary["status"]
     if store is not None:
         store.update_nodes(run_id, states)
+        store.record_run_decisions(run_id, flow.id, states)
         store.finish_run(run_id, status)
     if on_update is not None:
         on_update(run_id, states)

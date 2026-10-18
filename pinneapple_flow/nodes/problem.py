@@ -129,3 +129,98 @@ def equations(ctx, inputs, params):
 
 def require_problem(v):
     return need_problem(v)
+
+
+@node("problem.generic", "Generic problem (identify the equations)", category="Problem",
+      inputs=[Port("data", "solution", required=False, help="measured / simulated field on a space-time grid: the "
+                                                            "equations are also discovered from it")],
+      outputs=[Port("problem", "problem"), Port("geometry", "geometry"), Port("equations", "equations")],
+      params=[Param("description", "text", "", help="the problem in your words: physics, geometry, conditions, "
+                                                   "values with units"),
+              Param("units", "dict", {}, help="quantity -> unit, e.g. {alpha: m^2/s, x: m}"),
+              Param("dimension", "enum", 0, choices=[0, 1, 2, 3], help="0: as identified"),
+              Param("candidate", "int", 0, minimum=0, maximum=5, help="which proposed system to accept"),
+              Param("use_llm", "bool", True, help="also ask the configured LLM (validated; offline without one)"),
+              Param("discover", "bool", True, help="sparse regression on the data input (SINDy / PDE-FIND style)"),
+              Param("fields", "list", [], help="edit: fields (empty = as identified)"),
+              Param("pdes", "equations", [], help="edit: PDEs (empty = the accepted candidate's)"),
+              Param("conditions", "list", [], help="edit: conditions (empty = the candidate's)"),
+              Param("coefficients", "dict", {}, help="edit: coefficient values (override the candidate's)"),
+              Param("time_dependent", "enum", "auto", choices=["auto", "yes", "no"]),
+              Param("x_range", "list", [], help="edit: domain [low, high] (empty = the candidate's)"),
+              Param("t_range", "list", [])],
+      calls="pinneapple_flow.identify.identify (+ discover_pde: SINDyIdentifier STRidge) -> parse_system")
+def generic(ctx, inputs, params):
+    """Describe any problem (and optionally give data): the governing equations are identified with a confidence,
+    the reasoning and their references (conservation law, constitutive relation, dimension, conditions,
+    coefficients). Accept a candidate or edit it; with data the equations are also discovered from the data and
+    compared with the candidates."""
+    from ..config import Settings
+    from ..identify import confirm, discover_pde, identify
+    from ._common import load_solution
+    s = Settings.from_env()
+    llm = None
+    if params["use_llm"] and s.llm_provider not in ("", "none"):
+        llm = {"provider": s.llm_provider, "model": s.llm_model, "base_url": s.llm_base_url, "api_key": s.llm_api_key}
+    text = params["description"] or ""
+    res = identify(text, dimension=int(params["dimension"]) or None, units=params["units"], llm=llm)
+    for w in res["warnings"]:
+        ctx.warn(w)
+    cands = res["candidates"]
+    found = None
+    if inputs.get("data") and params["discover"]:
+        sol = load_solution(inputs["data"])
+        try:
+            found = discover_pde(sol["axes"], sol["values"], sol["coords"], field=(sol["fields"] or ["u"])[0])
+        except ValueError as exc:
+            ctx.warn(f"discovery: {exc}")
+        if found:
+            ctx.metric("discovered_equation", found["pretty"])
+            ctx.metric("discovery_r2", found["r2"], "fit of the sparse regression on interior grid points")
+            ctx.report["decisions"].append(found["decision"])
+            if found["warning"]:
+                ctx.warn(found["warning"])
+            for c in cands:
+                c["data_check"] = confirm(c, found)
+                if c["data_check"]["family_agrees"]:
+                    c["confidence"] = round(min(0.95, c["confidence"] + 0.2), 2)
+                    c["reasoning"].append(f"confirmed by the data: {found['pretty']} (R^2 {found['r2']:.4f})")
+            cands.sort(key=lambda c: -c["confidence"])
+            if not any(c["data_check"]["family_agrees"] for c in cands):
+                ctx.warn(f"the data do not match any candidate; discovered {found['pretty']}")
+    if not cands:
+        raise StepFailed("no candidate system")
+    k = min(int(params["candidate"]), len(cands) - 1)
+    c = cands[k]
+    ctx.view("candidates", {"candidates": cands, "accepted": k, "discovered": found, "detected": res["detected"]})
+    ctx.table("candidate systems", ["#", "family", "PDEs", "confidence", "source"],
+              [[i, x["family"], "; ".join(x["pdes"]), x["confidence"], x["source"]] for i, x in enumerate(cands)])
+    for d in c["decisions"]:
+        ctx.report["decisions"].append({**d, "node": ctx.node_id})
+    edited = {k2: params[k2] for k2 in ("fields", "pdes", "conditions", "coefficients", "x_range", "t_range")
+              if params[k2]}
+    for k2, v in edited.items():
+        ctx.user_choice({"pdes": "equations", "conditions": "bcs", "coefficients": "coefficients"}.get(k2, "other"),
+                        f"{k2} edited by the user", v)
+    dim = int(params["dimension"]) or int(c["dimension"])
+    td = {"auto": c["time_dependent"], "yes": True, "no": False}[params["time_dependent"]]
+    xr = params["x_range"] or list((c.get("bounds") or {}).get("x", [0.0, 1.0]))
+    geo = geometry_doc({"dimension": dim, "shape": "box", "x_range": xr, "y_range": xr, "z_range": xr,
+                        "time_dependent": td, "t_range": params["t_range"] or list(c.get("time") or [0.0, 1.0])})
+    eq = {"fields": params["fields"] or c["fields"], "pdes": params["pdes"] or c["pdes"],
+          "conditions": params["conditions"] or c["conditions"],
+          "coefficients": {**c["coefficients"], **params["coefficients"]}, "unknowns": [],
+          "exact": "" if edited else c.get("exact", ""), "family": c["family"]}
+    problem = {"geometry": geo, "equations": eq}
+    sys_ = system_of(problem)
+    doc = sys_.to_dict()
+    if doc["issues"]:
+        raise StepFailed("; ".join(doc["issues"]))
+    eq["classification"] = doc["classification"]
+    ctx.view("equations", doc)
+    ctx.metric("accepted", f"#{k} {c['family']} (confidence {c['confidence']})")
+    ctx.metric("conservation_law", c.get("conservation_law", ""))
+    ctx.metric("constitutive_relation", c.get("constitutive_relation", ""))
+    ctx.summary(f"identified {c['family']} ({c['confidence']}), {dim}-D" + (f"; data: {found['pretty']}" if found
+                                                                             else ""))
+    return {"problem": problem, "geometry": geo, "equations": eq}

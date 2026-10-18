@@ -12,7 +12,7 @@ const fmt = (v: any): string => {
   return typeof v === "object" ? JSON.stringify(v) : String(v);
 };
 
-export function ResultPanel({ result }: { result: NodeResult | null }) {
+export function ResultPanel({ result, onAccept }: { result: NodeResult | null; onAccept?: (k: number) => void }) {
   if (!result) return <div className="p-3 text-[12px] text-slate-400">Run the flow, then click a node to see its results.</div>;
   const r = result.report || ({} as any);
   const views = r.views || {};
@@ -36,6 +36,28 @@ export function ResultPanel({ result }: { result: NodeResult | null }) {
             ))}
           </tbody>
         </table>
+      )}
+      {views.candidates && (
+        <div data-testid="candidates">
+          <div className="font-semibold text-[11.5px] mb-1">Identified systems</div>
+          {views.candidates.discovered && (
+            <div className="text-[11px] bg-sky-50 rounded p-1.5 mb-1">from the data: <span className="font-mono">{views.candidates.discovered.pretty}</span> (R² {fmt(views.candidates.discovered.r2)})</div>
+          )}
+          {views.candidates.candidates.map((c: any, k: number) => (
+            <div key={k} className={`border rounded p-2 mb-1 ${k === views.candidates.accepted ? "border-brand-500" : "border-slate-200"}`}>
+              <div className="flex justify-between">
+                <b className="text-[12px]">#{k} {c.family}</b>
+                <span className="text-[11px]">confidence {c.confidence} · {c.source}</span>
+              </div>
+              {c.pdes.map((p: string) => <div key={p} className="font-mono text-[11px]">{p}</div>)}
+              <div className="text-[10.5px] text-slate-500">{c.conservation_law}; {c.constitutive_relation}</div>
+              <div className="text-[10.5px] text-slate-500">{c.reasoning.join("; ")}</div>
+              {onAccept && k !== views.candidates.accepted && (
+                <button className="text-[11px] text-sky-700" onClick={() => onAccept(k)}>accept this one</button>
+              )}
+            </div>
+          ))}
+        </div>
       )}
       {views.architecture && (
         <div><div className="font-semibold text-[11.5px] mb-1">Architecture</div><LayerGraph graph={views.architecture} /></div>

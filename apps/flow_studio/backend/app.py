@@ -78,6 +78,21 @@ def create_app(service: FlowService | None = None) -> FastAPI:
         except (ValueError, TypeError) as exc:
             bad(exc)
 
+    @app.post("/api/decisions")
+    def decisions(body: JSONBody):
+        try:
+            return svc.decisions(body.get("flow") or {}, body.get("run_id"))
+        except FlowError as exc:
+            bad(exc)
+
+    @app.get("/api/references")
+    def references():
+        return svc.references()
+
+    @app.post("/api/references/check")
+    def check_reference(body: JSONBody):
+        return svc.check_reference(body)
+
     @app.get("/api/flows")
     def flows():
         return svc.list_flows()

@@ -45,3 +45,11 @@ export const STATUS_STYLE: Record<string, string> = {
   done: "bg-emerald-100 text-emerald-800", cached: "bg-sky-100 text-sky-800", failed: "bg-red-100 text-red-800",
   cancelled: "bg-zinc-200 text-zinc-700",
 };
+
+export interface Reference { key?: string; title?: string; authors?: string[]; year?: number; venue?: string; link?: string; status?: string; note?: string; supports?: string }
+export interface Decision {
+  id: string; topic: string; what: string; decided_by: { kind: string; id: string }; rationale: string; value: any;
+  references: Reference[]; evidence: { kind: string; ref: string; detail: string }[]; node: string; notes: string;
+  uncited_reason: string; confidence: number; label: string; no_reference: boolean; suggestion: string;
+}
+export interface DecisionsResult { decisions: Decision[]; by_node: Record<string, Decision[]>; summary: { decisions: number; no_reference: number; by_label: Record<string, number>; references: string[] } }

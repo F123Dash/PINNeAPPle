@@ -97,6 +97,27 @@ class FlowService:
         cfg = {**learn.default_config(kind, int(in_dim), int(out_dim)), **(config or {}), "kind": kind}
         return learn.architecture(cfg, int(in_dim), int(out_dim), n_fields=int(n_fields))
 
+    # -- decisions and references ---------------------------------------------------------------------------------
+    def decisions(self, flow: dict[str, Any], run_id: str | None = None) -> dict[str, Any]:
+        """Every decision of a flow (planner, LLM, user edits) and of a run's nodes, grouped by node."""
+        from .decisions import by_node, collect, summary
+        reports = {}
+        if run_id:
+            try:
+                reports = {k: v["report"] for k, v in self.store.get_run(run_id)["nodes"].items()}
+            except KeyError:
+                reports = {}
+        ds = collect(as_flow(flow), reports)
+        return {"decisions": ds, "by_node": by_node(ds), "summary": summary(ds)}
+
+    def references(self) -> list[dict[str, Any]]:
+        from .references import link, registry
+        return [{**r, "link": link(r)} for r in registry().values()]
+
+    def check_reference(self, reference: dict[str, Any]) -> dict[str, Any]:
+        from .references import check
+        return check(reference)
+
     # -- flows ----------------------------------------------------------------------------------------------------
     def save_flow(self, flow: dict[str, Any], note: str = "") -> dict[str, Any]:
         f = as_flow(flow)

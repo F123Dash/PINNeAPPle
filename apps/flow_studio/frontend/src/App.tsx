@@ -8,8 +8,9 @@ import { FlowNode, type FlowNodeData } from "./components/FlowNode";
 import { Palette } from "./components/Palette";
 import { ParamPanel } from "./components/ParamPanel";
 import { PlannerDialog } from "./components/PlannerDialog";
+import { DecisionList } from "./components/DecisionsPanel";
 import { ResultPanel } from "./components/ResultPanel";
-import type { Catalog, FlowDoc, NodeResult, NodeType } from "./types";
+import type { Catalog, Decision, DecisionsResult, FlowDoc, NodeResult, NodeType } from "./types";
 import { PORT_COLORS } from "./types";
 
 const nodeTypes = { flow: FlowNode };
@@ -27,7 +28,9 @@ function Studio() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [meta, setMeta] = useState({ id: "untitled", name: "Untitled flow", description: "", meta: {} as Record<string, any> });
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<"params" | "results">("params");
+  const [tab, setTab] = useState<"params" | "results" | "decisions">("params");
+  const [decisions, setDecisions] = useState<DecisionsResult | null>(null);
+  const [showDecisions, setShowDecisions] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<NodeResult | null>(null);
@@ -116,8 +119,25 @@ function Studio() {
     const type = e.dataTransfer.getData("application/pinneapple-node");
     if (type) addNode(type, rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }));
   };
-  const patchNode = (id: string, patch: Partial<FlowNodeData>) =>
+  const patchNode = (id: string, patch: Partial<FlowNodeData>) => {
+    if (patch.params) {
+      const old = (nodes.find((n) => n.id === id)?.data as FlowNodeData | undefined)?.params || {};
+      const changed = Object.keys(patch.params).filter((k) => JSON.stringify(patch.params![k]) !== JSON.stringify(old[k]));
+      if (changed.length) {
+        setMeta((m) => {
+          const edits = (m.meta.user_edits || []).filter((e: any) => !(e.node === id && changed.includes(e.param)));
+          return { ...m, meta: { ...m.meta, user_edits: [...edits, ...changed.map((k) => ({ node: id, param: k, value: patch.params![k] }))] } };
+        });
+      }
+    }
     setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
+  };
+  const annotate = (d: Decision, notes: string, ref: string) => {
+    const [, node, param] = d.id.split(":");
+    setMeta((m) => ({ ...m, meta: { ...m.meta, user_edits: (m.meta.user_edits || []).map((e: any) => e.node === node && e.param === param
+      ? { ...e, notes, references: ref ? [...(e.references || []), ref.startsWith("10.") ? { doi: ref, title: ref } : ref.startsWith("http") ? { url: ref, title: ref } : ref] : e.references }
+      : e) } }));
+  };
 
   // ---- validation -----------------------------------------------------------------------------------------------
   useEffect(() => {
@@ -125,6 +145,15 @@ function Studio() {
     const t = setTimeout(() => api.validate(toDoc()).then((r) => setIssues(r.issues)).catch(() => undefined), 400);
     return () => clearTimeout(t);
   }, [nodes, edges, catalog]);
+
+  useEffect(() => {
+    if (!catalog || running) return;
+    const t = setTimeout(() => api.decisions(toDoc(), runId).then((r) => {
+      setDecisions(r);
+      setNodes((ns) => ns.map((n) => ({ ...n, data: { ...n.data, decisions: r.by_node[n.id] || [] } })));
+    }).catch(() => undefined), 600);
+    return () => clearTimeout(t);
+  }, [edges, meta, catalog, runId, running, nodes.length, JSON.stringify(nodes.map((n) => (n.data as FlowNodeData).params))]);
 
   // ---- running --------------------------------------------------------------------------------------------------
   const run = async (fromNode?: string) => {
@@ -197,6 +226,9 @@ function Studio() {
         <button className="btn" onClick={exportJson}>Export JSON</button>
         <label className="btn cursor-pointer">Import<input type="file" accept=".json" hidden onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} /></label>
         <button className="btn" onClick={() => load({ schema: SCHEMA, id: "untitled", name: "Untitled flow", description: "", nodes: [], edges: [], meta: {} })}>New</button>
+        <button className="btn" onClick={() => setShowDecisions(true)} data-testid="open-decisions">
+          Decisions &amp; references{decisions?.summary.no_reference ? ` (${decisions.summary.no_reference} ⚠)` : ""}
+        </button>
         <div className="flex-1" />
         <span className={`text-[12px] ${errors.length ? "text-red-600" : "text-emerald-700"}`} title={errors.map((e) => `${e.node}: ${e.message}`).join("\n")} data-testid="validity">
           {nodes.length === 0 ? "" : errors.length ? `${errors.length} issue(s)` : "✓ valid"}
@@ -230,9 +262,9 @@ function Studio() {
           {sel && selData ? (
             <>
               <div className="flex border-b text-[12.5px]">
-                {(["params", "results"] as const).map((t) => (
+                {(["params", "results", "decisions"] as const).map((t) => (
                   <button key={t} className={`flex-1 py-2 ${tab === t ? "border-b-2 border-brand-500 font-semibold" : "text-slate-500"}`} onClick={() => setTab(t)} data-testid={`tab-${t}`}>
-                    {t === "params" ? "Parameters" : "Results"}
+                    {t === "params" ? "Parameters" : t === "results" ? "Results" : `Decisions${(selData.decisions || []).some((d) => d.no_reference) ? " ⚠" : ""}`}
                   </button>
                 ))}
               </div>
@@ -245,8 +277,10 @@ function Studio() {
                     onRunFrom={() => run(sel.id)}
                     onDelete={() => { setNodes((ns) => ns.filter((n) => n.id !== sel.id)); setEdges((es) => es.filter((e) => e.source !== sel.id && e.target !== sel.id)); setSelected(null); }}
                   />
+                ) : tab === "results" ? (
+                  <ResultPanel result={result} onAccept={(k) => patchNode(sel.id, { params: { ...selData.params, candidate: k } })} />
                 ) : (
-                  <ResultPanel result={result} />
+                  <div className="p-3"><DecisionList decisions={selData.decisions || []} onAnnotate={annotate} /></div>
                 )}
               </div>
             </>
@@ -281,6 +315,22 @@ function Studio() {
                 onClick={async () => { load(await api.getFlow(x.id)); setLists(null); }}>
                 <b>{x.name}</b> <span className="text-slate-500 text-[12px]">v{x.latest_version}</span>
               </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {showDecisions && decisions && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-start justify-center pt-12" onClick={() => setShowDecisions(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-[820px] max-h-[82vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()} data-testid="decisions-report">
+            <h2 className="font-semibold mb-1">Decisions and references</h2>
+            <div className="text-[12px] text-slate-600 mb-3">
+              {decisions.summary.decisions} decisions · {decisions.summary.no_reference} without a reference · high {decisions.summary.by_label.high}, medium {decisions.summary.by_label.medium}, low {decisions.summary.by_label.low}
+            </div>
+            {Object.entries(decisions.by_node).map(([nid, ds]) => (
+              <div key={nid} className="mb-3">
+                <div className="text-[12px] font-semibold mb-1">{nid || "flow"}</div>
+                <DecisionList decisions={ds} onAnnotate={annotate} />
+              </div>
             ))}
           </div>
         </div>

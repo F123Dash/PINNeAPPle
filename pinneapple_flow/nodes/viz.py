@@ -209,6 +209,16 @@ def report(ctx, inputs, params):
             if v.get("figure") and isinstance(v["figure"], str):
                 parts.append(_img(v["figure"]))
         blob.append(v)
+    from ..decisions import Decision, report_html, report_markdown
+    decisions = list(ctx.meta.get("flow_decisions") or [])
+    for nid, rep in ctx.upstream_reports.items():
+        for d in (rep or {}).get("decisions") or []:
+            decisions.append(Decision.from_dict({**d, "node": d.get("node") or nid}).to_dict())
+    ctx.metric("decisions", len(decisions))
+    ctx.metric("decisions_without_reference", sum(1 for d in decisions if d.get("no_reference")))
+    parts.append(report_html(decisions))
+    md.append(report_markdown(decisions))
+    blob.append({"decisions": decisions})
     fmt = params["format"]
     if fmt == "html":
         p = ctx.path("report.html")

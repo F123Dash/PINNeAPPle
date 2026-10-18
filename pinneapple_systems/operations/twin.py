@@ -515,7 +515,9 @@ class TwinRuntime:
         E = self.filter.ensemble.copy()
         n_ens = E.shape[1]
         rng = np.random.default_rng(self.n_updates)
-        if v_plan is None:
+        if v_plan is None and not self.model.input_names:                # a model without inputs
+            Vp = np.zeros((steps, n_ens, 0))
+        elif v_plan is None:
             recent = np.array([h["inputs"][n] for h in list(self.history)[-self.rules.hold_window:]
                                for n in self.model.input_names]).reshape(-1, len(self.model.input_names))
             if len(recent) == 0:

@@ -53,10 +53,18 @@ def build_prompt(text: str, n: int = 2) -> str:
                                             {"source": "eq", "source_port": "problem", "target": "fd",
                                              "target_port": "problem"}]}}],
                "detected": {"family": "heat", "dimension": 2}}
+    from ..references import registry
+    keys = "\n".join(f"- {k}: {v['title'][:90]} ({v['year']})" for k, v in registry().items())
     return (f"Node catalog (port name:type, * = several edges, ? = optional):\n{catalog_prompt()}\n\n"
+            f"Reference registry (cite these keys; cite anything else only with a DOI or URL you are sure of, "
+            f"never invent one; leave references empty when you have none):\n{keys}\n\n"
             f"Problem description:\n<<<\n{text}\n>>>\n\n"
             f"Propose {n} different ways to solve it with these nodes (e.g. classical + PINN with validation, a "
-            f"surrogate, an inverse problem). Answer with JSON shaped like:\n{json.dumps(example)}")
+            f"surrogate, an inverse problem). For every proposal list its decisions (the identified equations, the "
+            f"dimension, conditions and coefficients, the method, the architecture and hyperparameters, validation "
+            f"thresholds) with their references: \"decisions\": [{{\"node\": \"eq\", \"topic\": \"equations\", "
+            f"\"what\": \"...\", \"rationale\": \"...\", \"references\": [\"evans2010pde\"]}}]. "
+            f"Answer with JSON shaped like:\n{json.dumps(example)}")
 
 
 def _extract_json(raw: str) -> dict[str, Any]:
@@ -195,8 +203,22 @@ def plan_llm(text: str, *, provider: str, model: str = "", base_url: str = "", a
             f = Flow.from_dict(doc)
         except FlowError:
             continue
+        from ..decisions import TOPICS, llm_decision
+        node_ids = {n.id for n in f.nodes}
+        decs = []
+        for d in (p.get("decisions") or [])[:60]:
+            if not isinstance(d, dict) or not d.get("what"):
+                continue
+            rs = [r if isinstance(r, (dict, str)) else str(r) for r in (d.get("references") or [])][:8]
+            decs.append(llm_decision(f"{provider}/{model or 'default'}", topic=str(d.get("topic") or "other")
+                                     if str(d.get("topic")) in TOPICS else "other", what=str(d["what"])[:300],
+                                     node=str(d.get("node")) if str(d.get("node")) in node_ids else "",
+                                     rationale=str(d.get("rationale") or "")[:600], references=rs).to_dict())
+        decs.append(llm_decision(f"{provider}/{model or 'default'}", topic="route",
+                                 what=f"route: {str(p.get('title') or f.name)[:120]}",
+                                 rationale=str(p.get("rationale") or "")[:600]).to_dict())
         f.meta = {"title": str(p.get("title") or f.name)[:120], "planner": label + ("+repair" if notes else ""),
-                  "repairs": notes}
+                  "repairs": notes, "decisions": decs}
         f.description = str(p.get("rationale") or "")[:2000]
         props.append({"title": f.meta["title"], "rationale": f.description, "flow": f.to_dict(),
                       "planner": f.meta["planner"], "repairs": notes})

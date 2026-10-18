@@ -112,6 +112,9 @@ def surrogate(ctx, inputs, params):
     d = dataset_of(src)
     n_fields = len(src.get("fields") or ["u"])
     cfg = _cfg(params, d)
+    rid = f"surrogate.{cfg['kind']}" if cfg["kind"] in ("deeponet", "fno", "pod_mlp", "mlp") else "surrogate.mlp"
+    ctx.decide(rid, f"{cfg['kind']} surrogate", cfg["kind"])
+    ctx.auto("architecture.default_sizes", "suggested architecture", "architecture", value=cfg)
     every = max(1, int(params["epochs"]) // 10)
 
     def progress(ep, v):
@@ -153,6 +156,8 @@ def hpo(ctx, inputs, params):
     d = dataset_of(src)
     n_fields = len(src.get("fields") or ["u"])
     cfg = _cfg(params, d)
+    ctx.decide("hpo.search", "TPE when Optuna is installed, else random search; validation split only")
+    ctx.auto("hpo.ranges", f"search ranges {params['space']}", "space", value=params["space"])
     try:
         trials, backend = learn.tune(cfg, d, params["space"], n_trials=int(params["n_trials"]),
                                      epochs=int(params["trial_epochs"]), seed=int(params["seed"]),
@@ -246,6 +251,7 @@ def sensitivity(ctx, inputs, params):
         with torch.no_grad():
             Y = model(torch.tensor(np.asarray(P, np.float32))).numpy()
         return {"mean": Y.mean(1), "max": Y.max(1), "l2": np.sqrt((Y ** 2).mean(1))}[q]
+    ctx.decide("uq.sobol", f"Sobol indices of the field {q} over the training ranges", space)
     res = pp.sobol_indices(fn, space, n=int(params["n"]), seed=int(params["seed"]))
     S1, ST = np.atleast_2d(res.S1)[0], np.atleast_2d(res.ST)[0]
     ctx.table(f"Sobol indices of the field {q}", ["parameter", "S1", "ST"],

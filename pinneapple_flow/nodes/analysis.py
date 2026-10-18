@@ -85,6 +85,12 @@ def compare(ctx, inputs, params):
     if not use_exact and ref is None:
         raise StepFailed("no reference: connect a reference solution or a problem with an exact solution")
     base = cands[0]
+    ctx.decide("validation.reference", f"reference: {'exact solution' if use_exact else 'reference input'}",
+               value=mode)
+    ctx.auto("validation.threshold", f"pass at relative L2 <= {params['tolerance']:g}", "tolerance",
+             value=params["tolerance"])
+    if "tolerance" in ctx.explicit and params["tolerance"] != 0.02:
+        ctx.user_choice("validation", f"pass threshold set to {params['tolerance']:g}", params["tolerance"])
     X = grid_points(base["axes"], base["coords"])
     if use_exact:
         R = exact(X)
@@ -225,6 +231,7 @@ def lab(ctx, inputs, params):
             shutil.copy(figure, dst)
             lctx.files.setdefault("figures", []).append(os.path.relpath(dst, lctx.dir))
     FlowValidation.run = run_exp
+    ctx.decide("validation.lab_tiers", "grade with the Lab curation; seal only tiers A and B")
     res = lab_run(FlowValidation, root=root)
     cur = curate(LabStore(root))
     item = cur["items"].get(name, {})

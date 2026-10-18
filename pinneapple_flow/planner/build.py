@@ -11,6 +11,14 @@ class FlowBuilder:
         self.name, self.description = name, description
         self.nodes: dict[str, dict[str, Any]] = {}
         self.edges: list[dict[str, str]] = []
+        self.decisions: list[dict[str, Any]] = []
+
+    def decide(self, rule_id: str, what: str, *, node: str = "", value: Any = None, rationale: str = "",
+               extra: tuple[str, ...] = ()) -> None:
+        """Record why a node or parameter was chosen (a heuristic rule with its references)."""
+        from ..decisions import rule_decision
+        self.decisions.append(rule_decision(rule_id, what=what, node=node, value=value, rationale=rationale,
+                                            extra=extra).to_dict())
 
     def add(self, node_id: str, type_: str, params: dict[str, Any] | None = None, *, label: str = "") -> str:
         if node_id in self.nodes:
@@ -25,8 +33,10 @@ class FlowBuilder:
     def flow(self, meta: dict[str, Any] | None = None) -> Flow:
         nodes = [dict(n) for n in self.nodes.values()]
         layout(nodes, self.edges)
-        return Flow(name=self.name, description=self.description, nodes=nodes, edges=list(self.edges),
-                    meta=dict(meta or {}))
+        meta = dict(meta or {})
+        if self.decisions:
+            meta["decisions"] = list(self.decisions)
+        return Flow(name=self.name, description=self.description, nodes=nodes, edges=list(self.edges), meta=meta)
 
     def proposal(self, title: str, rationale: str, **meta) -> dict[str, Any]:
         f = self.flow({"title": title, **meta})

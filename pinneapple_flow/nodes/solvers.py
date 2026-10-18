@@ -81,6 +81,8 @@ def classical(ctx, inputs, params):
         raise StepFailed(f"unknown coefficients {sys_.unknowns}: use an inverse node, or give them values")
     axes = eval_axes(problem, params["n"] or None, params["n_t"] or None)
     coords = sys_.coords
+    ctx.auto("method.fd" if params["method"] == "fd" else "method.fem", f"method: {params['method']}", "method",
+             value=params["method"])
     t0 = time.perf_counter()
     if params["method"] == "fd":
         from pinneapple_simulation.numerical_solvers.symbolic_fd import FDError, solve_fd
@@ -160,6 +162,12 @@ def _pinn_common(ctx, problem, params, unknowns=None, data=None):
     except ValueError as exc:
         raise StepFailed(str(exc)) from None
     ctx.view("architecture", _architecture_view(model))
+    ctx.auto("architecture.default_sizes", f"tanh MLP width {params['width']}, depth {params['depth']}", "width",
+             "depth", value={"width": params["width"], "depth": params["depth"]})
+    ctx.auto("method.pinn_training", f"{params['adam_steps']} Adam steps (lr {params['lr']}) then "
+             f"{params['lbfgs_steps']} L-BFGS", "adam_steps", "lbfgs_steps", "lr",
+             value={k: params[k] for k in ("adam_steps", "lbfgs_steps", "lr", "n_collocation")})
+    ctx.decide("validation.threshold", "PINN checked at fresh points with validate_pinn's tolerances")
     steps = int(params["adam_steps"])
     every = max(1, steps // 20)
 
@@ -254,6 +262,7 @@ def discover(ctx, inputs, params):
         raise StepFailed("no unknown coefficients: list them in the equations node's 'unknowns'")
     d = load_artifact(inputs["data"])
     guess = {k: float(params["initial_guess"].get(k, 1.0)) for k in sys_.unknowns}
+    ctx.decide("inverse.pinn", f"identify {', '.join(sys_.unknowns)} with an inverse PINN", value=guess)
     net, rep, sol, mdl, secs = _pinn_common(ctx, problem, params, unknowns=guess, data=(d["X"], d["Y"]))
     est = net.estimates()
     truth = d.get("truth_json")
@@ -322,6 +331,8 @@ def calibrate(ctx, inputs, params):
                                                                         (lo + hi) / 2)), lower=float(lo),
                                   upper=float(hi)))
     model = inv.CallableModel(forward, inputs=coords, parameters=pars)
+    ctx.decide("inverse.calibration", f"least squares on {', '.join(sys_.unknowns)} with the FD solver",
+               value={p.name: [p.lower, p.upper] for p in pars})
     sigma = float(np.std(Y[:, 0]) * 0.01 + 1e-9) if "sigma" not in d else float(d["sigma"])
     obs = inv.Observations({c: X[:, i] for i, c in enumerate(coords)}, sigma, values=Y[:, 0])
     t0 = time.perf_counter()

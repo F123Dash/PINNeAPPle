@@ -7,13 +7,14 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..rules import RULES
 from ..templates import FAMILIES, template
 from .build import FlowBuilder
 
 # (family, weight) per keyword; matched at word starts, case-insensitive
 FAMILY_WORDS: dict[str, dict[str, float]] = {
-    "heat": {"heat": 2, "thermal": 1.5, "temperature": 1.5, "conduction": 2, "diffusion": 1.2, "cooling": 1,
-             "heating": 1, "calor": 2, "térmic": 1.5, "termic": 1.5, "temperatura": 1.5, "difus": 1.2,
+    "heat": {"heat": 2, "thermal": 1.5, "temperature": 1.5, "conduction": 2, "diffusion": 1.2, "cool": 1,
+             "heating": 1, "warm": 0.8, "furnace": 1, "insulat": 0.8, "calor": 2, "térmic": 1.5, "termic": 1.5, "temperatura": 1.5, "difus": 1.2,
              "condução": 2, "resfria": 1, "aquec": 1},
     "wave": {"wave": 2, "vibrat": 2, "acoustic": 1, "string": 1.5, "membrane": 1.5, "drum": 1.5, "seismic": 1.5,
              "onda": 2, "vibra": 2, "corda": 1.5, "membrana": 1.5, "acústic": 1},
@@ -218,7 +219,11 @@ def plan_heuristic(text: str, *, max_proposals: int = 3) -> dict[str, Any]:
     intents = set(det["intents"])
     props: list[dict[str, Any]] = []
     warnings: list[str] = []
-    if "twin" in intents:
+    explicit_domain = det["dimension"] is not None or any(_hit(text.lower(), k) for k in ("pde", "equation",
+                                                                                          "equação"))
+    if "twin" in intents and det["family"] and explicit_domain:
+        props.append(_pde_twin(det, text))
+    elif "twin" in intents:
         props.append(_twin(det, text))
     if "forecast" in intents:
         props.append(_forecast(det))
@@ -266,7 +271,45 @@ def _problem(fb: FlowBuilder, det, family, dim, *, prefix="", unknowns=None, lab
     eq = fb.add(f"{prefix}eq", "equations.system", eqp, label=f"{family.replace('_', '-')} equations")
     fb.connect(geo, "geometry", eq, "geometry")
     fb.connect(mesh, "mesh", eq, "mesh")
+    if not prefix or prefix == "true_":
+        _decide_problem(fb, det, family, dim, geo, eq, eqp)
     return eq, t
+
+
+def _decide_problem(fb: FlowBuilder, det, family, dim, geo, eq, eqp):
+    """The decision records of the physics: family, dimension, conditions, coefficients, exact solution."""
+    scores = det.get("family_scores") or {}
+    if det.get("family") and scores:
+        words = ", ".join(f"{k} ({v:g})" for k, v in sorted(scores.items(), key=lambda kv: -kv[1])[:3])
+        fb.decide("family.keywords", f"PDE family: {family}", node=eq, value=family,
+                  rationale=f"keyword scores {words}; " + ("steady wording turned heat into "
+                                                         f"{family}" if family in ("laplace", "poisson")
+                                                         and "heat" in scores else "highest score wins"))
+    elif det.get("family") is None:
+        fb.decide("family.default", f"PDE family: {family} (default)", node=eq, value=family)
+    rid = f"family.{family}" if f"family.{family}" in RULES else "family.keywords"
+    fb.decide(rid, f"equations: {'; '.join(eqp['pdes'])}", node=eq, value=eqp["pdes"])
+    if det.get("dimension"):
+        fb.decide("dimension.keywords", f"{dim}-D", node=geo, value=dim)
+    else:
+        fb.decide("dimension.default", f"{dim}-D (no dimension in the text)", node=geo, value=dim)
+    fb.decide("domain.unit_box", "domain extent and time interval", node=geo)
+    if any(c["kind"] == "neumann" for c in eqp["conditions"]) and "neumann" in det.get("boundary", []):
+        fb.decide("bc.insulated", "insulated faces: zero normal derivative", node=eq,
+                  value=[c for c in eqp["conditions"] if c["kind"] == "neumann"])
+    fb.decide("bc.dirichlet_template", "boundary conditions of the template", node=eq,
+              value=[c for c in eqp["conditions"] if c["kind"] != "initial"])
+    if any(c["kind"] == "initial" for c in eqp["conditions"]):
+        fb.decide("ic.template", "initial condition", node=eq,
+                  value=[c for c in eqp["conditions"] if c["kind"] == "initial"])
+    for k, v in eqp["coefficients"].items():
+        if k in det.get("coefficients", {}):
+            fb.decide("coef.from_text", f"{k} = {v:g} (from the description)", node=eq, value={k: v})
+        else:
+            fb.decide("coef.template_default", f"{k} = {v:g} (template default)", node=eq, value={k: v})
+    if eqp.get("exact"):
+        fb.decide("exact.cole_hopf" if eqp["exact"] == "cole_hopf" else "exact.template",
+                  f"exact solution: {eqp['exact']}", node=eq, value=eqp["exact"])
 
 
 def _solve(det, family, dim, target_dim=None):
@@ -307,6 +350,21 @@ def _solve(det, family, dim, target_dim=None):
     rep = fb.add("report", "export.report", {"title": f"{family} in {dim}-D"}, label="Report")
     fb.connect(val, "metrics", rep, "items")
     fb.connect(val, "figure", rep, "items")
+    fb.decide("method.fd", "finite differences (method of lines) as the classical reference", node=fd)
+    if "fem" in fb.nodes:
+        fb.decide("method.fem", "P1 finite elements as a second classical method", node="fem")
+    fb.decide("method.pinn", "a PINN on the same equations", node=pinn)
+    fb.decide("method.pinn_training", f"{steps} Adam steps then 300 L-BFGS, width 32, depth 4", node=pinn,
+              value={"adam_steps": steps, "lbfgs_steps": 300})
+    fb.decide("architecture.default_sizes", "PINN width 32, depth 4", node=pinn, value={"width": 32, "depth": 4})
+    fb.decide("validation.reference", "compare against " + ("the exact solution" if t["exact"] else
+                                                            "the finite-difference solution"), node=val)
+    fb.decide("validation.threshold", "pass at relative L2 <= 0.02", node=val, value=0.02)
+    fb.decide("validation.lab_tiers", "Lab curation and seal of the validation", node=lab)
+    fb.decide("route.alternatives", "route: classical solver + PINN, validated")
+    if target_dim:
+        fb.decide("dimension.lap_switch", f"switch {dim}-D -> {target_dim}-D on the domain node; equations follow "
+                  "the template", node="eq", value=[dim, target_dim])
     why = (f"Solve the {t['description']} in {dim}-D with finite differences"
            + (" and finite elements" if len(methods) > 2 else "") + " and a PINN, and measure both against "
            + ("the exact solution" if t["exact"] else "the finite-difference reference")
@@ -345,6 +403,15 @@ def _surrogate(det, family, dim):
     fb.connect(data, "data", sur, "data")
     uq = fb.add("sobol", "uq.sensitivity", {"quantity": "mean"}, label="Sensitivity")   # cheap on a surrogate
     fb.connect(sur, "model", uq, "model")
+    fb.decide("sampling.lhs", f"Latin hypercube over {vary}", node=data, value=vary)
+    fb.decide("method.fd", "training data from the finite-difference solver", node=data)
+    fb.decide(f"surrogate.{kind}", f"{kind} surrogate", node=sur, value=kind)
+    fb.decide("architecture.default_sizes", "suggested architecture sizes (see the preview)", node=sur)
+    if "hpo" in intents:
+        fb.decide("hpo.search", "TPE (Optuna) when installed, else random search", node=sur)
+        fb.decide("hpo.ranges", "search ranges", node=sur, value=fb.nodes[sur]["params"]["space"])
+    fb.decide("uq.sobol", "Sobol indices of the field mean", node=uq)
+    fb.decide("route.alternatives", "route: parametric data + surrogate")
     rep = fb.add("report", "export.report", {"title": f"{family} surrogate"}, label="Report")
     fb.connect(sur, "metrics", rep, "items")
     why = (f"Generate {fb.nodes['sweep']['params']['n_samples']} finite-difference solutions over "
@@ -378,6 +445,10 @@ def _inverse(det, family, dim):
     rep = fb.add("report", "export.report", {"title": f"identify {unknown}"}, label="Report")
     fb.connect(disc, "metrics", rep, "items")
     fb.connect(cal, "metrics", rep, "items")
+    fb.decide("inverse.pinn", f"identify {unknown} with an inverse PINN", node=disc, value=unknown)
+    fb.decide("inverse.calibration", f"identify {unknown} by calibration with the FD solver", node=cal)
+    fb.decide("method.fd", "synthetic measurements from the FD solver", node=fd)
+    fb.decide("route.alternatives", "route: inverse problem")
     why = (f"Treat {unknown} as unknown: synthetic sensor data from a finite-difference solution (replace with your "
            f"measurements in a data-ingest node), then identify it two ways: an inverse PINN and a least-squares "
            f"calibration with the classical solver.")
@@ -391,10 +462,55 @@ def _twin(det, text):
                 label="Twin runtime")
     rep = fb.add("report", "export.report", {"title": "digital twin"}, label="Report")
     fb.connect(tw, "metrics", rep, "items")
+    fb.decide("twin.design", "twin of the heated tank: plant stream, EnKF, alerts", node=tw)
+    fb.decide("twin.enkf", "ensemble Kalman filter", node=tw)
+    fb.decide("twin.parameter_state", "leak flow and heater efficiency as estimated states", node=tw)
+    fb.decide("twin.alert_thresholds", "alert thresholds", node=tw)
     why = ("Stream sensor readings (the simulated heated tank; switch the source to MQTT or connect recorded data) "
            "into the twin runtime: an ensemble Kalman filter estimates level, temperature and hidden states (leak "
            "flow, heater efficiency) with uncertainty and raises alerts.")
     return fb.proposal("Digital twin on a sensor stream", why, family="twin")
+
+
+def _pde_twin(det, text):
+    """A twin generated from the description: identify the equations, stream sensors, build the twin."""
+    fam = det["family"] or "heat"
+    fb = FlowBuilder(f"digital twin ({fam})")
+    gen = fb.add("problem", "problem.generic", {"description": text, "dimension": det["dimension"] or 0},
+                 label="Identified problem")
+    anomaly = any(_hit(text.lower(), k) for k in ("detect", "change", "degrad", "anomal", "fault", "drift",
+                                                  "detectar", "mudança", "falha"))
+    t = template(fam if fam in FAMILIES else "heat", det["dimension"] or 1) if fam != "burgers" else template(fam, 1)
+    coef = next(iter({**t["coefficients"], **det["coefficients"]}), None)
+    tend = (t["time"] or [0.0, 1.0])[1]
+    fault = {"t": round(0.5 * tend, 6), coef: round(1.5 * {**t["coefficients"], **det["coefficients"]}[coef], 8)} \
+        if anomaly and coef else {}
+    dim = det["dimension"] or 1
+    sensors = [0.2, 0.4, 0.6, 0.8] if dim == 1 else [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75],
+                                                     [0.5, 0.5]]
+    live = fb.add("live", "data.stream", {"source": "simulated", "sensors": sensors, "t_end": tend,
+                                          "dt": round(tend / 300, 6), "fault": fault}, label="Live data")
+    fb.connect(gen, "problem", live, "problem")
+    tw = fb.add("twin", "twin.auto", {"estimate": [coef] if coef else []}, label="Digital twin")
+    fb.connect(gen, "problem", tw, "problem")
+    fb.connect(live, "stream", tw, "stream")
+    v3 = fb.add("view3d", "viz.field3d", {}, label="Twin 3-D view")
+    fb.connect(tw, "solution", v3, "solution")
+    rep = fb.add("report", "export.report", {"title": "digital twin"}, label="Report")
+    fb.connect(tw, "metrics", rep, "items")
+    fb.decide("twin.design", "twin generated from the identified equations", node=tw)
+    fb.decide("twin.coarse_model", "identified PDE on a coarse grid as the twin model", node=tw)
+    fb.decide("twin.enkf", "ensemble Kalman filter for the state", node=tw)
+    if coef:
+        fb.decide("twin.parameter_state", f"calibrate {coef} live", node=tw, value=coef)
+    if fault:
+        fb.decide("twin.simulated_fault", f"simulated asset changes {coef} at t = {fault['t']:g}", node=live,
+                  value=fault)
+    fb.decide("route.alternatives", "route: automatic digital twin")
+    why = ("Identify the governing equations from the description, simulate (or connect) the sensors, and build the "
+           "twin: the identified PDE on a coarse grid with an ensemble Kalman filter, live calibration of "
+           f"{coef or 'the coefficients'}, alerts when the asset stops behaving like the model, 3-D view.")
+    return fb.proposal("Digital twin generated from the description", why, family=fam)
 
 
 def _forecast(det):
@@ -402,6 +518,8 @@ def _forecast(det):
     fc = fb.add("forecast", "forecast.lab", {"source": "elnino"}, label="Forecast lab")
     rep = fb.add("report", "export.report", {"title": "forecast"}, label="Report")
     fb.connect(fc, "metrics", rep, "items")
+    fb.decide("forecast.predictability_first", "predictability report before models", node=fc)
+    fb.decide("forecast.baselines", "baselines and DM tests on an untouched test period", node=fc)
     why = ("Measure predictability first (surrogate tests), then compare baselines and learned forecasters on "
            "purged walk-forward folds with an untouched test period.")
     return fb.proposal("Forecast a near-random series", why, family="forecast")
@@ -412,6 +530,7 @@ def _flight(det):
     fl = fb.add("takeoff", "flight.takeoff", {}, label="Take-off (6-DOF)")
     rep = fb.add("report", "export.report", {"title": "take-off"}, label="Report")
     fb.connect(fl, "metrics", rep, "items")
+    fb.decide("flight.raymer", "compare with Raymer's closed form", node=fl)
     return fb.proposal("Aircraft take-off simulation", "6-DOF take-off with the vortex lattice in the loop, "
                        "against Raymer's closed form.", family="flight")
 

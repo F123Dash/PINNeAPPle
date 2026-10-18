@@ -40,6 +40,9 @@ def twin(ctx, inputs, params):
     from pinneapple_systems.operations.twin import LumpedTankModel
     model = LumpedTankModel(dt=10.0)
     src = params["source"]
+    ctx.decide("twin.enkf", "ensemble Kalman filter (48 members) on the heated-tank model")
+    ctx.decide("twin.parameter_state", "leak flow and heater efficiency estimated as states")
+    ctx.decide("twin.alert_thresholds", "AlertRules defaults")
     t0 = time.perf_counter()
     truth = None
     if src == "simulated":
@@ -166,6 +169,8 @@ def forecast(ctx, inputs, params):
         y = data.y
         min_hist = 64
     ctx.metric("length", int(len(y)))
+    ctx.decide("forecast.predictability_first", "predictability report (surrogate tests) before the models")
+    ctx.decide("forecast.baselines", f"baselines and learned models, untouched test period, horizons {H}", H)
     t0 = time.perf_counter()
     rep = predictability_report(y, horizons=tuple(H), n_surrogates=int(params["n_surrogates"]))
     for k in ("tested_on", "ar1_coefficient", "permutation_entropy", "sample_entropy"):
@@ -240,6 +245,7 @@ def takeoff(ctx, inputs, params):
         takeoff_metrics,
     )
     ac = catalog.build(params["aircraft"])
+    ctx.decide("flight.raymer", "take-off distance compared with Raymer's closed form")
     hist = simulate_takeoff(ac, kind=params["kind"])
     m = takeoff_metrics(ac, hist)
     ray = raymer_takeoff(ac)

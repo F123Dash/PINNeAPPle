@@ -99,14 +99,17 @@ class _Grid:
         mesh = np.meshgrid(*[self.axes[c] for c in self.names], indexing="ij")
         self.coords = dict(zip(self.names, mesh, strict=True))
 
+    def _ax(self, c):
+        return self.names.index(c) - len(self.names)          # from the end: works with a leading ensemble axis
+
     def d1(self, a, c):
-        ax, h = self.names.index(c), self.h[c]
+        ax, h = self._ax(c), self.h[c]
         if c in self.periodic:
             return (np.roll(a, -1, ax) - np.roll(a, 1, ax)) / (2 * h)
         return np.gradient(a, h, axis=ax, edge_order=2)
 
     def d2(self, a, c):
-        ax, h = self.names.index(c), self.h[c]
+        ax, h = self._ax(c), self.h[c]
         if c in self.periodic:
             return (np.roll(a, -1, ax) - 2 * a + np.roll(a, 1, ax)) / h ** 2
         a = np.moveaxis(a, ax, 0)
@@ -128,7 +131,7 @@ class _Grid:
     def face(self, c, side, depth=0):
         idx = [slice(None)] * len(self.names)
         idx[self.names.index(c)] = depth if side == "min" else -1 - depth
-        return tuple(idx)
+        return (Ellipsis, *idx)
 
 
 # ----------------------------------------------------------------------------------------------- the solver
@@ -143,14 +146,16 @@ def _faces_of(on: str, spatial, periodic):
     raise FDError(f"unknown boundary {on!r}")
 
 
-def solve_fd(system, bounds: dict[str, tuple[float, float]], *, n: int | dict[str, int] = 64,
-             n_save: int = 41, coefficients: dict[str, float] | None = None, relax: float = 2e4,
-             rtol: float = 1e-6, atol: float = 1e-8, max_unknowns: int = 250_000, newton_tol: float = 1e-9,
-             max_newton: int = 25) -> FDResult:
-    """Solve ``system`` on the box ``bounds`` (one interval per coordinate, ``t`` included when time-dependent)
-    with ``n`` nodes per spatial axis. Returns :class:`FDResult`; FDError when the system is outside the scheme."""
-    t0 = time.perf_counter()
-    issues = [i for i in system.issues() if "without a value" in i and not coefficients]
+class FDOperator:
+    """A parsed system compiled on a grid: the right-hand sides, the face conditions and the initial state. Arrays
+    may carry leading axes (an ensemble); coefficients named in ``keep`` stay symbolic and are read from the
+    environment (``extra``), so an ensemble of coefficient values can be stepped at once."""
+
+
+def compile_system(system, bounds: dict[str, tuple[float, float]], *, n: int | dict[str, int] = 64,
+                   coefficients: dict[str, float] | None = None, keep: tuple[str, ...] = ()) -> FDOperator:
+    """Compile ``system`` for finite differences (see :func:`solve_fd`, which uses it)."""
+    issues = [i for i in system.issues() if "without a value" in i and not coefficients and not keep]
     if issues:
         raise FDError("; ".join(issues))
     ctx = system.ctx
@@ -166,12 +171,12 @@ def solve_fd(system, bounds: dict[str, tuple[float, float]], *, n: int | dict[st
         if c.kind == "periodic":
             periodic |= {f for f, _ in _faces_of(c.on, spatial, set())}
     g = _Grid(spatial, bounds, nn, periodic)
-    n_nodes = int(np.prod(g.shape))
     fields = list(ctx.fields)
-    vals = {**system.coefficients, **(coefficients or {})}
+    vals = {k: v for k, v in {**system.coefficients, **(coefficients or {})}.items() if k not in keep}
     rep = {sp.Symbol(k, real=True): sp.Float(v) for k, v in vals.items()}
+    rep.update({sp.Symbol(k, real=True): sp.Symbol(k) for k in keep})
     R = [e.residual.xreplace(rep).doit() for e in system.pdes]
-    left = sorted({str(s) for r in R for s in r.free_symbols} - set(ctx.coords))
+    left = sorted({str(s) for r in R for s in r.free_symbols} - set(ctx.coords) - set(keep))
     if left:
         raise FDError(f"coefficient(s) without a value: {left}")
     unsteady = system.time_dependent
@@ -258,8 +263,9 @@ def solve_fd(system, bounds: dict[str, tuple[float, float]], *, n: int | dict[st
     unconstrained = [f"{a}_{s}" for a in spatial if a not in periodic for s in ("min", "max")
                      if (a, s) not in covered]
 
-    def environment(U: dict[str, np.ndarray], t: float | None):
+    def environment(U: dict[str, np.ndarray], t: float | None, extra: dict[str, Any] | None = None):
         env: dict[str, Any] = dict(g.coords)
+        env.update(extra or {})
         if t is not None:
             env[tname] = t
         env.update(U)
@@ -271,12 +277,56 @@ def solve_fd(system, bounds: dict[str, tuple[float, float]], *, n: int | dict[st
         out = []
         for f, ax, side, tgt in face_rules:
             sl = g.face(ax, side)
-            fenv = {k: (v[sl] if isinstance(v, np.ndarray) and v.shape == g.shape else v) for k, v in env.items()}
+            fenv = {k: (v[sl] if isinstance(v, np.ndarray) and v.ndim >= len(g.shape) else v)
+                    for k, v in env.items()}
             fenv["__u1"] = U[f][g.face(ax, side, 1)]
             fenv["__u2"] = U[f][g.face(ax, side, 2)]
             out.append((f, sl, np.broadcast_to(tgt(fenv), U[f][sl].shape)))
         return out
 
+    op = FDOperator()
+    op.system, op.g, op.fields, op.order, op.aux, op.compiled = system, g, fields, order if unsteady else {}, aux \
+        if unsteady else {}, compiled
+    op.unsteady, op.tname, op.rep, op.fn, op.ctx = unsteady, tname, rep, fn, ctx
+    op.environment, op.face_targets, op.unconstrained, op.periodic = environment, face_targets, unconstrained, \
+        periodic
+    op.keep = tuple(keep)
+    return op
+
+
+def initial_state(op: FDOperator, t0: float) -> dict[tuple[str, bool], np.ndarray]:
+    """Initial values (and ``f_t`` for second order) of every field on the grid, faces set by their conditions."""
+    g, fn, fields, ctx = op.g, op.fn, op.fields, op.ctx
+    names = [(f, False) for f in fields] + [(f, True) for f in fields if op.order.get(f) == 2]
+    init = {nm: np.zeros(g.shape) for nm in names}
+    env0 = dict(g.coords)
+    env0[op.tname] = t0
+    for c in [c for c in op.system.conditions if c.kind == "initial"]:
+        lhs = c.lhs
+        if lhs in fn.values():
+            key = (lhs.func.__name__, False)
+        elif isinstance(lhs, sp.Derivative) and lhs.expr in fn.values() and [str(s) for s, _ in
+                                                                             lhs.variable_count] == [op.tname]:
+            key = (lhs.expr.func.__name__, True)
+        else:
+            raise FDError(f"initial condition {c.text!r}: write it as 'u = ...' or 'u_t = ...'")
+        val = _compile(_plainder(c.rhs.xreplace(op.rep), fn, fields, ctx))(env0)
+        init[key] = np.broadcast_to(np.asarray(val, float), g.shape).copy()
+    return init
+
+
+def solve_fd(system, bounds: dict[str, tuple[float, float]], *, n: int | dict[str, int] = 64,
+             n_save: int = 41, coefficients: dict[str, float] | None = None, relax: float = 2e4,
+             rtol: float = 1e-6, atol: float = 1e-8, max_unknowns: int = 250_000, newton_tol: float = 1e-9,
+             max_newton: int = 25) -> FDResult:
+    """Solve ``system`` on the box ``bounds`` (one interval per coordinate, ``t`` included when time-dependent)
+    with ``n`` nodes per spatial axis. Returns :class:`FDResult`; FDError when the system is outside the scheme."""
+    t0 = time.perf_counter()
+    op = compile_system(system, bounds, n=n, coefficients=coefficients)
+    g, fields, order, aux, compiled = op.g, op.fields, op.order, op.aux, op.compiled
+    unsteady, tname, environment, face_targets = op.unsteady, op.tname, op.environment, op.face_targets
+    spatial, periodic, unconstrained = op.ctx.spatial, op.periodic, op.unconstrained
+    n_nodes = int(np.prod(g.shape))
     nst = sum(order[f] for f in fields) if unsteady else len(fields)
     if n_nodes * max(nst, 1) > max_unknowns:
         raise FDError(f"{n_nodes * nst} unknowns > max_unknowns={max_unknowns}: use fewer nodes")
@@ -294,28 +344,7 @@ def solve_fd(system, bounds: dict[str, tuple[float, float]], *, n: int | dict[st
     from scipy.integrate import solve_ivp
     T0, T1 = map(float, bounds[tname])
     names = [(f, False) for f in fields] + [(f, True) for f in fields if order[f] == 2]
-    init = {}
-    ic = [c for c in system.conditions if c.kind == "initial"]
-    for f, is_aux in names:
-        init[(f, is_aux)] = np.zeros(g.shape)
-    env0 = dict(g.coords)
-    env0[tname] = T0
-    for c in ic:
-        C = c.residual.xreplace(rep).doit()
-        lhs = c.lhs
-        if lhs in fn.values():
-            f = lhs.func.__name__
-            key = (f, False)
-        elif isinstance(lhs, sp.Derivative) and lhs.expr in fn.values() and [str(s) for s, _ in
-                                                                             lhs.variable_count] == [tname]:
-            f = lhs.expr.func.__name__
-            key = (f, True)
-        else:
-            raise FDError(f"initial condition {c.text!r}: write it as 'u = ...' or 'u_t = ...'")
-        rhs = c.rhs.xreplace(rep)
-        val = _compile(_plainder(rhs, fn, fields, ctx))(env0)
-        init[key] = np.broadcast_to(np.asarray(val, float), g.shape).copy()
-        del C
+    init = initial_state(op, T0)
     K = relax / (T1 - T0)
     sizes = [n_nodes] * len(names)
 
