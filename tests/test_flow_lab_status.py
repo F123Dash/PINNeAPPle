@@ -96,3 +96,20 @@ def test_api_routes(tmp_path, monkeypatch):
     assert r.status_code == 200 and r.json()["valid"]
     assert c.post("/api/flows/insert-nodes", json={"flow": doc, "nodes": [{"type": "nope"}]}).status_code == 400
     app.state.service.shutdown()
+
+
+def test_one_after_run_hook_point(tmp_path, monkeypatch):
+    from pinneapple_flow import runtime
+    seen = []
+
+    def hook(result, flow):
+        seen.append((result.run_id, flow.id))
+
+    def broken(result, flow):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(runtime, "RUN_FINISHED_HOOKS", [hook, broken])
+    f = pf.Flow("hooked", nodes=[{"id": "g", "type": "geometry.domain", "params": {"dimension": 1}}])
+    r = pf.run(f, workdir=tmp_path)
+    assert r.status == "done" and seen == [(r.run_id, "hooked")]
+    assert r.hooks["broken"].startswith("failed: RuntimeError")
+    assert r.hooks["export_to_lab"].startswith("skipped") or runtime.lab_export_status() == "available"

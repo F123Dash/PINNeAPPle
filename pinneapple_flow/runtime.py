@@ -287,6 +287,7 @@ class FlowRunResult:
     nodes: dict[str, dict[str, Any]] = field(default_factory=dict)
     workdir: str = ""
     seconds: float = 0.0
+    hooks: dict[str, str] = field(default_factory=dict)     # what each after-run hook did (on_run_finished)
 
     def output(self, node: str, port: str):
         return ((self.nodes.get(node) or {}).get("outputs") or {}).get(port)
@@ -299,7 +300,7 @@ class FlowRunResult:
 
     def to_dict(self) -> dict[str, Any]:
         return {"run_id": self.run_id, "status": self.status, "nodes": self.nodes, "workdir": self.workdir,
-                "seconds": self.seconds}
+                "seconds": self.seconds, "hooks": self.hooks}
 
 
 def node_states(runner: WorkflowRunner, run_id: str, *, with_logs: bool = False) -> dict[str, dict[str, Any]]:
@@ -389,5 +390,40 @@ def run(flow: Flow | dict | str | Path, *, workdir: str | Path | None = None, fr
         store.finish_run(run_id, status)
     if on_update is not None:
         on_update(run_id, states)
-    return FlowRunResult(run_id=run_id, status=status, nodes=states, workdir=str(root),
-                         seconds=time.time() - t0)
+    result = FlowRunResult(run_id=run_id, status=status, nodes=states, workdir=str(root),
+                           seconds=time.time() - t0)
+    on_run_finished(result, flow)
+    return result
+
+
+# ---------------------------------------------------------------------------------------------- after a run
+RUN_FINISHED_HOOKS: list[Callable[[FlowRunResult, Flow], None]] = []
+
+
+def on_run_finished(result: FlowRunResult, flow: Flow) -> None:
+    """The one place a finished run is handed on (headless, service and GUI runs all pass here). The export of each
+    run as a PINNeAPPle Lab experiment (``pinneapple_lab.experiment``, so flow runs appear on the experiments site
+    with their seal) plugs in here once that API is on main; until then :func:`lab_export_status` says it is not
+    available and nothing is written. A hook that fails is logged in ``result.hooks`` and never fails the run."""
+    result.hooks = {}
+    for hook in [export_to_lab, *RUN_FINISHED_HOOKS]:
+        name = getattr(hook, "__name__", repr(hook))
+        try:
+            result.hooks[name] = hook(result, flow) or "done"
+        except Exception as exc:  # noqa: BLE001 - a hook never breaks a run that already finished
+            result.hooks[name] = f"failed: {type(exc).__name__}: {exc}"
+
+
+def lab_export_status() -> str:
+    try:
+        import pinneapple_lab
+    except ImportError:
+        return "pinneapple_lab not importable"
+    return "available" if callable(getattr(pinneapple_lab, "experiment", None)) else \
+        "pinneapple_lab.experiment is not available yet"
+
+
+def export_to_lab(result: FlowRunResult, flow: Flow) -> str:
+    """Export the run through ``pinneapple_lab.experiment`` (the Lab's own manifest format, not one of ours). The
+    call is wired when that API lands; today it only reports that it is not available."""
+    return f"skipped: {lab_export_status()}"

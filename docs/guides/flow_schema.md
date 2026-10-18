@@ -98,6 +98,10 @@ the library (add a new one in `pinneapple_flow.types` with a pull request) so do
   `pinneapple_core.workflows.Workflow` (one step of kind `pinneapple_flow.node` per node) and runs it with
   `WorkflowRunner`: per-node logs and states (`queued`, `running`, `done`, `failed`, `cached`, `cancelled`), retries,
   cancel, and skip-done by content hash (a node whose type, parameters and upstream are unchanged reuses its outputs).
+* Every finished run passes through `pinneapple_flow.runtime.on_run_finished(result, flow)`. Headless, service and
+  GUI runs all go through it, and it is where the run will be exported as a PINNeAPPle Lab experiment through
+  `pinneapple_lab.experiment` once that API is on main; until then the export reports `skipped`. Other packages
+  append to `RUN_FINISHED_HOOKS`. What each hook did is in `result.hooks`; a failing hook never fails the run.
 * `pinneapple_flow.store.FlowStore(url)` keeps flows with versions, runs and per-node outputs (metrics, report,
   artifact paths) in SQLite (default) or any SQLAlchemy URL (`postgresql+psycopg://...`). Tables: `flows`,
   `flow_versions`, `runs`, `node_results`.
