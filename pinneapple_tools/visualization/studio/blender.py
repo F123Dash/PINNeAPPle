@@ -20,7 +20,7 @@ from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from .colormap import JET, colorbar, jet
+from .colormap import colorbar, jet
 
 VIEWS = {   # direction from the centre to the camera; x is the object's length / the flow direction, z up
     "iso": (-1.0, -1.1, 0.75), "iso_back": (1.0, -1.1, 0.75), "iso_low": (-1.0, -1.1, -0.4),
@@ -415,3 +415,550 @@ def _encode(pngs: Sequence[str], out: str, fps: float, gif: bool = False, gif_fp
     return out
 
 
+def _hex_rgb(h: str) -> tuple[float, float, float]:
+    h = h.lstrip("#")
+    return tuple(int(h[j:j + 2], 16) / 255 for j in (0, 2, 4))
+
+
+def _wisp_material(bpy, name: str, rgb_lin, alpha: float = 1.0, strength: float = 1.2):
+    """Emission mixed with transparency: a glowing tube that reads as a soft wisp when ``alpha`` < 1."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    em, tr = nt.nodes.new("ShaderNodeEmission"), nt.nodes.new("ShaderNodeBsdfTransparent")
+    mix, out = nt.nodes.new("ShaderNodeMixShader"), nt.nodes.new("ShaderNodeOutputMaterial")
+    em.inputs["Color"].default_value = (*rgb_lin, 1)
+    em.inputs["Strength"].default_value = strength
+    mix.inputs["Fac"].default_value = float(min(1.0, max(0.0, alpha)))
+    nt.links.new(tr.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(em.outputs["Emission"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+    if alpha < 1 and hasattr(m, "blend_method"):
+        m.blend_method = "BLEND"
+    return m
+
+
+def _bucket_materials(bpy, prefix: str, cmap: str, alpha: float, nb: int = 24, strength: float = 1.2):
+    """``nb`` wisp materials evenly over the colour map (a tube's segments pick theirs by value)."""
+    from .compose import cmap_color
+    return [_wisp_material(bpy, f"{prefix}{j}", _lin(cmap_color(cmap, (j + 0.5) / nb)), alpha, strength)
+            for j in range(nb)]
+
+
+def _fill_curve(cu, polylines, values, lo: float, hi: float, nb: int, step: int = 1):
+    """Replace the splines of curve ``cu`` by ``polylines`` (lists of (n, 3) points); with ``values`` each run of
+    ``step`` segments is its own spline whose material index follows the mean value on the colour map."""
+    cu.splines.clear()
+    for li, P in enumerate(polylines):
+        S = None if values is None else values[li]
+        if len(P) < 2:
+            continue
+        st = step if S is not None else len(P)
+        for i0 in range(0, len(P) - 1, st):
+            seg = P[i0:i0 + st + 1]
+            sp = cu.splines.new("POLY")
+            sp.points.add(len(seg) - 1)
+            sp.points.foreach_set("co", np.c_[seg, np.ones(len(seg))].astype(np.float32).ravel())
+            if S is not None:
+                t = (float(np.nanmean(S[i0:i0 + st + 1])) - lo) / ((hi - lo) or 1)
+                sp.material_index = int(min(nb - 1, max(0, (t if np.isfinite(t) else 0.0) * nb)))
+
+
+def _sparkline(path: str, t, y, k: int, label: str, unit: str = "", fmt: str = "{:.2f}") -> None:
+    """Inset chart (bottom-left) of the series y(t) drawn up to frame k, with a light axis, the full time range,
+    the series' min/max and the current value."""
+    from PIL import Image, ImageDraw, ImageFont
+    im = Image.open(path).convert("RGB")
+    W, H = im.size
+    fs = max(9, int(round(H * 0.03)))
+    try:
+        f = ImageFont.truetype("DejaVuSans.ttf", fs)
+        fb = ImageFont.truetype("DejaVuSans-Bold.ttf", fs)
+    except OSError:
+        f = fb = ImageFont.load_default()
+    d = ImageDraw.Draw(im, "RGBA")
+    pad = max(4, fs // 2)
+    bw, bh = int(0.30 * W), int(0.24 * H)
+    x0, y0 = pad, H - bh - pad
+    d.rounded_rectangle([x0, y0, x0 + bw, y0 + bh], radius=pad, fill=(15, 23, 42, 170))
+    t, y = np.asarray(t, float), np.asarray(y, float)
+    ok = np.isfinite(y)
+    lo, hi = (float(np.nanmin(y)), float(np.nanmax(y))) if ok.any() else (0.0, 1.0)
+    if hi - lo < 1e-12:
+        lo, hi = lo - 0.5, hi + 0.5
+    cur = y[k]
+    title = f"{label}: {fmt.format(cur) if np.isfinite(cur) else '-'}{(' ' + unit) if unit else ''}"
+    d.text((x0 + pad, y0 + pad // 2), title, fill=(248, 250, 252), font=fb)
+    px0, px1 = x0 + pad + int(2.6 * fs), x0 + bw - pad
+    py0, py1 = y0 + pad + int(1.5 * fs), y0 + bh - pad - fs
+    X = lambda v: px0 + (v - t[0]) / ((t[-1] - t[0]) or 1) * (px1 - px0)   # noqa: E731
+    Y = lambda v: py1 - (v - lo) / (hi - lo) * (py1 - py0)                 # noqa: E731
+    d.line([(px0, py1), (px1, py1)], fill=(203, 213, 225, 150), width=1)
+    d.line([(px0, py0), (px0, py1)], fill=(203, 213, 225, 150), width=1)
+    if lo < 0 < hi:
+        d.line([(px0, Y(0.0)), (px1, Y(0.0))], fill=(203, 213, 225, 90), width=1)
+    for v in (lo, hi):
+        s = fmt.format(v)
+        d.text((px0 - d.textlength(s, font=f) - 3, Y(v) - fs // 2), s, fill=(203, 213, 225), font=f)
+    d.text((px0, py1 + 1), f"{t[0]:.0f}", fill=(203, 213, 225), font=f)
+    s = f"{t[-1]:.0f} s"
+    d.text((px1 - d.textlength(s, font=f), py1 + 1), s, fill=(203, 213, 225), font=f)
+    pts = [(X(a), Y(b)) for a, b in zip(t[:k + 1], y[:k + 1], strict=False) if np.isfinite(b)]
+    if len(pts) > 1:
+        d.line(pts, fill=(251, 191, 36), width=max(1, fs // 7))
+    if pts:
+        r = max(2, fs // 5)
+        d.ellipse([pts[-1][0] - r, pts[-1][1] - r, pts[-1][0] + r, pts[-1][1] + r], fill=(251, 191, 36))
+    im.save(path)
+
+
+def _haze(bpy, bs, lo, hi, density: float, blob: float):
+    """A box from ``lo`` to ``hi`` filled with a Principled Volume whose density is ``density`` modulated by a
+    Noise texture (blobs of about ``blob``): cloud-like haze. Volume bounces are kept at zero (cheap)."""
+    lo, hi = np.asarray(lo, float), np.asarray(hi, float)
+    V = [(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]
+    F = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    me = bpy.data.meshes.new("haze")
+    me.from_pydata(V, [], F)
+    m = bpy.data.materials.new("haze")
+    m.use_nodes = True
+    nt = m.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    vol = nt.nodes.new("ShaderNodeVolumePrincipled")
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    mr = nt.nodes.new("ShaderNodeMapRange")
+    noise.inputs["Scale"].default_value = 1.0 / max(blob, 1e-9)
+    noise.inputs["Detail"].default_value = 3.0
+    mr.inputs["From Min"].default_value, mr.inputs["From Max"].default_value = 0.35, 0.75
+    mr.inputs["To Min"].default_value, mr.inputs["To Max"].default_value = 0.15 * density, density
+    nt.links.new(tc.outputs["Object"], noise.inputs["Vector"])
+    nt.links.new(noise.outputs["Fac"], mr.inputs["Value"])
+    nt.links.new(mr.outputs["Result"], vol.inputs["Density"])
+    vol.inputs["Color"].default_value = (0.92, 0.94, 0.97, 1)
+    vol.inputs["Anisotropy"].default_value = 0.3
+    nt.links.new(vol.outputs["Volume"], out.inputs["Volume"])
+    me.materials.append(m)
+    bs.collection.objects.link(bpy.data.objects.new("haze", me))
+    cy = bs.cycles
+    for attr, v in (("volume_bounces", 0), ("volume_step_rate", 4.0), ("volume_max_steps", 64)):
+        if hasattr(cy, attr):
+            setattr(cy, attr, v)
+
+
+COLORBAR_KINDS = ("field", "vectors", "trails", "lines")
+
+
+def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None = None,
+                     size: tuple[int, int] = (960, 540), samples: int = 16, camera: str = "chase",
+                     camera_offset: Sequence[float] | None = None, lens: float = 35, field: str | None = None,
+                     hud: bool = True, hud_keys: Sequence[str] | None = None, sparkline: str | None = None,
+                     fps: float = 24, gif: bool = False, mp4: bool = True,
+                     sun_elevation: float = 35.0, ground: bool | float | None = None,
+                     background: str = "sky", vectors: bool = True, trails: bool | dict = True, lines: bool = True,
+                     colorbars: bool | dict | Sequence[str] = True, colorbar_on: bool = True,
+                     motion_blur: bool | float = False, dof: float | None = None, haze: float | None = None,
+                     exposure: float | None = None, name: str = "animation", log=None) -> dict:
+    """Render ``scene.animation`` (an :class:`~.animation.Animation`) frame by frame with Cycles (CPU, denoised),
+    burn the HUD into each PNG and encode an MP4 (and a GIF). Returns ``{"frames": [png, ...], "mp4": path | None,
+    "gif": path | None}``.
+
+    frames: None (every frame), an int n (the animation resampled to n evenly spaced frames) or frame indices.
+    camera: "chase" (behind the tracked body along its direction of travel, or at ``camera_offset`` in the body
+    frame), "chase_low" (behind, a little aside and below the body, kept just above the ground: a runway shot;
+    ``camera_offset`` in the body frame also works), "follow" (at ``camera_offset`` in scene axes from the body,
+    default from the 3/4 view), "side" (alongside the path, tracking the body), "tower" (fixed at ``camera_offset``
+    in scene axes, default beside the middle of the path, looking at the body) or "fixed" (the whole scene and path
+    in the 3/4 view). ``lens`` in mm.
+    field: colour the surfaces by this static per-vertex field; animated surface fields are always shown.
+    trails: False, True, or ``{"radius": r, "alpha": a}`` overriding every trail's tube radius and opacity
+    (default radius 0.004 x the tracked body's size). lines: draw the scene's static Lines as translucent tubes.
+    colorbars: True / False, a dict ``{"field": bool, "vectors": bool, "trails": bool, "lines": bool}`` or the
+    kinds to show; ``colorbar_on=False`` turns them all off.
+    hud_keys: only these HUD entries in the caption; sparkline: a HUD key drawn as an inset chart (bottom-left).
+    motion_blur: True (shutter 0.5 frame) or the shutter; the tracked bodies and the camera are keyframed at every
+    rendered frame so the ground blurs in a chase view. dof: f-stop, focused on the tracked body each frame.
+    haze: cloud-like volumetric haze, ``haze`` = optical depth over ten camera-to-body distances (0.5 to 2 reads
+    as light haze; costs render time). exposure: view exposure (default -0.3 sky, -0.2 studio).
+    ground: True for a grey plane under the scene and path, or a height (scene up axis) for its level.
+    background: "sky" (physical sky) or "studio" (light gradient)."""
+    import bpy
+    from mathutils import Quaternion, Vector
+
+    from .compose import cmap_color, default_range, draw_colorbars
+    from .scene import Scene, Surface
+    anim = scene.animation
+    if anim is None:
+        raise ValueError("scene.animation is None: build an Animation and set scene.animation first")
+    if camera not in ("chase", "chase_low", "follow", "side", "tower", "fixed"):
+        raise ValueError(f"camera={camera!r}: chase, chase_low, follow, side, tower or fixed")
+    if isinstance(frames, int):
+        anim = anim.resample(frames)
+        frames = None
+    ks = list(range(anim.n_frames)) if frames is None else [int(k) for k in frames]
+    os.makedirs(out_dir, exist_ok=True)
+    B = blender_axes(scene.axes)
+    toB = lambda P: np.asarray(P, float) @ B.T                         # noqa: E731
+    qB = lambda q: Quaternion((q[0], *(B @ np.asarray(q[1:], float))))  # noqa: E731
+    if isinstance(colorbars, dict):
+        cb_on = {k: bool(colorbars.get(k, True)) for k in COLORBAR_KINDS}
+    elif isinstance(colorbars, bool):
+        cb_on = dict.fromkeys(COLORBAR_KINDS, colorbars)
+    else:
+        cb_on = {k: k in colorbars for k in COLORBAR_KINDS}
+    if not colorbar_on:
+        cb_on = dict.fromkeys(COLORBAR_KINDS, False)
+    bars = []                                                  # (kind, title, lo, hi, cmap)
+
+    # surfaces with unique node names so the imported objects map back to them
+    tagged = [Surface(f"s{i:04d}", s.vertices, s.faces, s.material, s.fields, s.group) for i, s in enumerate(scene.surfaces)]
+    glb = os.path.join(tempfile.mkdtemp(), "scene.glb")
+    Scene(tagged, axes=scene.axes).save(glb)
+    studio = background == "studio"
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.context.preferences.edit.keyframe_new_interpolation_type = "LINEAR"
+    bs = bpy.context.scene
+    bs.render.engine = "CYCLES"
+    bs.cycles.device = "CPU"
+    bs.cycles.samples = max(1, int(samples))
+    bs.cycles.use_denoising = True
+    try:
+        bs.cycles.denoiser = "OPENIMAGEDENOISE"
+    except (TypeError, AttributeError):
+        pass
+    if hasattr(bs.render, "use_persistent_data"):
+        bs.render.use_persistent_data = True
+    bs.render.resolution_x, bs.render.resolution_y = size
+    bs.render.resolution_percentage = 100
+    bs.render.fps = max(1, int(round(fps)))
+    names = [i.identifier for i in bs.view_settings.bl_rna.properties["view_transform"].enum_items]
+    bs.view_settings.view_transform = "Standard" if studio else ("AgX" if "AgX" in names else "Filmic")
+    bs.view_settings.exposure = exposure if exposure is not None else (-0.3 if not studio else -0.2)
+    bs.render.image_settings.file_format = "PNG"
+    if motion_blur:
+        bs.render.use_motion_blur = True
+        bs.render.motion_blur_shutter = 0.5 if motion_blur is True else float(motion_blur)
+    bs.frame_start, bs.frame_end = 1, max(1, len(ks))
+
+    bpy.ops.import_scene.gltf(filepath=glb)
+    objs = {}
+    for o in list(bs.objects):
+        if o.type == "MESH" and o.name[:1] == "s" and o.name[1:5].isdigit():
+            objs[int(o.name[1:5])] = o
+
+    # extent of the static scene and of the paths (for the ground, the fixed camera and the clip planes)
+    static = [toB(s.vertices) for i, s in enumerate(scene.surfaces) if s.group not in anim.tracks]
+    lo_p, hi_p = anim.bounds()
+    pts = np.concatenate(static + [toB(np.array([lo_p, hi_p]))]) if (static or anim.tracks or anim.trails) else np.zeros((1, 3))
+    s_lo, s_hi = pts.min(0), pts.max(0)
+    extent = float(np.linalg.norm(s_hi - s_lo)) or 1.0
+    ground_z = float(np.concatenate(static)[:, 2].min()) if static else None
+
+    # tracks: the surfaces of each group under an Empty
+    empties, radius = {}, {}
+    for g in anim.tracks:
+        e = bpy.data.objects.new(f"track_{g}", None)
+        e.rotation_mode = "QUATERNION"
+        bs.collection.objects.link(e)
+        empties[g] = e
+        V = [toB(s.vertices) for s in scene.surfaces if s.group == g]
+        V = np.concatenate(V) if V else np.zeros((1, 3))
+        radius[g] = max(1e-6, 0.5 * float(np.linalg.norm(V.max(0) - V.min(0))))
+        for i, s in enumerate(scene.surfaces):
+            if s.group == g and i in objs:
+                objs[i].parent = e
+    fg = anim.follow_group if anim.follow_group in anim.tracks else next(iter(anim.tracks), None)
+    body_r = radius.get(fg, extent / 20)
+    body_size = 2 * body_r
+
+    # colours: a static field, then the animated per-vertex fields
+    if field:
+        attr = "_" + field.upper().lstrip("_")
+        lo, hi = scene.field_range(field)
+        fm, grey = _ramp_material(bpy, field, attr, lo, hi), _plain(bpy, "grey", (0.35, 0.37, 0.4))
+        for o in objs.values():
+            o.data.materials.clear()
+            o.data.materials.append(fm if attr in o.data.attributes else grey)
+        bars.append(("field", scene.labels.get(field, field), lo, hi, "jet"))
+    afields = []
+    for sname, sf in anim.surface_fields.items():
+        idx = next((i for i, s in enumerate(scene.surfaces) if s.name == sname), None)
+        if idx is None or idx not in objs:
+            continue
+        o = objs[idx]
+        me = o.data
+        nv = len(me.vertices)
+        if nv == len(scene.surfaces[idx].vertices):
+            order = None
+        else:                                                   # the importer split or merged vertices: nearest
+            from scipy.spatial import cKDTree
+            co = np.empty(nv * 3)
+            me.vertices.foreach_get("co", co)
+            order = cKDTree(toB(scene.surfaces[idx].vertices)).query(co.reshape(-1, 3))[1]
+        at = me.attributes.new("anim_field", "FLOAT", "POINT")
+        me.materials.clear()
+        cm = sf.get("cmap", "jet")
+        me.materials.append(_ramp_material(bpy, f"anim_{sname}", "anim_field", *sf["range"], cmap=cm))
+        afields.append((sf, at, order, me))
+        bars.append(("field", sf["label"] or sname, *sf["range"], cm))
+
+    # arrows: one shaft and one head object per arrow, parented to the track when attached
+    arrows = []
+    if vectors and anim.vectors:
+        shaft_me, head_me = _arrow_meshes(bpy)
+        placeholder = _plain(bpy, "arrow", (0.8, 0.3, 0.05))
+        shaft_me.materials.append(placeholder)
+        head_me.materials.append(placeholder)
+        for vi, vs in enumerate(anim.vectors):
+            L = float(np.nanmax(np.linalg.norm(vs["vectors"], axis=2))) or 1.0
+            base = _hex_rgb(vs["color"])
+            for i in range(vs["origins"].shape[1]):
+                m = _plain(bpy, f"arrow{vi}_{i}", _lin(base))
+                m.node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = 0.4
+                pair = []
+                for kind, me in (("shaft", shaft_me), ("head", head_me)):
+                    ob = bpy.data.objects.new(f"arrow{vi}_{i}_{kind}", me)
+                    ob.rotation_mode = "QUATERNION"
+                    if vs["attach"] in empties:
+                        ob.parent = empties[vs["attach"]]
+                    bs.collection.objects.link(ob)
+                    pair.append(ob)
+                arrows.append((vs, i, pair, m, L))
+            if vs["values"] is not None and vs["range"] is not None:
+                bars.append(("vectors", vs["label"] or vs["name"], *vs["range"], vs.get("cmap", "jet")))
+    # the arrow meshes are shared: each object gets its own material through an object-linked slot
+    for _, _, pair, m, _ in arrows:
+        for ob in pair:
+            ob.material_slots[0].link = "OBJECT"
+            ob.material_slots[0].material = m
+
+    # trails: thin tubes grown frame by frame, coloured point by point when they carry values
+    trail_objs = []
+    if trails:
+        ov = trails if isinstance(trails, dict) else {}
+        for tr in anim.trails:
+            cu = bpy.data.curves.new(tr["name"], "CURVE")
+            r = ov.get("radius") or tr.get("radius") or 0.004 * body_size
+            alpha = ov.get("alpha", tr.get("alpha", 1.0))
+            cu.dimensions, cu.bevel_depth, cu.bevel_resolution = "3D", r, 2
+            if tr.get("values") is not None:
+                cm = tr.get("cmap", "jet")
+                mats = _bucket_materials(bpy, f"trail_{tr['name']}_", cm, alpha)
+                rng = tr.get("range") or default_range(tr["values"], cm)
+                bars.append(("trails", tr.get("label") or tr["name"], *rng, cm))
+            else:
+                mats, rng = [_wisp_material(bpy, f"trail_{tr['name']}", _lin(_hex_rgb(tr["color"])), alpha, 1.5)], None
+            for m in mats:
+                cu.materials.append(m)
+            ob = bpy.data.objects.new(tr["name"], cu)
+            bs.collection.objects.link(ob)
+            trail_objs.append((ob, tr, toB(tr["points"]), rng, len(mats)))
+
+    # the scene's static Lines (streamlines, gust wisps): soft translucent tubes
+    if lines and scene.lines:
+        for li, L in enumerate(scene.lines):
+            cm = getattr(L, "cmap", "jet") or "jet"
+            alpha = float(getattr(L, "alpha", 1.0))
+            r = getattr(L, "radius", None) or (0.003 * body_size if anim.tracks else 0.0011 * extent)
+            P = [toB(p) for p in L.points]
+            S = [np.asarray(v, float) for v in L.values] if L.values else None
+            cu = bpy.data.curves.new(f"lines{li}", "CURVE")
+            cu.dimensions, cu.bevel_depth, cu.bevel_resolution = "3D", r, 2
+            if S is not None:
+                allv = np.concatenate(S)
+                rng = getattr(L, "color_range", None) or (
+                    default_range(allv, cm) if cm != "jet" else
+                    (float(np.nanpercentile(allv, 1)), float(np.nanpercentile(allv, 99))))
+                mats = _bucket_materials(bpy, f"lines{li}_", cm, alpha, strength=1.0)
+                bars.append(("lines", L.label or L.name, *rng, cm))
+            else:
+                rng, mats = (0.0, 1.0), [_wisp_material(bpy, f"lines{li}", (0.05 ** 2.2, 0.75 ** 2.2, 1.0), alpha)]
+            for m in mats:
+                cu.materials.append(m)
+            _fill_curve(cu, P, S, rng[0], rng[1], len(mats), step=2)
+            bs.collection.objects.link(bpy.data.objects.new(f"lines{li}", cu))
+
+    if ground is not None and ground is not False:
+        # Blender z is the scene's up axis; the automatic level sits a little below everything (no z-fighting with
+        # a runway or floor surface of the scene)
+        z = float(s_lo[2]) - 1e-3 * extent if ground is True else float(ground)
+        c = 0.5 * (s_lo + s_hi)
+        h = 1.5 * extent
+        me = bpy.data.meshes.new("ground")
+        me.from_pydata([(c[0] - h, c[1] - h, z), (c[0] + h, c[1] - h, z), (c[0] + h, c[1] + h, z),
+                        (c[0] - h, c[1] + h, z)], [], [(0, 1, 2, 3)])
+        gm = _plain(bpy, "ground", (0.30, 0.31, 0.30))
+        gm.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.95
+        me.materials.append(gm)
+        bs.collection.objects.link(bpy.data.objects.new("ground", me))
+        ground_z = z if ground_z is None else min(ground_z, z)
+
+    _world(bpy, bs, studio, sun_elevation)
+    if not studio:                                             # a Sun lamp matching the sky, for crisp shadows
+        sun = bpy.data.lights.new("sun_lamp", "SUN")
+        sun.energy, sun.angle = 3.0, math.radians(1.5)
+        so = bpy.data.objects.new("sun_lamp", sun)
+        so.rotation_euler = (math.radians(90 - sun_elevation), 0, math.radians(215 + 90))
+        bs.collection.objects.link(so)
+
+    cam_data = bpy.data.cameras.new("cam")
+    cam_data.lens = lens
+    cam_data.sensor_fit = "AUTO"
+    cam = bpy.data.objects.new("cam", cam_data)
+    cam.rotation_mode = "QUATERNION"
+    bs.collection.objects.link(cam)
+    bs.camera = cam
+    if dof:
+        cam_data.dof.use_dof = True
+        cam_data.dof.aperture_fstop = float(dof)
+    half = 0.5 * cam_data.angle * min(size) / max(size)       # half angle across the shorter image side
+    chase_d = body_r / math.tan(half) * 1.7
+
+    def body_at(k):
+        if fg is None:
+            return 0.5 * (s_lo + s_hi), np.eye(3)
+        M = anim.pose(fg, k)
+        V = [s.vertices for s in scene.surfaces if s.group == fg]
+        c_body = 0.5 * (np.concatenate(V).min(0) + np.concatenate(V).max(0)) if V else np.zeros(3)
+        return B @ (M[:3, :3] @ c_body + M[:3, 3]), B @ M[:3, :3] @ B.T
+
+    def travel(k, win=3):
+        P = toB(anim.tracks[fg]["positions"]) if fg else np.zeros((anim.n_frames, 3))
+        a, b = max(0, k - win), min(anim.n_frames - 1, k + win)
+        v = P[b] - P[a]
+        v[2] = 0.0
+        n = np.linalg.norm(v)
+        return v / n if n > 1e-9 * extent else np.array([1.0, 0.0, 0.0])
+
+    path = toB(anim.tracks[fg]["positions"]) if fg else pts
+    p_dir = path[-1] - path[0]
+    p_dir[2] = 0
+    p_dir = p_dir / np.linalg.norm(p_dir) if np.linalg.norm(p_dir) > 1e-9 * extent else np.array([1.0, 0.0, 0.0])
+    side_n = np.cross([0.0, 0.0, 1.0], p_dir)
+    tower = (B @ np.asarray(camera_offset, float) if camera_offset is not None and camera == "tower"
+             else 0.5 * (path.min(0) + path.max(0)) - side_n * max(4 * chase_d, 0.25 * extent) + np.array([0, 0, chase_d * 0.3]))
+    iso = _to_blender(np.asarray(VIEWS["iso"], float)[None], "z_up")[0]
+    iso /= np.linalg.norm(iso)
+
+    def camera_at(k):
+        """(location, target) of the camera at frame k."""
+        target, Rb = body_at(k)
+        if camera in ("chase", "chase_low") and camera_offset is not None:
+            loc = target + Rb @ (B @ np.asarray(camera_offset, float))
+        elif camera == "chase":
+            loc = target - travel(k) * chase_d * 0.92 + np.array([0, 0, chase_d * 0.35])
+        elif camera == "chase_low":
+            fwd = travel(k)
+            dl = 0.7 * chase_d                                 # closer than "chase": the body fills more of the frame
+            loc = target - fwd * dl * 0.95 + np.cross([0.0, 0.0, 1.0], fwd) * 0.3 * dl + np.array([0, 0, -0.12 * dl])
+            if ground_z is not None:
+                loc[2] = max(loc[2], ground_z + 0.02 * dl + 0.05 * body_size)
+        elif camera == "follow":
+            loc = target + (B @ np.asarray(camera_offset, float) if camera_offset is not None else iso * chase_d)
+        elif camera == "side":
+            loc = target - side_n * chase_d + np.array([0, 0, 0.15 * chase_d])
+        elif camera == "tower":
+            loc = tower
+        else:                                                  # fixed
+            target = 0.5 * (s_lo + s_hi)
+            loc = target + iso * 0.5 * extent / math.tan(half) * 0.8
+        return np.asarray(loc, float), np.asarray(target, float)
+
+    # pass 1: keyframe the bodies and the camera at every rendered frame (Blender frame j + 1), so motion blur
+    # sees the motion between frames
+    cams, q_prev = [], None
+    for j, k in enumerate(ks):
+        f = j + 1
+        for g, e in empties.items():
+            tr = anim.tracks[g]
+            e.location = Vector(tuple(B @ tr["positions"][k]))
+            e.rotation_quaternion = qB(tr["quaternions"][k])
+            e.keyframe_insert("location", frame=f)
+            e.keyframe_insert("rotation_quaternion", frame=f)
+        loc, target = camera_at(k)
+        q = Vector(tuple(target - loc)).to_track_quat("-Z", "Y")
+        if q_prev is not None and q.dot(q_prev) < 0:
+            q.negate()
+        q_prev = q
+        cam.location, cam.rotation_quaternion = Vector(tuple(loc)), q
+        cam.keyframe_insert("location", frame=f)
+        cam.keyframe_insert("rotation_quaternion", frame=f)
+        d = max(float(np.linalg.norm(target - loc)), 1e-6)
+        if dof:
+            cam_data.dof.focus_distance = d
+            cam_data.dof.keyframe_insert("focus_distance", frame=f)
+        cams.append((loc, d))
+    dmax = max(d for _, d in cams)
+    cam_data.clip_start = max(min(d for _, d in cams) * 1e-3, 1e-5)
+    cam_data.clip_end = max(dmax * 1e3, 3 * extent + dmax)
+
+    if haze:
+        C = np.array([c for c, _ in cams] + list(path))
+        dref = float(np.median([d for _, d in cams]))
+        pad = np.array([20 * dref, 20 * dref, 0.0])
+        lo = C.min(0) - pad
+        hi = C.max(0) + pad
+        lo[2] = (ground_z if ground_z is not None else C[:, 2].min() - 5 * dref) - 0.01 * dref
+        hi[2] = C[:, 2].max() + 8 * dref
+        _haze(bpy, bs, lo, hi, float(haze) / (10 * dref), blob=4 * dref)
+
+    pngs = []
+    for j, k in enumerate(ks):
+        bs.frame_set(j + 1)
+        for vs, i, (shaft, head), m, L in arrows:
+            o, v = vs["origins"][k, i], vs["vectors"][k, i]
+            o, v = B @ o, B @ v                                  # attached arrows: body coordinates under the Empty
+            n = float(np.linalg.norm(v))
+            show = n > 1e-9 * L
+            for ob in (shaft, head):
+                ob.hide_render = not show
+            if not show:
+                continue
+            u = v / n
+            q = Vector((0.0, 0.0, 1.0)).rotation_difference(Vector(tuple(u)))
+            h, r = min(0.22 * L, 0.45 * n), min(0.022 * L, 0.25 * n)
+            shaft.location, shaft.rotation_quaternion, shaft.scale = Vector(tuple(o)), q, (r, r, n - h)
+            head.location, head.rotation_quaternion, head.scale = Vector(tuple(o + u * (n - h))), q, (2.6 * r, 2.6 * r, h)
+            if vs["values"] is not None and vs["range"] is not None:
+                lo, hi = vs["range"]
+                c = _lin(cmap_color(vs.get("cmap", "jet"), (vs["values"][k, i] - lo) / ((hi - lo) or 1)))
+                b = m.node_tree.nodes["Principled BSDF"]
+                b.inputs["Base Color"].default_value = (*c, 1)
+                b.inputs["Emission Color"].default_value = (*c, 1)
+        for ob, tr, P, rng, nb in trail_objs:
+            vals = tr.get("values")
+            _fill_curve(ob.data, [P[:k + 1]], None if vals is None else [vals[:k + 1]],
+                        *(rng or (0.0, 1.0)), nb, step=1)
+        for sf, at, order, me in afields:
+            vals = np.asarray(sf["values"][k], float)
+            vals = np.where(np.isfinite(vals), vals, sf["range"][0])
+            at.data.foreach_set("value", (vals if order is None else vals[order]).astype(np.float32))
+            me.update()
+        bpy.context.view_layer.update()
+        path_png = os.path.join(out_dir, f"frame_{j:05d}.png")
+        bs.render.filepath = os.path.abspath(path_png)
+        bpy.ops.render.render(write_still=True)
+        shown = [b[1:] for b in bars if cb_on.get(b[0], True)]
+        if shown:
+            draw_colorbars(path_png, shown)
+        if hud:
+            _hud_overlay(path_png, anim.hud_lines(k, keys=hud_keys))
+        if sparkline:
+            h = next((h for h in anim.hud if h["key"] == sparkline), None)
+            if h is None:
+                raise KeyError(f"sparkline={sparkline!r}: no HUD entry with that key ({[x['key'] for x in anim.hud]})")
+            _sparkline(path_png, anim.times, h["values"], k, h["label"], h["unit"], h["fmt"])
+        pngs.append(path_png)
+        if log and (j + 1) % 10 == 0:
+            log(f"rendered {j + 1}/{len(ks)} frames")
+    out = {"frames": pngs, "mp4": None, "gif": None}
+    if mp4 and pngs:
+        out["mp4"] = _encode(pngs, os.path.join(out_dir, f"{name}.mp4"), fps)
+    if gif and pngs:
+        out["gif"] = _encode(pngs, os.path.join(out_dir, f"{name}.gif"), fps, gif=True)
+    return out

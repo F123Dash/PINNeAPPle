@@ -102,7 +102,7 @@ def draw_colorbars(path: str, bars: Sequence[tuple], corner: str = "bottom-right
         return path
     im = Image.open(path).convert("RGBA")
     W, H = im.size
-    scale = max(0.55, W / 1280)
+    scale = max(0.7, W / 1280)
     w = max(120, int(width_frac * W))
     m = max(4, int(10 * scale))
     y = H - m if corner.startswith("bottom") else m
@@ -131,6 +131,7 @@ def _label_strip(im, labels, cell, ncols, scale):
         x, y = (i % ncols) * cell[0], (i // ncols) * cell[1]
         p = int(6 * scale) + 2
         tw = d.textlength(lab, font=f)
+        x = x + cell[0] - tw - 4 * p                               # top-right corner: clear of a HUD at top-left
         d.rounded_rectangle([x + p, y + p, x + 3 * p + tw, y + 2 * p + int(22 * scale)], radius=p, fill=(15, 23, 42, 185))
         d.text((x + 2 * p, y + int(1.4 * p)), lab, fill=(248, 250, 252), font=f)
 
@@ -158,7 +159,7 @@ def _strip_height(cell_w: int, colorbar) -> int:
 def compose_grid(images: Sequence[str], out_png: str, labels: Sequence[str] | None = None, ncols: int = 2,
                  colorbar: tuple | None = None, background=(233, 237, 242)) -> str:
     """One picture of ``images`` on a grid of ``ncols`` columns (every image scaled to the first one's size), a
-    label in each cell's corner and one common colour bar ``(title, lo, hi, cmap)`` under the grid."""
+    label in each cell's top-right corner and one common colour bar ``(title, lo, hi, cmap)`` under the grid."""
     from PIL import Image
     ims = [Image.open(p).convert("RGB") for p in images]
     cw, ch = ims[0].size
