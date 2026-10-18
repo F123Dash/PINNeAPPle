@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- PINNeAPPle quality seal (`pinneapple_lab.seal`): a badge with the tier the curation gave an item (A green,
+  B amber; C and D are not stamped), the pineapple mark and the item's evidence line, as PNG or SVG; stamps on
+  matplotlib figures (`stamp_figure`, `sealed_savefig` hook), images, GIFs and videos (`stamp_file`), in the
+  emptiest corner off colour bars, or in a strip under a figure with no free corner. The tier is read from
+  `lab/curation.json` only. CLI: `python -m pinneapple_lab seal ITEM -o seal.svg`,
+  `stamp ITEM FILE`, `stamp --all --out DIR`.
 - Lab curation of everything with committed results but no Lab entry (`pinneapple_lab.experiments.repo_sources`,
   imported by `repo_results`): the 2004 Prius motor (torque against the published FEA of Yang et al. 2013, GetDP
   second code, cogging, skew, tolerances), its end effects, thermal / demagnetisation and drive, the
