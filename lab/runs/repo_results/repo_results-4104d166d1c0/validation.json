@@ -9,7 +9,7 @@
   "max": null,
   "min": null,
   "detail": "published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another group and code, not a measurement; tolerance 5 % (machines.verification); largest deviation +25.3 N m at 90 deg, rms 13.3 N m",
-  "label": "torque vs Yang et al. 2013",
+  "label": "torque vs published FEA (Yang et al. 2013)",
   "kind": "reference"
  },
  {
