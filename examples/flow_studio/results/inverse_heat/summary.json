@@ -2,7 +2,7 @@
  "flow": "inverse_heat",
  "title": "Inverse heat: identify the diffusivity",
  "status": "done",
- "wall_seconds": 0.2,
+ "wall_seconds": 49.6,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,8 +11,8 @@
  "nodes": {
   "true_geo": {
    "type": "geometry.domain",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0012958049774169922,
    "error": null,
    "summary": "interval in 1-D, coordinates ['x', 't']",
    "metrics": {
@@ -24,8 +24,8 @@
   },
   "inv_geo": {
    "type": "geometry.domain",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0008809566497802734,
    "error": null,
    "summary": "interval in 1-D, coordinates ['x', 't']",
    "metrics": {
@@ -37,8 +37,8 @@
   },
   "true_mesh": {
    "type": "geometry.mesh",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0016856193542480469,
    "error": null,
    "summary": "",
    "metrics": {
@@ -66,8 +66,8 @@
   },
   "inv_mesh": {
    "type": "geometry.mesh",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0007793903350830078,
    "error": null,
    "summary": "",
    "metrics": {
@@ -95,8 +95,8 @@
   },
   "true_eq": {
    "type": "equations.system",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.006033897399902344,
    "error": null,
    "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
    "metrics": {
@@ -139,8 +139,8 @@
   },
   "inv_eq": {
    "type": "equations.system",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0045354366302490234,
    "error": null,
    "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
    "metrics": {
@@ -183,16 +183,16 @@
   },
   "fd": {
    "type": "solver.classical",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.18697237968444824,
    "error": null,
-   "summary": "FD on 101x41 points in 0.03 s",
+   "summary": "FD on 101x41 points in 0.04 s",
    "metrics": {
     "method": "method of lines + BDF",
     "nfev": 44,
     "n_unknowns": 101,
     "solve_seconds": {
-     "value": 0.0349,
+     "value": 0.038,
      "how": "wall clock of the solve on this machine"
     }
    },
@@ -204,8 +204,8 @@
   },
   "sensors": {
    "type": "data.observe",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0038073062896728516,
    "error": null,
    "summary": "",
    "metrics": {
@@ -218,25 +218,25 @@
   },
   "discover": {
    "type": "inverse.discover",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 48.15786862373352,
    "error": null,
-   "summary": "alpha = 0.1002",
+   "summary": "alpha = 0.10021",
    "metrics": {
     "train_seconds": {
-     "value": 45.64,
+     "value": 47.77,
      "how": "wall clock of training on this machine (CPU)"
     },
-    "final_loss": 9.052363748196512e-05,
+    "final_loss": 9.072588727576658e-05,
     "n_parameters": 3297,
     "residual_rms_fresh": {
-     "value": 0.0037610783214396086,
+     "value": 0.0034902039960132514,
      "how": "relative PDE residual at fresh points"
     },
     "validation": "pass",
-    "alpha_estimate": 0.10020080953836441,
+    "alpha_estimate": 0.10020613670349121,
     "alpha_relative_error": {
-     "value": 0.0020080953836440485,
+     "value": 0.002061367034912054,
      "how": "against the value that generated the synthetic data"
     }
    },
@@ -253,7 +253,7 @@
       [
        "pinn.residual",
        "pass",
-       "relative residual at fresh points: RMS 3.76e-03 (<= 0.05), max 1.54e-02 (<= 0.3, adaptive points included)"
+       "relative residual at fresh points: RMS 3.49e-03 (<= 0.05), max 1.85e-02 (<= 0.3, adaptive points included)"
       ],
       [
        "pinn.trivial",
@@ -263,17 +263,17 @@
       [
        "pinn.causality",
        "pass",
-       "residual in the last quarter of the time interval 4.1e-03, first quarter 4.5e-03 (late/early 0.9, <= 10 unless the late residual passes)"
+       "residual in the last quarter of the time interval 4.9e-03, first quarter 3.4e-03 (late/early 1.4, <= 10 unless the late residual passes)"
       ],
       [
        "pinn.boundary",
        "pass",
-       "boundary condition error 6.86e-04 of the solution scale (<= 0.01)"
+       "boundary condition error 8.43e-04 of the solution scale (<= 0.01)"
       ],
       [
        "pinn.initial",
        "pass",
-       "initial condition error 6.84e-04 of the solution scale (<= 0.01)"
+       "initial condition error 6.37e-04 of the solution scale (<= 0.01)"
       ],
       [
        "pinn.spectrum",
@@ -299,7 +299,7 @@
       [
        "alpha",
        0.5,
-       0.10020080953836441,
+       0.10020613670349121,
        0.1
       ]
      ]
@@ -312,13 +312,13 @@
   },
   "calibrate": {
    "type": "inverse.calibrate",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 1.0855927467346191,
    "error": null,
    "summary": "alpha = 0.099983",
    "metrics": {
     "forward_solves": 31,
-    "calibration_seconds": 1.03,
+    "calibration_seconds": 1.07,
     "alpha_estimate": 0.09998336456072479,
     "alpha_relative_error": 0.0001663543927521438
    },
@@ -346,5 +346,6 @@
    ],
    "figures": []
   }
- }
+ },
+ "cached_nodes": []
 }

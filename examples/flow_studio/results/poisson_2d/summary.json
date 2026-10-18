@@ -2,7 +2,7 @@
  "flow": "poisson_2d",
  "title": "Poisson 2D: FEM, FD and PINN with the trust card",
  "status": "done",
- "wall_seconds": 0.4,
+ "wall_seconds": 59.2,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,8 +11,8 @@
  "nodes": {
   "geo": {
    "type": "geometry.domain",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0015671253204345703,
    "error": null,
    "summary": "rectangle in 2-D, coordinates ['x', 'y']",
    "metrics": {
@@ -24,8 +24,8 @@
   },
   "mesh": {
    "type": "geometry.mesh",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0009601116180419922,
    "error": null,
    "summary": "",
    "metrics": {
@@ -58,8 +58,8 @@
   },
   "eq": {
    "type": "equations.system",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.023339033126831055,
    "error": null,
    "summary": "poisson (linear), 1 PDE(s), 1 condition(s)",
    "metrics": {
@@ -96,8 +96,8 @@
   },
   "fd": {
    "type": "solver.classical",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.25322437286376953,
    "error": null,
    "summary": "FD on 41x41 points in 0.12 s",
    "metrics": {
@@ -106,7 +106,7 @@
     "n_unknowns": 1681,
     "residual_inf": 6.217248937900877e-13,
     "solve_seconds": {
-     "value": 0.122,
+     "value": 0.1203,
      "how": "wall clock of the solve on this machine"
     }
    },
@@ -118,14 +118,14 @@
   },
   "fem": {
    "type": "solver.classical",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.35576796531677246,
    "error": null,
-   "summary": "FEM on 41x41 points in 0.48 s",
+   "summary": "FEM on 41x41 points in 0.16 s",
    "metrics": {
     "n_dof": 1681,
     "solve_seconds": {
-     "value": 0.4764,
+     "value": 0.1567,
      "how": "wall clock of the solve on this machine"
     }
    },
@@ -137,23 +137,23 @@
   },
   "pinn": {
    "type": "train.pinn",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 57.291874170303345,
    "error": null,
-   "summary": "PINN trained in 55.3 s; validation passed",
+   "summary": "PINN trained in 56.8 s; validation passed",
    "metrics": {
     "train_seconds": {
-     "value": 55.32,
+     "value": 56.85,
      "how": "wall clock of training on this machine (CPU)"
     },
-    "final_loss": 1.969021832337603e-05,
+    "final_loss": 2.2748461560695432e-05,
     "n_parameters": 3297,
     "residual_rms_fresh": {
-     "value": 0.004018763979447699,
+     "value": 0.004258861997484176,
      "how": "relative PDE residual at fresh points"
     },
     "rel_l2_vs_exact": {
-     "value": 0.0006610780383291626,
+     "value": 0.0007204057639810434,
      "how": "validate_pinn on a fresh grid"
     },
     "validation": "pass"
@@ -171,7 +171,7 @@
       [
        "pinn.residual",
        "pass",
-       "relative residual at fresh points: RMS 4.02e-03 (<= 0.05), max 4.74e-02 (<= 0.3, adaptive points included)"
+       "relative residual at fresh points: RMS 4.26e-03 (<= 0.05), max 4.89e-02 (<= 0.3, adaptive points included)"
       ],
       [
        "pinn.trivial",
@@ -186,7 +186,7 @@
       [
        "pinn.boundary",
        "pass",
-       "boundary condition error 7.22e-04 of the solution scale (<= 0.01)"
+       "boundary condition error 7.91e-04 of the solution scale (<= 0.01)"
       ],
       [
        "pinn.initial",
@@ -201,7 +201,7 @@
       [
        "pinn.exact",
        "pass",
-       "relative L2 error 6.61e-04 (<= 0.02), max 2.35e-03 of the scale"
+       "relative L2 error 7.20e-04 (<= 0.02), max 2.61e-03 of the scale"
       ]
      ]
     }
@@ -213,10 +213,10 @@
   },
   "validate": {
    "type": "validate.compare",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.7106127738952637,
    "error": null,
-   "summary": "FD: 5.14e-04, FEM: 1.55e-03, PINN: 6.93e-04 (vs exact solution)",
+   "summary": "FD: 5.14e-04, FEM: 1.55e-03, PINN: 7.57e-04 (vs exact solution)",
    "metrics": {
     "FD_rel_l2": {
      "value": 0.0005142004781495365,
@@ -227,7 +227,7 @@
      "how": "against the exact solution on 1681 points"
     },
     "PINN_rel_l2": {
-     "value": 0.0006932121288741194,
+     "value": 0.0007566575657750249,
      "how": "against the exact solution on 1681 points"
     },
     "best": "FD"
@@ -256,10 +256,28 @@
        "laplace(u) = f, three-point finite differences, rms over the interior / rms of the sum of |terms|"
       ],
       [
-       "boundary conditions",
-       null,
-       null,
-       "no Dirichlet data given"
+       "boundary condition on x_min",
+       true,
+       4.874497714027116e-22,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on x_max",
+       true,
+       5.359744755275705e-22,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on y_min",
+       true,
+       6.912782042298535e-22,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on y_max",
+       true,
+       4.0984289316749616e-22,
+       "Dirichlet, max |u - g| / range of u"
       ],
       [
        "conservation (net boundary flux = integral of the source)",
@@ -303,10 +321,28 @@
        "laplace(u) = f, three-point finite differences, rms over the interior / rms of the sum of |terms|"
       ],
       [
-       "boundary conditions",
-       null,
-       null,
-       "no Dirichlet data given"
+       "boundary condition on x_min",
+       true,
+       0.0,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on x_max",
+       true,
+       0.0,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on y_min",
+       true,
+       0.0,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on y_max",
+       true,
+       0.0,
+       "Dirichlet, max |u - g| / range of u"
       ],
       [
        "conservation (net boundary flux = integral of the source)",
@@ -346,25 +382,43 @@
       [
        "PDE residual",
        true,
-       0.00032648343171769916,
+       0.00033720125216629915,
        "laplace(u) = f, three-point finite differences, rms over the interior / rms of the sum of |terms|"
       ],
       [
-       "boundary conditions",
-       null,
-       null,
-       "no Dirichlet data given"
+       "boundary condition on x_min",
+       true,
+       0.0026077497877708506,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on x_max",
+       true,
+       0.0014156636274776676,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on y_min",
+       true,
+       0.0007921824404023063,
+       "Dirichlet, max |u - g| / range of u"
+      ],
+      [
+       "boundary condition on y_max",
+       true,
+       0.0026077497877708506,
+       "Dirichlet, max |u - g| / range of u"
       ],
       [
        "conservation (net boundary flux = integral of the source)",
        true,
-       0.0013042201885730268,
+       0.0013054553693518667,
        "flux -8.013, source -7.992"
       ],
       [
        "reference (relative L2)",
        true,
-       0.0006932121288741194,
+       0.0007566575657750249,
        "against the given reference"
       ],
       [
@@ -405,9 +459,9 @@
       [
        "PINN",
        "pinn",
-       0.0006932121288741194,
-       0.002353072166442871,
-       0.00033815225798737526,
+       0.0007566575657750249,
+       0.002614349126815796,
+       0.00036910125159757317,
        "PASS"
       ]
      ]
@@ -419,8 +473,8 @@
   },
   "view3d": {
    "type": "viz.field3d",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.007838964462280273,
    "error": null,
    "summary": "",
    "metrics": {
@@ -432,8 +486,8 @@
   },
   "lab": {
    "type": "validate.lab",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.20560693740844727,
    "error": null,
    "summary": "tier B, sealed",
    "metrics": {
@@ -442,21 +496,31 @@
      "value": "B",
      "how": "pinneapple_lab.curation: A flagship, B solid, C exploratory, D failed"
     },
-    "lab_run_id": "flow_poisson_2d_fem_fd_and_pinn_with_the_trust_card_lab-c76688bffba9"
+    "lab_run_id": "flow_poisson_2d_fem_fd_and_pinn_with_the_trust_card_lab-21f32c7a644e",
+    "seal": {
+     "value": "B",
+     "how": "pinneapple_lab (ABCD): solid"
+    }
    },
    "warnings": [],
    "tables": [
     {
-     "title": "what the tier is missing",
+     "title": "what the next letter needs",
      "columns": [
-      "gap"
+      "gap",
+      "suggested action",
+      "nodes"
      ],
      "rows": [
       [
-       "add figures (a movie, a render or a 3-D view for communication)"
+       "add figures (a movie, a render or a 3-D view for communication)",
+       "",
+       ""
       ],
       [
-       "document it (docs page, references)"
+       "document it (docs page, references)",
+       "",
+       ""
       ]
      ]
     }
@@ -465,5 +529,6 @@
     "lab_validation_sealed.png"
    ]
   }
- }
+ },
+ "cached_nodes": []
 }

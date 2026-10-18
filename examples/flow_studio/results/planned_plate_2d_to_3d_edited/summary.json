@@ -2,7 +2,7 @@
  "flow": "planned_plate_2d_to_3d_edited",
  "title": "Classical solver + PINN, validated (edited to 3-D)",
  "status": "done",
- "wall_seconds": 118.5,
+ "wall_seconds": 123.7,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -788,7 +788,7 @@
   "geo": {
    "type": "geometry.domain",
    "status": "done",
-   "seconds": 0.0016369819641113281,
+   "seconds": 0.0013644695281982422,
    "error": null,
    "summary": "box in 3-D, coordinates ['x', 'y', 'z']",
    "metrics": {
@@ -801,7 +801,7 @@
   "mesh": {
    "type": "geometry.mesh",
    "status": "done",
-   "seconds": 0.001018524169921875,
+   "seconds": 0.0010483264923095703,
    "error": null,
    "summary": "",
    "metrics": {
@@ -840,7 +840,7 @@
   "eq": {
    "type": "equations.system",
    "status": "done",
-   "seconds": 0.18643832206726074,
+   "seconds": 0.05984926223754883,
    "error": null,
    "summary": "poisson (linear), 1 PDE(s), 1 condition(s)",
    "metrics": {
@@ -878,16 +878,16 @@
   "fd": {
    "type": "solver.classical",
    "status": "done",
-   "seconds": 29.31031584739685,
+   "seconds": 28.856031894683838,
    "error": null,
-   "summary": "FD on 21x21x21 points in 29.05 s",
+   "summary": "FD on 21x21x21 points in 28.58 s",
    "metrics": {
     "method": "newton",
     "iterations": 3,
     "n_unknowns": 9261,
     "residual_inf": 2.4513724383723456e-13,
     "solve_seconds": {
-     "value": 29.0518,
+     "value": 28.5809,
      "how": "wall clock of the solve on this machine"
     }
    },
@@ -900,13 +900,13 @@
   "fem": {
    "type": "solver.classical",
    "status": "done",
-   "seconds": 0.382556676864624,
+   "seconds": 0.36504364013671875,
    "error": null,
-   "summary": "FEM on 11x11x11 points in 0.08 s",
+   "summary": "FEM on 11x11x11 points in 0.07 s",
    "metrics": {
     "n_dof": 1331,
     "solve_seconds": {
-     "value": 0.0806,
+     "value": 0.0726,
      "how": "wall clock of the solve on this machine"
     }
    },
@@ -919,22 +919,22 @@
   "pinn": {
    "type": "train.pinn",
    "status": "done",
-   "seconds": 86.35214638710022,
+   "seconds": 92.382559299469,
    "error": null,
-   "summary": "PINN trained in 85.8 s; validation failed",
+   "summary": "PINN trained in 91.7 s; validation failed",
    "metrics": {
     "train_seconds": {
-     "value": 85.78,
+     "value": 91.74,
      "how": "wall clock of training on this machine (CPU)"
     },
-    "final_loss": 0.002635583747178316,
+    "final_loss": 0.002629635389894247,
     "n_parameters": 3329,
     "residual_rms_fresh": {
-     "value": 0.025488370380724327,
+     "value": 0.025068749812897473,
      "how": "relative PDE residual at fresh points"
     },
     "rel_l2_vs_exact": {
-     "value": 0.03077932349903996,
+     "value": 0.030680212951536584,
      "how": "validate_pinn on a fresh grid"
     },
     "validation": "fail"
@@ -954,7 +954,7 @@
       [
        "pinn.residual",
        "fail",
-       "relative residual at fresh points: RMS 2.55e-02 (<= 0.05), max 3.91e-01 (<= 0.3, adaptive points included)"
+       "relative residual at fresh points: RMS 2.51e-02 (<= 0.05), max 3.89e-01 (<= 0.3, adaptive points included)"
       ],
       [
        "pinn.trivial",
@@ -984,7 +984,7 @@
       [
        "pinn.exact",
        "fail",
-       "relative L2 error 3.08e-02 (<= 0.02), max 7.06e-02 of the scale"
+       "relative L2 error 3.07e-02 (<= 0.02), max 7.27e-02 of the scale"
       ]
      ]
     }
@@ -997,7 +997,7 @@
   "view3d": {
    "type": "viz.field3d",
    "status": "done",
-   "seconds": 0.06209254264831543,
+   "seconds": 0.07023835182189941,
    "error": null,
    "summary": "",
    "metrics": {
@@ -1010,9 +1010,9 @@
   "validate": {
    "type": "validate.compare",
    "status": "done",
-   "seconds": 0.7239737510681152,
+   "seconds": 0.7772886753082275,
    "error": null,
-   "summary": "FD: 2.06e-03, FEM: 5.87e-02, PINN: 2.80e-02 (vs exact solution)",
+   "summary": "FD: 2.06e-03, FEM: 5.87e-02, PINN: 2.78e-02 (vs exact solution)",
    "metrics": {
     "FD_rel_l2": {
      "value": 0.0020587067645338355,
@@ -1023,7 +1023,7 @@
      "how": "against the exact solution on 9261 points"
     },
     "PINN_rel_l2": {
-     "value": 0.027987511731832615,
+     "value": 0.027846776655734127,
      "how": "against the exact solution on 9261 points"
     },
     "best": "FD"
@@ -1060,9 +1060,9 @@
       [
        "PINN",
        "pinn",
-       0.027987511731832615,
-       0.07055827975273132,
-       0.009196770446584656,
+       0.027846776655734127,
+       0.0726686418056488,
+       0.009150524528009898,
        "FAIL"
       ]
      ]
@@ -1075,7 +1075,7 @@
   "plot": {
    "type": "viz.plot",
    "status": "done",
-   "seconds": 0.8844537734985352,
+   "seconds": 0.5792098045349121,
    "error": null,
    "summary": "",
    "metrics": {},
@@ -1089,7 +1089,7 @@
   "lab": {
    "type": "validate.lab",
    "status": "done",
-   "seconds": 0.08487749099731445,
+   "seconds": 0.07067298889160156,
    "error": null,
    "summary": "tier D: not sealed (only A and B are)",
    "metrics": {
@@ -1098,7 +1098,7 @@
      "value": "D",
      "how": "pinneapple_lab.curation: A flagship, B solid, C exploratory, D failed"
     },
-    "lab_run_id": "flow_poisson_2d_classical_vs_pinn_3d_lab-f816636c8dfc",
+    "lab_run_id": "flow_poisson_2d_classical_vs_pinn_3d_lab-0815e907d38e",
     "seal": {
      "value": "D",
      "how": "pinneapple_lab (ABCD): not usable"
@@ -1129,7 +1129,7 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.002541065216064453,
+   "seconds": 0.002511262893676758,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
@@ -1141,5 +1141,6 @@
    "tables": [],
    "figures": []
   }
- }
+ },
+ "cached_nodes": []
 }

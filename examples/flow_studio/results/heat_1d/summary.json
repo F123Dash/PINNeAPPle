@@ -2,7 +2,7 @@
  "flow": "heat_1d",
  "title": "Heat 1D: PINN vs finite differences vs exact",
  "status": "done",
- "wall_seconds": 0.4,
+ "wall_seconds": 48.9,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,8 +11,8 @@
  "nodes": {
   "geo": {
    "type": "geometry.domain",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0011119842529296875,
    "error": null,
    "summary": "interval in 1-D, coordinates ['x', 't']",
    "metrics": {
@@ -24,8 +24,8 @@
   },
   "mesh": {
    "type": "geometry.mesh",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.001062631607055664,
    "error": null,
    "summary": "",
    "metrics": {
@@ -53,8 +53,8 @@
   },
   "eq": {
    "type": "equations.system",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.016071557998657227,
    "error": null,
    "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
    "metrics": {
@@ -97,8 +97,8 @@
   },
   "fd": {
    "type": "solver.classical",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.17645692825317383,
    "error": null,
    "summary": "FD on 201x41 points in 0.03 s",
    "metrics": {
@@ -106,7 +106,7 @@
     "nfev": 44,
     "n_unknowns": 201,
     "solve_seconds": {
-     "value": 0.0328,
+     "value": 0.0312,
      "how": "wall clock of the solve on this machine"
     }
    },
@@ -118,23 +118,23 @@
   },
   "pinn": {
    "type": "train.pinn",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 47.84078860282898,
    "error": null,
-   "summary": "PINN trained in 41.1 s; validation passed",
+   "summary": "PINN trained in 47.4 s; validation passed",
    "metrics": {
     "train_seconds": {
-     "value": 41.05,
+     "value": 47.39,
      "how": "wall clock of training on this machine (CPU)"
     },
-    "final_loss": 9.267741916119121e-06,
+    "final_loss": 5.521896582649788e-06,
     "n_parameters": 3297,
     "residual_rms_fresh": {
-     "value": 0.002576050299082649,
+     "value": 0.0017747078453967675,
      "how": "relative PDE residual at fresh points"
     },
     "rel_l2_vs_exact": {
-     "value": 0.00034898062038489416,
+     "value": 0.00034210719564177516,
      "how": "validate_pinn on a fresh grid"
     },
     "validation": "pass"
@@ -152,7 +152,7 @@
       [
        "pinn.residual",
        "pass",
-       "relative residual at fresh points: RMS 2.58e-03 (<= 0.05), max 1.47e-02 (<= 0.3, adaptive points included)"
+       "relative residual at fresh points: RMS 1.77e-03 (<= 0.05), max 9.12e-03 (<= 0.3, adaptive points included)"
       ],
       [
        "pinn.trivial",
@@ -162,27 +162,27 @@
       [
        "pinn.causality",
        "pass",
-       "residual in the last quarter of the time interval 2.6e-03, first quarter 3.0e-03 (late/early 0.9, <= 10 unless the late residual passes); error early 3.7e-04 -> late 3.7e-04"
+       "residual in the last quarter of the time interval 2.0e-03, first quarter 2.3e-03 (late/early 0.9, <= 10 unless the late residual passes); error early 2.8e-04 -> late 3.7e-04"
       ],
       [
        "pinn.boundary",
        "pass",
-       "boundary condition error 4.41e-04 of the solution scale (<= 0.01)"
+       "boundary condition error 4.34e-04 of the solution scale (<= 0.01)"
       ],
       [
        "pinn.initial",
        "pass",
-       "initial condition error 3.62e-04 of the solution scale (<= 0.01)"
+       "initial condition error 2.69e-04 of the solution scale (<= 0.01)"
       ],
       [
        "pinn.spectrum",
        "pass",
-       "high-wavenumber energy +1% relative to the exact solution (within +/-25%)"
+       "high-wavenumber energy -0% relative to the exact solution (within +/-25%)"
       ],
       [
        "pinn.exact",
        "pass",
-       "relative L2 error 3.49e-04 (<= 0.02), max 1.73e-03 of the scale"
+       "relative L2 error 3.42e-04 (<= 0.02), max 1.49e-03 of the scale"
       ]
      ]
     }
@@ -194,17 +194,17 @@
   },
   "validate": {
    "type": "validate.compare",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.1200864315032959,
    "error": null,
-   "summary": "FD: 6.58e-06, PINN: 3.42e-04 (vs exact solution)",
+   "summary": "FD: 6.58e-06, PINN: 3.35e-04 (vs exact solution)",
    "metrics": {
     "FD_rel_l2": {
      "value": 6.577268207590082e-06,
      "how": "against the exact solution on 8241 points"
     },
     "PINN_rel_l2": {
-     "value": 0.00034238401621575193,
+     "value": 0.0003347401904029681,
      "how": "against the exact solution on 8241 points"
     },
     "best": "FD"
@@ -233,9 +233,9 @@
       [
        "PINN",
        "pinn",
-       0.00034238401621575193,
-       0.0017288327217102799,
-       0.00019272316766565288,
+       0.0003347401904029681,
+       0.0014871060848236832,
+       0.00018842056516683793,
        "PASS"
       ]
      ]
@@ -247,8 +247,8 @@
   },
   "plot": {
    "type": "viz.plot",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.22684812545776367,
    "error": null,
    "summary": "",
    "metrics": {},
@@ -261,8 +261,8 @@
   },
   "lab": {
    "type": "validate.lab",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.11989331245422363,
    "error": null,
    "summary": "tier B, sealed",
    "metrics": {
@@ -271,21 +271,31 @@
      "value": "B",
      "how": "pinneapple_lab.curation: A flagship, B solid, C exploratory, D failed"
     },
-    "lab_run_id": "flow_heat_1d_pinn_vs_finite_differences_vs_exact_lab-ee0cb8f6da0a"
+    "lab_run_id": "flow_heat_1d_pinn_vs_finite_differences_vs_exact_lab-7deccff561cd",
+    "seal": {
+     "value": "B",
+     "how": "pinneapple_lab (ABCD): solid"
+    }
    },
    "warnings": [],
    "tables": [
     {
-     "title": "what the tier is missing",
+     "title": "what the next letter needs",
      "columns": [
-      "gap"
+      "gap",
+      "suggested action",
+      "nodes"
      ],
      "rows": [
       [
-       "add figures (a movie, a render or a 3-D view for communication)"
+       "add figures (a movie, a render or a 3-D view for communication)",
+       "",
+       ""
       ],
       [
-       "document it (docs page, references)"
+       "document it (docs page, references)",
+       "",
+       ""
       ]
      ]
     }
@@ -294,5 +304,6 @@
     "lab_validation_sealed.png"
    ]
   }
- }
+ },
+ "cached_nodes": []
 }

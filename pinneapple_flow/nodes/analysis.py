@@ -120,8 +120,11 @@ def compare(ctx, inputs, params):
                        "verification", "detail": f"relative L2 against the {ref_name} on {len(X)} points"})
         ctx.metric(f"{s['label']}_rel_l2", rel, f"against the {ref_name} on {len(X)} points")
         if params["trust_card"] and problem is not None and s["coords"] == ["x", "y"]:
+            # on the candidate's own grid: interpolating it onto another grid would change its derivatives
+            Xs = grid_points(s["axes"], s["coords"])
+            Rs = exact(Xs) if use_exact else interpolate(ref, Xs)
             shp = tuple(len(s["axes"][c]) for c in s["coords"])
-            card = _trust_card(problem, s, V[:, 0].reshape(shp), R[:, 0].reshape(shp))
+            card = _trust_card(problem, s, s["values"][..., 0].reshape(shp), Rs[:, 0].reshape(shp))
             if card is not None:
                 ctx.table(f"trust card: {s['label']} ({card.decision})", ["check", "passed", "value", "detail"],
                           [[c.name, c.passed, c.value, c.detail] for c in card.checks])

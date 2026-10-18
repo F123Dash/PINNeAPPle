@@ -2,7 +2,7 @@
  "flow": "planned_hybrid_surrogate_hpo",
  "title": "Fast surrogate (neural operator)",
  "status": "done",
- "wall_seconds": 0.1,
+ "wall_seconds": 19.1,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -818,8 +818,8 @@
  "nodes": {
   "geo": {
    "type": "geometry.domain",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0019309520721435547,
    "error": null,
    "summary": "interval in 1-D, coordinates ['x', 't']",
    "metrics": {
@@ -831,8 +831,8 @@
   },
   "mesh": {
    "type": "geometry.mesh",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.0015952587127685547,
    "error": null,
    "summary": "",
    "metrics": {
@@ -860,8 +860,8 @@
   },
   "eq": {
    "type": "equations.system",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.020425081253051758,
    "error": null,
    "summary": "wave (linear), 1 PDE(s), 3 condition(s)",
    "metrics": {
@@ -910,14 +910,14 @@
   },
   "sweep": {
    "type": "data.parametric",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 5.819295167922974,
    "error": null,
    "summary": "",
    "metrics": {
     "samples": 96,
     "outputs_per_sample": 81,
-    "generation_seconds": 5.58
+    "generation_seconds": 5.81
    },
    "warnings": [],
    "tables": [],
@@ -925,8 +925,8 @@
   },
   "hpo": {
    "type": "surrogate.hpo",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 12.972216844558716,
    "error": null,
    "summary": "best of 10 trials (random-search): test rel. L2 0.015",
    "metrics": {
@@ -947,7 +947,7 @@
     },
     "n_parameters": 39328,
     "train_seconds": {
-     "value": 4.79,
+     "value": 4.36,
      "how": "wall clock on this machine"
     }
    },
@@ -1107,8 +1107,8 @@
   },
   "sobol": {
    "type": "uq.sensitivity",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 0.18573546409606934,
    "error": null,
    "summary": "",
    "metrics": {
@@ -1141,11 +1141,11 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.0025396347045898438,
+   "seconds": 0.0025072097778320312,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
-    "decisions": 16,
+    "decisions": 18,
     "decisions_without_reference": 4,
     "items": 1
    },
@@ -1153,5 +1153,6 @@
    "tables": [],
    "figures": []
   }
- }
+ },
+ "cached_nodes": []
 }

@@ -2,7 +2,7 @@
  "flow": "planned_pde_twin",
  "title": "Digital twin generated from the description",
  "status": "done",
- "wall_seconds": 3.7,
+ "wall_seconds": 4.1,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -264,7 +264,7 @@
   "problem": {
    "type": "problem.generic",
    "status": "done",
-   "seconds": 0.12906193733215332,
+   "seconds": 0.06186389923095703,
    "error": null,
    "summary": "identified heat (0.92), 1-D",
    "metrics": {
@@ -306,7 +306,7 @@
   "live": {
    "type": "data.stream",
    "status": "done",
-   "seconds": 0.47023773193359375,
+   "seconds": 0.5202057361602783,
    "error": null,
    "summary": "150 readings from 4 sensors (simulated)",
    "metrics": {
@@ -321,13 +321,13 @@
   "twin": {
    "type": "twin.auto",
    "status": "done",
-   "seconds": 2.920849323272705,
+   "seconds": 3.352353811264038,
    "error": null,
    "summary": "150 readings, alpha 0.1534, 1 alert(s)",
    "metrics": {
     "readings": 150,
     "assimilation_seconds": {
-     "value": 2.53,
+     "value": 2.91,
      "how": "wall clock on this machine"
     },
     "alpha_final": {
@@ -376,7 +376,7 @@
   "view3d": {
    "type": "viz.field3d",
    "status": "done",
-   "seconds": 0.029840946197509766,
+   "seconds": 0.031363487243652344,
    "error": null,
    "summary": "",
    "metrics": {
@@ -389,7 +389,7 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.0021300315856933594,
+   "seconds": 0.001992940902709961,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
@@ -401,5 +401,6 @@
    "tables": [],
    "figures": []
   }
- }
+ },
+ "cached_nodes": []
 }

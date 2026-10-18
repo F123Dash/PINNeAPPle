@@ -2,7 +2,7 @@
  "flow": "operator_burgers",
  "title": "Neural operators: DeepONet and FNO on Burgers",
  "status": "done",
- "wall_seconds": 320.9,
+ "wall_seconds": 204.0,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,13 +11,13 @@
  "nodes": {
   "data": {
    "type": "data.grf_burgers",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 18.081201314926147,
    "error": null,
    "summary": "",
    "metrics": {
     "samples": 512,
-    "generation_seconds": 17.37
+    "generation_seconds": 18.02
    },
    "warnings": [],
    "tables": [],
@@ -26,7 +26,7 @@
   "deeponet": {
    "type": "surrogate.train",
    "status": "done",
-   "seconds": 320.8218185901642,
+   "seconds": 116.27654075622559,
    "error": null,
    "summary": "deeponet: test rel. L2 0.0474, 99329 parameters",
    "metrics": {
@@ -44,7 +44,7 @@
     },
     "n_parameters": 99329,
     "train_seconds": {
-     "value": 319.29,
+     "value": 115.93,
      "how": "wall clock on this machine"
     }
    },
@@ -146,8 +146,8 @@
   },
   "fno": {
    "type": "surrogate.train",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 69.45747184753418,
    "error": null,
    "summary": "fno: test rel. L2 0.00473, 69889 parameters",
    "metrics": {
@@ -165,7 +165,7 @@
     },
     "n_parameters": 69889,
     "train_seconds": {
-     "value": 113.63,
+     "value": 69.15,
      "how": "wall clock on this machine"
     }
    },
@@ -268,11 +268,11 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.0015702247619628906,
+   "seconds": 0.0034797191619873047,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
-    "decisions": 1,
+    "decisions": 2,
     "decisions_without_reference": 0,
     "items": 2
    },
@@ -280,5 +280,6 @@
    "tables": [],
    "figures": []
   }
- }
+ },
+ "cached_nodes": []
 }

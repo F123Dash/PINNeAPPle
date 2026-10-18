@@ -2,7 +2,7 @@
  "flow": "planned_digital_twin",
  "title": "Digital twin on a sensor stream",
  "status": "done",
- "wall_seconds": 0.1,
+ "wall_seconds": 4.6,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -194,8 +194,8 @@
  "nodes": {
   "twin": {
    "type": "twin.connect",
-   "status": "cached",
-   "seconds": 0.0,
+   "status": "done",
+   "seconds": 4.504979610443115,
    "error": null,
    "summary": "721 readings assimilated, 1 alert(s)",
    "metrics": {
@@ -205,6 +205,10 @@
     "q_leak_final_estimate": {
      "value": 0.0005028609220658921,
      "how": "m^3/s, ensemble mean at the last reading"
+    },
+    "q_leak_true": {
+     "value": 0.0005,
+     "how": "the leak injected in the simulated plant"
     },
     "detection_delay_s": {
      "value": 140.0,
@@ -236,11 +240,11 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.0022852420806884766,
+   "seconds": 0.0018284320831298828,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
-    "decisions": 4,
+    "decisions": 7,
     "decisions_without_reference": 0,
     "items": 1
    },
@@ -248,5 +252,6 @@
    "tables": [],
    "figures": []
   }
- }
+ },
+ "cached_nodes": []
 }

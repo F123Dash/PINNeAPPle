@@ -135,8 +135,9 @@ def test_surrogate_and_hpo_nodes_on_a_small_sweep(home):
 
 @pytest.mark.parametrize("dim", [2, 3])
 def test_trust_card_with_a_source_and_boundary_dirichlet(home, dim):
-    """Poisson with a source term and ``u = 0`` on the whole boundary: the trust card evaluates both (a regression:
-    the source closure was rebound to a face name)."""
+    """Poisson with a source term and ``u = 0`` on the whole boundary, two candidates on different grids: the trust
+    card of each is computed on its own grid (regressions: the source closure was rebound to a face name; a candidate
+    on another grid was reshaped to the wrong size, then judged after interpolation, which breaks its derivatives)."""
     lap = {2: "-2*pi**2*sin(pi*x)*sin(pi*y)", 3: "-3*pi**2*sin(pi*x)*sin(pi*y)*sin(pi*z)"}[dim]
     exact = {2: "sin(pi*x)*sin(pi*y)", 3: "sin(pi*x)*sin(pi*y)*sin(pi*z)"}[dim]
     f = pf.Flow("poisson", nodes=[
@@ -145,10 +146,16 @@ def test_trust_card_with_a_source_and_boundary_dirichlet(home, dim):
             "fields": ["u"], "pdes": [f"lap(u) = {lap}"], "exact": exact,
             "conditions": [{"kind": "dirichlet", "on": "boundary", "equation": "u = 0"}]}},
         {"id": "fd", "type": "solver.classical", "params": {"method": "fd", "n": 17 if dim == 2 else 9}},
+        {"id": "fem", "type": "solver.classical", "params": {"method": "fem", "n": 9 if dim == 2 else 5}},
         {"id": "val", "type": "validate.compare", "params": {"reference": "exact"}}], edges=[
+        {"source": "eq", "source_port": "problem", "target": "fem", "target_port": "problem"},
+        {"source": "fem", "source_port": "solution", "target": "val", "target_port": "candidates"},
         {"source": "geo", "source_port": "geometry", "target": "eq", "target_port": "geometry"},
         {"source": "eq", "source_port": "problem", "target": "fd", "target_port": "problem"},
         {"source": "fd", "source_port": "solution", "target": "val", "target_port": "candidates"},
         {"source": "eq", "source_port": "problem", "target": "val", "target_port": "problem"}])
     r = pf.run(f, workdir=home / "runs")
     assert r.status == "done", r.nodes["val"]["error"]
+    if dim == 2:
+        cards = {k: v.get("trust_card") for k, v in r.output("val", "metrics")["candidates"].items()}
+        assert cards and all(c == "APPROVED" for c in cards.values()), cards
