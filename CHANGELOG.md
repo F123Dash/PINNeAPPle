@@ -28,6 +28,17 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   material properties; `templates/example_spring.py` is the template-authoring example.
 - `plate_fin_heatsink.evaluate` takes the starting fin-root temperature (`t_root_guess_c`): with `max_iter=1` the
   convection coefficient is evaluated once at that temperature (a hand calculation).
+- 3-D case in the Surrogate Studio (day 14): the ROM Lab's solid FEM cantilever as a field dataset
+  (`pinneapple_analysis.surrogate.from_snapshots` / `snapshot_values` for snapshots on a node lattice). The page shows
+  held-out errors per field, per zone and on the tip displacement and the largest stress
+  (`pinneapple_analysis.surrogate.heldout`). It also shows the speed-up against a FEM solve timed on the machine,
+  and any held-out design on its body (surrogate, FEM, error) with the hosted endpoint's OOD gate verdict for it
+  (`pinneapple_registry.gateway.ood_verdict`), through `rom.views.prediction_view`, now shared by the ROM Lab and
+  the Surrogate Studio.
+- Surrogate studies keep declared outputs non-negative (`SurrogateData.meta["nonnegative"]`, e.g. a von Mises
+  stress): every method is trained on their square root and predicts their square (`methods.NonNegative`, also in
+  the TorchScript / ONNX export). `heldout_report` counts negative predictions of such fields and gives the
+  per-design errors next to the pooled one.
 - Drive model of synchronous machines (`pinneapple_simulation.electromagnetics.machines.drive`): FEA flux maps with
   speed-free loss data, constant-inductance reference with closed forms, torque envelope and least-loss operating
   points under current and voltage limits (MTPA, flux weakening, maximum torque per volt), efficiency maps, vehicle

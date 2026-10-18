@@ -22,7 +22,7 @@ from typing import Any
 import numpy as np
 
 from .limits import OODGate
-from .methods import Fitted, _Torch
+from .methods import Fitted, NonNegative, _Torch
 
 __all__ = ["SurrogateModel", "MODEL_KIND"]
 
@@ -131,7 +131,9 @@ class SurrogateModel:
     # ------------------------------------------------------------------------------------------ export
     def export(self, path: str | Path, fmt: str = "torchscript") -> Path:
         import torch
-        f = self.fitted
+        f, mask = self.fitted, None
+        if isinstance(f, NonNegative):
+            f, mask = f.inner, f.mask
         if not isinstance(f, _Torch):
             raise NotImplementedError(f"{f.method}: only the PyTorch candidates (mlp, fno, deeponet, pinn) export "
                                       "to TorchScript / ONNX here")
@@ -146,9 +148,11 @@ class SurrogateModel:
                 self.register_buffer("ym", t(f.ym))
                 self.register_buffer("ys", t(f.ys))
                 self.extra = f.extra
+                self.register_buffer("sq", torch.as_tensor(np.zeros(len(f.ym), bool) if mask is None else mask))
 
             def forward(self, x):
-                return f.forward_fn(self.module, (x - self.xm) / self.xs, self.extra) * self.ys + self.ym
+                y = f.forward_fn(self.module, (x - self.xm) / self.xs, self.extra) * self.ys + self.ym
+                return torch.where(self.sq, y * y, y)               # non-negative outputs: the square
 
         w = Wrapped().eval()
         ex = torch.as_tensor(self.gate.lo[None] * 0.5 + self.gate.hi[None] * 0.5, dtype=torch.float32)
