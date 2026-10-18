@@ -374,9 +374,9 @@ def headline(checks: list[dict[str, Any]], tier: str, labels: dict[str, Any] | N
     the check's name and ``missing`` what the item still lacks for the next claim.
 
     ``labels`` (``Experiment.check_labels``) maps a check name to its short display line,
-    ``{"en": ..., "pt": ..., "also": [other check names the line also claims]}``; it becomes ``label`` /
-    ``label_pt`` only when that check and every check in ``also`` passed, so a label never says more than the run
-    showed. A ``label`` recorded on the check itself (``ctx.check(label=...)``) is used when the experiment has none."""
+    ``{"en": ..., "pt": ..., "short": ..., "short_pt": ..., "also": [other check names the line also claims]}``
+    (``short`` for small tiles); it becomes ``label`` / ``label_pt`` / ``label_short`` / ``label_short_pt`` only when
+    that check and every check in ``also`` passed, so a label never says more than the run showed. A ``label`` recorded on the check itself (``ctx.check(label=...)``) is used when the experiment has none."""
     passing = [c for c in checks if c.get("passed")]
     ref = [c for c in passing if c.get("kind") == "reference"]
     other = [c for c in passing if c.get("kind") in ("physics", "baseline", "generalization")]
@@ -391,8 +391,9 @@ def headline(checks: list[dict[str, Any]], tier: str, labels: dict[str, Any] | N
     names = {x.get("name") for x in passing}
     if isinstance(lab, dict) and all(a in names for a in lab.get("also", [])):
         out["label"] = lab.get("en", "")
-        if lab.get("pt"):
-            out["label_pt"] = lab["pt"]
+        for k, dst in (("pt", "label_pt"), ("short", "label_short"), ("short_pt", "label_short_pt")):
+            if lab.get(k):
+                out[dst] = lab[k]
     elif c.get("label"):
         out["label"] = c["label"]
     return out
