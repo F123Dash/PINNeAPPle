@@ -275,8 +275,8 @@ _CONSTRAINT_FUNCTIONS = {"abs": np.abs, "sqrt": np.sqrt, "exp": np.exp, "log": n
 
 
 def _constraint(expr: str, cols: Mapping[str, np.ndarray]) -> np.ndarray:
-    # interpreted by pinneapple_data.contracts.expressions, never eval(): the constraints come from uploaded datasets
-    from pinneapple_data.contracts.expressions import evaluate
+    # interpreted by pinneapple_data.expressions, never eval(): the constraints come from uploaded datasets
+    from pinneapple_data.expressions import evaluate
     env = {k: np.asarray(v, float) for k, v in cols.items() if np.asarray(v).dtype.kind in "fiub"}
     env["pi"] = np.pi
     if "==" in expr:                                   # equality to a relative 1e-6

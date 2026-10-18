@@ -10,7 +10,7 @@ import zipfile
 import numpy as np
 import pytest
 
-from pinneapple_data.contracts import expressions
+from pinneapple_data import expressions
 from pinneapple_security import archives, audit, passwords, web
 
 
@@ -36,7 +36,7 @@ def test_argon2_when_installed():
     assert h.startswith("$argon2id$") and passwords.verify_password("pw", h) and not passwords.verify_password("no", h)
 
 
-# ------------------------------------------------- user formulas (pinneapple_data.contracts.expressions)
+# ------------------------------------------------- user formulas (pinneapple_data.expressions)
 FUNCS = {"abs": np.abs, "sqrt": np.sqrt}
 
 

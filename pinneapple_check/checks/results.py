@@ -21,7 +21,7 @@ _SAFE = {k: getattr(np, k) for k in ("sin", "cos", "tan", "exp", "log", "sqrt", 
 def evaluate_expr(value: Any, coords: dict[str, np.ndarray], n: int) -> np.ndarray:
     """A declared value: a number, a vector (list) or an expression of the coordinates (``"sin(pi*x)"``)."""
     if isinstance(value, str):
-        from pinneapple_data.contracts.expressions import (
+        from pinneapple_data.expressions import (
             evaluate,  # interpreted, never eval(): configs are uploaded
         )
         try:

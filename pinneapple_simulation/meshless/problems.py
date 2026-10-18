@@ -34,7 +34,7 @@ def _expr(s: str, time: bool):
     s = str(s).replace("^", "**")
     if len(s) > 400:
         raise ValueError(f"expression not allowed: {s!r}")
-    from pinneapple_data.contracts.expressions import ExpressionError, check
+    from pinneapple_data.expressions import ExpressionError, check
     try:                                 # sympify runs Python's eval: only formulas of these names get that far
         check(s, names=set(names) - {"abs", "Abs"}, functions={"abs", "Abs", "sin", "cos", "tan", "exp", "log", "sqrt",
                                                                "sinh", "cosh", "tanh", "atan", "atan2"})
