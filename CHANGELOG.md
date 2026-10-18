@@ -14,6 +14,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Slides of the e-machine study: `examples/electrodynamics/18_emachine_slides.py` builds 11 slides (PPTX, and PDF
+  with LibreOffice) from the results of examples 10 to 17, every number read from the result files, each slide with
+  its limits (needs `python-pptx`).
 - End effects of machines: `statics.filament_inductance` (Neumann's formula for thin conductors, reduced kernel,
   closed-form self terms, iron-face image), `machines.endwinding` (end-winding resistance path and dq leakage
   inductance), `Drive(..., L_end=...)`, and `getdp.end_leakage_3d` (3-D magnetostatic end leakage of the magnet
