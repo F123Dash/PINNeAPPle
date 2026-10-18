@@ -428,7 +428,8 @@ through the dihedral effect.
   attitude and position;
 - the runway with its markings;
 - the trajectory trail;
-- the gust field as arrows on a heading-aligned grid around the aircraft, coloured by the vertical gust;
+- the vertical gust w as vertical arrows on a heading-aligned grid around the aircraft, coloured blue (down) to red
+  (up), and as wisps along the flown track;
 - the lattice loading ΔCp on a sheet just above the wing and tail skins;
 - a HUD with airspeed, height, n_z, pitch and bank.
 
