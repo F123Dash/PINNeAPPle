@@ -2,7 +2,7 @@
  "flow": "inverse_heat",
  "title": "Inverse heat: identify the diffusivity",
  "status": "done",
- "wall_seconds": 51.4,
+ "wall_seconds": 0.2,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,8 +11,8 @@
  "nodes": {
   "true_geo": {
    "type": "geometry.domain",
-   "status": "done",
-   "seconds": 0.00157928466796875,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "interval in 1-D, coordinates ['x', 't']",
    "metrics": {
@@ -37,8 +37,8 @@
   },
   "true_mesh": {
    "type": "geometry.mesh",
-   "status": "done",
-   "seconds": 0.0009253025054931641,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -66,8 +66,8 @@
   },
   "inv_mesh": {
    "type": "geometry.mesh",
-   "status": "done",
-   "seconds": 0.0008914470672607422,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -95,8 +95,8 @@
   },
   "true_eq": {
    "type": "equations.system",
-   "status": "done",
-   "seconds": 2.7037558555603027,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
    "metrics": {
@@ -139,8 +139,8 @@
   },
   "inv_eq": {
    "type": "equations.system",
-   "status": "done",
-   "seconds": 0.0046122074127197266,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
    "metrics": {
@@ -183,8 +183,8 @@
   },
   "fd": {
    "type": "solver.classical",
-   "status": "done",
-   "seconds": 0.7524325847625732,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "FD on 101x41 points in 0.03 s",
    "metrics": {
@@ -204,8 +204,8 @@
   },
   "sensors": {
    "type": "data.observe",
-   "status": "done",
-   "seconds": 0.004262208938598633,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -218,8 +218,8 @@
   },
   "discover": {
    "type": "inverse.discover",
-   "status": "done",
-   "seconds": 46.713491916656494,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "alpha = 0.1002",
    "metrics": {
@@ -312,8 +312,8 @@
   },
   "calibrate": {
    "type": "inverse.calibrate",
-   "status": "done",
-   "seconds": 1.0401611328125,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "alpha = 0.099983",
    "metrics": {

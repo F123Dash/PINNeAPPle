@@ -2,7 +2,7 @@
  "flow": "burgers_1d",
  "title": "Burgers 1D: PINN vs finite differences vs Cole-Hopf",
  "status": "done",
- "wall_seconds": 235.6,
+ "wall_seconds": 0.3,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -11,8 +11,8 @@
  "nodes": {
   "geo": {
    "type": "geometry.domain",
-   "status": "done",
-   "seconds": 0.0017733573913574219,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "interval in 1-D, coordinates ['x', 't']",
    "metrics": {
@@ -24,8 +24,8 @@
   },
   "mesh": {
    "type": "geometry.mesh",
-   "status": "done",
-   "seconds": 0.0011930465698242188,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -53,8 +53,8 @@
   },
   "eq": {
    "type": "equations.system",
-   "status": "done",
-   "seconds": 0.0393223762512207,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "burgers (nonlinear), 1 PDE(s), 2 condition(s)",
    "metrics": {
@@ -97,8 +97,8 @@
   },
   "fd": {
    "type": "solver.classical",
-   "status": "done",
-   "seconds": 0.2831871509552002,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "FD on 513x51 points in 0.12 s",
    "metrics": {
@@ -118,8 +118,8 @@
   },
   "pinn": {
    "type": "train.pinn",
-   "status": "done",
-   "seconds": 227.3852972984314,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "PINN trained in 224.9 s; validation failed",
    "metrics": {
@@ -196,8 +196,8 @@
   },
   "render": {
    "type": "viz.render",
-   "status": "done",
-   "seconds": 1.4850492477416992,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "",
    "metrics": {
@@ -211,8 +211,8 @@
   },
   "validate": {
    "type": "validate.compare",
-   "status": "done",
-   "seconds": 5.890296697616577,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "FD: 5.09e-03, PINN: 2.74e-03 (vs exact solution)",
    "metrics": {
@@ -264,8 +264,8 @@
   },
   "lab": {
    "type": "validate.lab",
-   "status": "done",
-   "seconds": 0.1542491912841797,
+   "status": "cached",
+   "seconds": 0.0,
    "error": null,
    "summary": "tier B, sealed",
    "metrics": {
