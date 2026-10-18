@@ -1,0 +1,79 @@
+{
+ "flow": "planned_digital_twin",
+ "title": "Digital twin on a sensor stream",
+ "status": "done",
+ "wall_seconds": 4.6,
+ "machine": "x86_64 x86_64 (linux), CPU only",
+ "date": "2026-10-18",
+ "meta": {
+  "title": "Digital twin on a sensor stream",
+  "family": "twin",
+  "planner": "heuristic",
+  "prompt": "Monitor a heated water tank in real time from its level and temperature sensors (a digital twin) and detect leaks.",
+  "kind": "planned",
+  "detected": {
+   "family": "heat",
+   "dimension": null,
+   "intents": [
+    "twin"
+   ],
+   "boundary": []
+  }
+ },
+ "nodes": {
+  "twin": {
+   "type": "twin.connect",
+   "status": "done",
+   "seconds": 4.438931226730347,
+   "error": null,
+   "summary": "721 readings assimilated, 1 alert(s)",
+   "metrics": {
+    "readings": 721,
+    "alerts": 1,
+    "assimilation_seconds": 4.11,
+    "q_leak_final_estimate": {
+     "value": 0.0005028609220658921,
+     "how": "m^3/s, ensemble mean at the last reading"
+    },
+    "detection_delay_s": {
+     "value": 140.0,
+     "how": "first alert after the fault started"
+    }
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "alerts",
+     "columns": [
+      "t",
+      "kind",
+      "message"
+     ],
+     "rows": [
+      [
+       3740.0,
+       "parameter",
+       "estimated q_leak = 0.0004537 +- 5e-05 is above 0.0003 (beyond 3 sigma)"
+      ]
+     ]
+    }
+   ],
+   "figures": [
+    "twin_twin.png"
+   ]
+  },
+  "report": {
+   "type": "export.report",
+   "status": "done",
+   "seconds": 0.0013203620910644531,
+   "error": null,
+   "summary": "report written (html)",
+   "metrics": {
+    "items": 1
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  }
+ }
+}

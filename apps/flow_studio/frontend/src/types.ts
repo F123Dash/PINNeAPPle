@@ -1,0 +1,47 @@
+// Shapes of the pinneapple-flow/1 document and the API answers.
+export interface Port { name: string; type: string; required: boolean; multiple: boolean; help: string }
+export interface ParamSpec {
+  name: string; kind: string; default: any; help: string; choices: any[] | null;
+  minimum: number | null; maximum: number | null; advanced: boolean; label: string;
+}
+export interface NodeType {
+  type: string; title: string; category: string; description: string; calls: string;
+  inputs: Port[]; outputs: Port[]; params: ParamSpec[]; available: boolean; unavailable_reason: string;
+}
+export interface Catalog { nodes: NodeType[]; port_types: Record<string, string>; conversions: [string, string][] }
+
+export interface FlowNodeDoc { id: string; type: string; params: Record<string, any>; position: { x: number; y: number }; label: string }
+export interface FlowEdgeDoc { id?: string; source: string; source_port: string; target: string; target_port: string }
+export interface FlowDoc {
+  schema: string; id: string; name: string; description: string;
+  nodes: FlowNodeDoc[]; edges: FlowEdgeDoc[]; meta: Record<string, any>;
+}
+
+export interface Proposal { title: string; rationale: string; flow: FlowDoc; planner: string; repairs?: string[] }
+export interface PlanResult {
+  planner: string; proposals: Proposal[]; warnings: string[]; detected: Record<string, any>; fallback_from?: string;
+}
+
+export type Status = "idle" | "queued" | "running" | "done" | "failed" | "cached" | "cancelled";
+export interface NodeBrief { status: Status; error?: string; seconds?: number; summary?: string; metrics?: Record<string, any>; warnings?: string[] }
+export interface RunStatus { run_id: string; status: string; nodes: Record<string, NodeBrief>; error?: string }
+export interface NodeResult {
+  node: string; status: Status; error?: string; seconds?: number; log: string; outputs: Record<string, any>;
+  report: {
+    metrics: Record<string, any>; figures: { path: string; name: string; caption: string }[];
+    tables: { title: string; columns: string[]; rows: any[][] }[]; views: Record<string, any>;
+    warnings: string[]; summary: string;
+  };
+}
+
+export const PORT_COLORS: Record<string, string> = {
+  geometry: "#0ea5e9", mesh: "#06b6d4", equations: "#8b5cf6", problem: "#7c3aed", solution: "#16a34a",
+  model: "#ea580c", dataset: "#ca8a04", series: "#d97706", metrics: "#475569", params: "#db2777",
+  architecture: "#9333ea", figure: "#2563eb", scene: "#0891b2", twin: "#059669", report: "#64748b", any: "#94a3b8",
+};
+
+export const STATUS_STYLE: Record<string, string> = {
+  idle: "bg-slate-100 text-slate-500", queued: "bg-slate-200 text-slate-700", running: "bg-amber-100 text-amber-800 animate-pulse",
+  done: "bg-emerald-100 text-emerald-800", cached: "bg-sky-100 text-sky-800", failed: "bg-red-100 text-red-800",
+  cancelled: "bg-zinc-200 text-zinc-700",
+};

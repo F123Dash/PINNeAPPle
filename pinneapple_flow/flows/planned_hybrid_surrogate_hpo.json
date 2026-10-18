@@ -1,0 +1,239 @@
+{
+ "schema": "pinneapple-flow/1",
+ "id": "wave-1d-surrogate",
+ "name": "Fast surrogate (neural operator)",
+ "description": "Generate 96 finite-difference solutions over c and train a POD + MLP (ROM + NN hybrid) surrogate with a hyperparameter search; held-out test error and Sobol sensitivity of the field.",
+ "nodes": [
+  {
+   "id": "geo",
+   "type": "geometry.domain",
+   "params": {
+    "dimension": 1,
+    "shape": "box",
+    "time_dependent": true,
+    "x_range": [
+     0.0,
+     1.0
+    ],
+    "y_range": [
+     0.0,
+     1.0
+    ],
+    "z_range": [
+     0.0,
+     1.0
+    ],
+    "t_range": [
+     0.0,
+     1.0
+    ]
+   },
+   "position": {
+    "x": 40.0,
+    "y": 40.0
+   },
+   "label": "Domain"
+  },
+  {
+   "id": "mesh",
+   "type": "geometry.mesh",
+   "params": {
+    "n": 201,
+    "n_t": 41
+   },
+   "position": {
+    "x": 320.0,
+    "y": 40.0
+   },
+   "label": "Grid"
+  },
+  {
+   "id": "eq",
+   "type": "equations.system",
+   "params": {
+    "template": "wave",
+    "follow_template": false,
+    "fields": [
+     "u"
+    ],
+    "pdes": [
+     "u_tt = c**2*lap(u)"
+    ],
+    "conditions": [
+     {
+      "kind": "initial",
+      "on": "t_min",
+      "equation": "u = sin(pi*x)"
+     },
+     {
+      "kind": "initial",
+      "on": "t_min",
+      "equation": "u_t = 0"
+     },
+     {
+      "kind": "dirichlet",
+      "on": "boundary",
+      "equation": "u = 0"
+     }
+    ],
+    "coefficients": {
+     "c": 1.0
+    },
+    "unknowns": [],
+    "exact": "cos(c*pi*sqrt(1)*t)*sin(pi*x)"
+   },
+   "position": {
+    "x": 600.0,
+    "y": 40.0
+   },
+   "label": "wave equations"
+  },
+  {
+   "id": "sweep",
+   "type": "data.parametric",
+   "params": {
+    "vary": {
+     "c": [
+      0.5,
+      2.0
+     ]
+    },
+    "n_samples": 96,
+    "n": 81,
+    "output": "final"
+   },
+   "position": {
+    "x": 880.0,
+    "y": 40.0
+   },
+   "label": "Parametric sweep (FD)"
+  },
+  {
+   "id": "hpo",
+   "type": "surrogate.hpo",
+   "params": {
+    "kind": "pod_mlp",
+    "n_trials": 10,
+    "trial_epochs": 150,
+    "final_epochs": 600,
+    "space": {
+     "lr": [
+      0.0003,
+      0.01,
+      "log"
+     ],
+     "width": [
+      16,
+      128
+     ],
+     "depth": [
+      1,
+      4
+     ],
+     "rank": [
+      4,
+      16
+     ]
+    }
+   },
+   "position": {
+    "x": 1160.0,
+    "y": 40.0
+   },
+   "label": "HPO"
+  },
+  {
+   "id": "sobol",
+   "type": "uq.sensitivity",
+   "params": {
+    "quantity": "mean"
+   },
+   "position": {
+    "x": 1440.0,
+    "y": 40.0
+   },
+   "label": "Sensitivity"
+  },
+  {
+   "id": "report",
+   "type": "export.report",
+   "params": {
+    "title": "wave surrogate"
+   },
+   "position": {
+    "x": 1440.0,
+    "y": 190.0
+   },
+   "label": "Report"
+  }
+ ],
+ "edges": [
+  {
+   "source": "geo",
+   "source_port": "geometry",
+   "target": "mesh",
+   "target_port": "geometry",
+   "id": "geo.geometry->mesh.geometry"
+  },
+  {
+   "source": "geo",
+   "source_port": "geometry",
+   "target": "eq",
+   "target_port": "geometry",
+   "id": "geo.geometry->eq.geometry"
+  },
+  {
+   "source": "mesh",
+   "source_port": "mesh",
+   "target": "eq",
+   "target_port": "mesh",
+   "id": "mesh.mesh->eq.mesh"
+  },
+  {
+   "source": "eq",
+   "source_port": "problem",
+   "target": "sweep",
+   "target_port": "problem",
+   "id": "eq.problem->sweep.problem"
+  },
+  {
+   "source": "sweep",
+   "source_port": "data",
+   "target": "hpo",
+   "target_port": "data",
+   "id": "sweep.data->hpo.data"
+  },
+  {
+   "source": "hpo",
+   "source_port": "model",
+   "target": "sobol",
+   "target_port": "model",
+   "id": "hpo.model->sobol.model"
+  },
+  {
+   "source": "hpo",
+   "source_port": "metrics",
+   "target": "report",
+   "target_port": "items",
+   "id": "hpo.metrics->report.items"
+  }
+ ],
+ "meta": {
+  "title": "Fast surrogate (neural operator)",
+  "family": "wave",
+  "planner": "heuristic",
+  "prompt": "Build a fast surrogate of a vibrating string for many wave speeds: a mixed ROM + NN model with hyperparameter tuning and a sensitivity analysis.",
+  "kind": "planned",
+  "detected": {
+   "family": "wave",
+   "dimension": 1,
+   "intents": [
+    "hpo",
+    "hybrid",
+    "surrogate",
+    "uq"
+   ],
+   "boundary": []
+  }
+ }
+}

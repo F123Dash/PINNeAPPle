@@ -1,0 +1,35 @@
+{
+ "flow": "aircraft_takeoff",
+ "title": "Aircraft take-off (flight library)",
+ "status": "failed",
+ "wall_seconds": 0.0,
+ "machine": "x86_64 x86_64 (linux), CPU only",
+ "date": "2026-10-18",
+ "meta": {
+  "kind": "reproduction"
+ },
+ "nodes": {
+  "takeoff": {
+   "type": "flight.takeoff",
+   "status": "failed",
+   "seconds": null,
+   "error": "StepFailed: pinneapple_simulation.flight is not in this checkout (the flight-dynamics library is not on main yet); the node runs once it is",
+   "summary": null,
+   "metrics": null,
+   "warnings": null,
+   "tables": null,
+   "figures": []
+  },
+  "report": {
+   "type": "export.report",
+   "status": "cancelled",
+   "seconds": null,
+   "error": "a step it needs did not finish",
+   "summary": null,
+   "metrics": null,
+   "warnings": null,
+   "tables": null,
+   "figures": []
+  }
+ }
+}

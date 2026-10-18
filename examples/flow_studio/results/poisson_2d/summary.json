@@ -1,0 +1,469 @@
+{
+ "flow": "poisson_2d",
+ "title": "Poisson 2D: FEM, FD and PINN with the trust card",
+ "status": "done",
+ "wall_seconds": 58.0,
+ "machine": "x86_64 x86_64 (linux), CPU only",
+ "date": "2026-10-18",
+ "meta": {
+  "kind": "reproduction"
+ },
+ "nodes": {
+  "geo": {
+   "type": "geometry.domain",
+   "status": "done",
+   "seconds": 0.001735687255859375,
+   "error": null,
+   "summary": "rectangle in 2-D, coordinates ['x', 'y']",
+   "metrics": {
+    "dimension": 2
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  },
+  "mesh": {
+   "type": "geometry.mesh",
+   "status": "done",
+   "seconds": 0.0012736320495605469,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "nodes": 1681
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "spacing",
+     "columns": [
+      "axis",
+      "nodes",
+      "h"
+     ],
+     "rows": [
+      [
+       "x",
+       41,
+       0.025
+      ],
+      [
+       "y",
+       41,
+       0.025
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "eq": {
+   "type": "equations.system",
+   "status": "done",
+   "seconds": 0.1963040828704834,
+   "error": null,
+   "summary": "poisson (linear), 1 PDE(s), 1 condition(s)",
+   "metrics": {
+    "family": "poisson",
+    "linear": true
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "equations",
+     "columns": [
+      "kind",
+      "on",
+      "equation",
+      "derivatives"
+     ],
+     "rows": [
+      [
+       "pde",
+       "",
+       "lap(u) = -2*pi**2*sin(pi*x)*sin(pi*y)",
+       "u_xx, u_yy"
+      ],
+      [
+       "dirichlet",
+       "boundary",
+       "u = 0",
+       ""
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "fd": {
+   "type": "solver.classical",
+   "status": "done",
+   "seconds": 0.25745487213134766,
+   "error": null,
+   "summary": "FD on 41x41 points in 0.12 s",
+   "metrics": {
+    "method": "newton",
+    "iterations": 2,
+    "n_unknowns": 1681,
+    "residual_inf": 6.217248937900877e-13,
+    "solve_seconds": {
+     "value": 0.122,
+     "how": "wall clock of the solve on this machine"
+    }
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": [
+    "fd_solution.png"
+   ]
+  },
+  "fem": {
+   "type": "solver.classical",
+   "status": "done",
+   "seconds": 0.6363797187805176,
+   "error": null,
+   "summary": "FEM on 41x41 points in 0.48 s",
+   "metrics": {
+    "n_dof": 1681,
+    "solve_seconds": {
+     "value": 0.4764,
+     "how": "wall clock of the solve on this machine"
+    }
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": [
+    "fem_solution.png"
+   ]
+  },
+  "pinn": {
+   "type": "train.pinn",
+   "status": "done",
+   "seconds": 55.746344327926636,
+   "error": null,
+   "summary": "PINN trained in 55.3 s; validation passed",
+   "metrics": {
+    "train_seconds": {
+     "value": 55.32,
+     "how": "wall clock of training on this machine (CPU)"
+    },
+    "final_loss": 1.969021832337603e-05,
+    "n_parameters": 3297,
+    "residual_rms_fresh": {
+     "value": 0.004018763979447699,
+     "how": "relative PDE residual at fresh points"
+    },
+    "rel_l2_vs_exact": {
+     "value": 0.0006610780383291626,
+     "how": "validate_pinn on a fresh grid"
+    },
+    "validation": "pass"
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "PINN validation (fresh points)",
+     "columns": [
+      "check",
+      "status",
+      "summary"
+     ],
+     "rows": [
+      [
+       "pinn.residual",
+       "pass",
+       "relative residual at fresh points: RMS 4.02e-03 (<= 0.05), max 4.74e-02 (<= 0.3, adaptive points included)"
+      ],
+      [
+       "pinn.trivial",
+       "pass",
+       "spread and gradient energy 1.00 x the exact solution's (>= 0.2)"
+      ],
+      [
+       "pinn.causality",
+       "not-applicable",
+       "steady problem (no time axis)"
+      ],
+      [
+       "pinn.boundary",
+       "pass",
+       "boundary condition error 7.22e-04 of the solution scale (<= 0.01)"
+      ],
+      [
+       "pinn.initial",
+       "not-applicable",
+       "the problem has no initial condition to check"
+      ],
+      [
+       "pinn.spectrum",
+       "pass",
+       "high-wavenumber energy +0% relative to the exact solution (within +/-25%)"
+      ],
+      [
+       "pinn.exact",
+       "pass",
+       "relative L2 error 6.61e-04 (<= 0.02), max 2.35e-03 of the scale"
+      ]
+     ]
+    }
+   ],
+   "figures": [
+    "pinn_loss.png",
+    "pinn_solution.png"
+   ]
+  },
+  "validate": {
+   "type": "validate.compare",
+   "status": "done",
+   "seconds": 0.4969065189361572,
+   "error": null,
+   "summary": "FD: 5.14e-04, FEM: 1.55e-03, PINN: 6.93e-04 (vs exact solution)",
+   "metrics": {
+    "FD_rel_l2": {
+     "value": 0.0005142004781495365,
+     "how": "against the exact solution on 1681 points"
+    },
+    "FEM_rel_l2": {
+     "value": 0.0015520662822292527,
+     "how": "against the exact solution on 1681 points"
+    },
+    "PINN_rel_l2": {
+     "value": 0.0006932121288741194,
+     "how": "against the exact solution on 1681 points"
+    },
+    "best": "FD"
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "trust card: FD (APPROVED)",
+     "columns": [
+      "check",
+      "passed",
+      "value",
+      "detail"
+     ],
+     "rows": [
+      [
+       "finite values",
+       true,
+       0.0,
+       ""
+      ],
+      [
+       "PDE residual",
+       true,
+       1.22616369806547e-14,
+       "laplace(u) = f, three-point finite differences, rms over the interior / rms of the sum of |terms|"
+      ],
+      [
+       "boundary conditions",
+       null,
+       null,
+       "no Dirichlet data given"
+      ],
+      [
+       "conservation (net boundary flux = integral of the source)",
+       true,
+       0.0015389610817310322,
+       "flux -8.016, source -7.992"
+      ],
+      [
+       "reference (relative L2)",
+       true,
+       0.0005142004781495365,
+       "against the given reference"
+      ],
+      [
+       "applicability: query inside the training bounds (OOD)",
+       null,
+       null,
+       "no training bounds given"
+      ]
+     ]
+    },
+    {
+     "title": "trust card: FEM (APPROVED)",
+     "columns": [
+      "check",
+      "passed",
+      "value",
+      "detail"
+     ],
+     "rows": [
+      [
+       "finite values",
+       true,
+       0.0,
+       ""
+      ],
+      [
+       "PDE residual",
+       true,
+       0.001137715524043226,
+       "laplace(u) = f, three-point finite differences, rms over the interior / rms of the sum of |terms|"
+      ],
+      [
+       "boundary conditions",
+       null,
+       null,
+       "no Dirichlet data given"
+      ],
+      [
+       "conservation (net boundary flux = integral of the source)",
+       true,
+       0.0005111430436645544,
+       "flux -8, source -7.992"
+      ],
+      [
+       "reference (relative L2)",
+       true,
+       0.0015520662822292527,
+       "against the given reference"
+      ],
+      [
+       "applicability: query inside the training bounds (OOD)",
+       null,
+       null,
+       "no training bounds given"
+      ]
+     ]
+    },
+    {
+     "title": "trust card: PINN (APPROVED)",
+     "columns": [
+      "check",
+      "passed",
+      "value",
+      "detail"
+     ],
+     "rows": [
+      [
+       "finite values",
+       true,
+       0.0,
+       ""
+      ],
+      [
+       "PDE residual",
+       true,
+       0.00032648343171769916,
+       "laplace(u) = f, three-point finite differences, rms over the interior / rms of the sum of |terms|"
+      ],
+      [
+       "boundary conditions",
+       null,
+       null,
+       "no Dirichlet data given"
+      ],
+      [
+       "conservation (net boundary flux = integral of the source)",
+       true,
+       0.0013042201885730268,
+       "flux -8.013, source -7.992"
+      ],
+      [
+       "reference (relative L2)",
+       true,
+       0.0006932121288741194,
+       "against the given reference"
+      ],
+      [
+       "applicability: query inside the training bounds (OOD)",
+       null,
+       null,
+       "no training bounds given"
+      ]
+     ]
+    },
+    {
+     "title": "errors against the exact solution",
+     "columns": [
+      "candidate",
+      "method",
+      "rel. L2",
+      "max |err|",
+      "RMSE",
+      "verdict"
+     ],
+     "rows": [
+      [
+       "FD",
+       "fd",
+       0.0005142004781495365,
+       0.0005142004781495402,
+       0.00025082950153635926,
+       "PASS"
+      ],
+      [
+       "FEM",
+       "fem",
+       0.0015520662822292527,
+       0.001540382485794023,
+       0.0007571055035264647,
+       "PASS"
+      ],
+      [
+       "PINN",
+       "pinn",
+       0.0006932121288741194,
+       0.002353072166442871,
+       0.00033815225798737526,
+       "PASS"
+      ]
+     ]
+    }
+   ],
+   "figures": [
+    "validate_validation.png"
+   ]
+  },
+  "view3d": {
+   "type": "viz.field3d",
+   "status": "done",
+   "seconds": 0.0714271068572998,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "points": 1681
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  },
+  "lab": {
+   "type": "validate.lab",
+   "status": "done",
+   "seconds": 0.1817479133605957,
+   "error": null,
+   "summary": "tier B, sealed",
+   "metrics": {
+    "lab_status": "completed",
+    "tier": {
+     "value": "B",
+     "how": "pinneapple_lab.curation: A flagship, B solid, C exploratory, D failed"
+    },
+    "lab_run_id": "flow_poisson_2d_fem_fd_and_pinn_with_the_trust_card_lab-c76688bffba9"
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "what the tier is missing",
+     "columns": [
+      "gap"
+     ],
+     "rows": [
+      [
+       "add figures (a movie, a render or a 3-D view for communication)"
+      ],
+      [
+       "document it (docs page, references)"
+      ]
+     ]
+    }
+   ],
+   "figures": [
+    "lab_validation_sealed.png"
+   ]
+  }
+ }
+}

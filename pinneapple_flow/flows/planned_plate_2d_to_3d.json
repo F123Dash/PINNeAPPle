@@ -1,0 +1,310 @@
+{
+ "schema": "pinneapple-flow/1",
+ "id": "poisson-2d-classical-vs-pinn",
+ "name": "Classical solver + PINN, validated",
+ "description": "Solve the steady field with a source: laplacian(u) = f in 2-D with finite differences and finite elements and a PINN, and measure both against the exact solution; the Lab grades the evidence and seals A/B results. Switch the domain node to 3-D afterwards: the equations follow (lap() is dimension-free).",
+ "nodes": [
+  {
+   "id": "geo",
+   "type": "geometry.domain",
+   "params": {
+    "dimension": 2,
+    "shape": "box",
+    "time_dependent": false,
+    "x_range": [
+     0.0,
+     1.0
+    ],
+    "y_range": [
+     0.0,
+     1.0
+    ],
+    "z_range": [
+     0.0,
+     1.0
+    ],
+    "t_range": [
+     0.0,
+     1.0
+    ]
+   },
+   "position": {
+    "x": 40.0,
+    "y": 40.0
+   },
+   "label": "Domain"
+  },
+  {
+   "id": "mesh",
+   "type": "geometry.mesh",
+   "params": {
+    "n": 65,
+    "n_t": 41
+   },
+   "position": {
+    "x": 320.0,
+    "y": 40.0
+   },
+   "label": "Grid"
+  },
+  {
+   "id": "eq",
+   "type": "equations.system",
+   "params": {
+    "template": "poisson",
+    "follow_template": true,
+    "fields": [
+     "u"
+    ],
+    "pdes": [
+     "lap(u) = -2*pi**2*sin(pi*x)*sin(pi*y)"
+    ],
+    "conditions": [
+     {
+      "kind": "dirichlet",
+      "on": "boundary",
+      "equation": "u = 0"
+     }
+    ],
+    "coefficients": {},
+    "unknowns": [],
+    "exact": "sin(pi*x)*sin(pi*y)"
+   },
+   "position": {
+    "x": 600.0,
+    "y": 40.0
+   },
+   "label": "poisson equations"
+  },
+  {
+   "id": "fd",
+   "type": "solver.classical",
+   "params": {
+    "method": "fd"
+   },
+   "position": {
+    "x": 880.0,
+    "y": 40.0
+   },
+   "label": "Finite differences"
+  },
+  {
+   "id": "fem",
+   "type": "solver.classical",
+   "params": {
+    "method": "fem",
+    "n": 25
+   },
+   "position": {
+    "x": 880.0,
+    "y": 190.0
+   },
+   "label": "Finite elements"
+  },
+  {
+   "id": "pinn",
+   "type": "train.pinn",
+   "params": {
+    "adam_steps": 4000,
+    "lbfgs_steps": 300,
+    "width": 32,
+    "depth": 4,
+    "n_collocation": 3000
+   },
+   "position": {
+    "x": 880.0,
+    "y": 340.0
+   },
+   "label": "PINN"
+  },
+  {
+   "id": "validate",
+   "type": "validate.compare",
+   "params": {
+    "reference": "auto"
+   },
+   "position": {
+    "x": 1160.0,
+    "y": 40.0
+   },
+   "label": "Validation"
+  },
+  {
+   "id": "lab",
+   "type": "validate.lab",
+   "params": {
+    "title": "poisson 2D"
+   },
+   "position": {
+    "x": 1440.0,
+    "y": 40.0
+   },
+   "label": "Lab seal"
+  },
+  {
+   "id": "plot",
+   "type": "viz.plot",
+   "params": {},
+   "position": {
+    "x": 1160.0,
+    "y": 190.0
+   },
+   "label": "Plots"
+  },
+  {
+   "id": "view3d",
+   "type": "viz.field3d",
+   "params": {},
+   "position": {
+    "x": 1160.0,
+    "y": 340.0
+   },
+   "label": "3-D viewer"
+  },
+  {
+   "id": "report",
+   "type": "export.report",
+   "params": {
+    "title": "poisson in 2-D"
+   },
+   "position": {
+    "x": 1440.0,
+    "y": 190.0
+   },
+   "label": "Report"
+  }
+ ],
+ "edges": [
+  {
+   "source": "geo",
+   "source_port": "geometry",
+   "target": "mesh",
+   "target_port": "geometry",
+   "id": "geo.geometry->mesh.geometry"
+  },
+  {
+   "source": "geo",
+   "source_port": "geometry",
+   "target": "eq",
+   "target_port": "geometry",
+   "id": "geo.geometry->eq.geometry"
+  },
+  {
+   "source": "mesh",
+   "source_port": "mesh",
+   "target": "eq",
+   "target_port": "mesh",
+   "id": "mesh.mesh->eq.mesh"
+  },
+  {
+   "source": "eq",
+   "source_port": "problem",
+   "target": "fd",
+   "target_port": "problem",
+   "id": "eq.problem->fd.problem"
+  },
+  {
+   "source": "eq",
+   "source_port": "problem",
+   "target": "fem",
+   "target_port": "problem",
+   "id": "eq.problem->fem.problem"
+  },
+  {
+   "source": "eq",
+   "source_port": "problem",
+   "target": "pinn",
+   "target_port": "problem",
+   "id": "eq.problem->pinn.problem"
+  },
+  {
+   "source": "fd",
+   "source_port": "solution",
+   "target": "validate",
+   "target_port": "candidates",
+   "id": "fd.solution->validate.candidates"
+  },
+  {
+   "source": "fem",
+   "source_port": "solution",
+   "target": "validate",
+   "target_port": "candidates",
+   "id": "fem.solution->validate.candidates"
+  },
+  {
+   "source": "pinn",
+   "source_port": "solution",
+   "target": "validate",
+   "target_port": "candidates",
+   "id": "pinn.solution->validate.candidates"
+  },
+  {
+   "source": "eq",
+   "source_port": "problem",
+   "target": "validate",
+   "target_port": "problem",
+   "id": "eq.problem->validate.problem"
+  },
+  {
+   "source": "validate",
+   "source_port": "metrics",
+   "target": "lab",
+   "target_port": "validation",
+   "id": "validate.metrics->lab.validation"
+  },
+  {
+   "source": "fd",
+   "source_port": "solution",
+   "target": "plot",
+   "target_port": "solution",
+   "id": "fd.solution->plot.solution"
+  },
+  {
+   "source": "pinn",
+   "source_port": "solution",
+   "target": "plot",
+   "target_port": "solution",
+   "id": "pinn.solution->plot.solution"
+  },
+  {
+   "source": "fd",
+   "source_port": "solution",
+   "target": "view3d",
+   "target_port": "solution",
+   "id": "fd.solution->view3d.solution"
+  },
+  {
+   "source": "validate",
+   "source_port": "metrics",
+   "target": "report",
+   "target_port": "items",
+   "id": "validate.metrics->report.items"
+  },
+  {
+   "source": "validate",
+   "source_port": "figure",
+   "target": "report",
+   "target_port": "items",
+   "id": "validate.figure->report.items"
+  }
+ ],
+ "meta": {
+  "title": "Classical solver + PINN, validated",
+  "family": "poisson",
+  "planner": "heuristic",
+  "prompt": "Steady heat conduction in a square plate with internal heat generation and the edges held at 0 degrees; compare finite elements, finite differences and a PINN. Then switch the plate from 2D to 3D.",
+  "kind": "planned",
+  "detected": {
+   "family": "poisson",
+   "dimension": 2,
+   "intents": [
+    "fd",
+    "fem",
+    "pinn"
+   ],
+   "boundary": [
+    "dirichlet"
+   ]
+  }
+ }
+}

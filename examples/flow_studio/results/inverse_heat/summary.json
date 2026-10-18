@@ -1,0 +1,350 @@
+{
+ "flow": "inverse_heat",
+ "title": "Inverse heat: identify the diffusivity",
+ "status": "done",
+ "wall_seconds": 51.4,
+ "machine": "x86_64 x86_64 (linux), CPU only",
+ "date": "2026-10-18",
+ "meta": {
+  "kind": "reproduction"
+ },
+ "nodes": {
+  "true_geo": {
+   "type": "geometry.domain",
+   "status": "done",
+   "seconds": 0.00157928466796875,
+   "error": null,
+   "summary": "interval in 1-D, coordinates ['x', 't']",
+   "metrics": {
+    "dimension": 1
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  },
+  "inv_geo": {
+   "type": "geometry.domain",
+   "status": "cached",
+   "seconds": 0.0,
+   "error": null,
+   "summary": "interval in 1-D, coordinates ['x', 't']",
+   "metrics": {
+    "dimension": 1
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  },
+  "true_mesh": {
+   "type": "geometry.mesh",
+   "status": "done",
+   "seconds": 0.0009253025054931641,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "nodes": 101
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "spacing",
+     "columns": [
+      "axis",
+      "nodes",
+      "h"
+     ],
+     "rows": [
+      [
+       "x",
+       101,
+       0.01
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "inv_mesh": {
+   "type": "geometry.mesh",
+   "status": "done",
+   "seconds": 0.0008914470672607422,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "nodes": 101
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "spacing",
+     "columns": [
+      "axis",
+      "nodes",
+      "h"
+     ],
+     "rows": [
+      [
+       "x",
+       101,
+       0.01
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "true_eq": {
+   "type": "equations.system",
+   "status": "done",
+   "seconds": 2.7037558555603027,
+   "error": null,
+   "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
+   "metrics": {
+    "family": "heat",
+    "linear": true
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "equations",
+     "columns": [
+      "kind",
+      "on",
+      "equation",
+      "derivatives"
+     ],
+     "rows": [
+      [
+       "pde",
+       "",
+       "u_t = alpha*lap(u)",
+       "u_t, u_xx"
+      ],
+      [
+       "initial",
+       "t_min",
+       "u = sin(pi*x)",
+       ""
+      ],
+      [
+       "dirichlet",
+       "boundary",
+       "u = 0",
+       ""
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "inv_eq": {
+   "type": "equations.system",
+   "status": "done",
+   "seconds": 0.0046122074127197266,
+   "error": null,
+   "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
+   "metrics": {
+    "family": "heat",
+    "linear": true
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "equations",
+     "columns": [
+      "kind",
+      "on",
+      "equation",
+      "derivatives"
+     ],
+     "rows": [
+      [
+       "pde",
+       "",
+       "u_t = alpha*lap(u)",
+       "u_t, u_xx"
+      ],
+      [
+       "initial",
+       "t_min",
+       "u = sin(pi*x)",
+       ""
+      ],
+      [
+       "dirichlet",
+       "boundary",
+       "u = 0",
+       ""
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "fd": {
+   "type": "solver.classical",
+   "status": "done",
+   "seconds": 0.7524325847625732,
+   "error": null,
+   "summary": "FD on 101x41 points in 0.03 s",
+   "metrics": {
+    "method": "method of lines + BDF",
+    "nfev": 44,
+    "n_unknowns": 101,
+    "solve_seconds": {
+     "value": 0.0349,
+     "how": "wall clock of the solve on this machine"
+    }
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": [
+    "fd_solution.png"
+   ]
+  },
+  "sensors": {
+   "type": "data.observe",
+   "status": "done",
+   "seconds": 0.004262208938598633,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "n_points": 400,
+    "noise_sigma": 0.002599070109145527
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  },
+  "discover": {
+   "type": "inverse.discover",
+   "status": "done",
+   "seconds": 46.713491916656494,
+   "error": null,
+   "summary": "alpha = 0.1002",
+   "metrics": {
+    "train_seconds": {
+     "value": 45.64,
+     "how": "wall clock of training on this machine (CPU)"
+    },
+    "final_loss": 9.052363748196512e-05,
+    "n_parameters": 3297,
+    "residual_rms_fresh": {
+     "value": 0.0037610783214396086,
+     "how": "relative PDE residual at fresh points"
+    },
+    "validation": "pass",
+    "alpha_estimate": 0.10020080953836441,
+    "alpha_relative_error": {
+     "value": 0.0020080953836440485,
+     "how": "against the value that generated the synthetic data"
+    }
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "PINN validation (fresh points)",
+     "columns": [
+      "check",
+      "status",
+      "summary"
+     ],
+     "rows": [
+      [
+       "pinn.residual",
+       "pass",
+       "relative residual at fresh points: RMS 3.76e-03 (<= 0.05), max 1.54e-02 (<= 0.3, adaptive points included)"
+      ],
+      [
+       "pinn.trivial",
+       "pass",
+       "spread and gradient energy 0.26 x the problem scale (>= 0.2)"
+      ],
+      [
+       "pinn.causality",
+       "pass",
+       "residual in the last quarter of the time interval 4.1e-03, first quarter 4.5e-03 (late/early 0.9, <= 10 unless the late residual passes)"
+      ],
+      [
+       "pinn.boundary",
+       "pass",
+       "boundary condition error 6.86e-04 of the solution scale (<= 0.01)"
+      ],
+      [
+       "pinn.initial",
+       "pass",
+       "initial condition error 6.84e-04 of the solution scale (<= 0.01)"
+      ],
+      [
+       "pinn.spectrum",
+       "not-applicable",
+       "no exact solution and no forcing to compare"
+      ],
+      [
+       "pinn.exact",
+       "not-applicable",
+       "no exact solution for this problem"
+      ]
+     ]
+    },
+    {
+     "title": "identified coefficients",
+     "columns": [
+      "name",
+      "initial guess",
+      "estimate",
+      "true (synthetic data)"
+     ],
+     "rows": [
+      [
+       "alpha",
+       0.5,
+       0.10020080953836441,
+       0.1
+      ]
+     ]
+    }
+   ],
+   "figures": [
+    "discover_loss.png",
+    "discover_solution.png"
+   ]
+  },
+  "calibrate": {
+   "type": "inverse.calibrate",
+   "status": "done",
+   "seconds": 1.0401611328125,
+   "error": null,
+   "summary": "alpha = 0.099983",
+   "metrics": {
+    "forward_solves": 31,
+    "calibration_seconds": 1.03,
+    "alpha_estimate": 0.09998336456072479,
+    "alpha_relative_error": 0.0001663543927521438
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "calibrated parameters",
+     "columns": [
+      "name",
+      "value",
+      "interval low",
+      "interval high",
+      "identifiability"
+     ],
+     "rows": [
+      [
+       "alpha",
+       0.09998336456072479,
+       0.001,
+       2.0,
+       "identifiable"
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  }
+ }
+}

@@ -1,0 +1,363 @@
+{
+ "flow": "planned_hybrid_surrogate_hpo",
+ "title": "Fast surrogate (neural operator)",
+ "status": "done",
+ "wall_seconds": 24.9,
+ "machine": "x86_64 x86_64 (linux), CPU only",
+ "date": "2026-10-18",
+ "meta": {
+  "title": "Fast surrogate (neural operator)",
+  "family": "wave",
+  "planner": "heuristic",
+  "prompt": "Build a fast surrogate of a vibrating string for many wave speeds: a mixed ROM + NN model with hyperparameter tuning and a sensitivity analysis.",
+  "kind": "planned",
+  "detected": {
+   "family": "wave",
+   "dimension": 1,
+   "intents": [
+    "hpo",
+    "hybrid",
+    "surrogate",
+    "uq"
+   ],
+   "boundary": []
+  }
+ },
+ "nodes": {
+  "geo": {
+   "type": "geometry.domain",
+   "status": "done",
+   "seconds": 0.0016334056854248047,
+   "error": null,
+   "summary": "interval in 1-D, coordinates ['x', 't']",
+   "metrics": {
+    "dimension": 1
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  },
+  "mesh": {
+   "type": "geometry.mesh",
+   "status": "done",
+   "seconds": 0.0010859966278076172,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "nodes": 201
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "spacing",
+     "columns": [
+      "axis",
+      "nodes",
+      "h"
+     ],
+     "rows": [
+      [
+       "x",
+       201,
+       0.005
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "eq": {
+   "type": "equations.system",
+   "status": "done",
+   "seconds": 0.013045310974121094,
+   "error": null,
+   "summary": "wave (linear), 1 PDE(s), 3 condition(s)",
+   "metrics": {
+    "family": "wave",
+    "linear": true
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "equations",
+     "columns": [
+      "kind",
+      "on",
+      "equation",
+      "derivatives"
+     ],
+     "rows": [
+      [
+       "pde",
+       "",
+       "u_tt = c**2*lap(u)",
+       "u_tt, u_xx"
+      ],
+      [
+       "initial",
+       "t_min",
+       "u = sin(pi*x)",
+       ""
+      ],
+      [
+       "initial",
+       "t_min",
+       "u_t = 0",
+       "u_t"
+      ],
+      [
+       "dirichlet",
+       "boundary",
+       "u = 0",
+       ""
+      ]
+     ]
+    }
+   ],
+   "figures": []
+  },
+  "sweep": {
+   "type": "data.parametric",
+   "status": "done",
+   "seconds": 5.582820892333984,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "samples": 96,
+    "outputs_per_sample": 81,
+    "generation_seconds": 5.58
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  },
+  "hpo": {
+   "type": "surrogate.hpo",
+   "status": "done",
+   "seconds": 18.999088287353516,
+   "error": null,
+   "summary": "best of 10 trials (random-search): test rel. L2 0.015",
+   "metrics": {
+    "search_backend": "random-search",
+    "trials": 10,
+    "best_trial_val_rel_l2": 0.05673176795244217,
+    "train_rel_l2": {
+     "value": 0.011157765053212643,
+     "how": "mean relative L2 over the samples of that split (held out from training for val/test)"
+    },
+    "val_rel_l2": {
+     "value": 0.011232205666601658,
+     "how": "mean relative L2 over the samples of that split (held out from training for val/test)"
+    },
+    "test_rel_l2": {
+     "value": 0.014993320219218731,
+     "how": "mean relative L2 over the samples of that split (held out from training for val/test)"
+    },
+    "n_parameters": 39328,
+    "train_seconds": {
+     "value": 4.79,
+     "how": "wall clock on this machine"
+    }
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "trials (best first, validation rel. L2)",
+     "columns": [
+      "depth",
+      "lr",
+      "rank",
+      "width",
+      "val rel L2"
+     ],
+     "rows": [
+      [
+       4,
+       0.005795265596830145,
+       4,
+       113,
+       0.05673176795244217
+      ],
+      [
+       3,
+       0.007507248671952319,
+       11,
+       122,
+       0.0816909447312355
+      ],
+      [
+       2,
+       0.00941422052615729,
+       8,
+       119,
+       0.15198524296283722
+      ],
+      [
+       4,
+       0.002555218495357601,
+       11,
+       42,
+       0.3473894000053406
+      ],
+      [
+       4,
+       0.0021362378605884725,
+       9,
+       61,
+       0.8991023898124695
+      ],
+      [
+       4,
+       0.0007437381694744973,
+       10,
+       81,
+       1.0917680263519287
+      ],
+      [
+       1,
+       0.0062356732754319496,
+       16,
+       49,
+       1.526795744895935
+      ],
+      [
+       2,
+       0.0010528997854828922,
+       8,
+       43,
+       2.1488254070281982
+      ],
+      [
+       3,
+       0.0004241562327530574,
+       11,
+       25,
+       2.178501844406128
+      ],
+      [
+       3,
+       0.0004897079341053302,
+       12,
+       28,
+       2.2021381855010986
+      ]
+     ]
+    },
+    {
+     "title": "test samples",
+     "columns": [
+      "sample",
+      "relative L2"
+     ],
+     "rows": [
+      [
+       36,
+       0.003223348560161941
+      ],
+      [
+       87,
+       0.017953792638091076
+      ],
+      [
+       5,
+       0.09803146100848491
+      ],
+      [
+       13,
+       0.0011598281057655683
+      ],
+      [
+       52,
+       0.0037292891649873946
+      ],
+      [
+       20,
+       0.005646931228876912
+      ],
+      [
+       93,
+       0.004704865955479929
+      ],
+      [
+       34,
+       0.016671809116414846
+      ],
+      [
+       50,
+       0.00789456068091491
+      ],
+      [
+       27,
+       0.0007545452061694178
+      ],
+      [
+       16,
+       0.01794877392964713
+      ],
+      [
+       94,
+       0.004549253585241246
+      ],
+      [
+       11,
+       0.018807811789219656
+      ],
+      [
+       10,
+       0.008830209103437738
+      ]
+     ]
+    }
+   ],
+   "figures": [
+    "hpo_surrogate.png"
+   ]
+  },
+  "sobol": {
+   "type": "uq.sensitivity",
+   "status": "done",
+   "seconds": 0.18781638145446777,
+   "error": null,
+   "summary": "",
+   "metrics": {
+    "S1_c": 1.000151595281674,
+    "ST_c": 1.0001516737499476,
+    "model_evaluations": 3072
+   },
+   "warnings": [],
+   "tables": [
+    {
+     "title": "Sobol indices of the field mean",
+     "columns": [
+      "parameter",
+      "S1",
+      "ST"
+     ],
+     "rows": [
+      [
+       "c",
+       1.000151595281674,
+       1.0001516737499476
+      ]
+     ]
+    }
+   ],
+   "figures": [
+    "sobol_sobol.png"
+   ]
+  },
+  "report": {
+   "type": "export.report",
+   "status": "done",
+   "seconds": 0.0013241767883300781,
+   "error": null,
+   "summary": "report written (html)",
+   "metrics": {
+    "items": 1
+   },
+   "warnings": [],
+   "tables": [],
+   "figures": []
+  }
+ }
+}
