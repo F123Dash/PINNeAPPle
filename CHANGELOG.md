@@ -57,6 +57,17 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   ffmpeg) and `web.screenshot` (headless Chromium). The sky world of `render(background="sky")` works on Blender 5.
 - Cinematic studio clips: coloured trails and diverging colour maps (`coolwarm`, `bwr`) in the viewer and Blender, `Lines.cmap/alpha/radius/color_range` drawn as wisps, `render_animation(motion_blur=, dof=, haze=, camera="chase_low", hud_keys=, sparkline=, colorbars=, exposure=)`, and `studio.compose.compose_grid` / `compose_grid_video` panels.
 - Studio renders: `blender.render_still` (1080p stills), smooth shading, procedural asphalt and grass, motion blur in scene seconds, trails over their last `trail_seconds` with a fade (viewer and Blender), haze cleared around the tracked body, `Scene.materials` / `unknown_materials()`, MP4 `crf`, viewer arrows in true cmap colours.
+- Animated showcase panel (`pinneapple_lab.showcase.panel`, `python -m pinneapple_lab showcase --lang en,pt`):
+  1080 x 1350 on #090C14, a Ken Burns hero, a 3 x 3 grid of Tier A tiles and a row of two Tier B tiles, each with
+  its seal and its curation headline; animated figures play once per 8 s loop; MP4 (H.264, faststart), GIF (720
+  wide, 12 fps) and PNG, in English and Portuguese. Tiles come from the curation (override with `picks`); C and D
+  items are never shown. Panels in `docs/assets/showcase/`.
+- PINNeAPPle quality seal (`pinneapple_lab.seal`): a badge with the tier the curation gave an item (A green,
+  B amber; C and D are not stamped), the pineapple mark and the item's evidence line, as PNG or SVG; stamps on
+  matplotlib figures (`stamp_figure`, `sealed_savefig` hook), images, GIFs and videos (`stamp_file`), in the
+  emptiest corner off colour bars, or in a strip under a figure with no free corner. The tier is read from
+  `lab/curation.json` only. CLI: `python -m pinneapple_lab seal ITEM -o seal.svg`,
+  `stamp ITEM FILE`, `stamp --all --out DIR`.
 - Lab curation of everything with committed results but no Lab entry (`pinneapple_lab.experiments.repo_sources`,
   imported by `repo_results`): the 2004 Prius motor (torque against the published FEA of Yang et al. 2013, GetDP
   second code, cogging, skew, tolerances), its end effects, thermal / demagnetisation and drive, the
