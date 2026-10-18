@@ -87,14 +87,17 @@ def turbulence_encounter(ac: Aircraft, V: float, altitude: float, spec: Turbulen
                          field: str = "3d", seed: int = 0, record_gamma: bool = False, record_every: int = 1,
                          design: LoopDesign | None = None, t_skip: float = 5.0):
     """Fly ``duration`` seconds through turbulence. ``spec`` defaults to severe at ``altitude`` (von Karman);
-    ``field`` "3d" (:class:`FrozenField3D`, resolved down to the MAC) or "line" (:class:`FrozenLine`, the same gust
+    ``field`` "3d" (:class:`FrozenField3D`, resolved to wavelengths of ~4 MAC) or "line" (:class:`FrozenLine`, the same gust
     across the span); a ready ``wind`` field overrides both. Returns (history, metrics, trim, derivatives, wind)."""
     tr = trim(ac, V, altitude)
     d = stability_derivatives(ac, tr)
     if wind is None:
         spec = spec or turbulence_spec(altitude, "severe")
         if field == "3d":
-            wind = FrozenField3D(spec, dx_min=max(ac.af.mac, 0.5), seed=seed)
+            # resolved band up to k_max = pi / (2 dx_min); its line spectra follow the target up to ~k_max / 4, i.e.
+            # wavelengths >= 4 MAC with dx_min = MAC / 4 (verification.turbulence_checks); log shells: the mode count
+            # does not grow with k_max
+            wind = FrozenField3D(spec, dx_min=max(ac.af.mac / 4, 0.2), n_shells=128, seed=seed)
         else:
             wind = FrozenLine(spec, length=max(4 * V * duration, 20 * spec.L_w), dx=max(ac.af.mac / 2, 0.25),
                               seed=seed)

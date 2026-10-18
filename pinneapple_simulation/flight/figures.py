@@ -55,12 +55,16 @@ def _save(fig, path):
 
 
 def psd_figure(curves: Sequence[Mapping], path: str) -> str:
-    """One panel per entry of ``curves``: dict(title, W (rad/m or rad/s), measured, target, xlabel)."""
+    """One panel per entry of ``curves``: dict(title, W (rad/m or rad/s), measured, target, xlabel, markers=[(W, label)]).
+    """
     n = len(curves)
     fig, axs = _fig(1, n, w=3.6 * n, h=3.3)
     for ax, c in zip(axs[0], curves, strict=True):
         ax.loglog(c["W"], c["measured"], color="#2a78d6", lw=1.2, label="generated (Welch)")
         ax.loglog(c["W"], c["target"], color=INK, lw=1.4, ls="--", label="MIL-F-8785C target")
+        for k, lab in c.get("markers", []):                     # e.g. the field's resolution cutoff, 2 pi / span
+            ax.axvline(k, color=MUTED, lw=0.9, ls=":")
+            ax.text(k, ax.get_ylim()[0] * 3, f" {lab}", rotation=90, fontsize=7, color=INK, va="bottom")
         _style(ax, c["title"], c.get("xlabel", "spatial frequency [rad/m]"), "PSD")
     axs[0][0].legend(fontsize=8, frameon=False)
     return _save(fig, path)

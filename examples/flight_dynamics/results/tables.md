@@ -65,12 +65,12 @@
 
 ## takeoff
 
-| aircraft | V_R [kt] | V_LOF [kt] | θ at lift-off [deg] | α at lift-off [deg] | ground roll [m] | to 35 ft [m] | V at 35 ft [kt] | climb gradient [%] | Raymer, V_LOF = 1.1 V_s [m] | Raymer, simulated V_LOF and rotation time [m] | min tail clearance [m] | max CL |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Light GA (C172 class) | 55.7 | 62.4 | 6.8 | 6.5 | 244 | 403 | 67.9 | 13.6 | 311 | 410 | 0.95 | 1.10 |
-| Turboprop (ATR 72 class) | 109.5 | 119.7 | 6.3 | 6.0 | 1060 | 1291 | 123.2 | 7.3 | 1299 | 1492 | 0.23 | 1.81 |
-| Airliner (A320 class) | 141.4 | 155.6 | 9.7 | 9.6 | 1346 | 1691 | 168.2 | 10.4 | 1703 | 1882 | 0.18 | 1.57 |
-| Motor glider (AR 28) | 47.9 | 54.3 | 1.6 | 1.3 | 186 | 286 | 57.7 | 16.8 | 250 | 326 | 1.17 | 1.07 |
+| aircraft | V_R [kt] | V_LOF [kt] | θ at lift-off [deg] | α at lift-off [deg] | ground roll [m] | to 35 ft [m] | V at 35 ft [kt] | climb gradient [%] | Raymer, V_LOF = 1.1 V_s [m] | sim vs Raymer [%] | Raymer, simulated V_LOF and rotation time [m] | sim vs Raymer [%] | min tail clearance [m] | max CL |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Light GA (C172 class) | 55.7 | 62.4 | 6.8 | 6.5 | 244 | 403 | 67.9 | 13.6 | 311 | 29.6 | 410 | -1.7 | 0.95 | 1.10 |
+| Turboprop (ATR 72 class) | 109.5 | 119.7 | 6.3 | 6.0 | 1060 | 1291 | 123.2 | 7.3 | 1299 | -0.6 | 1492 | -13.5 | 0.23 | 1.81 |
+| Airliner (A320 class) | 141.4 | 155.6 | 9.7 | 9.6 | 1346 | 1691 | 168.2 | 10.4 | 1703 | -0.7 | 1882 | -10.1 | 0.18 | 1.57 |
+| Motor glider (AR 28) | 47.9 | 54.3 | 1.6 | 1.3 | 186 | 286 | 57.7 | 16.8 | 250 | 14.5 | 326 | -12.4 | 1.17 | 1.07 |
 
 ## crosswind
 

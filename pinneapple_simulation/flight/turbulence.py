@@ -395,6 +395,7 @@ class FrozenField3D(WindField):
         L = self.spec.L_w
         kmin = self.k_min or 0.02 / L
         kmax = self.k_max or math.pi / (2 * self.dx_min)
+        self.k_min_used, self.k_max_used = kmin, kmax          # the resolved band [rad/m]
         edges = np.geomspace(kmin, kmax, self.n_shells + 1)
         kc = np.sqrt(edges[:-1] * edges[1:])
         dk = np.diff(edges)

@@ -84,14 +84,20 @@ def turbulence_checks(seed: int = 3) -> dict[str, Any]:
     for i, c in enumerate("uvw"):
         W, P = welch_psd(U[:, i], 4.0, 16)
         r = band_ratios(W, P, lambda w, c=c, s=s: psd(s, w, c), 5 / s.L_w, 0.2)
+        rh = band_ratios(W, P, lambda w, c=c, s=s: psd(s, w, c), 0.2, 0.95 * f.k_max_used, nbins=4)
         out["cases"].append({"generator": "FrozenField3D", "model": "von_karman", "component": c,
                              "sigma_target": float(s.sigma[i] * math.sqrt(f.variance_fraction)),
-                             "sigma": float(U[:, i].std()), "psd_ratio_min": min(r), "psd_ratio_max": max(r)})
+                             "sigma": float(U[:, i].std()), "psd_ratio_min": min(r), "psd_ratio_max": max(r),
+                             "psd_ratio_high_band": rh})
         if c == "w":
-            sel = (W > 0) & (W < 0.4)
+            sel = W > 0
             out["curves"].append({"title": "3-D random-mode field, w along a line", "W": W[sel], "measured": P[sel],
-                                  "target": psd(s, W[sel], c)})
+                                  "target": psd(s, W[sel], c),
+                                  "markers": [(f.k_max_used, "field cutoff k_max = π/(2Δx)"),
+                                              (2 * math.pi / 34.1, "2π / A320-class span")]})
     out["field3d_variance_fraction"] = f.variance_fraction
+    out["field3d_band_rad_m"] = [f.k_min_used, f.k_max_used]
+    out["field3d_dx_min_m"] = f.dx_min
     return out
 
 

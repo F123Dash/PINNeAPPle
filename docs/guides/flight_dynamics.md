@@ -166,9 +166,20 @@ the band-averaged Welch PSD divided by the target, in eight log bands between 4/
 The frozen line has exact amplitudes, so its variance is the band-limited integral of the target spectrum. The
 forming filter is a stochastic process, so 200,000 samples leave a few per cent of scatter.
 
-The 3-D field is one realisation of 96 × 32 random modes. Its spectrum along a line is spiky, and the scatter of its
-band ratios (0.66 to 1.34 in the table) is the sampling noise of one realisation, not a bias. Its isotropic energy
-spectrum matches the MIL forms to 1e-3 by quadrature (`tests/test_flight_turbulence.py`).
+The 3-D field is one realisation of 96 × 32 random modes with dx_min = 2 m: the band is k ≤ k_max = π/(2 dx_min) =
+0.785 rad/m, marked on the right-hand plot. Its isotropic energy spectrum matches the MIL forms to 1e-3 by quadrature
+(`tests/test_flight_turbulence.py`).
+
+Along a line, the band-averaged w spectrum follows the target between 5/L and 0.2 rad/m (the band ratios in the
+table). Above that it falls off: from 0.2 rad/m to 0.95 k_max the ratios are 0.12–0.62 (u), 0.52–1.0 (v) and
+0.30–0.85 (w) (`psd_ratio_high_band` in `results/verification.json`). The reason is that a line spectrum at k₁ needs
+modes with |k| > k₁, and there are none beyond k_max. The field therefore represents wavelengths down to about
+4 × 2π/k_max = 16 dx_min, and the line spectrum at high k is spiky because the modes are discrete.
+
+The encounters use dx_min = MAC/4 (128 log-spaced shells, so the mode count does not grow with k_max). They therefore
+resolve gusts down to wavelengths of about 4 MAC. 4 MAC / span is 0.47 for the A320 class (MAC 4.04 m, span 34.13 m), 0.54 for the light GA (1.48 m, 11.02 m),
+0.34 for the ATR class (2.30 m, 27.05 m) and 0.15 for the glider (0.86 m, 23.0 m), from `results/stability.json`.
+Shorter gusts, which would add rolling and pitching moments of their own, are filtered out.
 
 ![PSD of generated turbulence against MIL-F-8785C](../assets/flight_dynamics/turbulence_psd.png)
 
@@ -241,12 +252,12 @@ at which the CG has climbed 35 ft above its rest height.
 ![Take-off trajectories](../assets/flight_dynamics/takeoff.png)
 
 <!-- table:takeoff -->
-| aircraft | V_R [kt] | V_LOF [kt] | θ at lift-off [deg] | α at lift-off [deg] | ground roll [m] | to 35 ft [m] | V at 35 ft [kt] | climb gradient [%] | Raymer, V_LOF = 1.1 V_s [m] | Raymer, simulated V_LOF and rotation time [m] | min tail clearance [m] | max CL |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Light GA (C172 class) | 55.7 | 62.4 | 6.8 | 6.5 | 244 | 403 | 67.9 | 13.6 | 311 | 410 | 0.95 | 1.10 |
-| Turboprop (ATR 72 class) | 109.5 | 119.7 | 6.3 | 6.0 | 1060 | 1291 | 123.2 | 7.3 | 1299 | 1492 | 0.23 | 1.81 |
-| Airliner (A320 class) | 141.4 | 155.6 | 9.7 | 9.6 | 1346 | 1691 | 168.2 | 10.4 | 1703 | 1882 | 0.18 | 1.57 |
-| Motor glider (AR 28) | 47.9 | 54.3 | 1.6 | 1.3 | 186 | 286 | 57.7 | 16.8 | 250 | 326 | 1.17 | 1.07 |
+| aircraft | V_R [kt] | V_LOF [kt] | θ at lift-off [deg] | α at lift-off [deg] | ground roll [m] | to 35 ft [m] | V at 35 ft [kt] | climb gradient [%] | Raymer, V_LOF = 1.1 V_s [m] | sim vs Raymer [%] | Raymer, simulated V_LOF and rotation time [m] | sim vs Raymer [%] | min tail clearance [m] | max CL |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Light GA (C172 class) | 55.7 | 62.4 | 6.8 | 6.5 | 244 | 403 | 67.9 | 13.6 | 311 | 29.6 | 410 | -1.7 | 0.95 | 1.10 |
+| Turboprop (ATR 72 class) | 109.5 | 119.7 | 6.3 | 6.0 | 1060 | 1291 | 123.2 | 7.3 | 1299 | -0.6 | 1492 | -13.5 | 0.23 | 1.81 |
+| Airliner (A320 class) | 141.4 | 155.6 | 9.7 | 9.6 | 1346 | 1691 | 168.2 | 10.4 | 1703 | -0.7 | 1882 | -10.1 | 0.18 | 1.57 |
+| Motor glider (AR 28) | 47.9 | 54.3 | 1.6 | 1.3 | 186 | 286 | 57.7 | 16.8 | 250 | 14.5 | 326 | -12.4 | 1.17 | 1.07 |
 <!-- /table:takeoff -->
 
 **A320 class against published values.** The certified take-off field length is the longer of two distances: the

@@ -64,15 +64,18 @@ if "takeoff" in R:
                      "alpha": m["alpha_LOF_deg"], "SG": m["ground_roll_m"], "S35": m["distance_35ft_m"],
                      "V35": m["V_35ft_kt"], "grad": m.get("climb_gradient_pct", float("nan")),
                      "cf": cf["raymer_1p1Vs"]["total_35ft_m"], "cf2": cf["raymer_with_sim_VLOF_and_rotation_time"]["total_35ft_m"],
-                     "tail": m["tail_clearance_min_m"], "CLmax": m["CL_max_reached"]})
+                     "tail": m["tail_clearance_min_m"], "CLmax": m["CL_max_reached"],
+                     "d1": 100 * (m["distance_35ft_m"] / cf["raymer_1p1Vs"]["total_35ft_m"] - 1),
+                     "d2": 100 * (m["distance_35ft_m"] / cf["raymer_with_sim_VLOF_and_rotation_time"]["total_35ft_m"] - 1)})
     T["takeoff"] = table_markdown(rows, [("aircraft", "aircraft"), ("VR", "V_R [kt]"), ("VLOF", "V_LOF [kt]"),
                                   ("theta", "θ at lift-off [deg]"), ("alpha", "α at lift-off [deg]"),
                                   ("SG", "ground roll [m]"), ("S35", "to 35 ft [m]"), ("V35", "V at 35 ft [kt]"),
                                   ("grad", "climb gradient [%]"), ("cf", "Raymer, V_LOF = 1.1 V_s [m]"),
-                                  ("cf2", "Raymer, simulated V_LOF and rotation time [m]"),
+                                  ("d1", "sim vs Raymer [%]"),
+                                  ("cf2", "Raymer, simulated V_LOF and rotation time [m]"), ("d2", "sim vs Raymer [%]"),
                                   ("tail", "min tail clearance [m]"), ("CLmax", "max CL")],
                                   {"VR": 1, "VLOF": 1, "theta": 1, "alpha": 1, "SG": 0, "S35": 0, "V35": 1, "grad": 1,
-                                   "cf": 0, "cf2": 0})
+                                   "cf": 0, "cf2": 0, "d1": 1, "d2": 1})
     rows = []
     for n, m in t.get("crosswind", {}).items():
         g = t["gust_at_rotation"][n]
