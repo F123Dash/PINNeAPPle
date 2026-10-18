@@ -2,8 +2,9 @@
 
 :class:`PDETwinModel` turns the system into a twin model for :class:`pinneapple_systems.operations.twin.TwinRuntime`
 (the library's ensemble Kalman filter): the state is the field on a coarse grid (the identified PDE as a fast,
-reduced-resolution model) plus the coefficients to calibrate, carried as random-walk states. Sensors observe grid
-nodes. The runtime then gives state estimation, calibration of the coefficients, alerts when a coefficient leaves its
+reduced-resolution model) plus the coefficients to calibrate, carried as random-walk states, plus one state per
+sensor: the field linearly interpolated at the sensor's position (so a sensor between grid nodes is observed where it
+is, not at the nearest node). The runtime then gives state estimation, calibration of the coefficients, alerts when a coefficient leaves its
 expected range (an anomaly: the asset no longer behaves like the model) and consistency tests of the innovations.
 
     model = PDETwinModel(system, bounds, n=21, dt=0.01, estimate={"alpha": 0.1})
@@ -61,13 +62,44 @@ class PDETwinModel:
         for f, sl, tgt in self.op.face_targets(U0, env):
             U0[f][sl] = tgt
         self.x0 = np.concatenate([U0[f].ravel() for f in self.fields] + [np.array(list(self.estimate.values()))])
+        self.sensor_names: list[str] = []
+        self.W = np.zeros((0, self.n_nodes))
         self._nsub = self._substeps()
+
+    def set_sensors(self, sensors: list) -> None:
+        """Add one state per sensor (``sensor<i>``), the first field interpolated at its position."""
+        self.W = self.sensor_weights(sensors)
+        self.sensor_names = [f"sensor{i}" for i in range(len(self.W))]
+        npar = len(self.estimate)
+        self.state_names = self.node_names + list(self.estimate) + self.sensor_names
+        base = self.x0[:len(self.node_names) + npar]
+        self.x0 = np.concatenate([base, self.W @ base[:self.n_nodes]])
+
+    def sensor_weights(self, sensors: list) -> np.ndarray:
+        """Multilinear interpolation weights ``(n_sensors, n_nodes)`` of the grid at the sensor positions."""
+        import itertools
+        W = np.zeros((len(sensors), self.n_nodes))
+        names = list(self.axes)
+        for k, pos in enumerate(sensors):
+            pos = np.atleast_1d(np.asarray(pos, float))
+            if len(pos) != len(names):
+                raise ValueError(f"sensor {k}: {len(pos)} coordinate(s) for a {len(names)}-D grid")
+            per_axis = []
+            for c, p in zip(names, pos, strict=True):
+                ax = np.asarray(self.axes[c], float)
+                if not ax[0] - 1e-12 <= p <= ax[-1] + 1e-12:
+                    raise ValueError(f"sensor {k}: {c} = {p:g} is outside [{ax[0]:g}, {ax[-1]:g}]")
+                i = int(np.clip(np.searchsorted(ax, p) - 1, 0, len(ax) - 2))
+                w = (p - ax[i]) / (ax[i + 1] - ax[i])
+                per_axis.append([(i, 1.0 - w), (i + 1, w)])
+            for combo in itertools.product(*per_axis):
+                idx = tuple(i for i, _ in combo)
+                W[k, np.ravel_multi_index(idx, self.grid_shape)] += float(np.prod([w for _, w in combo]))
+        return W
 
     # -- the model interface of TwinRuntime ---------------------------------------------------------------------
     def prior(self) -> dict[str, float]:
-        p = dict(zip(self.node_names, self.x0[:len(self.node_names)].tolist(), strict=True))
-        p.update(self.estimate)
-        return p
+        return dict(zip(self.state_names, self.x0.tolist(), strict=True))
 
     def to_dict(self) -> dict:
         return {"kind": self.kind, "pdes": [e.text for e in self.system.pdes], "grid": list(self.grid_shape),
@@ -126,7 +158,8 @@ class PDETwinModel:
         N = len(X)
         nf = len(self.node_names)
         U = X[:, :nf].reshape(N, len(self.fields), *self.grid_shape).copy()
-        P = X[:, nf:] if self.estimate else None
+        npar = len(self.estimate)
+        P = X[:, nf:nf + npar] if self.estimate else None
         if P is not None:
             ratio = float(np.max(np.abs(P) / np.maximum(np.abs(list(self.estimate.values())), 1e-300)))
             nsub = max(self._nsub, math.ceil(self._nsub * max(ratio, 1.0) * 1.1))
@@ -144,6 +177,8 @@ class PDETwinModel:
             t += h
         out = X.copy()
         out[:, :nf] = U.reshape(N, nf)
+        if self.sensor_names:
+            out[:, nf + npar:] = out[:, :self.n_nodes] @ self.W.T
         return out[0] if np.asarray(x).ndim == 1 else out
 
     def advance_clock(self) -> None:
@@ -174,7 +209,7 @@ def simulate_sensors(plant: PDETwinModel, *, sensors: list, t_end: float, every:
     nf = len(plant.node_names)
     for j, k in enumerate(names):
         x[nf + j] = coef[k]
-    nodes = [plant.node_of(s) for s in sensors]
+    W = plant.sensor_weights(sensors)
     steps = int(round(t_end / plant.dt))
     cols: dict[str, list] = {"t": [], **{f"s{i}": [] for i in range(len(sensors))}, **{f"truth_{k}": [] for k in names}}
     t = plant.t
@@ -187,8 +222,9 @@ def simulate_sensors(plant: PDETwinModel, *, sensors: list, t_end: float, every:
         t += plant.dt
         if n % every == 0:
             cols["t"].append(t)
-            for i, nd in enumerate(nodes):
-                cols[f"s{i}"].append(float(x[nd]) + (rng.normal(0, noise) if noise > 0 else 0.0))
+            vals = W @ x[:plant.n_nodes]
+            for i, val in enumerate(vals):
+                cols[f"s{i}"].append(float(val) + (rng.normal(0, noise) if noise > 0 else 0.0))
             for j, k in enumerate(names):
                 cols[f"truth_{k}"].append(float(x[nf + j]))
     return {k: np.asarray(v, float) for k, v in cols.items()}
@@ -201,11 +237,9 @@ def run_twin(model: PDETwinModel, readings: dict[str, np.ndarray], *, sensors: l
     """Assimilate ``readings`` (columns ``t``, ``s0``...) into ``model`` with :class:`TwinRuntime`. Returns the
     runtime and a summary (history of estimates, alerts, final calibrated coefficients)."""
     from pinneapple_systems.operations.twin import AlertRules, TwinRuntime
-    nodes = [model.node_of(s) for s in sensors]
-    obs_names = [model.node_names[i] for i in nodes]
-    if len(set(obs_names)) != len(obs_names):
-        raise ValueError("two sensors fall on the same twin node: refine the twin grid or move the sensors")
-    sp = {nm: sigma_process for nm in model.node_names}
+    model.set_sensors(sensors)
+    obs_names = list(model.sensor_names)
+    sp = {nm: sigma_process for nm in model.node_names + obs_names}
     sp.update({k: (sigma_param or {}).get(k, 0.01 * max(abs(v), 1e-12)) for k, v in model.estimate.items()})
     T = readings["t"]
     x = model.x0.copy()                               # the model's initial state carried to the first reading
@@ -215,7 +249,7 @@ def run_twin(model: PDETwinModel, readings: dict[str, np.ndarray], *, sensors: l
     prior = dict(zip(model.state_names, x.tolist(), strict=True))
     rules = AlertRules(limits={}, param_limits=dict(limits or {}))
     rt = TwinRuntime(model, obs_names, {nm: sigma_obs for nm in obs_names}, sp, x0=prior,
-                     sigma0={**{nm: max(sigma_obs, 1e-9) for nm in model.node_names},
+                     sigma0={**{nm: max(sigma_obs, 1e-9) for nm in model.node_names + obs_names},
                              **{k: 0.1 * max(abs(v), 1e-12) for k, v in model.estimate.items()}},
                      rules=rules, n_ens=n_ens, asset="pde-twin", seed=seed)
     hist = {"t": [], **{k: [] for k in model.estimate}, **{f"{k}_sd": [] for k in model.estimate},
@@ -243,4 +277,4 @@ def run_twin(model: PDETwinModel, readings: dict[str, np.ndarray], *, sensors: l
     alerts = [a.to_dict() for a in rt.alerts]
     return rt, {"history": hist, "alerts": alerts, "fields": np.asarray(fields, float),
                 "final": {k: hist[k][-1] for k in model.estimate}, "snapshot": rt.snapshot(),
-                "sensor_nodes": nodes, "obs_names": obs_names}
+                "obs_names": obs_names}

@@ -2,13 +2,47 @@
  "flow": "planned_pde_twin",
  "title": "Digital twin generated from the description",
  "status": "done",
- "wall_seconds": 4.1,
+ "wall_seconds": 8.0,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
   "title": "Digital twin generated from the description",
   "family": "heat",
   "decisions": [
+   {
+    "topic": "twin",
+    "what": "5 sensors, evenly spaced",
+    "decided_by": {
+     "kind": "rule",
+     "id": "twin.sensor_layout"
+    },
+    "rationale": "the number of sensors read from the description, placed evenly inside the domain",
+    "value": [
+     0.1667,
+     0.3333,
+     0.5,
+     0.6667,
+     0.8333
+    ],
+    "references": [],
+    "evidence": [
+     {
+      "kind": "test",
+      "ref": "tests/test_flow_planner.py",
+      "detail": "sensor count read from the text"
+     }
+    ],
+    "node": "live",
+    "notes": "",
+    "uncited_reason": "a reading of the user's words and a neutral placement; edit the positions in the live-data node",
+    "confidence": 0.7,
+    "label": "medium",
+    "no_reference": false,
+    "suggestion": "",
+    "raise_with": [],
+    "id": "c1e8de6069",
+    "created": 1792359540.940872
+   },
    {
     "topic": "twin",
     "what": "twin generated from the identified equations",
@@ -53,8 +87,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "54791d74d3",
-    "created": 1792356560.3688743
+    "id": "fae8831759",
+    "created": 1792359540.940903
    },
    {
     "topic": "twin",
@@ -98,8 +132,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "346f4e4a54",
-    "created": 1792356560.3689098
+    "id": "3acae4e043",
+    "created": 1792359540.9409285
    },
    {
     "topic": "twin",
@@ -164,8 +198,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "dda84ef355",
-    "created": 1792356560.368937
+    "id": "87581ffc4a",
+    "created": 1792359540.9409518
    },
    {
     "topic": "twin",
@@ -192,8 +226,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "9709761cdd",
-    "created": 1792356560.3689628
+    "id": "5343f769ad",
+    "created": 1792359540.9409757
    },
    {
     "topic": "twin",
@@ -219,8 +253,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "919070aab2",
-    "created": 1792356560.3689828
+    "id": "9fc3f88a6f",
+    "created": 1792359540.940995
    },
    {
     "topic": "route",
@@ -243,8 +277,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "6c2b75713e",
-    "created": 1792356560.3690016
+    "id": "42ecc27358",
+    "created": 1792359540.941013
    }
   ],
   "planner": "heuristic",
@@ -264,7 +298,7 @@
   "problem": {
    "type": "problem.generic",
    "status": "done",
-   "seconds": 0.06186389923095703,
+   "seconds": 0.1641862392425537,
    "error": null,
    "summary": "identified heat (0.92), 1-D",
    "metrics": {
@@ -306,13 +340,13 @@
   "live": {
    "type": "data.stream",
    "status": "done",
-   "seconds": 0.5202057361602783,
+   "seconds": 0.6208908557891846,
    "error": null,
-   "summary": "150 readings from 4 sensors (simulated)",
+   "summary": "150 readings from 5 sensors (simulated)",
    "metrics": {
     "plant_grid": 81,
     "readings": 150,
-    "sensors": 4
+    "sensors": 5
    },
    "warnings": [],
    "tables": [],
@@ -321,31 +355,31 @@
   "twin": {
    "type": "twin.auto",
    "status": "done",
-   "seconds": 3.352353811264038,
+   "seconds": 3.2113983631134033,
    "error": null,
-   "summary": "150 readings, alpha 0.1534, 1 alert(s)",
+   "summary": "150 readings, alpha 0.1511, 2 alert(s)",
    "metrics": {
     "readings": 150,
     "assimilation_seconds": {
-     "value": 2.91,
+     "value": 2.65,
      "how": "wall clock on this machine"
     },
     "alpha_final": {
-     "value": 0.15335596615542063,
+     "value": 0.1511180057972392,
      "how": "ensemble mean at the last reading"
     },
-    "alpha_final_sd": 0.0031624517510887885,
+    "alpha_final_sd": 0.0035499195067633547,
     "alpha_true_final": {
      "value": 0.15,
      "how": "the simulated asset"
     },
-    "alerts": 1,
+    "alerts": 2,
     "detection_delay": {
-     "value": 0.05005999999999944,
+     "value": 0.056727999999999335,
      "how": "first alert after the injected change"
     },
     "one_step_rmse": {
-     "value": 0.002195870484894085,
+     "value": 0.0022460557487635232,
      "how": "predicted (before the update) vs observed, all sensors"
     }
    },
@@ -361,10 +395,16 @@
      ],
      "rows": [
       [
-       0.30005999999999944,
+       0.30672799999999933,
        "parameter",
        "warning",
-       "estimated alpha = 0.1385 +- 0.0028 is above 0.13 (beyond 3 sigma)"
+       "estimated alpha = 0.1403 +- 0.003 is above 0.13 (beyond 3 sigma)"
+      ],
+      [
+       0.4000799999999979,
+       "revalidation",
+       "warning",
+       "revalidation required (review): bias significant (|z| = 6.6)"
       ]
      ]
     }
@@ -376,7 +416,7 @@
   "view3d": {
    "type": "viz.field3d",
    "status": "done",
-   "seconds": 0.031363487243652344,
+   "seconds": 0.029552936553955078,
    "error": null,
    "summary": "",
    "metrics": {
@@ -389,11 +429,11 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.001992940902709961,
+   "seconds": 0.009424448013305664,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
-    "decisions": 15,
+    "decisions": 16,
     "decisions_without_reference": 3,
     "items": 1
    },

@@ -23,10 +23,11 @@
    "params": {
     "source": "simulated",
     "sensors": [
-     0.2,
-     0.4,
-     0.6,
-     0.8
+     0.1667,
+     0.3333,
+     0.5,
+     0.6667,
+     0.8333
     ],
     "t_end": 0.5,
     "dt": 0.001667,
@@ -121,6 +122,40 @@
   "decisions": [
    {
     "topic": "twin",
+    "what": "5 sensors, evenly spaced",
+    "decided_by": {
+     "kind": "rule",
+     "id": "twin.sensor_layout"
+    },
+    "rationale": "the number of sensors read from the description, placed evenly inside the domain",
+    "value": [
+     0.1667,
+     0.3333,
+     0.5,
+     0.6667,
+     0.8333
+    ],
+    "references": [],
+    "evidence": [
+     {
+      "kind": "test",
+      "ref": "tests/test_flow_planner.py",
+      "detail": "sensor count read from the text"
+     }
+    ],
+    "node": "live",
+    "notes": "",
+    "uncited_reason": "a reading of the user's words and a neutral placement; edit the positions in the live-data node",
+    "confidence": 0.7,
+    "label": "medium",
+    "no_reference": false,
+    "suggestion": "",
+    "raise_with": [],
+    "id": "c1e8de6069",
+    "created": 1792359540.940872
+   },
+   {
+    "topic": "twin",
     "what": "twin generated from the identified equations",
     "decided_by": {
      "kind": "rule",
@@ -163,8 +198,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "fb58db5ad2",
-    "created": 1792359391.8235722
+    "id": "fae8831759",
+    "created": 1792359540.940903
    },
    {
     "topic": "twin",
@@ -208,8 +243,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "4bb08e40d1",
-    "created": 1792359391.8236058
+    "id": "3acae4e043",
+    "created": 1792359540.9409285
    },
    {
     "topic": "twin",
@@ -274,8 +309,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "4fa2dba60c",
-    "created": 1792359391.8236296
+    "id": "87581ffc4a",
+    "created": 1792359540.9409518
    },
    {
     "topic": "twin",
@@ -302,8 +337,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "f62880a803",
-    "created": 1792359391.823653
+    "id": "5343f769ad",
+    "created": 1792359540.9409757
    },
    {
     "topic": "twin",
@@ -329,8 +364,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "d62df0a6b9",
-    "created": 1792359391.823672
+    "id": "9fc3f88a6f",
+    "created": 1792359540.940995
    },
    {
     "topic": "route",
@@ -353,8 +388,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "128e94cbf0",
-    "created": 1792359391.8236895
+    "id": "42ecc27358",
+    "created": 1792359540.941013
    }
   ],
   "planner": "heuristic",

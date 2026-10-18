@@ -4,6 +4,7 @@ compare, identify a coefficient, a fast surrogate, a twin, a forecast, a take-of
 from the node catalog. Deterministic and offline: the same text always gives the same plan."""
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -472,6 +473,35 @@ def _twin(det, text):
     return fb.proposal("Digital twin on a sensor stream", why, family="twin")
 
 
+NUMBER_WORDS = {w: i for i, ws in enumerate([(), ("one", "um", "uma"), ("two", "dois", "duas"), ("three", "três", "tres"),
+                                               ("four", "quatro"), ("five", "cinco"), ("six", "seis"), ("seven", "sete"),
+                                               ("eight", "oito"), ("nine", "nove"), ("ten", "dez")]) for w in ws}
+
+
+def sensor_count(text: str) -> int | None:
+    """``5 temperature sensors`` / ``three sensors`` / ``6 sensores`` -> the count (1-64), else None: the nearest
+    number within the three words before a sensor word."""
+    words = re.findall(r"[0-9]+|[a-zçãéêó-]+", text.lower())
+    for k, w in enumerate(words):
+        if not re.fullmatch(r"sensors?|sensores?|probes?|thermocouples?|termopares?", w):
+            continue
+        for prev in reversed(words[max(0, k - 3):k]):
+            n = int(prev) if prev.isdigit() else NUMBER_WORDS.get(prev)
+            if n is not None:
+                return n if 1 <= n <= 64 else None
+    return None
+
+
+def sensor_layout(n: int, dim: int) -> list:
+    """``n`` positions evenly inside the unit interval / square (a near-square grid in 2-D)."""
+    if dim == 1:
+        return [round((i + 1) / (n + 1), 4) for i in range(n)]
+    nx = math.ceil(math.sqrt(n))
+    ny = math.ceil(n / nx)
+    pts = [[round((i + 1) / (nx + 1), 4), round((j + 1) / (ny + 1), 4)] for j in range(ny) for i in range(nx)]
+    return pts[:n]
+
+
 def _pde_twin(det, text):
     """A twin generated from the description: identify the equations, stream sensors, build the twin."""
     fam = det["family"] or "heat"
@@ -486,8 +516,9 @@ def _pde_twin(det, text):
     fault = {"t": round(0.5 * tend, 6), coef: round(1.5 * {**t["coefficients"], **det["coefficients"]}[coef], 8)} \
         if anomaly and coef else {}
     dim = det["dimension"] or 1
-    sensors = [0.2, 0.4, 0.6, 0.8] if dim == 1 else [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75],
-                                                     [0.5, 0.5]]
+    n_sensors = sensor_count(text)
+    sensors = sensor_layout(n_sensors, min(dim, 2)) if n_sensors else (
+        [0.2, 0.4, 0.6, 0.8] if dim == 1 else [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75], [0.5, 0.5]])
     live = fb.add("live", "data.stream", {"source": "simulated", "sensors": sensors, "t_end": tend,
                                           "dt": round(tend / 300, 6), "fault": fault}, label="Live data")
     fb.connect(gen, "problem", live, "problem")
@@ -498,6 +529,8 @@ def _pde_twin(det, text):
     fb.connect(tw, "solution", v3, "solution")
     rep = fb.add("report", "export.report", {"title": "digital twin"}, label="Report")
     fb.connect(tw, "metrics", rep, "items")
+    if n_sensors:
+        fb.decide("twin.sensor_layout", f"{n_sensors} sensors, evenly spaced", node=live, value=sensors)
     fb.decide("twin.design", "twin generated from the identified equations", node=tw)
     fb.decide("twin.coarse_model", "identified PDE on a coarse grid as the twin model", node=tw)
     fb.decide("twin.enkf", "ensemble Kalman filter for the state", node=tw)

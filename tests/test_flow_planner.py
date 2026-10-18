@@ -152,3 +152,17 @@ def test_dispatch_openai_compatible_needs_base_url(monkeypatch):
                     json_mode=True, max_tokens=50) == "{}"
     assert seen["base_url"] == "http://localhost:8000/v1" and seen["max_tokens"] == 50
     assert seen["response_format"] == {"type": "json_object"}
+
+
+def test_sensor_count_read_from_the_text():
+    from pinneapple_flow.planner.heuristic import sensor_count, sensor_layout
+    assert sensor_count("a twin from 5 temperature sensors along the rod") == 5
+    assert sensor_count("three sensors") == 3 and sensor_count("com seis sensores") == 6
+    assert sensor_count("monitor the rod") is None and sensor_count("sensor fusion") is None
+    assert sensor_layout(3, 1) == [0.25, 0.5, 0.75] and len(sensor_layout(5, 2)) == 5
+    res = pf.plan("A 1 m metal rod cools down by heat conduction. Build a digital twin from 5 temperature sensors "
+                  "along the rod and detect when the diffusivity changes.", backend="heuristic")
+    flow = res["proposals"][0]["flow"]
+    live = next(n for n in flow["nodes"] if n["type"] == "data.stream")
+    assert len(live["params"]["sensors"]) == 5
+    assert any(d["decided_by"]["id"] == "twin.sensor_layout" for d in flow["meta"]["decisions"])

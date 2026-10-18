@@ -101,3 +101,23 @@ def test_twin_generated_from_a_description(tmp_path):
     assert r.report("view3d")["views"]["scene"]["glb"].endswith(".glb")
     ds = r.report("twin")["decisions"]
     assert {d["decided_by"]["id"] for d in ds} >= {"twin.enkf", "twin.design", "twin.parameter_state"}
+
+
+def test_twin_observes_sensors_between_grid_nodes():
+    """Sensors that are not on the twin's coarse grid are observed by interpolation: no alarm before the change,
+    the coefficient tracked after it (a regression: nearest-node observation raised false alarms)."""
+    from pinneapple_flow.twin import PDETwinModel, run_twin, simulate_sensors
+    sys_ = parse_system(["u_t = alpha*lap(u)"], [{"kind": "initial", "equation": "u = sin(pi*x)"},
+                                                 {"kind": "dirichlet", "on": "boundary", "equation": "u = 0"}],
+                        coords=["x", "t"], fields=["u"], coefficients={"alpha": 0.1})
+    bounds = {"x": (0.0, 1.0), "t": (0.0, 0.5)}
+    sensors = [1 / 6, 1 / 3, 0.5, 2 / 3, 5 / 6]                 # only 0.5 is on the 21-node grid
+    plant = PDETwinModel(sys_, bounds, n=81, dt=0.5 / 300, estimate={"alpha": 0.1})   # the fault acts on it
+    readings = simulate_sensors(plant, sensors=sensors, t_end=0.5, noise=0.002, coefficients={"alpha": 0.1},
+                                fault={"t": 0.25, "alpha": 0.15})
+    model = PDETwinModel(sys_, bounds, n=21, dt=0.5 / 300, estimate={"alpha": 0.1})
+    W = model.sensor_weights(sensors)
+    assert np.allclose(W.sum(axis=1), 1.0) and (W > 0).sum(axis=1).tolist() == [2, 2, 1, 2, 2]
+    _rt, res = run_twin(model, readings, sensors=sensors, sigma_obs=0.002, limits={"alpha": (0.07, 0.13)})
+    assert not [a for a in res["alerts"] if a["t"] < 0.25]
+    assert abs(res["final"]["alpha"] - 0.15) < 0.01
