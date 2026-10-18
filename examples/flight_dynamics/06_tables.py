@@ -124,6 +124,9 @@ if "turbulence" in R:
                      "phi": s["phi_rms_deg"], "phip": s["phi_peak_deg"], "th": s["theta_rms_deg"], "ny": s["ny_cg_rms"],
                      "cab": f"{worst.replace('_', ' ')}: {cab[worst]['dnz_rms']:.3f} / {cab[worst]['dnz_peak']:.2f}",
                      "amax": s["alpha_max_deg"], "ast": s["alpha_stall"], "st": s["status"]})
+        if s["status"] == "departed":                 # a loss of control: the numbers are not a gust response
+            for k in ("rms", "spr", "max", "min", "phi", "phip", "th", "ny", "cab", "amax"):
+                rows[-1][k] = "–"
     T["turbulence"] = table_markdown(rows, [("aircraft", "aircraft"), ("ctl", "controls"), ("V", "V [m/s]"),
                                      ("ws", "W/S [Pa]"), ("A", "A = ρVCLα/2(W/S) [g per m/s]"), ("qs", "A·σ_w [g]"),
                                      ("rms", "RMS Δn_z CG [g]"), ("spr", "spread over seeds"), ("max", "max Δn_z"),
@@ -136,7 +139,9 @@ if "turbulence" in R:
     st = {(s["aircraft"]): s for s in u["summary"] if s["controller"] == "stick_fixed"}
     rows = [{"aircraft": LABELS[m["aircraft"]], "line_phi": m["phi_rms_deg"], "line_p": m["p_rms_deg_s"],
              "f3_phi": st[m["aircraft"]]["phi_rms_deg"], "line_rms": m["dnz_cg_rms"], "f3_rms": st[m["aircraft"]]["dnz_cg_rms"]}
-            for m in u["line_field"]]
+            for m in u["line_field"] if st[m["aircraft"]].get("status") != "departed"]
+    rows += [{"aircraft": LABELS[n] + " (departed stick fixed in severe turbulence: not shown)"}
+             for n, x in st.items() if x.get("status") == "departed"]
     T["spanwise"] = table_markdown(rows, [("aircraft", "aircraft"), ("f3_phi", "RMS bank, 3-D field [deg]"),
                                    ("line_phi", "RMS bank, frozen line [deg]"), ("f3_rms", "RMS Δn_z, 3-D field [g]"),
                                    ("line_rms", "RMS Δn_z, frozen line [g]")], {"f3_phi": 1, "line_phi": 1, "f3_rms": 3,
@@ -147,6 +152,9 @@ if "turbulence" in R:
     rows += [{"aircraft": LABELS[s["aircraft"]], "sev": "severe (mean of seeds)", "sw": u["spec"]["sigma_w"],
               "rms": s["dnz_cg_rms"], "max": s["dnz_cg_max"], "phi": s["phi_rms_deg"], "amax": s["alpha_max_deg"],
               "st": s["status"]} for s in u["summary"] if s["controller"] == "autopilot"]
+    for r in rows:
+        if r["st"] == "departed":
+            r.update(rms="–", max="–", phi="–", amax="–")
     T["intensity"] = table_markdown(sorted(rows, key=lambda r: (r["aircraft"], r["sw"])),
                                     [("aircraft", "aircraft"), ("sev", "severity"), ("sw", "σ [m/s]"),
                                      ("rms", "RMS Δn_z [g]"), ("max", "max Δn_z [g]"), ("phi", "RMS bank [deg]"),

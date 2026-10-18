@@ -327,8 +327,8 @@ are in body axes, so steady level flight gives n_z = cos θ.
 | Turboprop (ATR 72 class) | autopilot | 120 | 3698 | 0.0846 | 0.616 | 0.314 | 0.028 | 0.98 | -1.01 | 4.5 | 12.5 | 2.9 | 0.034 | aft row: 0.338 / 1.14 | 8.6 | 11.8 | valid |
 | Airliner (A320 class) | stick fixed | 128 | 5879 | 0.0520 | 0.358 | 0.287 | 0.072 | 1.16 | -0.80 | 14.7 | 39.4 | 6.4 | 0.040 | aft row: 0.331 / 1.32 | 14.1 | 14.1 | beyond stall |
 | Airliner (A320 class) | autopilot | 128 | 5879 | 0.0520 | 0.353 | 0.214 | 0.047 | 0.69 | -0.71 | 3.1 | 8.6 | 2.7 | 0.026 | aft row: 0.246 / 0.84 | 13.1 | 14.1 | valid |
-| Motor glider (AR 28) | stick fixed | 40 | 446 | 0.2471 | 1.522 | 0.935 | 0.113 | 4.65 | -1.91 | 29.5 | 92.2 | 24.8 | 0.096 | pilot: 0.938 / 4.72 | 67.9 | 7.4 | departed |
-| Motor glider (AR 28) | autopilot | 40 | 446 | 0.2471 | 1.510 | 68.935 | 205.378 | 4955.69 | -3218.43 | 29.9 | 78.0 | 16.1 | 55.532 | pilot: 68.986 / 4935.74 | 79.0 | 7.4 | departed |
+| Motor glider (AR 28) | stick fixed | 40 | 446 | 0.2471 | 1.522 | – | – | – | – | – | – | – | – | – | – | 7.4 | departed |
+| Motor glider (AR 28) | autopilot | 40 | 446 | 0.2471 | 1.510 | – | – | – | – | – | – | – | – | – | – | 7.4 | departed |
 <!-- /table:turbulence -->
 
 "Model validity" compares each run with the model's limits, using the stall angle of attack (α at the assumed clean
@@ -336,10 +336,16 @@ CLmax, from the trim) as the limit of the linear lattice. A run is "beyond stall
 it. It is "departed" if the bank passes 90° or α goes 10° past stall. A departed run describes a loss of control the
 quasi-steady linear model cannot represent, so its numbers are not a gust response.
 
-- **Motor glider in severe turbulence:** it departs both stick fixed and with the autopilot, even at 40 m/s
-  (atan(σ_w/V) = 10.0° of RMS gust angle against 6.5° of α margin from the trim, results/turbulence.json). For the glider, read the light and moderate rows of the
-  intensity table, which stay valid.
-- **Light GA and A320 class in severe turbulence:** both spend a small fraction of the time past the stall angle.
+- **Motor glider in severe turbulence:** at 40 m/s, atan(σ_w/V) = 10.0° of RMS gust angle meets 6.5° of α margin
+  from the trim. All three autopilot realisations depart, and one of the three stick-fixed ones does. Their numbers
+  are blanked in the tables. For the glider, read the light and moderate rows of the intensity table, which stay
+  valid.
+- **Light GA with the autopilot (severe):** 0.01–1.5 % of the time past the stall angle, depending on the
+  realisation.
+- **Turboprop and A320 class, stick fixed:** at most 0.2 % of the time past it in one realisation.
+- **Turboprop and A320 class with the autopilot:** never reach the stall angle.
+
+These fractions are `time_above_stall_frac` in `results/turbulence.json`.
 - **Stick-fixed runs:** over 120 s they include the unattended spiral and phugoid excursions (large bank angles), so
   their RMS values are not gust response alone. The autopilot rows are the comparison between aircraft.
 
@@ -391,7 +397,7 @@ through the dihedral effect.
 | Light GA (C172 class) | 22.6 | 12.2 | 0.586 | 0.412 |
 | Turboprop (ATR 72 class) | 14.9 | 2.4 | 0.566 | 0.350 |
 | Airliner (A320 class) | 14.7 | 8.3 | 0.287 | 0.250 |
-| Motor glider (AR 28) | 29.5 | 34.9 | 0.935 | 0.935 |
+| Motor glider (AR 28) (departed stick fixed in severe turbulence: not shown) |  |  |  |  |
 <!-- /table:spanwise -->
 
 **Intensity.** Light, moderate and severe turbulence, autopilot on, one realisation for light and moderate.
@@ -407,7 +413,7 @@ through the dihedral effect.
 | Light GA (C172 class) | severe (mean of seeds) | 7.05 | 0.368 | 1.46 | 7.0 | 16.4 | beyond stall |
 | Motor glider (AR 28) | light | 1.84 | 0.112 | 0.46 | 1.7 | 6.0 | valid |
 | Motor glider (AR 28) | moderate | 2.88 | 0.159 | 0.47 | 2.8 | 13.5 | beyond stall |
-| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | 68.935 | 4955.69 | 29.9 | 79.0 | departed |
+| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | – | – | – | – | departed |
 | Turboprop (ATR 72 class) | light | 1.84 | 0.077 | 0.23 | 1.1 | 3.3 | valid |
 | Turboprop (ATR 72 class) | moderate | 2.88 | 0.127 | 0.35 | 1.6 | 4.5 | valid |
 | Turboprop (ATR 72 class) | severe (mean of seeds) | 7.05 | 0.314 | 0.98 | 4.5 | 8.6 | valid |
