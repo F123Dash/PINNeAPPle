@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Thermal network and demagnetisation check of machines (`pinneapple_simulation.electromagnetics.machines.thermal`):
+  lumped `ThermalNetwork` (steady state, backward Euler and trapezoidal transients), the seven-node
+  `machine_network` of a water-jacketed machine, per-element demagnetisation margin against `Hcj(T)` of the NdFeB
+  grade letters, and `magnet_temperature_sweep` (MTPA torque, back-EMF, L_d, L_q against the magnet temperature).
+  Example `examples/electrodynamics/13_prius_thermal.py` (WLTC x 4 temperatures, peak-load time to 180 degC,
+  demagnetisation maps), tests `tests/test_emachine_thermal.py`.
 - Drive model of synchronous machines (`pinneapple_simulation.electromagnetics.machines.drive`): FEA flux maps with
   speed-free loss data, constant-inductance reference with closed forms, torque envelope and least-loss operating
   points under current and voltage limits (MTPA, flux weakening, maximum torque per volt), efficiency maps, vehicle

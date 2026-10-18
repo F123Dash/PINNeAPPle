@@ -140,11 +140,11 @@ def main() -> dict:
            "seconds": time.perf_counter() - t0}
     OUT.mkdir(exist_ok=True)
     (OUT / "13_prius_thermal.json").write_text(json.dumps(res, indent=1, default=float))
-    _figures(times, T, net.names, ts, Tp, t_limit, sweep, maps, m, list(cases)[1])
+    _figures(times, T, net.names, ts, Tp, t_limit, sweep, maps, m, list(cases))
     return res
 
 
-def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, sc_label):
+def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, labels):
     import matplotlib
 
     matplotlib.use("Agg")
@@ -162,6 +162,8 @@ def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, sc_label):
     if t_limit is not None:
         ax[1].axvline(t_limit / 60, color="k", lw=0.8)
     ax[1].set_xlabel("time at peak load (min)")
+    ax[1].set_ylabel("temperature (degC)")
+    ax[1].legend(fontsize=8, loc="lower right")
     ax[1].set_title("250 A, 1500 rpm from the end-of-cycle state (dashed: 180 degC)")
     Tm = [r["magnet_temperature_C"] for r in sweep]
     ax[2].plot(Tm, [r["torque_Nm"] / sweep[0]["torque_Nm"] for r in sweep], "o-", label="MTPA torque, 250 A")
@@ -176,9 +178,10 @@ def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, sc_label):
     fig.savefig(OUT / "13_prius_thermal.png", dpi=130)
     plt.close(fig)
 
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5.2))
-    for ax, grade in zip(axs, ("H", "SH"), strict=True):
-        ms, d = maps[(sc_label, grade)]
+    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+    panels = [(label, grade) for label in labels for grade in ("H", "SH")]
+    for ax, (label, grade) in zip(axs.ravel(), panels, strict=True):
+        ms, d = maps[(label, grade)]
         mesh = ms.mesh
         el = d["elements"]
         bg = PolyCollection(mesh.points[mesh.tris] * 1e3, facecolors="0.85", edgecolors="none")
@@ -189,8 +192,10 @@ def _figures(times, T, names, ts, Tp, t_limit, sweep, maps, m, sc_label):
         ax.set_xlim(40, 85)
         ax.set_ylim(-25, 25)
         ax.set_aspect("equal")
-        ax.set_title(f"grade {grade}, magnets at {m.magnet_temperature:.0f} degC\n{sc_label}\n"
+        ax.set_title(f"grade {grade}, magnets at {m.magnet_temperature:.0f} degC\n{label}\n"
                      f"demagnetised area {100 * d['demagnetised_fraction']:.2f} %", fontsize=9)
+        ax.set_xlabel("x (mm)")
+        ax.set_ylabel("y (mm)")
         fig.colorbar(pc, ax=ax, shrink=0.8, label="H_rev / Hcj (> 1: irreversible)")
     fig.tight_layout()
     fig.savefig(OUT / "13_prius_demag.png", dpi=130)

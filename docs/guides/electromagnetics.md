@@ -341,6 +341,85 @@ Notes from the same run:
 - Prius flux map: interpolation vs direct FEA: error relative to 300 N m
 <!-- drive-verification:end -->
 
+### Magnet temperature, thermal network and demagnetisation
+
+`pinneapple_simulation.electromagnetics.machines.thermal`:
+
+* `ThermalNetwork`: isothermal nodes with heat capacities, conductances between nodes and to fixed-temperature
+  boundaries, time-dependent sources; steady state and transients (backward Euler or trapezoidal rule).
+  `machine_network(geometry)` builds the seven-node model of a water-jacketed machine (stator yoke, teeth, winding in
+  the slots, end windings, rotor, magnets, shaft path) from the cross-section: cylindrical-shell conduction
+  `2 pi k L / ln(r2/r1)`, slot insulation, axial conduction to the end windings, convection across the gap and at the
+  end windings. The material, contact and heat-transfer data are the stated defaults of `MachineThermalData`
+  (coolant 65 degC). They are inputs, not correlations fitted here, and illustrative: none is measured on a Prius.
+* `IPMMachine(..., magnet_temperature=T)`: remanence `Br(T) = Br20 (1 + alpha_Br (T - 20))`, with
+  `alpha_Br = -0.1 %/K` (the pyleecan Prius magnet). `magnet_temperature_sweep` evaluates MTPA torque, back-EMF and
+  `L_d`, `L_q` with the FEA at each temperature.
+* `demagnetisation_margin(machine, solution, Hcj)`: in every magnet element, the field opposing the magnetisation
+  `H_rev = -(B . m - Br) / (mu0 mu_r)` against the intrinsic coercivity (the knee of a square-loop sintered NdFeB
+  magnet). It returns the per-element ratio `H_rev / Hcj` and the demagnetised area fraction (ratio > 1).
+  `intrinsic_coercivity(Hcj20, T, beta) = Hcj20 (1 + beta (T - 20))`. `NDFEB_HCJ_MIN_KAM` holds the minimum `Hcj`
+  at 20 degC of each grade letter (N 12, M 14, H 17, SH 20, UH 25, EH 30, AH 35 kOe), the manufacturers' grade
+  convention. `beta = -0.55 %/K` is a typical datasheet value for sintered NdFeB and an assumption here: use the
+  grade's datasheet.
+
+`python examples/electrodynamics/13_prius_thermal.py` (run on 2026-10-18, 960 gap nodes) gives
+`results/13_prius_thermal.json`, `13_prius_thermal.png` and `13_prius_demag.png`.
+
+Performance against the magnet temperature (MTPA at 250 A; EMF is the phase fundamental, peak, at 1000 rpm):
+
+| Magnets (degC) | Br (T) | Torque (N m) | MTPA angle (deg) | EMF (V) | L_d (mH) | L_q (mH) |
+|---|---|---|---|---|---|---|
+| 20 | 1.240 | 345.6 | 50.3 | 87.6 | 1.386 | 2.435 |
+| 60 | 1.190 | 338.7 | 50.6 | 84.0 | 1.386 | 2.443 |
+| 100 | 1.141 | 331.6 | 51.0 | 80.2 | 1.388 | 2.458 |
+| 150 | 1.079 | 322.6 | 51.4 | 75.4 | 1.389 | 2.474 |
+
+From 20 to 150 degC, Br falls by 13.0 % and the EMF by 13.9 %. The torque at 250 A falls by only 6.7 %, because the
+reluctance torque does not depend on the magnets. `L_q` rises by 1.6 % as the weaker magnets saturate the q-axis
+iron less.
+
+The thermal network takes the drive model's per-second losses over four WLTC class 3b cycles. Copper loss is split
+between the slots and the end windings by length. Iron loss is split by the FEA loss density at 250 A: yoke 26 %,
+teeth 63 %, rotor 10 %. The magnet loss goes to the magnets. Mean losses are copper 298 W, iron 247 W and magnet
+0.2 W. The peak temperatures are:
+
+* teeth 82.5 degC;
+* winding 80.3 degC;
+* magnets 78.5 degC;
+* end winding 75.1 degC;
+* yoke 71.9 degC.
+
+The network then runs at peak load from the end-of-cycle state: 343.2 N m at 1500 rpm, with copper 8.75 kW, iron
+382 W and magnet 30 W. The hotter winding node reaches 180 degC (class H) after 237 s. The magnets settle at
+127.4 degC.
+
+Demagnetisation at that magnet temperature, at the full d-axis current (`i_d = -250 A`) and at the peak of a
+three-phase short circuit estimated as `2 psi_pm / L_d = -165 A` (demagnetised area fraction of the magnets;
+`H_rev` is the worst element):
+
+| Grade | Hcj at 127 degC (kA/m) | -250 A, H_rev 719 kA/m | -165 A, H_rev 517 kA/m |
+|---|---|---|---|
+| N | 391 | 99.4 % | 31.8 % |
+| M | 456 | 93.3 % | 3.2 % |
+| H | 554 | 18.6 % | 0 |
+| SH | 651 | 2.4 % | 0 |
+| UH | 814 | 0 | 0 |
+
+The worst elements sit at the magnet corners next to the air-gap side and at the V tip (`13_prius_demag.png`
+shows the per-element ratio for grades H and SH in both cases). With these assumptions, the magnets need a grade of SH or above
+to survive full negative d-axis current when hot, and UH to keep every element below the knee.
+
+The network and the demagnetisation field are checked against closed forms (`machines.verification`):
+
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Thermal network: first-order transient | node temperature at t = tau, dt halved | T_b + P/G (1 - e^-1) (closed form) | 4.79e-06 | 2.00, 2.00, 2.00 (expected 2) | pass |
+| Thermal network: cylindrical conduction | series of thin flat shells, n doubled | 2 pi k L / ln(r2/r1) | 5.08e-06 | 2.00, 2.00, 2.00 (expected 2) | pass |
+| Demagnetisation field in a magnetised ring | reverse field in the magnet, h halved | closed form of the magnetised ring | 5.99e-03 | 1.02, 0.89, 0.95 (expected 1) | pass |
+
+The element-wise B of P1 elements is first order, hence the observed order of the demagnetisation field.
+
 ## Verification
 
 Each case compares a solver or reference implementation with an independent result; where the mesh or step is
@@ -442,6 +521,11 @@ Notes from the same run:
   iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
   magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
   M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.
+* Thermal: a lumped network whose material, contact and heat-transfer data are illustrative defaults, not
+  measured or fitted to a Prius; one temperature per node (no hot spot inside the slot, magnets uniform). `Hcj(T)`
+  is the grade minimum with an assumed -0.55 %/K coefficient. The demagnetisation check is static, a square-loop
+  knee test on the 2-D field (no recoil-line modelling, no partial demagnetisation of later operation). The
+  short-circuit peak `2 psi_pm / L_d` is an estimate, not a transient simulation.
 * Drive: steady state only (no current-controller dynamics, no PWM ripple or harmonics losses), no inverter,
   mechanical or battery losses; the voltage limit is that of linear space-vector modulation.
 * `JilesAtherton` is the scalar model; its parameters must be fitted to measured loops of the material.

@@ -1,0 +1,147 @@
+{
+ "magnet_temperature_sweep": [
+  {
+   "magnet_temperature_C": 20.0,
+   "Br_T": 1.24,
+   "mtpa_gamma_deg": 50.304205616938326,
+   "torque_Nm": 345.60497177686904,
+   "ripple": 0.22888372401275334,
+   "L_d_mH": 1.3859573864874903,
+   "L_q_mH": 2.435186668660399,
+   "psi_pm_Wb": 0.21421020895396062,
+   "emf_phase_fundamental_peak_V_1000rpm": 87.61931589092629
+  },
+  {
+   "magnet_temperature_C": 60.0,
+   "Br_T": 1.1904,
+   "mtpa_gamma_deg": 50.55332010443291,
+   "torque_Nm": 338.7179082383738,
+   "ripple": 0.23254170020376033,
+   "L_d_mH": 1.3862718183479676,
+   "L_q_mH": 2.4426781821390153,
+   "psi_pm_Wb": 0.20531117368572765,
+   "emf_phase_fundamental_peak_V_1000rpm": 83.97628121665208
+  },
+  {
+   "magnet_temperature_C": 100.0,
+   "Br_T": 1.1408,
+   "mtpa_gamma_deg": 50.956395812289145,
+   "torque_Nm": 331.63292320949955,
+   "ripple": 0.2334362847857414,
+   "L_d_mH": 1.3875807283020984,
+   "L_q_mH": 2.4581699073906544,
+   "psi_pm_Wb": 0.1965687436567128,
+   "emf_phase_fundamental_peak_V_1000rpm": 80.2293606560318
+  },
+  {
+   "magnet_temperature_C": 150.0,
+   "Br_T": 1.0788,
+   "mtpa_gamma_deg": 51.35947152014538,
+   "torque_Nm": 322.59469556977666,
+   "ripple": 0.23214683715534573,
+   "L_d_mH": 1.3893844580625896,
+   "L_q_mH": 2.473563800495365,
+   "psi_pm_Wb": 0.1855591267118185,
+   "emf_phase_fundamental_peak_V_1000rpm": 75.44266372679986
+  }
+ ],
+ "iron_split": {
+  "yoke": 0.26282761768604956,
+  "teeth": 0.6337779176164349,
+  "rotor": 0.10339446469751548
+ },
+ "wltc_cycles": 4,
+ "peak_temperatures_C": {
+  "yoke": 71.88097558900056,
+  "teeth": 82.50518740460485,
+  "winding": 80.33684193660206,
+  "end_winding": 75.110256029819,
+  "rotor": 78.48675200497999,
+  "magnets": 78.48668955294256
+ },
+ "mean_losses_W": {
+  "copper": 298.13479288038036,
+  "iron": 246.6502428234695,
+  "magnet": 0.20480710386462198
+ },
+ "peak_load": {
+  "torque_Nm": 343.2127035990886,
+  "rpm": 1500,
+  "copper_W": 8751.65284626098,
+  "iron_W": 381.76680337793283,
+  "magnet_W": 29.785610064509445,
+  "time_to_180C_winding_s": 237.0
+ },
+ "demagnetisation": {
+  "magnet_temperature_C": 127.40719109020533,
+  "beta_Hcj_per_K": -0.0055,
+  "short_circuit_peak_estimate_A": 165.43982061321339,
+  "cases": {
+   "i_d = -250 A": {
+    "N": {
+     "H_rev_max": 718956.9288006551,
+     "margin": -328141.98797480756,
+     "Hcj": 390814.9408258475,
+     "demagnetised_fraction": 0.9935897435897436
+    },
+    "M": {
+     "H_rev_max": 718956.9288006551,
+     "margin": -263006.16450383305,
+     "Hcj": 455950.764296822,
+     "demagnetised_fraction": 0.9333727357569997
+    },
+    "H": {
+     "H_rev_max": 718956.9288006551,
+     "margin": -165302.42929737107,
+     "Hcj": 553654.499503284,
+     "demagnetised_fraction": 0.185839267085498
+    },
+    "SH": {
+     "H_rev_max": 718956.9288006551,
+     "margin": -67598.69409090932,
+     "Hcj": 651358.2347097457,
+     "demagnetised_fraction": 0.023504273504273563
+    },
+    "UH": {
+     "H_rev_max": 718956.9288006551,
+     "margin": 95240.86458652723,
+     "Hcj": 814197.7933871823,
+     "demagnetised_fraction": 0.0
+    }
+   },
+   "short-circuit peak 2 psi/L_d = -165 A": {
+    "N": {
+     "H_rev_max": 517272.1375730757,
+     "margin": -126457.19674722821,
+     "Hcj": 390814.9408258475,
+     "demagnetised_fraction": 0.31797887344958453
+    },
+    "M": {
+     "H_rev_max": 517272.1375730757,
+     "margin": -61321.3732762537,
+     "Hcj": 455950.764296822,
+     "demagnetised_fraction": 0.031772869141833096
+    },
+    "H": {
+     "H_rev_max": 517272.1375730757,
+     "margin": 36382.36193020828,
+     "Hcj": 553654.499503284,
+     "demagnetised_fraction": 0.0
+    },
+    "SH": {
+     "H_rev_max": 517272.1375730757,
+     "margin": 134086.09713667003,
+     "Hcj": 651358.2347097457,
+     "demagnetised_fraction": 0.0
+    },
+    "UH": {
+     "H_rev_max": 517272.1375730757,
+     "margin": 296925.6558141066,
+     "Hcj": 814197.7933871823,
+     "demagnetised_fraction": 0.0
+    }
+   }
+  }
+ },
+ "seconds": 858.7373009440003
+}
