@@ -317,9 +317,11 @@ def _mean_rmse(model, data, origins) -> float:
 def overfitting_study(data: SeriesData, protocol: Protocol, variants: dict[str, Callable[[], Forecaster]], *,
                       schemes: Sequence[str] = ("purged_walk_forward",), schemes_for: Sequence[str] | None = None,
                       log: Callable[[str], None] = print) -> dict[str, Any]:
-    """For each training variant: error on its training origins, on the validation block and on the untouched
-    test period (mean RMSE over horizons / std of the series), the gap test - train, and the cross-validation
-    estimate under each scheme with its optimism (test - CV).
+    """For each training variant: its error on its training origins, on the validation block and on the untouched
+    test period, the gap test - train, and the cross-validation estimate under each scheme with its optimism
+    (test - CV). The error is the mean over horizons of RMSE / RMSE of persistence *on the same origins* (1 = no
+    better than persistence), so periods of different volatility compare; ``rmse_over_std`` also gives the mean
+    RMSE divided by the standard deviation of the whole series.
 
     Schemes: ``"purged_walk_forward"`` (the protocol's folds), ``"walk_forward_no_purge"``, ``"purged_kfold"``
     (contiguous folds, purge H before and embargo H after each validation fold), ``"shuffled_kfold"``. They are run
@@ -333,8 +335,10 @@ def overfitting_study(data: SeriesData, protocol: Protocol, variants: dict[str, 
         t0 = time.perf_counter()
         m = make().fit(data, split["train"], split["val"], H)
         tr = split["train"][:: max(1, len(split["train"]) // 1500)]
-        row = {"train": _mean_rmse(m, data, tr), "val": _mean_rmse(m, data, split["val"]),
-               "test": _mean_rmse(m, data, split["test"]), "n_params": int(m.n_params()),
+        row = {"train": _rmse_skill(m, data, tr), "val": _rmse_skill(m, data, split["val"]),
+               "test": _rmse_skill(m, data, split["test"]),
+               "rmse_over_std": {"train": _mean_rmse(m, data, tr), "val": _mean_rmse(m, data, split["val"]),
+                                 "test": _mean_rmse(m, data, split["test"])}, "n_params": int(m.n_params()),
                "fit_seconds": m.fit_seconds, "info": {k: v for k, v in m.info.items()
                                                       if k in ("epochs_run", "best_epoch", "n_members")}}
         row["gap_test_minus_train"] = row["test"] - row["train"]
@@ -382,7 +386,7 @@ def _cv_estimate(make, data, protocol, dev_o, scheme) -> dict[str, Any]:
     scores = []
     for tr, iv, va in folds:
         m = make().fit(data, np.sort(tr), None if iv is None else np.sort(iv), protocol.horizons)
-        scores.append(_mean_rmse(m, data, np.sort(va)))
+        scores.append(_rmse_skill(m, data, np.sort(va)))
     return {"estimate": float(np.mean(scores)), "folds": scores}
 
 
