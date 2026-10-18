@@ -62,3 +62,20 @@ def test_choose_tiles_and_panel(tmp_path):
     from PIL import Image
     assert Image.open(meta["files"]["png"]).size == (1080, 1350)
     assert {x["item"] for x in meta["tiles"]} == {"a1/x", "a2/x", "a3/x", "b1/y"}
+
+
+def test_evidence_lines_labels_fit_and_focus():
+    from pinneapple_lab.showcase import _fit_line, _focus, evidence_line
+    rec = {"headline": {"text": "drag vs wind tunnel · Ahmed, Ramm & Faltin (1984), 25 deg slant",
+                        "label": "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)",
+                        "label_pt": "arrasto vs túnel de vento (Ahmed, Ramm & Faltin, 1984)",
+                        "label_short_pt": "arrasto vs túnel de vento (Ahmed 1984)"}}
+    assert evidence_line(rec, "pt") == "arrasto vs túnel de vento (Ahmed, Ramm & Faltin, 1984)"
+    assert evidence_line(rec, "pt", short=True) == "arrasto vs túnel de vento (Ahmed 1984)"
+    assert evidence_line(rec, "en", short=True) == "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)"
+    assert evidence_line({"headline": {"text": "raw line"}}, "pt") == "raw line"
+    text, font = _fit_line("friction vs Colebrook · loss vs Ito", 13, 120)
+    assert "…" not in text and font.getlength(text) <= 120 and text.startswith("friction vs Colebrook")
+    a = np.zeros((100, 200, 3), np.uint8)
+    assert _focus(a, (0.1, 0.2, 0.6, 0.7)).shape == (50, 100, 3)
+    assert _focus(a, [(0, 0, 0.5, 0.5), (0.5, 0.5, 1, 1)]).shape == (50, 200, 3)        # two panels side by side

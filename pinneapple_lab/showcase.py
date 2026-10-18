@@ -39,7 +39,6 @@ from .seal import (
     SealError,
     draw_text,
     load_curation,
-    pick_corner,
     render_seal,
     run_dir,
     seal_for,
@@ -88,22 +87,27 @@ TITLES = {
     "repo_results/lunar_rover": ("Lunar rover, terramechanics", "Rover lunar, terramecânica"),
 }
 
-# The panel of 2026-10 (hand-picked, then made a function): item -> figure (a substring of the file name). Tiers still
-# come from the curation; the e-machine field is always included wherever its tier puts it.
+# The panel of 2026-10 (hand-picked, then made a function): (item, figure substring, framing). Tiers still come from
+# the curation; the e-machine field is always included wherever its tier puts it. ``focus`` is the subject's box in
+# figure fractions (x0, y0, x1, y1), or several boxes laid side by side, drawn so its border is background (the margin
+# repeats it); axes, legends and colour bars outside it are left out whole; ``fill`` crops the tile from the box's centre instead of showing all
+# of it. ``rotate`` turns a tall render a quarter turn to fit a wide tile.
 DEFAULT_PICKS = [
-    ("repo_results/ahmed_body", "streamlines"),           # hero
-    ("repo_results/ahmed_body", "cp"),
-    ("repo_results/prius_pmsm", "pmsm_field"),
-    ("particle_suspension", ".gif"),
-    ("calculix_case/l_bracket", ""),
-    ("calculix_case/plate_hole", ""),
-    ("solid_fem/simply_supported", ".gif"),
-    ("solid_fem/torsion", ".gif"),
-    ("bar_wear/tungsten carbide", ""),
-    ("pipe_flow/bend_90", ""),
-    ("repo_results/ahmed_body", "mid_plane"),
-    ("rom_study/cylinder_wake", "wake_truth_vs_rom"),
-    ("pipe_flow/kenics_mixer", ""),
+    ("repo_results/ahmed_body", "streamlines", {}),                                   # hero
+    ("repo_results/ahmed_body", "cp", {"focus": (0.10, 0.14, 0.80, 0.815), "fill": True}),   # bar out
+    ("repo_results/prius_pmsm", "pmsm_field",                                        # stator and rotor
+     {"focus": (0.28, 0.07, 0.81, 0.89), "fill": True}),
+    ("particle_suspension", ".gif", {"focus": (0.10, 0.17, 0.58, 0.90)}),             # the 3-D render, not the plots
+    ("calculix_case/l_bracket", "render", {"focus": (0.24, 0.06, 0.72, 0.83)}),
+    ("calculix_case/plate_hole", "render", {"focus": (0.08, 0.25, 0.88, 0.80)}),
+    ("solid_fem/simply_supported", ".gif", {"focus": (0.26, 0.23, 0.88, 0.66)}),       # the deforming body
+    ("solid_fem/torsion", ".gif", {"focus": (0.30, 0.26, 0.86, 0.74)}),
+    ("bar_wear/tungsten carbide", "worn_end_render", {"focus": (0.22, 0.10, 0.80, 0.625)}),
+    ("pipe_flow/bend_90", "streamlines", {"focus": (0.25, 0.10, 0.66, 0.97), "rotate": True}),
+    ("repo_results/ahmed_body", "mid_plane", {}),
+    ("rom_study/cylinder_wake", "wake_truth_vs_rom",                                  # both flow panels, no titles
+     {"focus": [(0.26, 0.095, 0.74, 0.475), (0.26, 0.585, 0.74, 0.965)], "fill": True}),
+    ("pipe_flow/kenics_mixer", "streamlines", {"focus": (0.03, 0.25, 0.88, 0.65)}),
 ]
 _SKIP = ("loss", "history", "card", "convergence", "mesh")
 
@@ -117,6 +121,8 @@ class Tile:
     evidence: str
     evidence_kind: str
     seal: Seal = field(repr=False)
+    frame: dict = field(default_factory=dict)     # framing: focus box(es), fill, rotate
+    lang: str = "en"
 
 
 # ---------------------------------------------------------------------------------------------- picking
@@ -150,15 +156,26 @@ def _title(item: str, rec: dict, lang: str) -> str:
     return str(rec.get("title") or item).replace("_", " ").strip().capitalize()
 
 
+def evidence_line(rec: dict, lang: str = "en", short: bool = False) -> str:
+    """The tile's evidence line: the curation headline's display label in ``lang`` (``label_pt`` for Portuguese),
+    its short form for a small tile when there is one, else the English label, else the raw check line."""
+    hl = rec.get("headline") or {}
+    pt = lang == "pt"
+    keys = (["label_short_pt"] if short and pt else []) + (["label_short"] if short and not pt else []) + \
+        (["label_pt"] if pt else []) + ["label", "text"]
+    return next((hl[k] for k in keys if hl.get(k)), "")
+
+
 def choose_tiles(lab: Any = None, picks=None, lang: str = "en", n_grid: int = 9, n_b: int = 2) -> dict[str, Any]:
-    """Hero, grid (Tier A) and B row from the curation. ``picks``: [(item, figure substring)], tried first in
-    order; the rest is filled automatically (A by best score, one tile per experiment first; B by best score)."""
+    """Hero, grid (Tier A) and B row from the curation. ``picks``: [(item, figure substring[, framing])], tried
+    first in order; the rest is filled automatically (A by best score, one tile per experiment first; B by best
+    score)."""
     cur = load_curation(lab)
     recs = cur.get("items", {})
     picks = DEFAULT_PICKS if picks is None else picks
     used: set[tuple[str, str]] = set()
 
-    def make(item, want=""):
+    def make(item, want="", frame=None):
         try:
             s = seal_for(item, cur)
         except (KeyError, SealError):
@@ -169,11 +186,13 @@ def choose_tiles(lab: Any = None, picks=None, lang: str = "en", n_grid: int = 9,
         if f is None:
             return None
         used.add((item, f))
-        return Tile(item, s.tier, f, _title(item, recs[item], lang), s.reason, s.reason_kind, s)
+        return Tile(item, s.tier, f, _title(item, recs[item], lang), evidence_line(recs[item], lang), s.reason_kind, s,
+                    dict(frame or {}))
 
     a_tiles, b_tiles = [], []
-    for item, want in picks:
-        t = make(item, want)
+    for pick in picks:
+        item, want, frame = (tuple(pick) + ({},))[:3]
+        t = make(item, want, frame)
         if t is not None:
             (a_tiles if t.tier == "A" else b_tiles).append(t)
     score = lambda kv: -(kv[1].get("best_score") or 0)  # noqa: E731
@@ -200,6 +219,10 @@ def choose_tiles(lab: Any = None, picks=None, lang: str = "en", n_grid: int = 9,
                 b_tiles.append(t)
     hero = next((t for t in a_tiles if t.figure.lower().endswith((".jpg", ".jpeg"))), a_tiles[0] if a_tiles else None)
     grid = [t for t in a_tiles if t is not hero][:n_grid]
+    for t in grid + b_tiles:                               # small tiles: the short form of the line, when there is one
+        t.evidence = evidence_line(recs[t.item], lang, short=True)
+    for t in a_tiles + b_tiles:
+        t.lang = lang
     return {"hero": hero, "grid": grid, "b": b_tiles[:n_b], "curated": cur.get("generated", "")}
 
 
@@ -207,7 +230,7 @@ def choose_tiles(lab: Any = None, picks=None, lang: str = "en", n_grid: int = 9,
 class _Source:
     """A figure as frames: one frame for an image, all frames (and their times) for a GIF or a video."""
 
-    def __init__(self, path: str, rotate: bool = False):
+    def __init__(self, path: str, rotate: bool = False, focus=None):
         from PIL import Image, ImageSequence
         self.path = path
         ext = os.path.splitext(path)[1].lower()
@@ -234,8 +257,10 @@ class _Source:
             frames.append(np.asarray(Image.open(path).convert("RGB")))
             times.append(0.0)
             self.duration = 0.0
+        if focus:
+            frames = [_focus(f, focus) for f in frames]
         if rotate:
-            frames = [np.rot90(f) for f in frames]
+            frames = [np.ascontiguousarray(np.rot90(f)) for f in frames]
         self.frames, self.times = frames, np.asarray(times)
         self.animated = len(frames) > 1
 
@@ -245,6 +270,29 @@ class _Source:
             return self.frames[0]
         k = int(np.searchsorted(self.times, phase * self.duration, side="right") - 1)
         return self.frames[max(0, min(k, len(self.frames) - 1))]
+
+
+def _focus(a: np.ndarray, focus) -> np.ndarray:
+    """The subject of a frame: one box in figure fractions, or several laid side by side at a common height."""
+    from PIL import Image
+    boxes = [focus] if isinstance(focus[0], (int, float)) else list(focus)
+    h, w = a.shape[:2]
+    parts = [a[int(y0 * h):int(y1 * h), int(x0 * w):int(x1 * w)] for x0, y0, x1, y1 in boxes]
+    if len(parts) == 1:
+        return np.ascontiguousarray(parts[0])
+    hh = min(p.shape[0] for p in parts)
+    parts = [np.asarray(Image.fromarray(p).resize((max(1, round(p.shape[1] * hh / p.shape[0])), hh), Image.LANCZOS))
+             for p in parts]
+    return np.concatenate(parts, axis=1)
+
+
+def _cover(w: int, h: int, aspect: float) -> tuple[int, int, int, int]:
+    """The centred window of a ``w`` x ``h`` image with width / height ``aspect``."""
+    if w / h > aspect:
+        nw = int(round(h * aspect))
+        return (w - nw) // 2, 0, (w - nw) // 2 + nw, h
+    nh = int(round(w / aspect))
+    return 0, (h - nh) // 2, w, (h - nh) // 2 + nh
 
 
 def _bg_colour(a: np.ndarray) -> np.ndarray:
@@ -335,23 +383,45 @@ def _round_mask(w: int, h: int, r: int):
 def _fit_text(text: str, font, width: float) -> str:
     if font.getlength(text) <= width:
         return text
-    while text and font.getlength(text + "…") > width:
+    while text and font.getlength(text + "\u2026") > width:
         text = text[:-1]
-    return text.rstrip(" ,;·") + "…"
+    return text.rstrip(" ,;\u00b7") + "\u2026"
+
+
+def _fit_line(text: str, size: float, width: float, weight: str = "SemiBold", min_size: float = 10):
+    """(text, font) that fits ``width`` on one line without cutting a word: the font shrinks down to ``min_size``,
+    then trailing " \u00b7 " clauses are dropped whole."""
+    parts = text.split(" \u00b7 ")
+    while True:
+        t = " \u00b7 ".join(parts)
+        sz = size
+        while sz >= min_size:
+            f = _font(sz, weight)
+            if f.getlength(t) <= width:
+                return t, f
+            sz -= 0.5
+        if len(parts) == 1:
+            return t, _font(min_size, weight)
+        parts = parts[:-1]
 
 
 class _TileRenderer:
     def __init__(self, tile: Tile, w: int, h: int, *, hero: bool = False, rotate: bool = False):
         from PIL import Image, ImageDraw
         self.tile, self.w, self.h, self.hero = tile, w, h, hero
-        self.src = _Source(tile.figure, rotate=rotate)
+        self.src = _Source(tile.figure, rotate=rotate or bool(tile.frame.get("rotate")), focus=tile.frame.get("focus"))
         f0 = self.src.frames[0]
         # only the hero is cropped to fill (its Ken Burns window must stay inside the image); every other tile shows
         # the whole content, cut at empty bands only, and fills the margin by extending the edge pixels
-        self.box, self.letterbox = fit_crop(f0, w / h, photo=True if hero else False)
+        if tile.frame.get("focus"):           # framed by hand: the whole subject as large as it fits, or filling
+            fill = bool(tile.frame.get("fill"))   # the tile when the box already holds only the subject
+            self.box = _cover(f0.shape[1], f0.shape[0], w / h) if fill else (0, 0, f0.shape[1], f0.shape[0])
+            self.letterbox = not fill
+        else:
+            self.box, self.letterbox = fit_crop(f0, w / h, photo=True if hero else False)
         self.bg = tuple(int(v) for v in _bg_colour(f0))
         self.mask = _round_mask(w, h, 16 if hero else 12)
-        self.lift = 0.0 if hero else 0.22                   # keep the figure above the title band
+        self.lift = 0.0 if hero else 0.14 if tile.frame.get("focus") else 0.22   # keep it above the title band
         # overlay: bottom gradient band, title, evidence line, seal
         ov = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         band = int(h * (0.48 if not hero else 0.34))
@@ -365,13 +435,16 @@ class _TileRenderer:
         col = TIER_COLOURS[tile.tier]
         mark = "✓ " if tile.tier == "A" else "◐ "
         pad = 14 if hero else 10
-        d.text((pad, h - pad - es - 6), _fit_text(tile.title, ft, w - 2 * pad), font=ft, fill=(255, 255, 255, 255),
+        title, ft = _fit_line(tile.title, ts, w - 2 * pad, "Bold", min_size=0.75 * ts)
+        d.text((pad, h - pad - es - 6), title, font=ft, fill=(255, 255, 255, 255),
                anchor="ls")
-        draw_text(d, (pad, h - pad), _fit_text(mark + tile.evidence, fe, w - 2 * pad), fe, col)
-        seal = render_seal(tile.seal, height=44 if hero else 30, compact=True)
-        base = np.asarray(self._base(0.0, 0.0).convert("RGB"))
-        corner = pick_corner(base, seal.width, seal.height, pad, avoid=[(0, h // 2, w, h)])   # a top corner
-        ov.alpha_composite(seal, (w - seal.width - pad if corner == "tr" else pad, pad))
+        line, fe = _fit_line(mark + tile.evidence, es, w - 2 * pad)
+        draw_text(d, (pad, h - pad), line, fe, col)
+        if hero:                                            # the full seal on the hero only
+            seal = render_seal(tile.seal, height=58, compact=False, reason=False, lang=tile.lang)
+        else:                                               # a small compact seal, top right, see-through
+            seal = render_seal(tile.seal, height=19, compact=True, opacity=0.85)
+        ov.alpha_composite(seal, (w - seal.width - pad, pad))
         self.overlay = ov
         self._static = None
 
@@ -405,7 +478,8 @@ class _TileRenderer:
                                                Image.LANCZOS))
                 dx, dy = self.w - inner.shape[1], self.h - inner.shape[0]
                 top = max(0, (dy - int(self.lift * self.h)) // 2)
-                im = Image.fromarray(np.pad(inner, ((top, dy - top), (dx // 2, dx - dx // 2), (0, 0)), mode="edge"))
+                pad = ((top, dy - top), (dx // 2, dx - dx // 2), (0, 0))
+                im = Image.fromarray(np.pad(inner, pad, mode="edge"))     # focus boxes end on background
             else:
                 im = crop.resize((self.w, self.h), Image.LANCZOS)
         return im

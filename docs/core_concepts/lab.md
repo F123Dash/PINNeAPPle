@@ -250,10 +250,16 @@ of the tiles it used.
 
 * Tiles come from the curation: Tier A first (hero and grid), then the strongest B. `picks=[(item, figure)]`
   overrides the order and the figure; an item still lands where its tier puts it, and a C or D item is never shown.
-* Every tile's green "✓" or amber "◐" line is the item's curation headline, and every tile carries its seal.
+* Every tile's green "✓" or amber "◐" line is the item's curation headline: the display label its experiment gives
+  the check (`Experiment.check_labels`, English and Portuguese, a short form for small tiles), used only when every
+  check the line names passed, else the check's own line. Lines are fitted to one row by a smaller font or by dropping
+  a whole " · " clause, never cut mid-word. The hero carries the full seal; grid tiles a small compact one.
 * GIF and MP4 figures play in their tiles, resampled to run once over the 8 s loop at 15 fps.
-* Plots are cut only at empty rows and columns, so a colour bar or an axis label is whole or left out; renders are
-  cropped to fill. The Ken Burns window stays inside the image, so no black bars appear.
+* Framing: `picks=[(item, figure, {"focus": box, "fill": bool, "rotate": bool})]`. `focus` is the subject's box in
+  figure fractions (or several boxes laid side by side), so axes, legends and colour bars outside it are left out
+  whole; `fill` crops the tile from the box instead of showing all of it; `rotate` turns a tall render to fit.
+  Without a focus, plots are cut only at empty rows and columns. The Ken Burns window stays inside the image, so no
+  black bars appear.
 
 ```bash
 python -m pinneapple_lab showcase --lang en,pt --out docs/assets/showcase
