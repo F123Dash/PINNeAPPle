@@ -622,6 +622,10 @@ _SUBMODULES = {
     "closed_form": "pinneapple_physics.closed_form",
     "excitation": "pinneapple_systems.excitation",
     "reporting":  "pinneapple_tools.reporting",
+    # electromagnetics: Maxwell references, media, statics, waves, Mie, machine and eddy-current FEM
+    "em":         "pinneapple_simulation.electromagnetics",
+    # physics checks of electromagnetic fields (Gauss, Faraday, Ampere-Maxwell, Poynting, passivity)
+    "maxwell":    "pinneapple_physics.maxwell_checks",
 }
 
 # Lazy functions: resolved on first access, so ``import pinneapple`` does not

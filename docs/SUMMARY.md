@@ -92,6 +92,8 @@
     * [Parameter Identifiability Lab (day 25)](apps/identifiability_lab.md)
     * [Model Calibration Lab (day 18)](apps/calibration_lab.md)
     * [PhysicsNeMo trains, PINNeAPPle says when to trust](guides/physicsnemo_trust.md)
+    * [Electromagnetics and electrodynamics](guides/electromagnetics.md)
+    * [Topology optimisation](guides/topology_optimization.md)
     * [Engineering Evidence Report (day 30)](apps/evidence_report.md)
     * [Physics Validation Lab (day 24)](apps/validation_lab.md)
     * [Uncertainty and sensitivity studies on any model](guides/uncertainty_and_sensitivity.md)

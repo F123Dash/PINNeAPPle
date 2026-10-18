@@ -176,6 +176,16 @@ def _burgers_exact(p: PhysicalProblem):
     return lambda X: burgers_sine_exact(X[:, 0], X[:, 1], nu)[:, None]
 
 
+def _register_closed_forms() -> None:
+    from .closed_form import electromagnetics as _em
+
+    for name, matcher, factory in _em.ANALYTIC:
+        register_analytic(name, matcher)(factory)
+
+
+_register_closed_forms()
+
+
 @register_method("analytic", kind="analytic")
 def _analytic(problem: PhysicalProblem, **_: Any) -> Solution:
     for name, matcher, factory in _ANALYTIC:

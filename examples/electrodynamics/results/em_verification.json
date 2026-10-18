@@ -1,0 +1,236 @@
+[
+ {
+  "case": "Coaxial capacitor (P1 FEM)",
+  "quantity": "capacitance per metre",
+  "reference": "2 pi eps / ln(b/a)",
+  "error": 0.0003871336440759432,
+  "orders": [
+   1.9892118819780682,
+   1.9962431146099013,
+   1.9989727311383574
+  ],
+  "expected_order": 2.0,
+  "passed": true,
+  "detail": "errors 2.45e-02, 6.17e-03, 1.55e-03, 3.87e-04",
+  "seconds": 0.06688267200024711
+ },
+ {
+  "case": "Two-dielectric parallel-plate capacitor (P1 FEM)",
+  "quantity": "potential (max abs, V)",
+  "reference": "D uniform, E_i = D / eps_i (exact in P1)",
+  "error": 3.1086244689504383e-15,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.24987318599960417
+ },
+ {
+  "case": "Circular loop by Biot-Savart (polygon)",
+  "quantity": "B off the axis",
+  "reference": "elliptic-integral loop field (Jackson 5.37)",
+  "error": 5.0818584404964295e-05,
+  "orders": [
+   1.9934101038534622,
+   1.9983536595916203,
+   1.9995882524876878
+  ],
+  "expected_order": 2.0,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.0015820909998183197
+ },
+ {
+  "case": "Infinite wire and finite solenoid (Biot-Savart)",
+  "quantity": "B of a 200-turn helix on the axis",
+  "reference": "current-sheet solenoid (closed form)",
+  "error": 0.0005324486548349272,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "20 km segment vs mu0 I / (2 pi s): 6.3e-12",
+  "seconds": 0.017640159000166022
+ },
+ {
+  "case": "Coaxial mutual inductance",
+  "quantity": "M (elliptic integrals)",
+  "reference": "Neumann double integral",
+  "error": 2.220446049250313e-16,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.00012950499967701035
+ },
+ {
+  "case": "Axisymmetric coil (FDM, eddy_current_fdm at DC)",
+  "quantity": "on-axis B_z",
+  "reference": "sum of current-loop fields (closed form)",
+  "error": 0.0003689490923149963,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "errors 1.00e-02, 1.40e-03, 3.69e-04 (finite box: A = 0 at 20 coil radii)",
+  "seconds": 12.758264746999885
+ },
+ {
+  "case": "Mie sphere vs Bohren & Huffman / miepython",
+  "quantity": "Q_sca, Q_ext, Q_back",
+  "reference": "BHMIE sample (B&H app. A)",
+  "error": 1.4389421505961307e-06,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "published 5-digit values; miepython 3.3.0, 4 spheres incl. absorbing: max rel. diff 7.9e-09",
+  "seconds": 0.004548899999917921
+ },
+ {
+  "case": "Mie small-sphere (Rayleigh) limit",
+  "quantity": "Q_sca / Rayleigh - 1 vs x",
+  "reference": "8/3 x^4 |(m^2-1)/(m^2+2)|^2",
+  "error": 4.407712653264895e-05,
+  "orders": [
+   1.98384825242723,
+   1.9960102134464597
+  ],
+  "expected_order": 2.0,
+  "passed": true,
+  "detail": "PEC sphere vs 10/3 x^4: orders 2.00, 2.00",
+  "seconds": 0.0005450150001706788
+ },
+ {
+  "case": "Fresnel coefficients and Brewster angle",
+  "quantity": "R + T - 1 (s and p, 3 interfaces)",
+  "reference": "energy conservation; r_p(atan n2/n1) = 0",
+  "error": 6.661338147750939e-16,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "|r_p| at Brewster 0.0e+00",
+  "seconds": 0.00033711700007188483
+ },
+ {
+  "case": "Bragg mirror (characteristic matrices)",
+  "quantity": "R at the design wavelength",
+  "reference": "((1 - Y)/(1 + Y))^2, Y = (nH/nL)^2N ns",
+  "error": 2.220446049250313e-16,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.00033766600017770543
+ },
+ {
+  "case": "Hertzian dipole radiated power",
+  "quantity": "flux of the complete fields at kr = 0.05, 0.5, 20",
+  "reference": "eta k^2 |I l|^2 / (12 pi)",
+  "error": 1.3278267374516872e-13,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.000481113999740046
+ },
+ {
+  "case": "Half-wave dipole radiation resistance",
+  "quantity": "R_rad from the pattern",
+  "reference": "eta Cin(2 pi) / (4 pi) = 73.08 ohm",
+  "error": 0.0,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "73.079 ohm",
+  "seconds": 0.00932334399976753
+ },
+ {
+  "case": "Dispersive ADE recursions (Drude, Debye, Lorentz)",
+  "quantity": "discrete chi(omega) vs dt (Drude)",
+  "reference": "continuous chi(omega)",
+  "error": 9.016577251275436e-06,
+  "orders": [
+   1.999982671455288,
+   1.9999956686478462
+  ],
+  "expected_order": 2.0,
+  "passed": true,
+  "detail": "Debye orders 2.00, 2.00; Lorentz 2.00, 2.00",
+  "seconds": 0.00016901099979804712
+ },
+ {
+  "case": "Uniaxial crystal indices",
+  "quantity": "n_o, n_e(theta) from the wave-normal eigenproblem",
+  "reference": "index ellipsoid",
+  "error": 4.440892098500626e-16,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.0010651679999682528
+ },
+ {
+  "case": "Round wire, A_z P1 FEM",
+  "quantity": "A_z (max relative)",
+  "reference": "Ampere's law (closed form)",
+  "error": 0.0005182930132406415,
+  "orders": [
+   2.0637812166718565,
+   2.035553562445926
+  ],
+  "expected_order": 2.0,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.08240877300022476
+ },
+ {
+  "case": "Skin effect in a round wire (A_z eddy FEM)",
+  "quantity": "impedance R + j X at a / delta = 3",
+  "reference": "Bessel solution (closed form)",
+  "error": 0.0008552688084515481,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "",
+  "seconds": 0.0919623709996813
+ },
+ {
+  "case": "Froehlich-Kennelly iron ring (Newton)",
+  "quantity": "|B| in saturated iron",
+  "reference": "B(H) at H = I / (2 pi r)",
+  "error": 0.0005082179153015343,
+  "orders": [],
+  "expected_order": null,
+  "passed": true,
+  "detail": "Newton: 8 iterations to residual 1.9e-12",
+  "seconds": 0.1136220010002944
+ },
+ {
+  "case": "Jiles-Atherton integrator",
+  "quantity": "M along a major loop vs RK4 sub-steps",
+  "reference": "256 sub-steps; c = 1 stays anhysteretic",
+  "error": 1.276778639294207e-09,
+  "orders": [
+   2.7696532085352157,
+   1.1057385223552734,
+   2.8810970166298038,
+   2.203577477760055
+  ],
+  "expected_order": null,
+  "passed": true,
+  "detail": "c = 1 deviation from the anhysteretic curve 1.2e-05 Ms (orders irregular: the pinning switch makes dM/dH non-smooth)",
+  "seconds": 7.544447649999711
+ },
+ {
+  "case": "Maxwell residual checks on an exact cavity mode",
+  "quantity": "Ampere-Maxwell residual vs grid",
+  "reference": "exact TM12 mode (residual -> 0)",
+  "error": 0.00023308706076705503,
+  "orders": [
+   2.2838206156905323,
+   2.217103160527432
+  ],
+  "expected_order": 2.0,
+  "passed": true,
+  "detail": "a 20 % wrong frequency gives 0.181 (rejected) and Poynting imbalance 0.218",
+  "seconds": 0.6492435640002441
+ }
+]
