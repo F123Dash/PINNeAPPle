@@ -6,13 +6,13 @@
   "source": "prius_pmsm"
  },
  "status": "completed",
- "started": 1792341582.5403662,
+ "started": 1792341612.9344459,
  "tags": [
   "import",
   "benchmark",
   "dataset"
  ],
- "git": "cf0e9a8f",
+ "git": "38374d23",
  "environment": {
   "python": "3.13.16",
   "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
@@ -61,18 +61,19 @@
    "code/03_reluctance_rotor.py",
    "code/trough_case.py",
    "code/run_public_benchmarks.py",
-   "code/run_use_cases.py"
+   "code/run_use_cases.py",
+   "code/repo_sources.py"
   ],
-  "sha1": "e5a62b53d6cbde19c4d5ee2930ae2a581af39eba"
+  "sha1": "9da7ebab94799ec54e393c6b7eb79f8fc2b2dcd4"
  },
- "finished": 1792341582.5861847,
+ "finished": 1792341612.9749267,
  "error": null,
  "stages": [
   {
    "name": "import",
-   "started": 1792341582.568985,
+   "started": 1792341612.9640937,
    "status": "done",
-   "seconds": 0.016
+   "seconds": 0.01
   }
  ],
  "files": {
@@ -96,7 +97,7 @@
   "total": 12,
   "failed": 0
  },
- "seconds": 0.046,
+ "seconds": 0.04,
  "datasets": {
   "torque_vs_current_angle": {
    "n_samples": 13,

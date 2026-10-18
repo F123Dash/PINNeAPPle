@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18 16:39 UTC",
+ "generated": "2026-10-18 16:40 UTC",
  "experiments": {
   "accretion_flow": {
    "tier": "B",
@@ -17091,6 +17091,202 @@
    "description": "Ahmed body (25 deg slant) in OpenFOAM with a moving road: drag against the wind-tunnel value, skin pressure, streamlines and wake renders",
    "title": "ahmed body"
   },
+  "repo_results/prius_pmsm": {
+   "tier": "A",
+   "tier_name": "flagship",
+   "best_run": "repo_results-4104d166d1c0",
+   "best_score": 93.4,
+   "runs": 1,
+   "tier_counts": {
+    "A": 1,
+    "B": 0,
+    "C": 0,
+    "D": 0
+   },
+   "usable_fraction": 1.0,
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": true,
+     "approved": false,
+     "missing": []
+    }
+   },
+   "gaps": [],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "answered",
+     "evidence": [
+      "inputs recorded: fea, source",
+      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
+      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
+     ],
+     "next": ""
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
+      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
+      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
+      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
+      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "answered",
+     "evidence": [
+      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
+      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
+      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
+      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
+     ],
+     "next": ""
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "partial",
+     "evidence": [
+      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
+      "4 declared limitations"
+     ],
+     "next": "calibrate it (coverage check)"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "answered",
+     "evidence": [
+      "tier A (flagship), ready for training_data",
+      "4 limitations bound the use"
+     ],
+     "next": ""
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "torque vs published FEA (Yang et al. 2013)",
+    "check": "peak_torque_vs_yang_2013",
+    "missing": "",
+    "label": "torque vs published FEA (Yang et al. 2013)",
+    "label_pt": "torque vs FEA publicado (Yang et al. 2013)"
+   },
+   "plan": {
+    "limitations": [
+     "declared: the reference is a published FEA (Yang et al. 2013), not a measurement; its model differs (centre post, magnet temperature, steel data): +25 N m at 90 deg, rms 13 N m",
+     "declared: cogging converges to values 25 % apart in this code and GetDP (saturated 1.5 mm bridges); no measured Prius cogging was available",
+     "declared: GetDP shares the geometry, materials and currents: it verifies the solver, not the model inputs",
+     "declared: 2-D: magnet end leakage lowers the torque by 2.6 % (see prius_end_effects)",
+     "detected: evidence only inferred (not measured by a check) for uncertainty"
+    ],
+    "actions": [
+     {
+      "gap": "review",
+      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "marketing"
+      ]
+     },
+     {
+      "gap": "assets",
+      "action": "Add a movie, a photoreal render (pp.viz.render) or the 3-D viewer (pp.viz.web_viewer) of the key result",
+      "effort": "S",
+      "unlocks": [
+       "marketing"
+      ]
+     },
+     {
+      "gap": "generalization",
+      "action": "Hold out designs or an out-of-distribution regime and report the error there",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     }
+    ],
+    "uses": {
+     "product": {
+      "status": "gap",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 3,
+      "missing": [
+       "generalization evidence"
+      ]
+     },
+     "paper": {
+      "status": "gap",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 1,
+      "missing": [
+       "novelty review >= 3/5"
+      ]
+     },
+     "marketing": {
+      "status": "gap",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 2,
+      "missing": [
+       "strong visuals (movie, render or 3-D view)",
+       "a one-line story (review)"
+      ]
+     },
+     "training_data": {
+      "status": "ready",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 0,
+      "missing": []
+     }
+    },
+    "closest_use": "paper",
+    "next_tier": null
+   },
+   "experiment": "repo_results",
+   "case": "prius_pmsm",
+   "story": "",
+   "description": "2004 Toyota Prius interior-PM motor, nonlinear 2-D FEA: torque against current angle vs the published curve of Yang et al. (2013), second code GetDP, cogging, step skew, tolerances",
+   "title": "prius pmsm"
+  },
   "repo_results/prius_end_effects": {
    "tier": "B",
    "tier_name": "solid",
@@ -20165,202 +20361,6 @@
    "story": "",
    "description": "ERA5 64 x 32 global weather model (phase 1): heat-dome forecast and z500 skill previews",
    "title": "weather era5"
-  },
-  "repo_results/prius_pmsm": {
-   "tier": "A",
-   "tier_name": "flagship",
-   "best_run": "repo_results-4104d166d1c0",
-   "best_score": 93.4,
-   "runs": 1,
-   "tier_counts": {
-    "A": 1,
-    "B": 0,
-    "C": 0,
-    "D": 0
-   },
-   "usable_fraction": 1.0,
-   "readiness": {
-    "product": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "generalization evidence"
-     ]
-    },
-    "paper": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "novelty review >= 3/5"
-     ]
-    },
-    "marketing": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "strong visuals (movie, render or 3-D view)",
-      "a one-line story (review)"
-     ]
-    },
-    "training_data": {
-     "ready": true,
-     "approved": false,
-     "missing": []
-    }
-   },
-   "gaps": [],
-   "reviewed": false,
-   "stages": {
-    "data_geometry": {
-     "title": "Data and geometry",
-     "question": "Was the physical problem represented correctly?",
-     "status": "answered",
-     "evidence": [
-      "inputs recorded: fea, source",
-      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
-      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
-     ],
-     "next": ""
-    },
-    "model": {
-     "title": "Model",
-     "question": "Can the model (or solver) represent the relevant dynamics?",
-     "status": "answered",
-     "evidence": [
-      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
-      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
-      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
-      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
-      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
-     ],
-     "next": ""
-    },
-    "physics": {
-     "title": "Physical constraints",
-     "question": "Are the equations and the boundary conditions respected?",
-     "status": "answered",
-     "evidence": [
-      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
-      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
-      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
-      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
-     ],
-     "next": ""
-    },
-    "benchmark": {
-     "title": "Benchmark",
-     "question": "How does the result compare with a solver or reference data?",
-     "status": "answered",
-     "evidence": [
-      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
-     ],
-     "next": ""
-    },
-    "uncertainty": {
-     "title": "Uncertainty",
-     "question": "Where may the prediction not be reliable?",
-     "status": "partial",
-     "evidence": [
-      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
-      "4 declared limitations"
-     ],
-     "next": "calibrate it (coverage check)"
-    },
-    "decision": {
-     "title": "Engineering decision",
-     "question": "Is the result adequate for the intended use?",
-     "status": "answered",
-     "evidence": [
-      "tier A (flagship), ready for training_data",
-      "4 limitations bound the use"
-     ],
-     "next": ""
-    }
-   },
-   "headline": {
-    "kind": "reference",
-    "text": "torque vs published FEA (Yang et al. 2013)",
-    "check": "peak_torque_vs_yang_2013",
-    "missing": "",
-    "label": "torque vs published FEA (Yang et al. 2013)",
-    "label_pt": "torque vs FEA publicado (Yang et al. 2013)"
-   },
-   "plan": {
-    "limitations": [
-     "declared: the reference is a published FEA (Yang et al. 2013), not a measurement; its model differs (centre post, magnet temperature, steel data): +25 N m at 90 deg, rms 13 N m",
-     "declared: cogging converges to values 25 % apart in this code and GetDP (saturated 1.5 mm bridges); no measured Prius cogging was available",
-     "declared: GetDP shares the geometry, materials and currents: it verifies the solver, not the model inputs",
-     "declared: 2-D: magnet end leakage lowers the torque by 2.6 % (see prius_end_effects)",
-     "detected: evidence only inferred (not measured by a check) for uncertainty"
-    ],
-    "actions": [
-     {
-      "gap": "review",
-      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
-      "effort": "S",
-      "unlocks": [
-       "paper",
-       "marketing"
-      ]
-     },
-     {
-      "gap": "assets",
-      "action": "Add a movie, a photoreal render (pp.viz.render) or the 3-D viewer (pp.viz.web_viewer) of the key result",
-      "effort": "S",
-      "unlocks": [
-       "marketing"
-      ]
-     },
-     {
-      "gap": "generalization",
-      "action": "Hold out designs or an out-of-distribution regime and report the error there",
-      "effort": "M",
-      "unlocks": [
-       "product"
-      ]
-     }
-    ],
-    "uses": {
-     "product": {
-      "status": "gap",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 3,
-      "missing": [
-       "generalization evidence"
-      ]
-     },
-     "paper": {
-      "status": "gap",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 1,
-      "missing": [
-       "novelty review >= 3/5"
-      ]
-     },
-     "marketing": {
-      "status": "gap",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 2,
-      "missing": [
-       "strong visuals (movie, render or 3-D view)",
-       "a one-line story (review)"
-      ]
-     },
-     "training_data": {
-      "status": "ready",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 0,
-      "missing": []
-     }
-    },
-    "closest_use": "paper",
-    "next_tier": null
-   },
-   "experiment": "repo_results",
-   "case": "prius_pmsm",
-   "story": "",
-   "description": "2004 Toyota Prius interior-PM motor, nonlinear 2-D FEA: torque against current angle vs the published curve of Yang et al. (2013), second code GetDP, cogging, step skew, tolerances",
-   "title": "prius pmsm"
   },
   "rom_study/beam_parametric": {
    "tier": "B",
@@ -61658,6 +61658,228 @@
    },
    "tier_name": "flagship"
   },
+  "repo_results-4104d166d1c0": {
+   "run_id": "repo_results-4104d166d1c0",
+   "experiment": "repo_results",
+   "status": "completed",
+   "tier": "A",
+   "score": 93.4,
+   "coverage": 0.8,
+   "dimensions": {
+    "validation": {
+     "name": "validation",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "12/12 checks pass"
+     ]
+    },
+    "reference": {
+     "name": "reference",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another group and code, not a measurement; tolerance 5 % (machines.verification); largest deviation +25.3 N m at 90 deg, rms 13.3 N m)"
+     ]
+    },
+    "baseline": {
+     "name": "baseline",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no baseline check"
+     ]
+    },
+    "physics": {
+     "name": "physics",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
+      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verification; max relative difference over the angles)",
+      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.verification; frozen-permeability superposition error 4.1e-11; L_d = 1.386 mH, L_q = 2.420 mH, psi_pm = 0.2140 Wb at this point)",
+      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
+     ]
+    },
+    "generalization": {
+     "name": "generalization",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no generalization check"
+     ]
+    },
+    "uncertainty": {
+     "name": "uncertainty",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std"
+     ]
+    },
+    "reproducibility": {
+     "name": "reproducibility",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "code snapshot: 39 files",
+      "git 38374d23"
+     ]
+    },
+    "data": {
+     "name": "data",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "1 datasets, 13 samples, 100 % with a card description"
+     ]
+    },
+    "assets": {
+     "name": "assets",
+     "score": 0.6000000000000001,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "8 figures, 0 movies"
+     ]
+    },
+    "documentation": {
+     "name": "documentation",
+     "score": 0.7,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "description 290 chars",
+      "docs: docs/core_concepts/lab.md, README.md",
+      "papers: 0"
+     ]
+    },
+    "review": {
+     "name": "review",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no human review yet"
+     ]
+    }
+   },
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": true,
+     "approved": false,
+     "missing": []
+    }
+   },
+   "gaps": [],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "answered",
+     "evidence": [
+      "inputs recorded: fea, source",
+      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
+      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
+     ],
+     "next": ""
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
+      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
+      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
+      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
+      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "answered",
+     "evidence": [
+      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
+      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
+      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
+      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
+     ],
+     "next": ""
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "partial",
+     "evidence": [
+      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
+      "4 declared limitations"
+     ],
+     "next": "calibrate it (coverage check)"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "answered",
+     "evidence": [
+      "tier A (flagship), ready for training_data",
+      "4 limitations bound the use"
+     ],
+     "next": ""
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "torque vs published FEA (Yang et al. 2013)",
+    "check": "peak_torque_vs_yang_2013",
+    "missing": "",
+    "label": "torque vs published FEA (Yang et al. 2013)",
+    "label_pt": "torque vs FEA publicado (Yang et al. 2013)"
+   },
+   "tier_name": "flagship"
+  },
   "repo_results-32624513331b": {
    "run_id": "repo_results-32624513331b",
    "experiment": "repo_results",
@@ -61727,8 +61949,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -61948,8 +62170,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -62170,8 +62392,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -62421,8 +62643,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -62640,8 +62862,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -62860,8 +63082,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -63082,8 +63304,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -63299,8 +63521,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -63511,8 +63733,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -63729,8 +63951,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -63950,8 +64172,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -64169,8 +64391,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -64386,8 +64608,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -64605,8 +64827,8 @@
      "status": "INFO",
      "tier": "VERIFIED",
      "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
+      "code snapshot: 39 files",
+      "git 38374d23"
      ]
     },
     "data": {
@@ -64755,228 +64977,6 @@
     "missing": "a passing check"
    },
    "tier_name": "exploratory"
-  },
-  "repo_results-4104d166d1c0": {
-   "run_id": "repo_results-4104d166d1c0",
-   "experiment": "repo_results",
-   "status": "completed",
-   "tier": "A",
-   "score": 93.4,
-   "coverage": 0.8,
-   "dimensions": {
-    "validation": {
-     "name": "validation",
-     "score": 1.0,
-     "status": "PASS",
-     "tier": "VERIFIED",
-     "evidence": [
-      "12/12 checks pass"
-     ]
-    },
-    "reference": {
-     "name": "reference",
-     "score": 1.0,
-     "status": "PASS",
-     "tier": "VERIFIED",
-     "evidence": [
-      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another group and code, not a measurement; tolerance 5 % (machines.verification); largest deviation +25.3 N m at 90 deg, rms 13.3 N m)"
-     ]
-    },
-    "baseline": {
-     "name": "baseline",
-     "score": null,
-     "status": "NOT_RUN",
-     "tier": "UNSUPPORTED",
-     "evidence": [
-      "no baseline check"
-     ]
-    },
-    "physics": {
-     "name": "physics",
-     "score": 1.0,
-     "status": "PASS",
-     "tier": "VERIFIED",
-     "evidence": [
-      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
-      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verification; max relative difference over the angles)",
-      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.verification; frozen-permeability superposition error 4.1e-11; L_d = 1.386 mH, L_q = 2.420 mH, psi_pm = 0.2140 Wb at this point)",
-      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
-     ]
-    },
-    "generalization": {
-     "name": "generalization",
-     "score": null,
-     "status": "NOT_RUN",
-     "tier": "UNSUPPORTED",
-     "evidence": [
-      "no generalization check"
-     ]
-    },
-    "uncertainty": {
-     "name": "uncertainty",
-     "score": 1.0,
-     "status": "INFO",
-     "tier": "INFERRED",
-     "evidence": [
-      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std"
-     ]
-    },
-    "reproducibility": {
-     "name": "reproducibility",
-     "score": 1.0,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "code snapshot: 38 files",
-      "git cf0e9a8f"
-     ]
-    },
-    "data": {
-     "name": "data",
-     "score": 1.0,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "1 datasets, 13 samples, 100 % with a card description"
-     ]
-    },
-    "assets": {
-     "name": "assets",
-     "score": 0.6000000000000001,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "8 figures, 0 movies"
-     ]
-    },
-    "documentation": {
-     "name": "documentation",
-     "score": 0.7,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
-      "papers: 0"
-     ]
-    },
-    "review": {
-     "name": "review",
-     "score": null,
-     "status": "NOT_RUN",
-     "tier": "UNSUPPORTED",
-     "evidence": [
-      "no human review yet"
-     ]
-    }
-   },
-   "readiness": {
-    "product": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "generalization evidence"
-     ]
-    },
-    "paper": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "novelty review >= 3/5"
-     ]
-    },
-    "marketing": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "strong visuals (movie, render or 3-D view)",
-      "a one-line story (review)"
-     ]
-    },
-    "training_data": {
-     "ready": true,
-     "approved": false,
-     "missing": []
-    }
-   },
-   "gaps": [],
-   "reviewed": false,
-   "stages": {
-    "data_geometry": {
-     "title": "Data and geometry",
-     "question": "Was the physical problem represented correctly?",
-     "status": "answered",
-     "evidence": [
-      "inputs recorded: fea, source",
-      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
-      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
-     ],
-     "next": ""
-    },
-    "model": {
-     "title": "Model",
-     "question": "Can the model (or solver) represent the relevant dynamics?",
-     "status": "answered",
-     "evidence": [
-      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
-      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
-      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
-      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
-      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
-     ],
-     "next": ""
-    },
-    "physics": {
-     "title": "Physical constraints",
-     "question": "Are the equations and the boundary conditions respected?",
-     "status": "answered",
-     "evidence": [
-      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
-      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
-      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
-      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
-     ],
-     "next": ""
-    },
-    "benchmark": {
-     "title": "Benchmark",
-     "question": "How does the result compare with a solver or reference data?",
-     "status": "answered",
-     "evidence": [
-      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
-     ],
-     "next": ""
-    },
-    "uncertainty": {
-     "title": "Uncertainty",
-     "question": "Where may the prediction not be reliable?",
-     "status": "partial",
-     "evidence": [
-      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
-      "4 declared limitations"
-     ],
-     "next": "calibrate it (coverage check)"
-    },
-    "decision": {
-     "title": "Engineering decision",
-     "question": "Is the result adequate for the intended use?",
-     "status": "answered",
-     "evidence": [
-      "tier A (flagship), ready for training_data",
-      "4 limitations bound the use"
-     ],
-     "next": ""
-    }
-   },
-   "headline": {
-    "kind": "reference",
-    "text": "torque vs published FEA (Yang et al. 2013)",
-    "check": "peak_torque_vs_yang_2013",
-    "missing": "",
-    "label": "torque vs published FEA (Yang et al. 2013)",
-    "label_pt": "torque vs FEA publicado (Yang et al. 2013)"
-   },
-   "tier_name": "flagship"
   },
   "rom_study-61475bf029de": {
    "run_id": "rom_study-61475bf029de",

@@ -1,6 +1,6 @@
 # PINNeAPPle Lab catalogue
 
-208 runs, generated 2026-10-18 16:39.
+208 runs, generated 2026-10-18 16:40.
 
 | experiment | runs | completed | failed validation | failed | datasets (samples) |
 |---|---|---|---|---|---|
@@ -23,7 +23,7 @@
 | [particle_suspension](#particle_suspension) | 1 | 1 | 0 | 0 | suspension (31) |
 | [pendulum_video](#pendulum_video) | 1 | 1 | 0 | 0 | pendulum (1) |
 | [pipe_flow](#pipe_flow) | 3 | 3 | 0 | 0 | cross_sections (14), sections (3), wall (3) |
-| [repo_results](#repo_results) | 25 | 24 | 1 | 0 | strouhal (3), test_points (120), polar (5), coefficients (1), temperature_fields_2d (5), rollout_scores (2), single_wheel_validation (5), temperature_fields_3d (3), lead_time_skill (4), fields (1), held_out_error (3), torque_vs_current_angle (13) |
+| [repo_results](#repo_results) | 25 | 24 | 1 | 0 | strouhal (3), test_points (120), polar (5), coefficients (1), temperature_fields_2d (5), rollout_scores (2), temperature_fields_3d (3), lead_time_skill (4), fields (1), held_out_error (3), torque_vs_current_angle (13), single_wheel_validation (5) |
 | [rom_study](#rom_study) | 2 | 2 | 0 | 0 | beam_designs (100), wake (1) |
 | [solid_fem](#solid_fem) | 3 | 3 | 0 | 0 | fields (3) |
 | [vehicle_cfd](#vehicle_cfd) | 1 | 1 | 0 | 0 | streamlines (40), surface (1) |
@@ -378,6 +378,7 @@ Results already produced by repository scripts (PINNs, inverse problems, LBM, Me
 | [269f1207b6f2](runs/repo_results/repo_results-269f1207b6f2) | completed | bh_forecast |  |  |  |  |  |  | 2/2 |
 | [d8795900891a](runs/repo_results/repo_results-d8795900891a) | completed | airfoil_surrogate |  |  |  |  |  |  | 2/2 |
 | [76a9a3bf2c2f](runs/repo_results/repo_results-76a9a3bf2c2f) | completed | ahmed_body | 0.2977 | 0.05474 | 0.2429 | 0.3368 |  |  | 2/2 |
+| [4104d166d1c0](runs/repo_results/repo_results-4104d166d1c0) | completed | prius_pmsm |  |  |  |  |  |  | 12/12 |
 | [32624513331b](runs/repo_results/repo_results-32624513331b) | completed | prius_end_effects |  |  |  |  |  |  | 4/4 |
 | [b1eaa75f0af8](runs/repo_results/repo_results-b1eaa75f0af8) | completed | prius_thermal_demag |  |  |  |  |  |  | 5/5 |
 | [4de224ca1ac2](runs/repo_results/repo_results-4de224ca1ac2) | completed | prius_drive |  |  |  |  |  |  | 6/6 |
@@ -392,11 +393,10 @@ Results already produced by repository scripts (PINNs, inverse problems, LBM, Me
 | [6b9418caaf82](runs/repo_results/repo_results-6b9418caaf82) | completed | free_surface_trough |  |  |  |  |  |  | 5/5 |
 | [835ff767e739](runs/repo_results/repo_results-835ff767e739) | failed_validation | benchmark_arena |  |  |  |  |  |  | 5/6 |
 | [4cb729015e4a](runs/repo_results/repo_results-4cb729015e4a) | completed | weather_era5 |  |  |  |  |  |  | 0/0 |
-| [4104d166d1c0](runs/repo_results/repo_results-4104d166d1c0) | completed | prius_pmsm |  |  |  |  |  |  | 12/12 |
-
-![repo_results](runs/repo_results/repo_results-4104d166d1c0/figures/prius_10_pmsm_curves.png)
 
 ![repo_results](runs/repo_results/repo_results-4cb729015e4a/figures/weather_pnw_heat_dome_2021_preview_day3.png)
+
+![repo_results](runs/repo_results/repo_results-6b9418caaf82/figures/trough_checks.png)
 
 ## rom_study
 
