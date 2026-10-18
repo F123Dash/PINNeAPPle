@@ -169,4 +169,4 @@ def event_hindcast(name: str, data: SeriesData, event_start: str, origins: list[
     m = s.factory(**s.grid[0]).fit(data, train, val, H)
     idx = np.array([months.index(x) for x in origins])
     return {"origins": idx.tolist(), "forecast": m.predict(data, idx), "train_last_label": months[int(train[-1] + H.max())],
-            "info": m.describe()}
+            "data_end": months[end - 1], "info": m.describe()}
