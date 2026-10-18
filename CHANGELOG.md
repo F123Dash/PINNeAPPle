@@ -14,6 +14,19 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Lab curation of everything with committed results but no Lab entry (`pinneapple_lab.experiments.repo_sources`,
+  imported by `repo_results`): the 2004 Prius motor (torque against the published FEA of Yang et al. 2013, GetDP
+  second code, cogging, skew, tolerances), its end effects, thermal / demagnetisation and drive, the
+  electromagnetics verification suite with the FDTD gallery, the SPM motor, the NACA 2412 hand-off package
+  (OpenFOAM against XFOIL and thin-airfoil theory), the A320-class airliner CFD, the lunar rover, the near-random
+  forecasting study, design from intent, topology optimisation, the free-surface trough, the benchmark arena and
+  the ERA5 weather model; a new `em_pinn` experiment trains PINNs on the `em_*` presets and scores them against
+  their closed forms. `lab/curation.json` and `lab/CURATION.md` re-generated.
+- `RunContext.check(kind="verification")` for agreement with a second code or method that shares the model's
+  inputs, and for solver checks on canonical problems: it answers the trust card's model question and never counts
+  toward a tier. `label=` gives a check the short line seals and showcase tiles print.
+- Every curated run and item carries a `headline`: the passing check it was compared with (reference for A,
+  physics / baseline / unseen data for B), taken from its checks only (`pinneapple_lab.curation.headline`).
 - Forecasting near-random series without overfitting (`pinneapple_systems.time_series.forecast_lab`): one
   interface for baselines (persistence, climatology, AR, ARIMA, exponential smoothing), data-driven direct
   forecasters (gradient boosting, MLP, LSTM, TCN, transformer), data + physics (physics features, physics-residual

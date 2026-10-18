@@ -121,7 +121,13 @@ is *verified* (a check measured it in this run), *inferred* (metrics, files, nam
 | review | a human review: novelty, clarity, visual appeal (1-5), a one-line story, approvals, limitations | qualitative |
 
 A check says what it is evidence of with `ctx.check(..., kind="reference" | "baseline" | "physics" |
-"generalization" | "sanity")`; left out, the kind is inferred from the name and the arguments.
+"generalization" | "verification" | "sanity")`; left out, the kind is inferred from the name and the arguments.
+`"reference"` is kept for independent results: an exact solution of the same problem, a measurement, a published
+result of another group, another code that does not share the model's inputs. Agreement with a second code that
+shares the geometry, materials or loads (GetDP on the same machine polygons, a reduced model inside the same
+pipeline), and solver checks on canonical problems, are `"verification"`: they answer the *model* question of the
+trust card ("is the solver right?") and never count toward a tier. `label="drag vs Ahmed 1984"` gives a check the
+short line that seals and showcase tiles print.
 
 Tiers are gates, not averages, so a strong figure never hides a failed check:
 
