@@ -6,13 +6,13 @@
   "source": "prius_pmsm"
  },
  "status": "completed",
- "started": 1792337538.7484553,
+ "started": 1792341582.5403662,
  "tags": [
   "import",
   "benchmark",
   "dataset"
  ],
- "git": "3432db2e",
+ "git": "cf0e9a8f",
  "environment": {
   "python": "3.13.16",
   "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
@@ -63,16 +63,16 @@
    "code/run_public_benchmarks.py",
    "code/run_use_cases.py"
   ],
-  "sha1": "d8f082470cdbbf07017a9230d009c078b7a5a471"
+  "sha1": "e5a62b53d6cbde19c4d5ee2930ae2a581af39eba"
  },
- "finished": 1792337538.8642697,
+ "finished": 1792341582.5861847,
  "error": null,
  "stages": [
   {
    "name": "import",
-   "started": 1792337538.8096595,
+   "started": 1792341582.568985,
    "status": "done",
-   "seconds": 0.049
+   "seconds": 0.016
   }
  ],
  "files": {
@@ -96,7 +96,7 @@
   "total": 12,
   "failed": 0
  },
- "seconds": 0.116,
+ "seconds": 0.046,
  "datasets": {
   "torque_vs_current_angle": {
    "n_samples": 13,

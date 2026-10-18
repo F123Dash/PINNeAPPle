@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18 16:19 UTC",
+ "generated": "2026-10-18 16:39 UTC",
  "experiments": {
   "accretion_flow": {
    "tier": "B",
@@ -318,7 +318,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -1126,7 +1128,9 @@
     "kind": "benchmark",
     "text": "best build passes statics \u00b7 134.4 mm tall, survives 32.6 mN at\u2026",
     "check": "best_build_passes_statics",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "best build passes rigid-body statics",
+    "label_pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"
    },
    "plan": {
     "limitations": [
@@ -1330,7 +1334,9 @@
     "kind": "reference",
     "text": "upright bending vs Mc over I \u00b7 axial stress on the outer face\u2026",
     "check": "upright_bending_vs_Mc_over_I",
-    "missing": ""
+    "missing": "",
+    "label": "bending vs Mc/I \u00b7 mesh converged",
+    "label_pt": "flex\u00e3o vs Mc/I \u00b7 malha convergida"
    },
    "plan": {
     "limitations": [],
@@ -1918,7 +1924,9 @@
     "kind": "reference",
     "text": "Ar vs closed form",
     "check": "rel_l2_Ar_vs_closed_form",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "skin effect vs exact solution",
+    "label_pt": "efeito pelicular vs solu\u00e7\u00e3o exata"
    },
    "plan": {
     "limitations": [
@@ -3382,7 +3390,9 @@
     "kind": "reference",
     "text": "settling velocity vs schiller naumann \u00b7 an isolated sphere in\u2026",
     "check": "settling_velocity_vs_schiller_naumann",
-    "missing": ""
+    "missing": "",
+    "label": "vs Zwietering and Schiller\u2013Naumann",
+    "label_pt": "vs Zwietering e Schiller\u2013Naumann"
    },
    "plan": {
     "limitations": [
@@ -3758,7 +3768,9 @@
     "kind": "reference",
     "text": "friction factor vs colebrook \u00b7 smooth pipe, 18-28 D after the\u2026",
     "check": "friction_factor_vs_colebrook",
-    "missing": ""
+    "missing": "",
+    "label": "friction vs Colebrook \u00b7 loss vs Ito",
+    "label_pt": "atrito vs Colebrook \u00b7 perda vs Ito"
    },
    "plan": {
     "limitations": [],
@@ -3943,7 +3955,9 @@
     "kind": "reference",
     "text": "coaxial capacitor p1 fem \u00b7 2 pi eps / ln(b/a)",
     "check": "coaxial_capacitor_p1_fem",
-    "missing": ""
+    "missing": "",
+    "label": "32 cases vs closed forms and published values",
+    "label_pt": "32 casos vs formas fechadas e valores publicados"
    },
    "plan": {
     "limitations": [
@@ -4119,7 +4133,9 @@
     "kind": "benchmark",
     "text": "pod mode pair holds the energy \u00b7 modes 1 and 2 (the travelling\u2026",
     "check": "pod_mode_pair_holds_the_energy",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "POD mode pair holds the energy \u00b7 beats persistence",
+    "label_pt": "par de modos POD concentra a energia \u00b7 supera a persist\u00eancia"
    },
    "plan": {
     "limitations": [],
@@ -4299,7 +4315,9 @@
     "kind": "reference",
     "text": "deflection vs beam theory \u00b7 Timoshenko beam (bending + shear\u2026",
     "check": "deflection_vs_beam_theory",
-    "missing": ""
+    "missing": "",
+    "label": "deflection vs Timoshenko and CalculiX",
+    "label_pt": "flecha vs Timoshenko e CalculiX"
    },
    "plan": {
     "limitations": [],
@@ -4884,7 +4902,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -5071,7 +5091,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -5258,7 +5280,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -5445,7 +5469,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -5632,7 +5658,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -5819,7 +5847,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -6006,7 +6036,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -6193,7 +6225,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "plan": {
     "limitations": [
@@ -8257,7 +8291,9 @@
     "kind": "benchmark",
     "text": "best build passes statics \u00b7 134.4 mm tall, survives 32.6 mN at\u2026",
     "check": "best_build_passes_statics",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "best build passes rigid-body statics",
+    "label_pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"
    },
    "plan": {
     "limitations": [
@@ -8472,7 +8508,9 @@
     "kind": "benchmark",
     "text": "best build passes statics \u00b7 stands",
     "check": "best_build_passes_statics",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "best build passes rigid-body statics",
+    "label_pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"
    },
    "plan": {
     "limitations": [
@@ -8687,7 +8725,9 @@
     "kind": "benchmark",
     "text": "best build passes statics \u00b7 carries 1.049 N at mid-span (1.05\u2026",
     "check": "best_build_passes_statics",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "best build passes rigid-body statics",
+    "label_pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"
    },
    "plan": {
     "limitations": [
@@ -8899,7 +8939,9 @@
     "kind": "reference",
     "text": "first bending mode vs euler bernoulli \u00b7 weak axis",
     "check": "first_bending_mode_vs_euler_bernoulli",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "modes vs Euler\u2013Bernoulli",
+    "label_pt": "modos vs Euler\u2013Bernoulli"
    },
    "plan": {
     "limitations": [
@@ -9104,7 +9146,9 @@
     "kind": "reference",
     "text": "buckling load vs euler \u00b7 fixed-free column, K = 2",
     "check": "buckling_load_vs_euler",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "buckling load vs Euler",
+    "label_pt": "carga de flambagem vs Euler"
    },
    "plan": {
     "limitations": [
@@ -9309,7 +9353,9 @@
     "kind": "reference",
     "text": "temperature vs 1d fin solution \u00b7 relative L2 of T - T_inf\u2026",
     "check": "temperature_vs_1d_fin_solution",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "temperature vs 1-D fin solution",
+    "label_pt": "temperatura vs solu\u00e7\u00e3o de aleta 1-D"
    },
    "plan": {
     "limitations": [
@@ -9511,7 +9557,9 @@
     "kind": "reference",
     "text": "upright bending vs Mc over I \u00b7 axial stress on the outer face\u2026",
     "check": "upright_bending_vs_Mc_over_I",
-    "missing": ""
+    "missing": "",
+    "label": "bending vs Mc/I \u00b7 mesh converged",
+    "label_pt": "flex\u00e3o vs Mc/I \u00b7 malha convergida"
    },
    "plan": {
     "limitations": [
@@ -9705,7 +9753,9 @@
     "kind": "reference",
     "text": "stress concentration vs heywood \u00b7 peak axial stress at the\u2026",
     "check": "stress_concentration_vs_heywood",
-    "missing": ""
+    "missing": "",
+    "label": "stress vs Heywood",
+    "label_pt": "tens\u00e3o vs Heywood"
    },
    "plan": {
     "limitations": [
@@ -10815,7 +10865,9 @@
     "kind": "reference",
     "text": "Ar vs closed form",
     "check": "rel_l2_Ar_vs_closed_form",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "skin effect vs exact solution",
+    "label_pt": "efeito pelicular vs solu\u00e7\u00e3o exata"
    },
    "plan": {
     "limitations": [
@@ -11035,7 +11087,9 @@
     "kind": "reference",
     "text": "Az vs closed form",
     "check": "rel_l2_Az_vs_closed_form",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "A_z vs Amp\u00e8re's law (exact)",
+    "label_pt": "A_z vs lei de Amp\u00e8re (exata)"
    },
    "plan": {
     "limitations": [
@@ -14172,7 +14226,9 @@
     "kind": "reference",
     "text": "settling velocity vs schiller naumann \u00b7 an isolated sphere in\u2026",
     "check": "settling_velocity_vs_schiller_naumann",
-    "missing": ""
+    "missing": "",
+    "label": "vs Zwietering and Schiller\u2013Naumann",
+    "label_pt": "vs Zwietering e Schiller\u2013Naumann"
    },
    "plan": {
     "limitations": [
@@ -14554,7 +14610,9 @@
     "kind": "reference",
     "text": "friction factor vs colebrook \u00b7 smooth pipe, 18-28 D after the\u2026",
     "check": "friction_factor_vs_colebrook",
-    "missing": ""
+    "missing": "",
+    "label": "friction vs Colebrook \u00b7 loss vs Ito",
+    "label_pt": "atrito vs Colebrook \u00b7 perda vs Ito"
    },
    "plan": {
     "limitations": [
@@ -14738,7 +14796,9 @@
     "kind": "reference",
     "text": "friction factor vs 64 over Re \u00b7 Hagen-Poiseuille",
     "check": "friction_factor_vs_64_over_Re",
-    "missing": ""
+    "missing": "",
+    "label": "friction vs 64/Re (Hagen\u2013Poiseuille)",
+    "label_pt": "atrito vs 64/Re (Hagen\u2013Poiseuille)"
    },
    "plan": {
     "limitations": [
@@ -14924,7 +14984,9 @@
     "kind": "benchmark",
     "text": "bulk velocity constant along pipe \u00b7 volume-averaged axial\u2026",
     "check": "bulk_velocity_constant_along_pipe",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "mass conserved \u00b7 beats an empty pipe",
+    "label_pt": "massa conservada \u00b7 supera o tubo vazio"
    },
    "plan": {
     "limitations": [
@@ -16943,7 +17005,9 @@
     "kind": "reference",
     "text": "drag vs wind tunnel \u00b7 Ahmed, Ramm & Faltin (1984), 25 deg slant",
     "check": "drag_vs_wind_tunnel",
-    "missing": ""
+    "missing": "",
+    "label": "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)",
+    "label_pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)"
    },
    "plan": {
     "limitations": [
@@ -17026,200 +17090,6 @@
    "story": "",
    "description": "Ahmed body (25 deg slant) in OpenFOAM with a moving road: drag against the wind-tunnel value, skin pressure, streamlines and wake renders",
    "title": "ahmed body"
-  },
-  "repo_results/prius_pmsm": {
-   "tier": "A",
-   "tier_name": "flagship",
-   "best_run": "repo_results-4104d166d1c0",
-   "best_score": 93.4,
-   "runs": 1,
-   "tier_counts": {
-    "A": 1,
-    "B": 0,
-    "C": 0,
-    "D": 0
-   },
-   "usable_fraction": 1.0,
-   "readiness": {
-    "product": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "generalization evidence"
-     ]
-    },
-    "paper": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "novelty review >= 3/5"
-     ]
-    },
-    "marketing": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "strong visuals (movie, render or 3-D view)",
-      "a one-line story (review)"
-     ]
-    },
-    "training_data": {
-     "ready": true,
-     "approved": false,
-     "missing": []
-    }
-   },
-   "gaps": [],
-   "reviewed": false,
-   "stages": {
-    "data_geometry": {
-     "title": "Data and geometry",
-     "question": "Was the physical problem represented correctly?",
-     "status": "answered",
-     "evidence": [
-      "inputs recorded: fea, source",
-      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
-      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
-     ],
-     "next": ""
-    },
-    "model": {
-     "title": "Model",
-     "question": "Can the model (or solver) represent the relevant dynamics?",
-     "status": "answered",
-     "evidence": [
-      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
-      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
-      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
-      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
-      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
-     ],
-     "next": ""
-    },
-    "physics": {
-     "title": "Physical constraints",
-     "question": "Are the equations and the boundary conditions respected?",
-     "status": "answered",
-     "evidence": [
-      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
-      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
-      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
-      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
-     ],
-     "next": ""
-    },
-    "benchmark": {
-     "title": "Benchmark",
-     "question": "How does the result compare with a solver or reference data?",
-     "status": "answered",
-     "evidence": [
-      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
-     ],
-     "next": ""
-    },
-    "uncertainty": {
-     "title": "Uncertainty",
-     "question": "Where may the prediction not be reliable?",
-     "status": "partial",
-     "evidence": [
-      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
-      "4 declared limitations"
-     ],
-     "next": "calibrate it (coverage check)"
-    },
-    "decision": {
-     "title": "Engineering decision",
-     "question": "Is the result adequate for the intended use?",
-     "status": "answered",
-     "evidence": [
-      "tier A (flagship), ready for training_data",
-      "4 limitations bound the use"
-     ],
-     "next": ""
-    }
-   },
-   "headline": {
-    "kind": "reference",
-    "text": "torque vs Yang et al. 2013",
-    "check": "peak_torque_vs_yang_2013",
-    "missing": ""
-   },
-   "plan": {
-    "limitations": [
-     "declared: the reference is a published FEA (Yang et al. 2013), not a measurement; its model differs (centre post, magnet temperature, steel data): +25 N m at 90 deg, rms 13 N m",
-     "declared: cogging converges to values 25 % apart in this code and GetDP (saturated 1.5 mm bridges); no measured Prius cogging was available",
-     "declared: GetDP shares the geometry, materials and currents: it verifies the solver, not the model inputs",
-     "declared: 2-D: magnet end leakage lowers the torque by 2.6 % (see prius_end_effects)",
-     "detected: evidence only inferred (not measured by a check) for uncertainty"
-    ],
-    "actions": [
-     {
-      "gap": "review",
-      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
-      "effort": "S",
-      "unlocks": [
-       "paper",
-       "marketing"
-      ]
-     },
-     {
-      "gap": "assets",
-      "action": "Add a movie, a photoreal render (pp.viz.render) or the 3-D viewer (pp.viz.web_viewer) of the key result",
-      "effort": "S",
-      "unlocks": [
-       "marketing"
-      ]
-     },
-     {
-      "gap": "generalization",
-      "action": "Hold out designs or an out-of-distribution regime and report the error there",
-      "effort": "M",
-      "unlocks": [
-       "product"
-      ]
-     }
-    ],
-    "uses": {
-     "product": {
-      "status": "gap",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 3,
-      "missing": [
-       "generalization evidence"
-      ]
-     },
-     "paper": {
-      "status": "gap",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 1,
-      "missing": [
-       "novelty review >= 3/5"
-      ]
-     },
-     "marketing": {
-      "status": "gap",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 2,
-      "missing": [
-       "strong visuals (movie, render or 3-D view)",
-       "a one-line story (review)"
-      ]
-     },
-     "training_data": {
-      "status": "ready",
-      "run": "repo_results-4104d166d1c0",
-      "distance": 0,
-      "missing": []
-     }
-    },
-    "closest_use": "paper",
-    "next_tier": null
-   },
-   "experiment": "repo_results",
-   "case": "prius_pmsm",
-   "story": "",
-   "description": "2004 Toyota Prius interior-PM motor, nonlinear 2-D FEA: torque against current angle vs the published curve of Yang et al. (2013), second code GetDP, cogging, step skew, tolerances",
-   "title": "prius pmsm"
   },
   "repo_results/prius_end_effects": {
    "tier": "B",
@@ -17338,7 +17208,9 @@
     "kind": "benchmark",
     "text": "end leakage ratio below one \u00b7 flux that leaks round the magnet\u2026",
     "check": "end_leakage_ratio_below_one",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "3-D end leakage below the 2-D flux",
+    "label_pt": "fuga 3-D nas pontas abaixo do fluxo 2-D"
    },
    "plan": {
     "limitations": [
@@ -17563,7 +17435,9 @@
     "kind": "benchmark",
     "text": "torque and emf fall with magnet temperature \u00b7 20 -> 150 degC",
     "check": "torque_and_emf_fall_with_magnet_temperature",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "torque and EMF fall with magnet temperature",
+    "label_pt": "torque e FEM caem com a temperatura do \u00edm\u00e3"
    },
    "plan": {
     "limitations": [
@@ -17787,7 +17661,9 @@
     "kind": "benchmark",
     "text": "wltc energy balance lossless drive \u00b7 Drive cycle",
     "check": "wltc_energy_balance_lossless_drive",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "WLTC energy balance",
+    "label_pt": "balan\u00e7o de energia WLTC"
    },
    "plan": {
     "limitations": [
@@ -18010,7 +17886,9 @@
     "kind": "reference",
     "text": "coaxial capacitor p1 fem \u00b7 2 pi eps / ln(b/a)",
     "check": "coaxial_capacitor_p1_fem",
-    "missing": ""
+    "missing": "",
+    "label": "32 cases vs closed forms and published values",
+    "label_pt": "32 casos vs formas fechadas e valores publicados"
    },
    "plan": {
     "limitations": [
@@ -18208,7 +18086,9 @@
     "kind": "benchmark",
     "text": "maxwell stress vs coenergy torque \u00b7 on-load torque at 3\u2026",
     "check": "maxwell_stress_vs_coenergy_torque",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "Maxwell-stress torque = co-energy torque",
+    "label_pt": "torque de Maxwell = torque de co-energia"
    },
    "plan": {
     "limitations": [
@@ -18434,7 +18314,9 @@
     "kind": "reference",
     "text": "Cd vs XFOIL (tripped)",
     "check": "cd_vs_xfoil_tripped",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "drag vs XFOIL \u00b7 lift slope vs thin-airfoil theory",
+    "label_pt": "arrasto vs XFOIL \u00b7 inclina\u00e7\u00e3o vs teoria do aerof\u00f3lio fino"
    },
    "plan": {
     "limitations": [
@@ -18641,7 +18523,9 @@
     "kind": "benchmark",
     "text": "force balance (pressure + friction)",
     "check": "drag_balance_pressure_plus_friction",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "force balance (pressure + friction)",
+    "label_pt": "balan\u00e7o de for\u00e7as (press\u00e3o + atrito)"
    },
    "plan": {
     "limitations": [
@@ -18849,7 +18733,9 @@
     "kind": "benchmark",
     "text": "held out sinkage improves after calibration \u00b7 slip-dependent\u2026",
     "check": "held_out_sinkage_improves_after_calibration",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "held-out sinkage improves (published wheel tests)",
+    "label_pt": "afundamento em testes retidos melhora (ensaios publicados)"
    },
    "plan": {
     "limitations": [
@@ -19041,7 +18927,9 @@
     "kind": "benchmark",
     "text": "beats best baseline on untouched test \u00b7 every chaotic series",
     "check": "beats_best_baseline_on_untouched_test",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "beats the best baseline on an untouched test (DM, Holm)",
+    "label_pt": "supera o melhor baseline em teste intocado (DM, Holm)"
    },
    "plan": {
     "limitations": [
@@ -19255,7 +19143,9 @@
     "kind": "benchmark",
     "text": "loop v top full solver at least bound \u00b7 Newton rigid-body\u2026",
     "check": "loop_v_top_full_solver_at_least_bound",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "loop speed \u2265 closed-form bound (Newton)",
+    "label_pt": "velocidade no loop \u2265 limite anal\u00edtico (Newton)"
    },
    "plan": {
     "limitations": [
@@ -19458,7 +19348,9 @@
     "kind": "benchmark",
     "text": "optimised conductor beats uniform \u00b7 thermal compliance of the\u2026",
     "check": "optimised_conductor_beats_uniform",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "optimised layout beats uniform material",
+    "label_pt": "layout otimizado supera material uniforme"
    },
    "plan": {
     "limitations": [
@@ -19678,7 +19570,9 @@
     "kind": "benchmark",
     "text": "mass balance 5mm \u00b7 liquid in - out - stored, % of the inflow\u2026",
     "check": "mass_balance_5mm",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "mass balance within 1 %",
+    "label_pt": "balan\u00e7o de massa dentro de 1 %"
    },
    "plan": {
     "limitations": [
@@ -20272,6 +20166,202 @@
    "description": "ERA5 64 x 32 global weather model (phase 1): heat-dome forecast and z500 skill previews",
    "title": "weather era5"
   },
+  "repo_results/prius_pmsm": {
+   "tier": "A",
+   "tier_name": "flagship",
+   "best_run": "repo_results-4104d166d1c0",
+   "best_score": 93.4,
+   "runs": 1,
+   "tier_counts": {
+    "A": 1,
+    "B": 0,
+    "C": 0,
+    "D": 0
+   },
+   "usable_fraction": 1.0,
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": true,
+     "approved": false,
+     "missing": []
+    }
+   },
+   "gaps": [],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "answered",
+     "evidence": [
+      "inputs recorded: fea, source",
+      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
+      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
+     ],
+     "next": ""
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
+      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
+      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
+      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
+      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "answered",
+     "evidence": [
+      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
+      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
+      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
+      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
+     ],
+     "next": ""
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "partial",
+     "evidence": [
+      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
+      "4 declared limitations"
+     ],
+     "next": "calibrate it (coverage check)"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "answered",
+     "evidence": [
+      "tier A (flagship), ready for training_data",
+      "4 limitations bound the use"
+     ],
+     "next": ""
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "torque vs published FEA (Yang et al. 2013)",
+    "check": "peak_torque_vs_yang_2013",
+    "missing": "",
+    "label": "torque vs published FEA (Yang et al. 2013)",
+    "label_pt": "torque vs FEA publicado (Yang et al. 2013)"
+   },
+   "plan": {
+    "limitations": [
+     "declared: the reference is a published FEA (Yang et al. 2013), not a measurement; its model differs (centre post, magnet temperature, steel data): +25 N m at 90 deg, rms 13 N m",
+     "declared: cogging converges to values 25 % apart in this code and GetDP (saturated 1.5 mm bridges); no measured Prius cogging was available",
+     "declared: GetDP shares the geometry, materials and currents: it verifies the solver, not the model inputs",
+     "declared: 2-D: magnet end leakage lowers the torque by 2.6 % (see prius_end_effects)",
+     "detected: evidence only inferred (not measured by a check) for uncertainty"
+    ],
+    "actions": [
+     {
+      "gap": "review",
+      "action": "Human review: novelty, clarity, the one-line story (python -m pinneapple_lab review <experiment> --story ... --novelty ...)",
+      "effort": "S",
+      "unlocks": [
+       "paper",
+       "marketing"
+      ]
+     },
+     {
+      "gap": "assets",
+      "action": "Add a movie, a photoreal render (pp.viz.render) or the 3-D viewer (pp.viz.web_viewer) of the key result",
+      "effort": "S",
+      "unlocks": [
+       "marketing"
+      ]
+     },
+     {
+      "gap": "generalization",
+      "action": "Hold out designs or an out-of-distribution regime and report the error there",
+      "effort": "M",
+      "unlocks": [
+       "product"
+      ]
+     }
+    ],
+    "uses": {
+     "product": {
+      "status": "gap",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 3,
+      "missing": [
+       "generalization evidence"
+      ]
+     },
+     "paper": {
+      "status": "gap",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 1,
+      "missing": [
+       "novelty review >= 3/5"
+      ]
+     },
+     "marketing": {
+      "status": "gap",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 2,
+      "missing": [
+       "strong visuals (movie, render or 3-D view)",
+       "a one-line story (review)"
+      ]
+     },
+     "training_data": {
+      "status": "ready",
+      "run": "repo_results-4104d166d1c0",
+      "distance": 0,
+      "missing": []
+     }
+    },
+    "closest_use": "paper",
+    "next_tier": null
+   },
+   "experiment": "repo_results",
+   "case": "prius_pmsm",
+   "story": "",
+   "description": "2004 Toyota Prius interior-PM motor, nonlinear 2-D FEA: torque against current angle vs the published curve of Yang et al. (2013), second code GetDP, cogging, step skew, tolerances",
+   "title": "prius pmsm"
+  },
   "rom_study/beam_parametric": {
    "tier": "B",
    "tier_name": "solid",
@@ -20589,7 +20679,9 @@
     "kind": "benchmark",
     "text": "pod mode pair holds the energy \u00b7 modes 1 and 2 (the travelling\u2026",
     "check": "pod_mode_pair_holds_the_energy",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "POD mode pair holds the energy \u00b7 beats persistence",
+    "label_pt": "par de modos POD concentra a energia \u00b7 supera a persist\u00eancia"
    },
    "plan": {
     "limitations": [
@@ -20775,7 +20867,9 @@
     "kind": "reference",
     "text": "deflection vs beam theory \u00b7 Timoshenko beam (bending + shear\u2026",
     "check": "deflection_vs_beam_theory",
-    "missing": ""
+    "missing": "",
+    "label": "deflection vs Timoshenko and CalculiX",
+    "label_pt": "flecha vs Timoshenko e CalculiX"
    },
    "plan": {
     "limitations": [
@@ -20960,7 +21054,9 @@
     "kind": "reference",
     "text": "deflection vs beam theory \u00b7 Timoshenko beam (bending + shear\u2026",
     "check": "deflection_vs_beam_theory",
-    "missing": ""
+    "missing": "",
+    "label": "deflection vs Timoshenko and CalculiX",
+    "label_pt": "flecha vs Timoshenko e CalculiX"
    },
    "plan": {
     "limitations": [
@@ -21144,7 +21240,9 @@
     "kind": "reference",
     "text": "twist rate vs saint venant \u00b7 theta' = T / (beta G a^4), beta =\u2026",
     "check": "twist_rate_vs_saint_venant",
-    "missing": ""
+    "missing": "",
+    "label": "vs Saint-Venant and CalculiX",
+    "label_pt": "vs Saint-Venant e CalculiX"
    },
    "plan": {
     "limitations": [
@@ -22922,7 +23020,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -23137,7 +23237,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -23352,7 +23454,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -23567,7 +23671,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -23782,7 +23888,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -23997,7 +24105,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -24212,7 +24322,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -24427,7 +24539,9 @@
     "kind": "reference",
     "text": "initial contact vs closed form \u00b7 Winkler parabolic contact",
     "check": "initial_contact_vs_closed_form",
-    "missing": ""
+    "missing": "",
+    "label": "contact vs Winkler \u00b7 Archard",
+    "label_pt": "contato vs Winkler \u00b7 Archard"
    },
    "tier_name": "flagship"
   },
@@ -27657,7 +27771,9 @@
     "kind": "benchmark",
     "text": "best build passes statics \u00b7 134.4 mm tall, survives 32.6 mN at\u2026",
     "check": "best_build_passes_statics",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "best build passes rigid-body statics",
+    "label_pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"
    },
    "tier_name": "solid"
   },
@@ -27874,7 +27990,9 @@
     "kind": "benchmark",
     "text": "best build passes statics \u00b7 stands",
     "check": "best_build_passes_statics",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "best build passes rigid-body statics",
+    "label_pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"
    },
    "tier_name": "solid"
   },
@@ -28091,7 +28209,9 @@
     "kind": "benchmark",
     "text": "best build passes statics \u00b7 carries 1.049 N at mid-span (1.05\u2026",
     "check": "best_build_passes_statics",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "best build passes rigid-body statics",
+    "label_pt": "melhor constru\u00e7\u00e3o passa na est\u00e1tica de corpo r\u00edgido"
    },
    "tier_name": "solid"
   },
@@ -28307,7 +28427,9 @@
     "kind": "reference",
     "text": "first bending mode vs euler bernoulli \u00b7 weak axis",
     "check": "first_bending_mode_vs_euler_bernoulli",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "modes vs Euler\u2013Bernoulli",
+    "label_pt": "modos vs Euler\u2013Bernoulli"
    },
    "tier_name": "solid"
   },
@@ -28520,7 +28642,9 @@
     "kind": "reference",
     "text": "buckling load vs euler \u00b7 fixed-free column, K = 2",
     "check": "buckling_load_vs_euler",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "buckling load vs Euler",
+    "label_pt": "carga de flambagem vs Euler"
    },
    "tier_name": "solid"
   },
@@ -28733,7 +28857,9 @@
     "kind": "reference",
     "text": "temperature vs 1d fin solution \u00b7 relative L2 of T - T_inf\u2026",
     "check": "temperature_vs_1d_fin_solution",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "temperature vs 1-D fin solution",
+    "label_pt": "temperatura vs solu\u00e7\u00e3o de aleta 1-D"
    },
    "tier_name": "solid"
   },
@@ -28943,7 +29069,9 @@
     "kind": "reference",
     "text": "upright bending vs Mc over I \u00b7 axial stress on the outer face\u2026",
     "check": "upright_bending_vs_Mc_over_I",
-    "missing": ""
+    "missing": "",
+    "label": "bending vs Mc/I \u00b7 mesh converged",
+    "label_pt": "flex\u00e3o vs Mc/I \u00b7 malha convergida"
    },
    "tier_name": "flagship"
   },
@@ -29157,7 +29285,9 @@
     "kind": "reference",
     "text": "stress concentration vs heywood \u00b7 peak axial stress at the\u2026",
     "check": "stress_concentration_vs_heywood",
-    "missing": ""
+    "missing": "",
+    "label": "stress vs Heywood",
+    "label_pt": "tens\u00e3o vs Heywood"
    },
    "tier_name": "flagship"
   },
@@ -40307,7 +40437,9 @@
     "kind": "reference",
     "text": "Ar vs closed form",
     "check": "rel_l2_Ar_vs_closed_form",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "skin effect vs exact solution",
+    "label_pt": "efeito pelicular vs solu\u00e7\u00e3o exata"
    },
    "tier_name": "solid"
   },
@@ -40523,7 +40655,9 @@
     "kind": "reference",
     "text": "Az vs closed form",
     "check": "rel_l2_Az_vs_closed_form",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "A_z vs Amp\u00e8re's law (exact)",
+    "label_pt": "A_z vs lei de Amp\u00e8re (exata)"
    },
    "tier_name": "solid"
   },
@@ -58502,7 +58636,9 @@
     "kind": "reference",
     "text": "settling velocity vs schiller naumann \u00b7 an isolated sphere in\u2026",
     "check": "settling_velocity_vs_schiller_naumann",
-    "missing": ""
+    "missing": "",
+    "label": "vs Zwietering and Schiller\u2013Naumann",
+    "label_pt": "vs Zwietering e Schiller\u2013Naumann"
    },
    "tier_name": "flagship"
   },
@@ -58930,7 +59066,9 @@
     "kind": "reference",
     "text": "friction factor vs colebrook \u00b7 smooth pipe, 18-28 D after the\u2026",
     "check": "friction_factor_vs_colebrook",
-    "missing": ""
+    "missing": "",
+    "label": "friction vs Colebrook \u00b7 loss vs Ito",
+    "label_pt": "atrito vs Colebrook \u00b7 perda vs Ito"
    },
    "tier_name": "flagship"
   },
@@ -59141,7 +59279,9 @@
     "kind": "reference",
     "text": "friction factor vs 64 over Re \u00b7 Hagen-Poiseuille",
     "check": "friction_factor_vs_64_over_Re",
-    "missing": ""
+    "missing": "",
+    "label": "friction vs 64/Re (Hagen\u2013Poiseuille)",
+    "label_pt": "atrito vs 64/Re (Hagen\u2013Poiseuille)"
    },
    "tier_name": "flagship"
   },
@@ -59356,7 +59496,9 @@
     "kind": "benchmark",
     "text": "bulk velocity constant along pipe \u00b7 volume-averaged axial\u2026",
     "check": "bulk_velocity_constant_along_pipe",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "mass conserved \u00b7 beats an empty pipe",
+    "label_pt": "massa conservada \u00b7 supera o tubo vazio"
    },
    "tier_name": "solid"
   },
@@ -61510,227 +61652,9 @@
     "kind": "reference",
     "text": "drag vs wind tunnel \u00b7 Ahmed, Ramm & Faltin (1984), 25 deg slant",
     "check": "drag_vs_wind_tunnel",
-    "missing": ""
-   },
-   "tier_name": "flagship"
-  },
-  "repo_results-4104d166d1c0": {
-   "run_id": "repo_results-4104d166d1c0",
-   "experiment": "repo_results",
-   "status": "completed",
-   "tier": "A",
-   "score": 93.4,
-   "coverage": 0.8,
-   "dimensions": {
-    "validation": {
-     "name": "validation",
-     "score": 1.0,
-     "status": "PASS",
-     "tier": "VERIFIED",
-     "evidence": [
-      "12/12 checks pass"
-     ]
-    },
-    "reference": {
-     "name": "reference",
-     "score": 1.0,
-     "status": "PASS",
-     "tier": "VERIFIED",
-     "evidence": [
-      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another group and code, not a measurement; tolerance 5 % (machines.verification); largest deviation +25.3 N m at 90 deg, rms 13.3 N m)"
-     ]
-    },
-    "baseline": {
-     "name": "baseline",
-     "score": null,
-     "status": "NOT_RUN",
-     "tier": "UNSUPPORTED",
-     "evidence": [
-      "no baseline check"
-     ]
-    },
-    "physics": {
-     "name": "physics",
-     "score": 1.0,
-     "status": "PASS",
-     "tier": "VERIFIED",
-     "evidence": [
-      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
-      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verification; max relative difference over the angles)",
-      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.verification; frozen-permeability superposition error 4.1e-11; L_d = 1.386 mH, L_q = 2.420 mH, psi_pm = 0.2140 Wb at this point)",
-      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
-     ]
-    },
-    "generalization": {
-     "name": "generalization",
-     "score": null,
-     "status": "NOT_RUN",
-     "tier": "UNSUPPORTED",
-     "evidence": [
-      "no generalization check"
-     ]
-    },
-    "uncertainty": {
-     "name": "uncertainty",
-     "score": 1.0,
-     "status": "INFO",
-     "tier": "INFERRED",
-     "evidence": [
-      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std"
-     ]
-    },
-    "reproducibility": {
-     "name": "reproducibility",
-     "score": 1.0,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "code snapshot: 38 files",
-      "git 3432db2e"
-     ]
-    },
-    "data": {
-     "name": "data",
-     "score": 1.0,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "1 datasets, 13 samples, 100 % with a card description"
-     ]
-    },
-    "assets": {
-     "name": "assets",
-     "score": 0.6000000000000001,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "8 figures, 0 movies"
-     ]
-    },
-    "documentation": {
-     "name": "documentation",
-     "score": 0.7,
-     "status": "INFO",
-     "tier": "VERIFIED",
-     "evidence": [
-      "description 290 chars",
-      "docs: docs/core_concepts/lab.md, README.md",
-      "papers: 0"
-     ]
-    },
-    "review": {
-     "name": "review",
-     "score": null,
-     "status": "NOT_RUN",
-     "tier": "UNSUPPORTED",
-     "evidence": [
-      "no human review yet"
-     ]
-    }
-   },
-   "readiness": {
-    "product": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "generalization evidence"
-     ]
-    },
-    "paper": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "novelty review >= 3/5"
-     ]
-    },
-    "marketing": {
-     "ready": false,
-     "approved": false,
-     "missing": [
-      "strong visuals (movie, render or 3-D view)",
-      "a one-line story (review)"
-     ]
-    },
-    "training_data": {
-     "ready": true,
-     "approved": false,
-     "missing": []
-    }
-   },
-   "gaps": [],
-   "reviewed": false,
-   "stages": {
-    "data_geometry": {
-     "title": "Data and geometry",
-     "question": "Was the physical problem represented correctly?",
-     "status": "answered",
-     "evidence": [
-      "inputs recorded: fea, source",
-      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
-      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
-     ],
-     "next": ""
-    },
-    "model": {
-     "title": "Model",
-     "question": "Can the model (or solver) represent the relevant dynamics?",
-     "status": "answered",
-     "evidence": [
-      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
-      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
-      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
-      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
-      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
-     ],
-     "next": ""
-    },
-    "physics": {
-     "title": "Physical constraints",
-     "question": "Are the equations and the boundary conditions respected?",
-     "status": "answered",
-     "evidence": [
-      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
-      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
-      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
-      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
-     ],
-     "next": ""
-    },
-    "benchmark": {
-     "title": "Benchmark",
-     "question": "How does the result compare with a solver or reference data?",
-     "status": "answered",
-     "evidence": [
-      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
-     ],
-     "next": ""
-    },
-    "uncertainty": {
-     "title": "Uncertainty",
-     "question": "Where may the prediction not be reliable?",
-     "status": "partial",
-     "evidence": [
-      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
-      "4 declared limitations"
-     ],
-     "next": "calibrate it (coverage check)"
-    },
-    "decision": {
-     "title": "Engineering decision",
-     "question": "Is the result adequate for the intended use?",
-     "status": "answered",
-     "evidence": [
-      "tier A (flagship), ready for training_data",
-      "4 limitations bound the use"
-     ],
-     "next": ""
-    }
-   },
-   "headline": {
-    "kind": "reference",
-    "text": "torque vs Yang et al. 2013",
-    "check": "peak_torque_vs_yang_2013",
-    "missing": ""
+    "missing": "",
+    "label": "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)",
+    "label_pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)"
    },
    "tier_name": "flagship"
   },
@@ -61950,7 +61874,9 @@
     "kind": "benchmark",
     "text": "end leakage ratio below one \u00b7 flux that leaks round the magnet\u2026",
     "check": "end_leakage_ratio_below_one",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "3-D end leakage below the 2-D flux",
+    "label_pt": "fuga 3-D nas pontas abaixo do fluxo 2-D"
    },
    "tier_name": "solid"
   },
@@ -62168,7 +62094,9 @@
     "kind": "benchmark",
     "text": "torque and emf fall with magnet temperature \u00b7 20 -> 150 degC",
     "check": "torque_and_emf_fall_with_magnet_temperature",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "torque and EMF fall with magnet temperature",
+    "label_pt": "torque e FEM caem com a temperatura do \u00edm\u00e3"
    },
    "tier_name": "solid"
   },
@@ -62388,7 +62316,9 @@
     "kind": "benchmark",
     "text": "wltc energy balance lossless drive \u00b7 Drive cycle",
     "check": "wltc_energy_balance_lossless_drive",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "WLTC energy balance",
+    "label_pt": "balan\u00e7o de energia WLTC"
    },
    "tier_name": "solid"
   },
@@ -62636,7 +62566,9 @@
     "kind": "reference",
     "text": "coaxial capacitor p1 fem \u00b7 2 pi eps / ln(b/a)",
     "check": "coaxial_capacitor_p1_fem",
-    "missing": ""
+    "missing": "",
+    "label": "32 cases vs closed forms and published values",
+    "label_pt": "32 casos vs formas fechadas e valores publicados"
    },
    "tier_name": "flagship"
   },
@@ -62851,7 +62783,9 @@
     "kind": "benchmark",
     "text": "maxwell stress vs coenergy torque \u00b7 on-load torque at 3\u2026",
     "check": "maxwell_stress_vs_coenergy_torque",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "Maxwell-stress torque = co-energy torque",
+    "label_pt": "torque de Maxwell = torque de co-energia"
    },
    "tier_name": "solid"
   },
@@ -63073,7 +63007,9 @@
     "kind": "reference",
     "text": "Cd vs XFOIL (tripped)",
     "check": "cd_vs_xfoil_tripped",
-    "missing": "flagship gates (see gaps)"
+    "missing": "flagship gates (see gaps)",
+    "label": "drag vs XFOIL \u00b7 lift slope vs thin-airfoil theory",
+    "label_pt": "arrasto vs XFOIL \u00b7 inclina\u00e7\u00e3o vs teoria do aerof\u00f3lio fino"
    },
    "tier_name": "solid"
   },
@@ -63288,7 +63224,9 @@
     "kind": "benchmark",
     "text": "force balance (pressure + friction)",
     "check": "drag_balance_pressure_plus_friction",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "force balance (pressure + friction)",
+    "label_pt": "balan\u00e7o de for\u00e7as (press\u00e3o + atrito)"
    },
    "tier_name": "solid"
   },
@@ -63499,7 +63437,9 @@
     "kind": "benchmark",
     "text": "held out sinkage improves after calibration \u00b7 slip-dependent\u2026",
     "check": "held_out_sinkage_improves_after_calibration",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "held-out sinkage improves (published wheel tests)",
+    "label_pt": "afundamento em testes retidos melhora (ensaios publicados)"
    },
    "tier_name": "solid"
   },
@@ -63714,7 +63654,9 @@
     "kind": "benchmark",
     "text": "beats best baseline on untouched test \u00b7 every chaotic series",
     "check": "beats_best_baseline_on_untouched_test",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "beats the best baseline on an untouched test (DM, Holm)",
+    "label_pt": "supera o melhor baseline em teste intocado (DM, Holm)"
    },
    "tier_name": "solid"
   },
@@ -63933,7 +63875,9 @@
     "kind": "benchmark",
     "text": "loop v top full solver at least bound \u00b7 Newton rigid-body\u2026",
     "check": "loop_v_top_full_solver_at_least_bound",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "loop speed \u2265 closed-form bound (Newton)",
+    "label_pt": "velocidade no loop \u2265 limite anal\u00edtico (Newton)"
    },
    "tier_name": "solid"
   },
@@ -64150,7 +64094,9 @@
     "kind": "benchmark",
     "text": "optimised conductor beats uniform \u00b7 thermal compliance of the\u2026",
     "check": "optimised_conductor_beats_uniform",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "optimised layout beats uniform material",
+    "label_pt": "layout otimizado supera material uniforme"
    },
    "tier_name": "solid"
   },
@@ -64366,7 +64312,9 @@
     "kind": "benchmark",
     "text": "mass balance 5mm \u00b7 liquid in - out - stored, % of the inflow\u2026",
     "check": "mass_balance_5mm",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "mass balance within 1 %",
+    "label_pt": "balan\u00e7o de massa dentro de 1 %"
    },
    "tier_name": "solid"
   },
@@ -64808,6 +64756,228 @@
    },
    "tier_name": "exploratory"
   },
+  "repo_results-4104d166d1c0": {
+   "run_id": "repo_results-4104d166d1c0",
+   "experiment": "repo_results",
+   "status": "completed",
+   "tier": "A",
+   "score": 93.4,
+   "coverage": 0.8,
+   "dimensions": {
+    "validation": {
+     "name": "validation",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "12/12 checks pass"
+     ]
+    },
+    "reference": {
+     "name": "reference",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another group and code, not a measurement; tolerance 5 % (machines.verification); largest deviation +25.3 N m at 90 deg, rms 13.3 N m)"
+     ]
+    },
+    "baseline": {
+     "name": "baseline",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no baseline check"
+     ]
+    },
+    "physics": {
+     "name": "physics",
+     "score": 1.0,
+     "status": "PASS",
+     "tier": "VERIFIED",
+     "evidence": [
+      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
+      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verification; max relative difference over the angles)",
+      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.verification; frozen-permeability superposition error 4.1e-11; L_d = 1.386 mH, L_q = 2.420 mH, psi_pm = 0.2140 Wb at this point)",
+      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
+     ]
+    },
+    "generalization": {
+     "name": "generalization",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no generalization check"
+     ]
+    },
+    "uncertainty": {
+     "name": "uncertainty",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "INFERRED",
+     "evidence": [
+      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std"
+     ]
+    },
+    "reproducibility": {
+     "name": "reproducibility",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "code snapshot: 38 files",
+      "git cf0e9a8f"
+     ]
+    },
+    "data": {
+     "name": "data",
+     "score": 1.0,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "1 datasets, 13 samples, 100 % with a card description"
+     ]
+    },
+    "assets": {
+     "name": "assets",
+     "score": 0.6000000000000001,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "8 figures, 0 movies"
+     ]
+    },
+    "documentation": {
+     "name": "documentation",
+     "score": 0.7,
+     "status": "INFO",
+     "tier": "VERIFIED",
+     "evidence": [
+      "description 290 chars",
+      "docs: docs/core_concepts/lab.md, README.md",
+      "papers: 0"
+     ]
+    },
+    "review": {
+     "name": "review",
+     "score": null,
+     "status": "NOT_RUN",
+     "tier": "UNSUPPORTED",
+     "evidence": [
+      "no human review yet"
+     ]
+    }
+   },
+   "readiness": {
+    "product": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "generalization evidence"
+     ]
+    },
+    "paper": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "novelty review >= 3/5"
+     ]
+    },
+    "marketing": {
+     "ready": false,
+     "approved": false,
+     "missing": [
+      "strong visuals (movie, render or 3-D view)",
+      "a one-line story (review)"
+     ]
+    },
+    "training_data": {
+     "ready": true,
+     "approved": false,
+     "missing": []
+    }
+   },
+   "gaps": [],
+   "reviewed": false,
+   "stages": {
+    "data_geometry": {
+     "title": "Data and geometry",
+     "question": "Was the physical problem represented correctly?",
+     "status": "answered",
+     "evidence": [
+      "inputs recorded: fea, source",
+      "PASS geometry_slot_and_magnet_areas_exact (Machine sector geometry (Prius slot and magnet areas), pass/fail and tolerance of machines)",
+      "PASS mesh_convergence_peak_torque (Prius IPM: mesh convergence of the peak torque, pass/fail and tolerance of machines.verifi)"
+     ],
+     "next": ""
+    },
+    "model": {
+     "title": "Model",
+     "question": "Can the model (or solver) represent the relevant dynamics?",
+     "status": "answered",
+     "evidence": [
+      "PASS fem_vs_magnetised_ring_closed_form (Magnetised ring, sector mesher + P1 FEM, pass/fail and tolerance of machines.verification;)",
+      "PASS torque_vs_getdp_second_code (gmsh 4.12 + GetDP 3.2, 13 current angles: its own mesh, Newton solver and Arkkio torque, b)",
+      "PASS back_emf_vs_getdp_second_code (fundamental at 1000 rpm, 60 positions; same sharing as the torque)",
+      "PASS cogging_linear_iron_vs_getdp (with linear iron the two codes agree on cogging; with saturated bridges they converge 25 %)",
+      "PASS skew_back_emf_vs_closed_form_factor (every harmonic = straight harmonic x |sin(K h pi s / lam) / (K sin(h pi s / lam))|; checks)"
+     ],
+     "next": ""
+    },
+    "physics": {
+     "title": "Physical constraints",
+     "question": "Are the equations and the boundary conditions respected?",
+     "status": "answered",
+     "evidence": [
+      "PASS zero_mean_torque_at_180deg_symmetry (pure negative d-axis current on a rotor symmetric about its d-axis gives no mean torque)",
+      "PASS maxwell_stress_vs_coenergy_torque (Prius IPM: Maxwell stress vs co-energy torque, pass/fail and tolerance of machines.verific)",
+      "PASS dq_power_balance (Prius IPM: dq power balance and frozen permeability, pass/fail and tolerance of machines.v)",
+      "PASS half_pitch_skew_lowers_cogging (2 steps over half a slot pitch: 1.353 -> 0.624 N m)"
+     ],
+     "next": ""
+    },
+    "benchmark": {
+     "title": "Benchmark",
+     "question": "How does the result compare with a solver or reference data?",
+     "status": "answered",
+     "evidence": [
+      "PASS peak_torque_vs_yang_2013 (published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another gr)"
+     ],
+     "next": ""
+    },
+    "uncertainty": {
+     "title": "Uncertainty",
+     "question": "Where may the prediction not be reliable?",
+     "status": "partial",
+     "evidence": [
+      "reported: cogging_code_spread_rel, torque_std_Nm, ripple_std",
+      "4 declared limitations"
+     ],
+     "next": "calibrate it (coverage check)"
+    },
+    "decision": {
+     "title": "Engineering decision",
+     "question": "Is the result adequate for the intended use?",
+     "status": "answered",
+     "evidence": [
+      "tier A (flagship), ready for training_data",
+      "4 limitations bound the use"
+     ],
+     "next": ""
+    }
+   },
+   "headline": {
+    "kind": "reference",
+    "text": "torque vs published FEA (Yang et al. 2013)",
+    "check": "peak_torque_vs_yang_2013",
+    "missing": "",
+    "label": "torque vs published FEA (Yang et al. 2013)",
+    "label_pt": "torque vs FEA publicado (Yang et al. 2013)"
+   },
+   "tier_name": "flagship"
+  },
   "rom_study-61475bf029de": {
    "run_id": "rom_study-61475bf029de",
    "experiment": "rom_study",
@@ -65243,7 +65413,9 @@
     "kind": "benchmark",
     "text": "pod mode pair holds the energy \u00b7 modes 1 and 2 (the travelling\u2026",
     "check": "pod_mode_pair_holds_the_energy",
-    "missing": "independent reference"
+    "missing": "independent reference",
+    "label": "POD mode pair holds the energy \u00b7 beats persistence",
+    "label_pt": "par de modos POD concentra a energia \u00b7 supera a persist\u00eancia"
    },
    "tier_name": "solid"
   },
@@ -65456,7 +65628,9 @@
     "kind": "reference",
     "text": "deflection vs beam theory \u00b7 Timoshenko beam (bending + shear\u2026",
     "check": "deflection_vs_beam_theory",
-    "missing": ""
+    "missing": "",
+    "label": "deflection vs Timoshenko and CalculiX",
+    "label_pt": "flecha vs Timoshenko e CalculiX"
    },
    "tier_name": "flagship"
   },
@@ -65669,7 +65843,9 @@
     "kind": "reference",
     "text": "deflection vs beam theory \u00b7 Timoshenko beam (bending + shear\u2026",
     "check": "deflection_vs_beam_theory",
-    "missing": ""
+    "missing": "",
+    "label": "deflection vs Timoshenko and CalculiX",
+    "label_pt": "flecha vs Timoshenko e CalculiX"
    },
    "tier_name": "flagship"
   },
@@ -65881,7 +66057,9 @@
     "kind": "reference",
     "text": "twist rate vs saint venant \u00b7 theta' = T / (beta G a^4), beta =\u2026",
     "check": "twist_rate_vs_saint_venant",
-    "missing": ""
+    "missing": "",
+    "label": "vs Saint-Venant and CalculiX",
+    "label_pt": "vs Saint-Venant e CalculiX"
    },
    "tier_name": "flagship"
   },
