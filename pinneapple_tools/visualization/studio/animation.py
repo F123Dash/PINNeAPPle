@@ -167,10 +167,12 @@ class Animation:
 
     def add_trail(self, name: str, points, color: str = "#f59e0b", values=None, label: str = "",
                   color_range: tuple[float, float] | None = None, cmap: str = "jet", radius: float | None = None,
-                  alpha: float = 1.0) -> Animation:
-        """A path (T, 3) drawn up to the current time (e.g. the track's positions). ``values`` (T,) colour it point
-        by point on ``cmap`` (with a colour bar titled ``label``), otherwise it is ``color``. ``radius``: tube radius
-        in Blender (default 0.004 x the tracked body's size); ``alpha`` < 1 makes it translucent."""
+                  alpha: float = 0.8, trail_seconds: float | None = 8.0, fade: bool = True) -> Animation:
+        """A path (T, 3) drawn behind the body up to the current time (e.g. the track's positions): only its last
+        ``trail_seconds`` (None: all of it), its opacity falling from ``alpha`` at the current point to 0 at the
+        tail when ``fade``. ``values`` (T,) colour it point by point on ``cmap`` (with a colour bar titled
+        ``label``), otherwise it is ``color``. ``radius``: tube radius in Blender (default 0.003 x the tracked
+        body's size)."""
         stops(cmap)
         P = self._check(points, (3,), "trail points")
         v = None if values is None else np.asarray(values, float).ravel()
@@ -178,7 +180,8 @@ class Animation:
             raise ValueError(f"trail values: expected {self.n_frames}, got {len(v)}")
         rng = None if v is None else tuple(map(float, color_range or default_range(v, cmap)))
         self.trails.append({"name": name, "points": P, "color": color, "values": v, "label": label, "range": rng,
-                            "cmap": cmap, "radius": None if radius is None else float(radius), "alpha": float(alpha)})
+                            "cmap": cmap, "radius": None if radius is None else float(radius), "alpha": float(alpha),
+                            "seconds": None if trail_seconds is None else float(trail_seconds), "fade": bool(fade)})
         return self
 
     def add_lines(self, name: str, points, color: str = "#f59e0b", **kw) -> Animation:
@@ -254,6 +257,19 @@ class Animation:
             o, v = o @ M[:3, :3].T + M[:3, 3], v @ M[:3, :3].T
         return o, v
 
+    def trail_window(self, i: int, k: int, seconds: float | None = None) -> tuple[np.ndarray, np.ndarray]:
+        """Indices of the points of trail i shown at frame k (its last ``trail_seconds``, or ``seconds``) and
+        their opacity factor in [0, 1] (1 at frame k, falling linearly to 0 at the tail end when the trail fades)."""
+        tr = self.trails[i]
+        sec = seconds if seconds is not None else tr.get("seconds")
+        t = self.times
+        j0 = 0 if sec is None else int(np.searchsorted(t, t[k] - sec, side="left"))
+        idx = np.arange(min(j0, k), k + 1)
+        if not tr.get("fade", False) or len(idx) < 2:
+            return idx, np.ones(len(idx))
+        span = sec if sec is not None else (t[k] - t[idx[0]]) or 1.0
+        return idx, np.clip(1.0 - (t[k] - t[idx]) / span, 0.0, 1.0)
+
     def bounds(self) -> tuple[np.ndarray, np.ndarray]:
         """Extent of the track and trail points (not the bodies themselves)."""
         P = [tr["positions"] for tr in self.tracks.values()] + [t["points"] for t in self.trails]
@@ -325,7 +341,8 @@ class Animation:
             "trails": [{"name": t["name"], "color": t["color"], "points": r(t["points"]),
                         "values": None if t.get("values") is None else finite(t["values"]), "label": t.get("label", ""),
                         "range": None if t.get("range") is None else list(t["range"]), "cmap": t.get("cmap", "jet"),
-                        "radius": t.get("radius"), "alpha": t.get("alpha", 1.0)} for t in self.trails],
+                        "radius": t.get("radius"), "alpha": t.get("alpha", 1.0), "seconds": t.get("seconds"),
+                        "fade": t.get("fade", False)} for t in self.trails],
             "fields": [{"surface": s, "label": sf["label"], "range": list(sf["range"]), "cmap": sf.get("cmap", "jet"),
                         **({"index": names.index(s)} if names is not None and s in names else {}),
                         "values": finite(sf["values"])} for s, sf in self.surface_fields.items()],
@@ -356,7 +373,8 @@ class Animation:
             a.trails.append({"name": t["name"], "color": t.get("color", "#f59e0b"),
                              "points": np.asarray(t["points"], float), "values": nan(t.get("values")),
                              "label": t.get("label", ""), "range": None if t.get("range") is None else tuple(t["range"]),
-                             "cmap": t.get("cmap", "jet"), "radius": t.get("radius"), "alpha": t.get("alpha", 1.0)})
+                             "cmap": t.get("cmap", "jet"), "radius": t.get("radius"), "alpha": t.get("alpha", 1.0),
+                             "seconds": t.get("seconds"), "fade": t.get("fade", False)})
         for f in d.get("fields", []):
             a.surface_fields[f["surface"]] = {"values": nan(f["values"]), "label": f.get("label", ""),
                                               "range": tuple(f["range"]), "cmap": f.get("cmap", "jet")}
