@@ -1,0 +1,11 @@
+# gitleaks configuration: the default rules plus allow-listed false positives found by the audit
+# (docs/security/audit.md): curl examples with the literal placeholder USER:PASSWORD in the apps' UIs, and a case
+# key ("key=") in the VeriPhysics example registry.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "placeholders, not credentials"
+regexTarget = "line"
+regexes = ['''-u USER:PASSWORD''', '''key="axial_compressor_stage_3d"''']
+paths = ['''apps/deploy/\.env\.example''', '''__pycache__/''']

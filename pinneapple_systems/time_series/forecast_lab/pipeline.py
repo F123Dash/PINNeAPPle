@@ -19,7 +19,7 @@ from .learned import GBMForecaster
 from .presets import BUDGET, case, overfitting_variants
 from .study import overfitting_study, run_zoo, surrogate_trained
 
-__all__ = ["run_case", "run_overfitting", "lyapunov_study", "fan_panels", "markdown_tables"]
+__all__ = ["run_case", "run_overfitting", "lyapunov_study", "fan_panels", "surprise_record", "memorise_vs_learn", "markdown_tables"]
 
 QUANTILES = (0.05, 0.25, 0.5, 0.75, 0.95)
 
@@ -54,6 +54,28 @@ def fan_panels(zoo: dict, data, title: str, n_origins: int = 2, families=("physi
     return panels
 
 
+def surprise_record(zoo: dict, data, horizon_index: int = 0) -> dict[str, Any] | None:
+    """Per test origin: the absolute error at one horizon of the best non-baseline model (by validation score) and
+    of the best baseline at that horizon (by validation RMSE), with the target dates when ``data.meta["dates"]``
+    exists. Feeds :func:`~.plots.plot_surprise_calendar`."""
+    fc = zoo.get("_forecasts", {})
+    models = {k: v for k, v in zoo["models"].items() if "test" in v}
+    learned = [k for k, v in models.items() if v["family"] != "baseline" and k in fc]
+    H = zoo["protocol"]["horizons"]
+    base = zoo.get("best_baseline_by_val", {}).get(str(H[horizon_index]))
+    if not learned or base not in fc:
+        return None
+    best = min(learned, key=lambda k: models[k]["val_score"])
+    y = fc[best]["y"][:, horizon_index]
+    em = np.abs(fc[best]["forecast"].mean[:, horizon_index] - y)
+    eb = np.abs(fc[base]["forecast"].mean[:, horizon_index] - y)
+    o = np.asarray(fc[best]["origins"]) + int(H[horizon_index])
+    dates = data.meta.get("dates")
+    return {"horizon": int(H[horizon_index]), "model": best, "baseline": base,
+            "target_index": o.tolist(), "dates": [dates[i] for i in o] if dates else None,
+            "abs_error_model": em.tolist(), "abs_error_baseline": eb.tolist()}
+
+
 def run_case(name: str, *, n: int = 6000, budget: int = BUDGET, seed: int = 0, cache_dir: str | None = None,
              n_surrogates: int = 99, log: Callable[[str], None] = print) -> dict[str, Any]:
     from pinneapple_core.jsonable import to_jsonable
@@ -69,8 +91,10 @@ def run_case(name: str, *, n: int = 6000, budget: int = BUDGET, seed: int = 0, c
     gbm = lambda: GBMForecaster(n_lags=8, max_iter=200, max_leaf_nodes=15)  # noqa: E731
     sur = {kind: surrogate_trained(gbm, c.data, c.protocol, kind=kind, seed=seed) for kind in ("iaaft", "shuffle")}
     fans = fan_panels(zoo, c.data, c.title)
+    surprise = surprise_record(zoo, c.data)
     out = {"case": name, "title": c.title, "truth": c.truth, "n": len(c.data), "dt": c.data.dt,
            "predictability": pred, "zoo": zoo, "surrogate_trained": sur, "fan_panels": fans,
+           "surprise": surprise,
            "seconds": time.perf_counter() - t0}
     return to_jsonable(out, digits=4, drop_private=True, unknown="repr")
 
@@ -105,6 +129,34 @@ def lyapunov_study(dt_ints=(0.1, 0.05), total_times=(10000.0, 50000.0, 200000.0)
             log(f"  MG Lyapunov dt={dt} T={T}: {np.round(vals, 5).tolist()}")
     return {"system": "Mackey-Glass tau=17, beta=0.2, gamma=0.1, n=10", "units": "per unit time, natural log",
             "method": "Benettin two-trajectory renormalisation on the discretised history", "rows": rows}
+
+
+def memorise_vs_learn(name: str, variants=("overfit: MLP 512x3, 32 lags, no early stop", "MLP 64x2 + early stopping"),
+                      *, horizon_index: int = 0, window: int = 200, n: int = 6000, seed: int = 0,
+                      cache_dir: str | None = None) -> dict[str, Any]:
+    """Refit two training variants of :func:`~.presets.overfitting_variants` on the final split of case ``name``
+    and return, for one horizon, the truth and both forecasts over the last ``window`` training origins and the
+    first ``window`` test origins, with each variant's RMSE on the whole training and test sets."""
+    from .base import targets_at
+    c = case(name, n=n, seed=seed, cache_dir=cache_dir)
+    v = overfitting_variants(c)
+    s = c.protocol.final_split(len(c.data))
+    H = c.protocol.horizons
+    tr, te = s["train"][-window:], s["test"][:window]
+    out = {"case": name, "title": c.title, "horizon": int(H[horizon_index]),
+           "train_index": (tr + H[horizon_index]).tolist(), "test_index": (te + H[horizon_index]).tolist(),
+           "truth_train": targets_at(c.data, tr, H)[:, horizon_index].tolist(),
+           "truth_test": targets_at(c.data, te, H)[:, horizon_index].tolist(), "variants": {}}
+    for key in variants:
+        m = v[key]().fit(c.data, s["train"], s["val"], H)
+        rm = {}
+        for part, o in (("train", s["train"]), ("test", s["test"])):
+            e = m.predict(c.data, o).mean[:, horizon_index] - targets_at(c.data, o, H)[:, horizon_index]
+            rm[part] = float(np.sqrt(np.mean(e ** 2)))
+        out["variants"][key] = {"pred_train": m.predict(c.data, tr).mean[:, horizon_index].tolist(),
+                                "pred_test": m.predict(c.data, te).mean[:, horizon_index].tolist(),
+                                "rmse": rm, "n_params": int(m.n_params())}
+    return out
 
 
 # ---------------------------------------------------------------------------

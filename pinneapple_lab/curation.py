@@ -112,6 +112,7 @@ class Assessment:
     gaps: list[str]
     reviewed: bool = False
     stages: dict[str, dict[str, Any]] = field(default_factory=dict)
+    headline: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -339,7 +340,63 @@ def assess_run(store, row: dict[str, Any], *, meta: dict[str, Any] | None = None
         lim = lim.get(str(row["params"].get(meta.get("case_param", ""), "")), []) if meta.get("case_param") else []
     stages = trust_stages(d, checks, metrics, dims, tier, readiness, meta, is_ml, list(lim or []))
     return Assessment(row["run_id"], row["experiment"], row["status"], tier, None if score is None else round(score, 1),
-                      round(coverage, 2), dims, readiness, gaps, reviewed=bool(rv), stages=stages)
+                      round(coverage, 2), dims, readiness, gaps, reviewed=bool(rv), stages=stages,
+                      headline=headline(checks, tier, meta.get("check_labels")))
+
+
+# ---------------------------------------------------------------------- the one-line evidence of an item
+def _short(text: str, n: int) -> str:
+    text = " ".join(str(text).split())
+    if len(text) <= n:
+        return text
+    cut = text[:n - 1].rsplit(" ", 1)[0].rstrip(",;:-")
+    return cut + "\u2026"
+
+
+def check_line(check: dict[str, Any], max_chars: int = 64) -> str:
+    """One line naming what a check compared against: its ``label`` when the experiment gave one, else the check's
+    name (underscores to spaces) and, unless the name already has a colon, the first clause of its detail."""
+    if check.get("label"):
+        return _short(check["label"], max_chars)
+    name = str(check.get("name", "")).replace("_", " ").strip()
+    if ":" in name:                                    # a name that already says what it compared with
+        return _short(name, max_chars)
+    det = re.split(r"[:;]", str(check.get("detail") or ""), maxsplit=1)[0].strip()
+    if det and len(name) + 3 < max_chars:
+        return name + " \u00b7 " + _short(det, max_chars - len(name) - 3)
+    return _short(name, max_chars)
+
+
+def headline(checks: list[dict[str, Any]], tier: str, labels: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The evidence a seal or a showcase tile may print, taken from the run's passing checks only (nothing written by
+    hand): ``kind`` "reference" (an independent reference the result was compared with), "benchmark" (a physical
+    law, a baseline or unseen data, no independent reference) or "" (nothing passed), ``text`` the line, ``check``
+    the check's name and ``missing`` what the item still lacks for the next claim.
+
+    ``labels`` (``Experiment.check_labels``) maps a check name to its short display line,
+    ``{"en": ..., "pt": ..., "short": ..., "short_pt": ..., "also": [other check names the line also claims]}``
+    (``short`` for small tiles); it becomes ``label`` / ``label_pt`` / ``label_short`` / ``label_short_pt`` only when
+    that check and every check in ``also`` passed, so a label never says more than the run showed. A ``label`` recorded on the check itself (``ctx.check(label=...)``) is used when the experiment has none."""
+    passing = [c for c in checks if c.get("passed")]
+    ref = [c for c in passing if c.get("kind") == "reference"]
+    other = [c for c in passing if c.get("kind") in ("physics", "baseline", "generalization")]
+    if ref:
+        c, kind, missing = ref[0], "reference", "" if tier == "A" else "flagship gates (see gaps)"
+    elif other:
+        c, kind, missing = other[0], "benchmark", "independent reference"
+    else:
+        return {"kind": "", "text": "", "check": "", "missing": "a passing check"}
+    out = {"kind": kind, "text": check_line(c), "check": c.get("name", ""), "missing": missing}
+    lab = (labels or {}).get(c.get("name", ""))
+    names = {x.get("name") for x in passing}
+    if isinstance(lab, dict) and all(a in names for a in lab.get("also", [])):
+        out["label"] = lab.get("en", "")
+        for k, dst in (("pt", "label_pt"), ("short", "label_short"), ("short_pt", "label_short_pt")):
+            if lab.get(k):
+                out[dst] = lab[k]
+    elif c.get("label"):
+        out["label"] = c["label"]
+    return out
 
 
 # ---------------------------------------------------------------------- the six questions of a trustworthy result
@@ -415,7 +472,9 @@ def trust_stages(d: str, checks: list[dict], metrics: dict[str, Any], dims: dict
         else:
             out["model"] = st
     else:
-        st = from_checks(by(r"converg|_vs_|exact|analytic|order|recover") or by(kinds={"reference"}), "")
+        st = from_checks(by(kinds={"verification"}) + [c for c in by(r"converg|_vs_|exact|analytic|order|recover")
+                                                         if c.get("kind") != "verification"]
+                         or by(kinds={"reference"}), "")
         out["model"] = st or _stage(_OPEN, ["the solver is not verified on a problem with a known answer"],
                                     "add a verification case (exact solution or mesh convergence)")
     # 3. physical constraints
@@ -590,7 +649,8 @@ def assess_experiment(runs: list[Assessment]) -> dict[str, Any]:
         tier = "B" if tier == "A" else "C"           # one good run among many failing ones is not a result
     return {"tier": tier, "tier_name": TIERS[tier], "best_run": best.run_id, "best_score": best.score,
             "runs": len(runs), "tier_counts": counts, "usable_fraction": round(usable, 2),
-            "readiness": best.readiness, "gaps": best.gaps, "reviewed": best.reviewed, "stages": best.stages}
+            "readiness": best.readiness, "gaps": best.gaps, "reviewed": best.reviewed, "stages": best.stages,
+            "headline": best.headline}
 
 
 def curate(store, path_json: str | None = None, path_md: str | None = None) -> dict[str, Any]:
@@ -605,7 +665,8 @@ def curate(store, path_json: str | None = None, path_md: str | None = None) -> d
             meta = {"description": cls.description, "tags": list(cls.tags),
                     "references": list(getattr(cls, "references", []) or []),
                     "limitations": getattr(cls, "limitations", []) or [],
-                    "case_param": getattr(cls, "case_param", "") or ""}
+                    "case_param": getattr(cls, "case_param", "") or "",
+                    "check_labels": getattr(cls, "check_labels", {}) or {}}
         except KeyError:
             cls = None
             meta = {"description": "", "tags": []}
