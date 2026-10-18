@@ -129,16 +129,59 @@ pipeline), and solver checks on canonical problems, are `"verification"`: they a
 trust card ("is the solver right?") and never count toward a tier. `label="drag vs Ahmed 1984"` gives a check the
 short line that seals and showcase tiles print.
 
-Tiers are gates, not averages, so a strong figure never hides a failed check:
+Tiers are gates, not averages, so a strong figure never hides a failed check. There are six, A to F, and every
+run gets exactly one: the rules below are tried in this order and the first that holds gives the letter
+(`pinneapple_lab.curation.problem` for E and F, `assess_run` for the rest).
 
-- **A flagship**: all checks pass; a reference check and a baseline or physics check pass; reproducible (code
-  snapshot, commit); at least three figures or a movie / render / 3-D view; documented; for machine-learning
-  experiments (surrogates, forecasters, neural operators) a generalization check passes. Ready to become a product,
-  a paper or marketing once a human review approves it.
-- **B solid**: all checks pass, at least one independent check (reference, baseline or physics), reproducible.
-  Demos, use cases, training data.
-- **C exploratory**: ran, but the evidence is thin (no checks or only sanity checks).
-- **D not usable**: failed validation or crashed.
+| letter | name | exact rule |
+|---|---|---|
+| **F** | not usable | the run crashed; or a sanity check on finiteness or convergence failed (diverged: a check named `*finite*`, `*nan*`, `*converg*`, `*diverg*`, `exits_cleanly`); or a `physics` check failed (conservation, symmetry, equilibrium); or every `reference` check failed and no other independent check (reference, baseline, physics, generalization) passed: the result contradicts the reference |
+| **E** | known problems | any other failing check: a `reference` check failed while another independent check passed (large error vs the reference), a `generalization` check failed (outside the validity range), a `baseline` was not beaten, or a `verification` / unclassified check failed |
+| **A** | flagship | all checks pass; a reference check and a baseline or physics check pass; reproducible (code snapshot, commit); at least three figures or a movie / render / 3-D view; documented; for machine-learning experiments (surrogates, forecasters, neural operators) a generalization check passes. Ready to become a product, a paper or marketing once a human review approves it |
+| **B** | solid | all checks pass, at least one independent check (reference, baseline or physics) passes, reproducible. Demos, use cases, training data |
+| **C** | plausible | all checks pass and the trust card's *model*, *physics* or *benchmark* stage is answered by a passing check, but the B gates are not met: the only evidence is a verification against a code that shares the inputs, or the run is not reproducible |
+| **D** | exploratory | ran, no failing check, but none of those stages is answered (no checks, or only sanity checks): consistent, not validated |
+
+A and B mean what they meant before the scale had six letters, so the published showcase panel (A and B only)
+still shows the right items with the right tiers; it was rendered before B's seal turned from amber to light green.
+The old C (*exploratory*) is now C or D and the old D (*not usable*) is now E or F
+(`pinneapple_lab.curation.TIER_HISTORY`). The tier is never set by hand: it is recomputed from the run's stored
+checks by every `curate`, and the same runs give the same letters (a test re-curates the committed lab and compares).
+
+An E or F item's headline is its **main problem** and the **next step**: the failing check (by priority: divergence,
+physics, reference, unseen data, baseline, then the first failing check; "+N more" when several fail) or the crash's
+last error line, and `hint` / `hint_pt`, the action that would lift it one letter (F → E, E → D):
+
+| rule | letter | next step (EN) | next step (PT) |
+|---|---|---|---|
+| crashed | F | E: make the run finish without an error | E: fazer a execução terminar sem erro |
+| diverged | F | E: make the result finite and converged | E: tornar o resultado finito e convergido |
+| physics | F | E: make the physics check pass | E: fazer a verificação física passar |
+| contradicts | F | E: agree with the reference, or pass an independent physics check | E: concordar com a referência ou passar numa verificação física independente |
+| reference | E | D: bring the error vs the reference within its tolerance | D: trazer o erro face à referência para dentro da tolerância |
+| generalization | E | D: pass on the unseen inputs | D: passar nos dados não vistos |
+| baseline | E | D: beat the baseline | D: superar o baseline |
+| other | E | D: fix the failing check (or "the N failing checks") | D: corrigir a verificação que falha |
+
+`lab/CURATION.md` lists every E and F item with both.
+
+**Lab items per letter.** Measured by `python -m pinneapple_lab curate` over the committed lab runs
+(`lab/curation.json`, 2026-10-18); an item is an experiment, or one case of it when the experiment declares
+`case_param`.
+
+| letter | items | runs | items by their tier before the six-letter scale |
+|---|---|---|---|
+| A flagship | 19 | 19 | 19 from A |
+| B solid | 50 | 170 | 50 from B |
+| C plausible | 0 | 0 | none |
+| D exploratory | 6 | 7 | 6 from C |
+| E known problems | 1 | 1 | 1 from D |
+| F not usable | 5 | 11 | 5 from D |
+| total | 81 | 208 | |
+
+The E item is the benchmark arena import (a dataset-audit check fails: one effective sample pattern in 54). The F
+items are three getting-started example scripts that did not finish within the example runner's time limit
+(crashed) and two electromagnetic PINN cases whose every closed-form reference check fails (contradicts).
 
 An experiment takes the tier of its best run, one level lower when fewer than half of its runs are usable. The score
 (0-100) is the weighted mean of the dimensions that ran, shown with its coverage, like the Veriphysics trust score.
@@ -190,7 +233,7 @@ each from the run's own evidence:
 | Physical constraints | Are the equations and the boundary conditions respected? | `kind="physics"` checks (conservation, divergence, equilibrium) |
 | Benchmark | How does the result compare with a solver or reference data? | `kind="reference"` / `"baseline"` checks |
 | Uncertainty | Where may the prediction not be reliable? | uncertainty checks (answered); reported spread or declared limitations (partial) |
-| Engineering decision | Is the result adequate for the intended use? | tier A/B, readiness for a use, and the declared limitations |
+| Engineering decision | Is the result adequate for the intended use? | tier A/B, readiness for a use, and the declared limitations (failed at E and F) |
 
 The status of each stage is answered, partial, open or failed (a failing check).
 
@@ -203,27 +246,45 @@ catalogue's run sheet, in every report (HTML, Markdown, PDF) and as a table in `
 ### Quality seal
 
 `pinneapple_lab.seal` stamps an item's figures, renders and movies with a small PINNeAPPle badge: the pineapple
-mark, the wordmark, the tier letter in its colour (A green, B amber) and, optionally, the one-line evidence.
+mark, the wordmark, the tier letter on a disc in its colour, the tier line and, optionally, the one-line evidence.
+Every letter has a seal, so a figure always says where its result stands, not only when it is good.
 
-![Seals of a Tier A and a Tier B item, full and compact](../assets/showcase/seal_examples.png)
+![The six seals, A to F, on a light and a dark figure, with the compact form](../assets/seals/seal_legend_en.png)
+
+| letter | colour | EN | PT |
+|---|---|---|---|
+| A | green `#2FBF71` | INDEPENDENT REFERENCE | REFERÊNCIA INDEPENDENTE |
+| B | light green `#A6D96A` | REFERENCE PENDING | REFERÊNCIA PENDENTE |
+| C | yellow `#FFE066` | PARTLY CHECKED | VERIFICAÇÃO PARCIAL |
+| D | orange `#FDAE61` | EXPLORATORY · NOT VALIDATED | EXPLORATÓRIO · NÃO VALIDADO |
+| E | red `#F0603C` | KNOWN PROBLEMS | PROBLEMAS CONHECIDOS |
+| F | dark red `#A50026` | NOT USABLE | NÃO UTILIZÁVEL |
 
 * The tier is read from `lab/curation.json`; no argument sets it, and stamping again after `curate` picks up the
-  new tier. The evidence line is the item's curation **headline**: the first passing reference check (A), or for B
-  the first passing physics, baseline or unseen-data check, with the independent reference still missing.
-* Tiers C and D are not stamped at all (`SealError`): a badge on an unvalidated result would read as an endorsement
-  whatever it said.
-* Below 56 px tall the badge drops the small print (mark, wordmark, letter) so it stays legible.
+  new tier. The evidence line is the item's curation **headline**: the first passing reference check (✓, A), the
+  first passing physics, baseline or unseen-data check (◐, B), the verification check (◐, C), or for E and F the
+  failing check (✗).
+* **E and F always carry the main problem and the next step** (↑, from the curation), whatever `reason=` says, and
+  have no compact form: the badge is one line taller instead, and at least 56 px tall on a stamped figure.
+* Colour is never the only cue: the letter and the tier line are always printed. The badge carries its own dark
+  panel, so it reads the same on light and dark figures; on that panel the tier line and each letter on its disc
+  have a WCAG contrast ratio of at least 4.5 (`contrast_ratio`, checked by a test). F's outline and tier line use a
+  lighter red (`#FF8A80`) because dark red is too dark on the panel; its letter is white.
+* Below 56 px tall an A–D badge drops the small print (mark, wordmark, letter) so it stays legible.
+* `lang="pt"` writes the tier line, the reason (the display label's Portuguese form when the experiment gives one)
+  and the next step in Portuguese.
 
 ```python
 from pinneapple_lab.seal import seal_for, save_seal, stamp_figure, stamp_file, sealed_savefig
 
 s = seal_for("repo_results/prius_pmsm")             # tier and evidence from lab/curation.json
-save_seal(s, "seal.svg"); save_seal(s, "seal.png")
+save_seal(s, "seal.svg"); save_seal(s, "seal_pt.png", lang="pt")
 stamp_figure(fig, s)                                 # matplotlib: keeps off colour bars, picks the emptiest corner
 with sealed_savefig(s):                              # a savefig hook: every figure saved in the block is stamped
     fig.savefig("torque.png")
 stamp_file("render.jpg", s)                          # PNG / JPG / WebP -> render.sealed.jpg
 stamp_file("wake.gif", s, corner="tl", size=0.3, opacity=0.9)   # GIF frame by frame, MP4 by an ffmpeg overlay
+seal_for("repo_results/prius_pmsm", tiers="A,B")     # SealError unless the item is A or B
 ```
 
 `corner="auto"` (the default) scores each corner by the colour gradient and spread under the badge, so colour
@@ -233,11 +294,22 @@ free corner; then the badge goes in a strip added under it (`extend="auto"`) ins
 
 ![The Prius field stamped: no free corner, so the seal sits in a strip under the plot](../assets/showcase/seal_stamped_figure.jpg)
 
+Figures of Lab items at other letters, stamped by the commands below:
+
+| D: exploratory | E: known problems | F: not usable |
+|---|---|---|
+| ![D](../assets/seals/stamped_D.jpg) | ![E](../assets/seals/stamped_E.jpg) | ![F](../assets/seals/stamped_F.jpg) |
+
 ```bash
-python -m pinneapple_lab seal repo_results/prius_pmsm -o seal.svg
+python -m pinneapple_lab seal repo_results/prius_pmsm -o seal.svg --lang pt
 python -m pinneapple_lab stamp repo_results/prius_pmsm figure.png -o figure_sealed.png
-python -m pinneapple_lab stamp --all --out export/sealed       # every figure of every A and B item, + manifest.json
+python -m pinneapple_lab stamp --all --out export/sealed                    # every figure of every item, A to F
+python -m pinneapple_lab stamp --all --tiers A,B --out export/validated     # validated items only, for posts
+python -m pinneapple_lab legend --lang pt -o seal_legend_pt.png             # the six seals
 ```
+
+`--tiers` (also `--tier`) filters, it never changes a letter: `stamp ITEM FILE --tiers A,B` on a D item writes
+nothing and exits with status 2. Every `stamp --all` writes `manifest.json` (item, tier, reason, next step, files).
 
 ### Showcase panel
 
@@ -249,7 +321,7 @@ of the tiles it used.
 ![Showcase panel, English](../assets/showcase/showcase_en.png)
 
 * Tiles come from the curation: Tier A first (hero and grid), then the strongest B. `picks=[(item, figure)]`
-  overrides the order and the figure; an item still lands where its tier puts it, and a C or D item is never shown.
+  overrides the order and the figure; an item still lands where its tier puts it, and a C to F item is never shown.
 * Every tile's green "✓" or amber "◐" line is the item's curation headline: the display label its experiment gives
   the check (`Experiment.check_labels`, English and Portuguese, a short form for small tiles), used only when every
   check the line names passed, else the check's own line. Lines are fitted to one row by a smaller font or by dropping

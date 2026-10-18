@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-18 16:42 UTC",
+ "generated": "2026-10-18 21:01 UTC",
  "experiments": {
   "accretion_flow": {
    "tier": "B",
@@ -11,7 +11,9 @@
     "A": 0,
     "B": 6,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -218,7 +220,9 @@
     "A": 8,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -404,7 +408,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -607,7 +613,9 @@
     "A": 0,
     "B": 7,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -819,7 +827,9 @@
     "A": 0,
     "B": 6,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -1023,7 +1033,9 @@
     "A": 0,
     "B": 3,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -1237,7 +1249,9 @@
     "A": 2,
     "B": 3,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -1425,7 +1439,9 @@
     "A": 0,
     "B": 40,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -1613,8 +1629,10 @@
    "tier_counts": {
     "A": 0,
     "B": 6,
-    "C": 1,
-    "D": 2
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 2
    },
    "usable_fraction": 0.67,
    "readiness": {
@@ -1820,7 +1838,9 @@
     "A": 0,
     "B": 2,
     "C": 0,
-    "D": 2
+    "D": 0,
+    "E": 0,
+    "F": 2
    },
    "usable_fraction": 0.5,
    "readiness": {
@@ -2032,7 +2052,7 @@
    "story": ""
   },
   "example_script": {
-   "tier": "C",
+   "tier": "D",
    "tier_name": "exploratory",
    "best_run": "example_script-5a77c5897b1d",
    "best_score": 86.2,
@@ -2040,8 +2060,10 @@
    "tier_counts": {
     "A": 0,
     "B": 0,
-    "C": 5,
-    "D": 3
+    "C": 0,
+    "D": 5,
+    "E": 0,
+    "F": 3
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -2137,7 +2159,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -2163,7 +2185,7 @@
        "product",
        "paper",
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -2172,7 +2194,7 @@
       "effort": "S",
       "unlocks": [
        "paper",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -2190,7 +2212,7 @@
       "effort": "S",
       "unlocks": [
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -2250,7 +2272,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "B"
+    "next_tier": "C"
    },
    "description": "Runs an example or use case of the repository and stores what it produced: figures, JSON outputs and their numbers as metrics, arrays as the 'artifacts' dataset, the console output and the code. The catalogue of these runs is also the health report of the examples.",
    "story": ""
@@ -2265,7 +2287,9 @@
     "A": 0,
     "B": 8,
     "C": 0,
-    "D": 4
+    "D": 0,
+    "E": 0,
+    "F": 4
    },
    "usable_fraction": 0.67,
    "readiness": {
@@ -2469,7 +2493,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -2679,7 +2705,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -2883,7 +2911,9 @@
     "A": 0,
     "B": 60,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -3086,7 +3116,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -3288,7 +3320,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -3477,7 +3511,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -3669,7 +3705,9 @@
     "A": 2,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -3849,8 +3887,10 @@
    "tier_counts": {
     "A": 3,
     "B": 20,
-    "C": 1,
-    "D": 1
+    "C": 0,
+    "D": 1,
+    "E": 1,
+    "F": 0
    },
    "usable_fraction": 0.92,
    "readiness": {
@@ -4030,7 +4070,9 @@
     "A": 0,
     "B": 2,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -4216,7 +4258,9 @@
     "A": 3,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -4397,7 +4441,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -4592,7 +4638,9 @@
     "A": 0,
     "B": 6,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -4802,7 +4850,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -4991,7 +5041,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -5180,7 +5232,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -5369,7 +5423,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -5558,7 +5614,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -5747,7 +5805,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -5936,7 +5996,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -6125,7 +6187,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -6314,7 +6378,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -6520,7 +6586,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -6731,7 +6799,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -6940,7 +7010,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -7149,7 +7221,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -7345,7 +7419,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -7568,7 +7644,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -7768,7 +7846,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -7979,7 +8059,9 @@
     "A": 0,
     "B": 6,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -8186,7 +8268,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -8403,7 +8487,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -8620,7 +8706,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -8837,7 +8925,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -9046,7 +9136,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -9253,7 +9345,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -9460,7 +9554,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -9653,7 +9749,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -9850,7 +9948,9 @@
     "A": 0,
     "B": 40,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -10041,8 +10141,10 @@
    "tier_counts": {
     "A": 0,
     "B": 6,
-    "C": 1,
-    "D": 2
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 2
    },
    "usable_fraction": 0.67,
    "readiness": {
@@ -10242,7 +10344,7 @@
    "title": "cylinder_lbm"
   },
   "em_pinn/em_tm_cavity": {
-   "tier": "D",
+   "tier": "F",
    "tier_name": "not usable",
    "best_run": "em_pinn-d750874a636b",
    "best_score": 44.8,
@@ -10251,7 +10353,9 @@
     "A": 0,
     "B": 0,
     "C": 0,
-    "D": 1
+    "D": 0,
+    "E": 0,
+    "F": 1
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -10353,16 +10457,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "Ez vs closed form (+2 more)",
+    "text_pt": "Ez vs closed form (+2 more)",
+    "check": "rel_l2_Ez_vs_closed_form",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "plan": {
     "limitations": [
@@ -10380,7 +10489,7 @@
        "paper",
        "marketing",
        "training_data",
-       "tier C"
+       "tier E"
       ]
      },
      {
@@ -10489,7 +10598,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "C"
+    "next_tier": "E"
    },
    "experiment": "em_pinn",
    "case": "em_tm_cavity",
@@ -10498,7 +10607,7 @@
    "title": "em tm cavity"
   },
   "em_pinn/em_two_dielectric_capacitor": {
-   "tier": "D",
+   "tier": "F",
    "tier_name": "not usable",
    "best_run": "em_pinn-276d8c0f9edf",
    "best_score": 51.0,
@@ -10507,7 +10616,9 @@
     "A": 0,
     "B": 0,
     "C": 0,
-    "D": 1
+    "D": 0,
+    "E": 0,
+    "F": 1
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -10607,16 +10718,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "phi vs closed form",
+    "text_pt": "phi vs closed form",
+    "check": "rel_l2_phi_vs_closed_form",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "plan": {
     "limitations": [
@@ -10634,7 +10750,7 @@
        "paper",
        "marketing",
        "training_data",
-       "tier C"
+       "tier E"
       ]
      },
      {
@@ -10743,7 +10859,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "C"
+    "next_tier": "E"
    },
    "experiment": "em_pinn",
    "case": "em_two_dielectric_capacitor",
@@ -10761,7 +10877,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -10984,7 +11102,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -11197,7 +11317,7 @@
    "title": "em wire az"
   },
   "example_script/examples/getting_started/01_harmonic_oscillator.py": {
-   "tier": "C",
+   "tier": "D",
    "tier_name": "exploratory",
    "best_run": "example_script-5a77c5897b1d",
    "best_score": 86.2,
@@ -11205,8 +11325,10 @@
    "tier_counts": {
     "A": 0,
     "B": 0,
-    "C": 1,
-    "D": 0
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -11302,7 +11424,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -11327,7 +11449,7 @@
        "product",
        "paper",
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -11336,7 +11458,7 @@
       "effort": "S",
       "unlocks": [
        "paper",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -11354,7 +11476,7 @@
       "effort": "S",
       "unlocks": [
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -11414,7 +11536,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "B"
+    "next_tier": "C"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/01_harmonic_oscillator.py",
@@ -11423,7 +11545,7 @@
    "title": "01 harmonic oscillator"
   },
   "example_script/examples/getting_started/02_damped_oscillator.py": {
-   "tier": "C",
+   "tier": "D",
    "tier_name": "exploratory",
    "best_run": "example_script-0ba6838478e4",
    "best_score": 86.2,
@@ -11431,8 +11553,10 @@
    "tier_counts": {
     "A": 0,
     "B": 0,
-    "C": 1,
-    "D": 0
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -11528,7 +11652,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -11553,7 +11677,7 @@
        "product",
        "paper",
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -11562,7 +11686,7 @@
       "effort": "S",
       "unlocks": [
        "paper",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -11580,7 +11704,7 @@
       "effort": "S",
       "unlocks": [
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -11640,7 +11764,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "B"
+    "next_tier": "C"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/02_damped_oscillator.py",
@@ -11649,7 +11773,7 @@
    "title": "02 damped oscillator"
   },
   "example_script/examples/getting_started/03_heat_diffusion_1d.py": {
-   "tier": "D",
+   "tier": "F",
    "tier_name": "not usable",
    "best_run": "example_script-f151824795db",
    "best_score": 59.3,
@@ -11658,7 +11782,9 @@
     "A": 0,
     "B": 0,
     "C": 0,
-    "D": 1
+    "D": 0,
+    "E": 0,
+    "F": 1
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -11757,16 +11883,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
+    "kind": "failing",
+    "text": "crashed \u00b7 TimeoutError: 03_heat_diffusion_1d.py did not finish in 600.0 s",
+    "text_pt": "falhou \u00b7 TimeoutError: 03_heat_diffusion_1d.py did not finish in 600.0 s",
     "check": "",
-    "missing": "a passing check"
+    "rule": "crashed",
+    "next_tier": "E",
+    "hint": "E: make the run finish without an error",
+    "hint_pt": "E: fazer a execu\u00e7\u00e3o terminar sem erro",
+    "missing": "E: make the run finish without an error"
    },
    "plan": {
     "limitations": [
@@ -11784,7 +11915,7 @@
        "paper",
        "marketing",
        "training_data",
-       "tier C"
+       "tier E"
       ]
      },
      {
@@ -11884,7 +12015,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "C"
+    "next_tier": "E"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/03_heat_diffusion_1d.py",
@@ -11893,7 +12024,7 @@
    "title": "03 heat diffusion 1d"
   },
   "example_script/examples/getting_started/04_wave_equation_1d.py": {
-   "tier": "D",
+   "tier": "F",
    "tier_name": "not usable",
    "best_run": "example_script-511688b89ce8",
    "best_score": 53.8,
@@ -11902,7 +12033,9 @@
     "A": 0,
     "B": 0,
     "C": 0,
-    "D": 1
+    "D": 0,
+    "E": 0,
+    "F": 1
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -12002,16 +12135,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
+    "kind": "failing",
+    "text": "crashed \u00b7 TimeoutError: 04_wave_equation_1d.py did not finish in 600.0 s",
+    "text_pt": "falhou \u00b7 TimeoutError: 04_wave_equation_1d.py did not finish in 600.0 s",
     "check": "",
-    "missing": "a passing check"
+    "rule": "crashed",
+    "next_tier": "E",
+    "hint": "E: make the run finish without an error",
+    "hint_pt": "E: fazer a execu\u00e7\u00e3o terminar sem erro",
+    "missing": "E: make the run finish without an error"
    },
    "plan": {
     "limitations": [
@@ -12028,7 +12166,7 @@
        "paper",
        "marketing",
        "training_data",
-       "tier C"
+       "tier E"
       ]
      },
      {
@@ -12137,7 +12275,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "C"
+    "next_tier": "E"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/04_wave_equation_1d.py",
@@ -12146,7 +12284,7 @@
    "title": "04 wave equation 1d"
   },
   "example_script/examples/getting_started/05_logistic_growth.py": {
-   "tier": "C",
+   "tier": "D",
    "tier_name": "exploratory",
    "best_run": "example_script-57ffa2145319",
    "best_score": 86.2,
@@ -12154,8 +12292,10 @@
    "tier_counts": {
     "A": 0,
     "B": 0,
-    "C": 1,
-    "D": 0
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -12251,7 +12391,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -12276,7 +12416,7 @@
        "product",
        "paper",
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12285,7 +12425,7 @@
       "effort": "S",
       "unlocks": [
        "paper",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12303,7 +12443,7 @@
       "effort": "S",
       "unlocks": [
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12363,7 +12503,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "B"
+    "next_tier": "C"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/05_logistic_growth.py",
@@ -12372,7 +12512,7 @@
    "title": "05 logistic growth"
   },
   "example_script/examples/getting_started/06_lotka_volterra.py": {
-   "tier": "C",
+   "tier": "D",
    "tier_name": "exploratory",
    "best_run": "example_script-2ab998651866",
    "best_score": 84.7,
@@ -12380,8 +12520,10 @@
    "tier_counts": {
     "A": 0,
     "B": 0,
-    "C": 1,
-    "D": 0
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -12478,7 +12620,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -12502,7 +12644,7 @@
        "product",
        "paper",
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12511,7 +12653,7 @@
       "effort": "S",
       "unlocks": [
        "paper",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12529,7 +12671,7 @@
       "effort": "S",
       "unlocks": [
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12598,7 +12740,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "B"
+    "next_tier": "C"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/06_lotka_volterra.py",
@@ -12607,7 +12749,7 @@
    "title": "06 lotka volterra"
   },
   "example_script/examples/getting_started/07_nonlinear_pendulum.py": {
-   "tier": "C",
+   "tier": "D",
    "tier_name": "exploratory",
    "best_run": "example_script-3c41e93eed63",
    "best_score": 86.2,
@@ -12615,8 +12757,10 @@
    "tier_counts": {
     "A": 0,
     "B": 0,
-    "C": 1,
-    "D": 0
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -12712,7 +12856,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -12737,7 +12881,7 @@
        "product",
        "paper",
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12746,7 +12890,7 @@
       "effort": "S",
       "unlocks": [
        "paper",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12764,7 +12908,7 @@
       "effort": "S",
       "unlocks": [
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -12824,7 +12968,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "B"
+    "next_tier": "C"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/07_nonlinear_pendulum.py",
@@ -12833,7 +12977,7 @@
    "title": "07 nonlinear pendulum"
   },
   "example_script/examples/getting_started/08_van_der_pol.py": {
-   "tier": "D",
+   "tier": "F",
    "tier_name": "not usable",
    "best_run": "example_script-3bdda3a8019a",
    "best_score": 59.3,
@@ -12842,7 +12986,9 @@
     "A": 0,
     "B": 0,
     "C": 0,
-    "D": 1
+    "D": 0,
+    "E": 0,
+    "F": 1
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -12941,16 +13087,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
+    "kind": "failing",
+    "text": "crashed \u00b7 TimeoutError: 08_van_der_pol.py did not finish in 600.0 s",
+    "text_pt": "falhou \u00b7 TimeoutError: 08_van_der_pol.py did not finish in 600.0 s",
     "check": "",
-    "missing": "a passing check"
+    "rule": "crashed",
+    "next_tier": "E",
+    "hint": "E: make the run finish without an error",
+    "hint_pt": "E: fazer a execu\u00e7\u00e3o terminar sem erro",
+    "missing": "E: make the run finish without an error"
    },
    "plan": {
     "limitations": [
@@ -12968,7 +13119,7 @@
        "paper",
        "marketing",
        "training_data",
-       "tier C"
+       "tier E"
       ]
      },
      {
@@ -13068,7 +13219,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "C"
+    "next_tier": "E"
    },
    "experiment": "example_script",
    "case": "examples/getting_started/08_van_der_pol.py",
@@ -13086,7 +13237,9 @@
     "A": 0,
     "B": 8,
     "C": 0,
-    "D": 4
+    "D": 0,
+    "E": 0,
+    "F": 4
    },
    "usable_fraction": 0.67,
    "readiness": {
@@ -13293,7 +13446,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -13506,7 +13661,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -13713,7 +13870,9 @@
     "A": 0,
     "B": 60,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -13919,7 +14078,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -14124,7 +14285,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -14316,7 +14479,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -14511,7 +14676,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -14699,7 +14866,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -14883,7 +15052,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -15083,7 +15254,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -15288,7 +15461,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -15498,7 +15673,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -15707,7 +15884,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -15914,7 +16093,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -16113,7 +16294,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -16302,7 +16485,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -16513,7 +16698,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -16710,7 +16897,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -16909,7 +17098,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -17103,7 +17294,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -17299,7 +17492,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -17527,7 +17722,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -17753,7 +17950,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -17979,7 +18178,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -18181,7 +18382,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -18405,7 +18608,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -18619,7 +18824,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -18833,7 +19040,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -19022,7 +19231,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -19235,7 +19446,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -19442,7 +19655,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -19665,7 +19880,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -19878,8 +20095,8 @@
    "title": "free surface trough"
   },
   "repo_results/benchmark_arena": {
-   "tier": "D",
-   "tier_name": "not usable",
+   "tier": "E",
+   "tier_name": "known problems",
    "best_run": "repo_results-835ff767e739",
    "best_score": 77.8,
    "runs": 1,
@@ -19887,7 +20104,9 @@
     "A": 0,
     "B": 0,
     "C": 0,
-    "D": 1
+    "D": 0,
+    "E": 1,
+    "F": 0
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -19985,16 +20204,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier E (known problems)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "benchmark",
-    "text": "best method beats fdm baseline \u00b7 mlp relative L2 against the\u2026",
-    "check": "best_method_beats_fdm_baseline",
-    "missing": "independent reference"
+    "kind": "failing",
+    "text": "dataset audit diversity.effective \u00b7 effective sample\u2026",
+    "text_pt": "dataset audit diversity.effective \u00b7 effective sample\u2026",
+    "check": "dataset_audit_diversity.effective",
+    "rule": "other",
+    "next_tier": "D",
+    "hint": "D: fix the failing check",
+    "hint_pt": "D: corrigir a verifica\u00e7\u00e3o que falha",
+    "missing": "D: fix the failing check"
    },
    "plan": {
     "limitations": [
@@ -20012,7 +20236,7 @@
        "paper",
        "marketing",
        "training_data",
-       "tier C"
+       "tier D"
       ]
      },
      {
@@ -20110,7 +20334,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "C"
+    "next_tier": "D"
    },
    "experiment": "repo_results",
    "case": "benchmark_arena",
@@ -20119,7 +20343,7 @@
    "title": "benchmark arena"
   },
   "repo_results/weather_era5": {
-   "tier": "C",
+   "tier": "D",
    "tier_name": "exploratory",
    "best_run": "repo_results-4cb729015e4a",
    "best_score": 77.0,
@@ -20127,8 +20351,10 @@
    "tier_counts": {
     "A": 0,
     "B": 0,
-    "C": 1,
-    "D": 0
+    "C": 0,
+    "D": 1,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 0.0,
    "readiness": {
@@ -20226,7 +20452,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -20251,7 +20477,7 @@
        "product",
        "paper",
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -20260,7 +20486,7 @@
       "effort": "S",
       "unlocks": [
        "paper",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -20278,7 +20504,7 @@
       "effort": "S",
       "unlocks": [
        "marketing",
-       "tier B"
+       "tier C"
       ]
      },
      {
@@ -20356,7 +20582,7 @@
      }
     },
     "closest_use": "training_data",
-    "next_tier": "B"
+    "next_tier": "C"
    },
    "experiment": "repo_results",
    "case": "weather_era5",
@@ -20374,7 +20600,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -20578,7 +20806,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -20770,7 +21000,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -20957,7 +21189,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -21144,7 +21378,9 @@
     "A": 1,
     "B": 0,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -21329,7 +21565,9 @@
     "A": 0,
     "B": 1,
     "C": 0,
-    "D": 0
+    "D": 0,
+    "E": 0,
+    "F": 0
    },
    "usable_fraction": 1.0,
    "readiness": {
@@ -37847,7 +38085,7 @@
    "run_id": "cylinder_lbm-de04dbbd3e8c",
    "experiment": "cylinder_lbm",
    "status": "completed",
-   "tier": "C",
+   "tier": "D",
    "score": 81.9,
    "coverage": 0.5,
    "dimensions": {
@@ -38045,7 +38283,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)",
+      "tier D (exploratory)",
       "ready for training_data"
      ],
      "next": "generalization evidence"
@@ -38915,7 +39153,7 @@
    "run_id": "cylinder_lbm-e3321156b9d5",
    "experiment": "cylinder_lbm",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 51.9,
    "coverage": 0.5,
    "dimensions": {
@@ -39118,16 +39356,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "finite fields",
+    "text_pt": "finite fields",
+    "check": "finite_fields",
+    "rule": "diverged",
+    "next_tier": "E",
+    "hint": "E: make the result finite and converged",
+    "hint_pt": "E: tornar o resultado finito e convergido",
+    "missing": "E: make the result finite and converged"
    },
    "tier_name": "not usable"
   },
@@ -39135,7 +39378,7 @@
    "run_id": "cylinder_lbm-b20bedf5d841",
    "experiment": "cylinder_lbm",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 51.9,
    "coverage": 0.5,
    "dimensions": {
@@ -39338,16 +39581,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "finite fields",
+    "text_pt": "finite fields",
+    "check": "finite_fields",
+    "rule": "diverged",
+    "next_tier": "E",
+    "hint": "E: make the result finite and converged",
+    "hint_pt": "E: tornar o resultado finito e convergido",
+    "missing": "E: make the result finite and converged"
    },
    "tier_name": "not usable"
   },
@@ -39781,7 +40029,7 @@
    "run_id": "em_pinn-d750874a636b",
    "experiment": "em_pinn",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 44.8,
    "coverage": 0.6,
    "dimensions": {
@@ -39990,16 +40238,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "Ez vs closed form (+2 more)",
+    "text_pt": "Ez vs closed form (+2 more)",
+    "check": "rel_l2_Ez_vs_closed_form",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "tier_name": "not usable"
   },
@@ -40007,7 +40260,7 @@
    "run_id": "em_pinn-276d8c0f9edf",
    "experiment": "em_pinn",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 51.0,
    "coverage": 0.6,
    "dimensions": {
@@ -40212,16 +40465,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "phi vs closed form",
+    "text_pt": "phi vs closed form",
+    "check": "rel_l2_phi_vs_closed_form",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "tier_name": "not usable"
   },
@@ -40667,7 +40925,7 @@
    "run_id": "example_script-5a77c5897b1d",
    "experiment": "example_script",
    "status": "completed",
-   "tier": "C",
+   "tier": "D",
    "score": 86.2,
    "coverage": 0.5,
    "dimensions": {
@@ -40867,7 +41125,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -40884,7 +41142,7 @@
    "run_id": "example_script-0ba6838478e4",
    "experiment": "example_script",
    "status": "completed",
-   "tier": "C",
+   "tier": "D",
    "score": 86.2,
    "coverage": 0.5,
    "dimensions": {
@@ -41084,7 +41342,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -41101,7 +41359,7 @@
    "run_id": "example_script-f151824795db",
    "experiment": "example_script",
    "status": "failed",
-   "tier": "D",
+   "tier": "F",
    "score": 59.3,
    "coverage": 0.42,
    "dimensions": {
@@ -41304,16 +41562,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
+    "kind": "failing",
+    "text": "crashed \u00b7 TimeoutError: 03_heat_diffusion_1d.py did not finish in 600.0 s",
+    "text_pt": "falhou \u00b7 TimeoutError: 03_heat_diffusion_1d.py did not finish in 600.0 s",
     "check": "",
-    "missing": "a passing check"
+    "rule": "crashed",
+    "next_tier": "E",
+    "hint": "E: make the run finish without an error",
+    "hint_pt": "E: fazer a execu\u00e7\u00e3o terminar sem erro",
+    "missing": "E: make the run finish without an error"
    },
    "tier_name": "not usable"
   },
@@ -41321,7 +41584,7 @@
    "run_id": "example_script-511688b89ce8",
    "experiment": "example_script",
    "status": "failed",
-   "tier": "D",
+   "tier": "F",
    "score": 53.8,
    "coverage": 0.37,
    "dimensions": {
@@ -41525,16 +41788,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
+    "kind": "failing",
+    "text": "crashed \u00b7 TimeoutError: 04_wave_equation_1d.py did not finish in 600.0 s",
+    "text_pt": "falhou \u00b7 TimeoutError: 04_wave_equation_1d.py did not finish in 600.0 s",
     "check": "",
-    "missing": "a passing check"
+    "rule": "crashed",
+    "next_tier": "E",
+    "hint": "E: make the run finish without an error",
+    "hint_pt": "E: fazer a execu\u00e7\u00e3o terminar sem erro",
+    "missing": "E: make the run finish without an error"
    },
    "tier_name": "not usable"
   },
@@ -41542,7 +41810,7 @@
    "run_id": "example_script-57ffa2145319",
    "experiment": "example_script",
    "status": "completed",
-   "tier": "C",
+   "tier": "D",
    "score": 86.2,
    "coverage": 0.5,
    "dimensions": {
@@ -41743,7 +42011,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -41760,7 +42028,7 @@
    "run_id": "example_script-2ab998651866",
    "experiment": "example_script",
    "status": "completed",
-   "tier": "C",
+   "tier": "D",
    "score": 84.7,
    "coverage": 0.45,
    "dimensions": {
@@ -41962,7 +42230,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -41979,7 +42247,7 @@
    "run_id": "example_script-3c41e93eed63",
    "experiment": "example_script",
    "status": "completed",
-   "tier": "C",
+   "tier": "D",
    "score": 86.2,
    "coverage": 0.5,
    "dimensions": {
@@ -42180,7 +42448,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }
@@ -42197,7 +42465,7 @@
    "run_id": "example_script-3bdda3a8019a",
    "experiment": "example_script",
    "status": "failed",
-   "tier": "D",
+   "tier": "F",
    "score": 59.3,
    "coverage": 0.42,
    "dimensions": {
@@ -42401,16 +42669,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
+    "kind": "failing",
+    "text": "crashed \u00b7 TimeoutError: 08_van_der_pol.py did not finish in 600.0 s",
+    "text_pt": "falhou \u00b7 TimeoutError: 08_van_der_pol.py did not finish in 600.0 s",
     "check": "",
-    "missing": "a passing check"
+    "rule": "crashed",
+    "next_tier": "E",
+    "hint": "E: make the run finish without an error",
+    "hint_pt": "E: fazer a execu\u00e7\u00e3o terminar sem erro",
+    "missing": "E: make the run finish without an error"
    },
    "tier_name": "not usable"
   },
@@ -43266,7 +43539,7 @@
    "run_id": "heat_xtfc-7eef4ced7058",
    "experiment": "heat_xtfc",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 37.5,
    "coverage": 0.65,
    "dimensions": {
@@ -43468,16 +43741,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "rel l2 below 1e-3",
+    "text_pt": "rel l2 below 1e-3",
+    "check": "rel_l2_below_1e-3",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "tier_name": "not usable"
   },
@@ -44121,7 +44399,7 @@
    "run_id": "heat_xtfc-c7a9f86bbfb0",
    "experiment": "heat_xtfc",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 37.5,
    "coverage": 0.65,
    "dimensions": {
@@ -44323,16 +44601,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "rel l2 below 1e-3",
+    "text_pt": "rel l2 below 1e-3",
+    "check": "rel_l2_below_1e-3",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "tier_name": "not usable"
   },
@@ -44340,7 +44623,7 @@
    "run_id": "heat_xtfc-71e21e11957e",
    "experiment": "heat_xtfc",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 37.5,
    "coverage": 0.65,
    "dimensions": {
@@ -44542,16 +44825,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "rel l2 below 1e-3",
+    "text_pt": "rel l2 below 1e-3",
+    "check": "rel_l2_below_1e-3",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "tier_name": "not usable"
   },
@@ -44559,7 +44847,7 @@
    "run_id": "heat_xtfc-4ae0ba0dabeb",
    "experiment": "heat_xtfc",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "F",
    "score": 37.5,
    "coverage": 0.65,
    "dimensions": {
@@ -44761,16 +45049,21 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier F (not usable)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "",
-    "text": "",
-    "check": "",
-    "missing": "a passing check"
+    "kind": "failing",
+    "text": "rel l2 below 1e-3",
+    "text_pt": "rel l2 below 1e-3",
+    "check": "rel_l2_below_1e-3",
+    "rule": "contradicts",
+    "next_tier": "E",
+    "hint": "E: agree with the reference, or pass an independent physics check",
+    "hint_pt": "E: concordar com a refer\u00eancia ou passar numa verifica\u00e7\u00e3o f\u00edsica independente",
+    "missing": "E: agree with the reference, or pass an independent physics check"
    },
    "tier_name": "not usable"
   },
@@ -64548,7 +64841,7 @@
    "run_id": "repo_results-835ff767e739",
    "experiment": "repo_results",
    "status": "failed_validation",
-   "tier": "D",
+   "tier": "E",
    "score": 77.8,
    "coverage": 0.65,
    "dimensions": {
@@ -64750,24 +65043,29 @@
      "question": "Is the result adequate for the intended use?",
      "status": "failed",
      "evidence": [
-      "tier D (not usable)"
+      "tier E (known problems)"
      ],
      "next": "not usable until it validates"
     }
    },
    "headline": {
-    "kind": "benchmark",
-    "text": "best method beats fdm baseline \u00b7 mlp relative L2 against the\u2026",
-    "check": "best_method_beats_fdm_baseline",
-    "missing": "independent reference"
+    "kind": "failing",
+    "text": "dataset audit diversity.effective \u00b7 effective sample\u2026",
+    "text_pt": "dataset audit diversity.effective \u00b7 effective sample\u2026",
+    "check": "dataset_audit_diversity.effective",
+    "rule": "other",
+    "next_tier": "D",
+    "hint": "D: fix the failing check",
+    "hint_pt": "D: corrigir a verifica\u00e7\u00e3o que falha",
+    "missing": "D: fix the failing check"
    },
-   "tier_name": "not usable"
+   "tier_name": "known problems"
   },
   "repo_results-4cb729015e4a": {
    "run_id": "repo_results-4cb729015e4a",
    "experiment": "repo_results",
    "status": "completed",
-   "tier": "C",
+   "tier": "D",
    "score": 77.0,
    "coverage": 0.3,
    "dimensions": {
@@ -64969,7 +65267,7 @@
      "question": "Is the result adequate for the intended use?",
      "status": "open",
      "evidence": [
-      "tier C (exploratory)"
+      "tier D (exploratory)"
      ],
      "next": "generalization evidence"
     }

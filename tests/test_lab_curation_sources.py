@@ -53,7 +53,7 @@ def test_second_code_verification_never_lifts_a_tier(tmp_path):
     weak = out["experiments"]["_test_second_code_only"]
     assert weak["tier"] == "C"                                 # agreeing with a code that shares the inputs is not B
     assert weak["stages"]["model"]["status"] == "answered"     # ... but it does verify the solver
-    assert weak["headline"]["text"] == ""
+    assert weak["headline"]["kind"] == "verification"          # printed as what it is, never as a reference
     good = out["items"]["_test_referenced"]
     assert good["headline"] == {"kind": "reference", "text": "deflection vs Timoshenko",
                                 "check": "deflection_vs_beam_theory", "missing": "flagship gates (see gaps)",

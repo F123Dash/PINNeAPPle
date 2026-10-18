@@ -38,6 +38,19 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
 
 ### Added
+- Lab quality seals for every tier, A to F (`pinneapple_lab.curation`, `pinneapple_lab.seal`). The curation now
+  grades on six letters: A flagship and B solid unchanged, C plausible (every check passes, the trust card's model,
+  physics or benchmark stage answered, B gates not met), D exploratory (consistent, not validated), E known problems
+  (a failing check: large error vs a reference, unseen inputs, a baseline) and F not usable (crashed, diverged, a
+  failing physics check, or every reference check failing with nothing else independent passing). The old C maps
+  to C/D, the old D to E/F (`TIER_HISTORY`). E and F items record the main failing check and the next step to the
+  letter above in EN and PT (`headline["hint"]`, `hint_pt`), and their seals always print both (no compact form).
+  Six colours from green to dark red, each letter and tier line at WCAG contrast >= 4.5 on the badge (tested);
+  `lang="pt"` on `render_seal`, `stamp_figure`, `stamp_file`, `stamp_all`, `sealed_savefig`; `tiers=` /
+  `--tiers A,B` to keep a selection to validated items (default: every tier); `python -m pinneapple_lab legend`.
+  Reports, `lab/CURATION.md` and the catalogue show the six tiers and, for E and F, the problem and the next step.
+  Migration: the committed lab re-curated (19 A, 50 B, 0 C, 6 D, 1 E, 5 F items; A and B items and headlines
+  identical); legend and stamped examples in `docs/assets/seals/`; guide in `docs/core_concepts/lab.md`.
 - Flight dynamics, `pinneapple_simulation.flight`: a 6-DOF rigid aircraft (body axes, quaternion attitude) whose
   wing and tail loads come from the vortex lattice of `pinneapple_design.aero.vlm` solved every step with the local
   velocity at each panel (rates, gusts that differ along the span), plus fin and fuselage build-up, engines
