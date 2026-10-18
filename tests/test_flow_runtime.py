@@ -131,3 +131,24 @@ def test_surrogate_and_hpo_nodes_on_a_small_sweep(home):
     assert r.report("sur")["views"]["architecture"]["total_params"] == m["n_parameters"]
     assert r.report("hpo")["metrics"]["trials"] == 2
     assert "S1_alpha" in r.report("sobol")["metrics"]
+
+
+@pytest.mark.parametrize("dim", [2, 3])
+def test_trust_card_with_a_source_and_boundary_dirichlet(home, dim):
+    """Poisson with a source term and ``u = 0`` on the whole boundary: the trust card evaluates both (a regression:
+    the source closure was rebound to a face name)."""
+    lap = {2: "-2*pi**2*sin(pi*x)*sin(pi*y)", 3: "-3*pi**2*sin(pi*x)*sin(pi*y)*sin(pi*z)"}[dim]
+    exact = {2: "sin(pi*x)*sin(pi*y)", 3: "sin(pi*x)*sin(pi*y)*sin(pi*z)"}[dim]
+    f = pf.Flow("poisson", nodes=[
+        {"id": "geo", "type": "geometry.domain", "params": {"dimension": dim, "time_dependent": False}},
+        {"id": "eq", "type": "equations.system", "params": {
+            "fields": ["u"], "pdes": [f"lap(u) = {lap}"], "exact": exact,
+            "conditions": [{"kind": "dirichlet", "on": "boundary", "equation": "u = 0"}]}},
+        {"id": "fd", "type": "solver.classical", "params": {"method": "fd", "n": 17 if dim == 2 else 9}},
+        {"id": "val", "type": "validate.compare", "params": {"reference": "exact"}}], edges=[
+        {"source": "geo", "source_port": "geometry", "target": "eq", "target_port": "geometry"},
+        {"source": "eq", "source_port": "problem", "target": "fd", "target_port": "problem"},
+        {"source": "fd", "source_port": "solution", "target": "val", "target_port": "candidates"},
+        {"source": "eq", "source_port": "problem", "target": "val", "target_port": "problem"}])
+    r = pf.run(f, workdir=home / "runs")
+    assert r.status == "done", r.nodes["val"]["error"]

@@ -14,6 +14,13 @@ from ..registry import Param, Port, node
 from ._common import exact_function, grid_points, interpolate, load_solution, need_problem
 
 
+def _pointwise(fn, coords):
+    """A compiled expression as a function of points ``P[:, k]`` (one column per coordinate, in order)."""
+    def at(P):
+        return np.broadcast_to(np.asarray(fn({c: P[:, k] for k, c in enumerate(coords)}), float), (len(P),))
+    return at
+
+
 def _trust_card(problem, ref_sol, cand_vals, ref_vals):
     """``pp.trust_card`` on the candidate's grid for steady 2-D Laplace / Poisson (residual, conservation, boundary
     values) and the reference; None when the problem is outside what the card checks."""
@@ -38,7 +45,7 @@ def _trust_card(problem, ref_sol, cand_vals, ref_vals):
         if rest.has(u):
             return None
         f = compile_expr((-rest).xreplace({s: sp.Symbol(s.name) for s in rest.free_symbols}), "numpy")
-        kw["source"] = lambda P: np.broadcast_to(np.asarray(f({"x": P[:, 0], "y": P[:, 1]}), float), (len(P),))
+        kw["source"] = _pointwise(f, coords)
     from pinneapple_physics.symbolic_pde.text import compile_expr
 
     from ._common import system_of
@@ -50,9 +57,8 @@ def _trust_card(problem, ref_sol, cand_vals, ref_vals):
         import sympy as sp
         g = compile_expr(c.rhs.xreplace({s: sp.Symbol(s.name) for s in c.rhs.free_symbols}), "numpy")
         faces = [f"{a}_{e}" for a in coords for e in ("min", "max")] if c.on == "boundary" else [c.on]
-        for f in faces:
-            dirichlet[f] = (lambda P, g=g: np.broadcast_to(np.asarray(g({"x": P[:, 0], "y": P[:, 1]}), float),
-                                                           (len(P),)))
+        for face in faces:
+            dirichlet[face] = _pointwise(g, coords)
     if dirichlet:
         kw["dirichlet"] = dirichlet
     return pp.trust_card(grid, cand_vals, pde=fam, reference=ref_vals, name="field", is_ml=True, **kw)
