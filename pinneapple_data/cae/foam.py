@@ -6,11 +6,12 @@ the metadata extractor, here only the data lists are read.
 """
 from __future__ import annotations
 
-import gzip
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+
+from pinneapple_security.archives import gunzip
 
 from .model import Mesh, PolyMesh
 
@@ -23,7 +24,7 @@ _NAMED_UNITS = {(1, -1, -2, 0, 0, 0, 0): "Pa", (0, 2, -2, 0, 0, 0, 0): "m2/s2", 
 
 def _text(b: bytes) -> str:
     if b[:2] == b"\x1f\x8b":
-        b = gzip.decompress(b)
+        b = gunzip(b)   # capped: an uploaded .gz must not expand without limit
     return b.decode("latin-1")
 
 

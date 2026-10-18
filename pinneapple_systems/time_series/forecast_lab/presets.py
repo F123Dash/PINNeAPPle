@@ -245,7 +245,8 @@ def _fx(seed: int, cache_dir) -> Case:
     from ..datasets.public import load_usd_eur_daily, log_returns
     s = load_usd_eur_daily(cache_dir)
     r = 100 * log_returns(s.values)
-    data = SeriesData(r[:, None], 0, 1.0, "usd_eur_log_returns", meta={"start": s.time[1], "end": s.time[-1]})
+    data = SeriesData(r[:, None], 0, 1.0, "usd_eur_log_returns",
+                      meta={"start": s.time[1], "end": s.time[-1], "dates": list(s.time[1:])})
     H = [1, 2, 5, 10, 20]
     return Case(data.name, data, Protocol(H, min_history=32, test_stride=2), baseline_specs() + data_specs(),
                 {"kind": "real", "source": s.source, "units": "percent log-return per business day",
@@ -267,10 +268,31 @@ def _sunspots(seed: int, cache_dir) -> Case:
                  "last": s.time[-1]}, "Sunspots (yearly)")
 
 
+def _youtube(kind: str, cache_dir) -> Case:
+    """Daily aggregates of the US trending list (205 trending days, 2017-11-14 to 2018-06-14; 8 calendar days are
+    missing from the source and are skipped, so one step is one trending day)."""
+    import numpy as _np
+
+    from ..datasets.public import load_youtube_trending_us
+    y = load_youtube_trending_us(cache_dir)
+    if kind == "log_views":
+        v, name, title, units = _np.log10(y.total_views), "youtube_us_log_views", \
+            "YouTube US trending: log10 total daily views", "log10(sum of views of the trending entries)"
+    else:
+        v, name, title, units = y.category_counts[24].astype(float), "youtube_us_entertainment_slots", \
+            "YouTube US trending: Entertainment slots per day", "trending entries in category 24 (of ~200)"
+    data = SeriesData(v[:, None], 0, 1.0, name, meta={"dates": list(y.dates), "missing_days": y.missing_days()})
+    H = [1, 2, 3, 5, 7]
+    specs = baseline_specs() + data_specs(lags=(7, 14), seq_lags=14, max_train=None)
+    return Case(name, data, Protocol(H, min_history=16, test_stride=1, val_frac=0.2, fold_frac=0.2, n_folds=2),
+                specs, {"kind": "real", "source": y.source, "units": units, "first": y.dates[0],
+                        "last": y.dates[-1], "missing_days": y.missing_days()}, title)
+
+
 CASES = ["lorenz63_noise0.01", "lorenz63_noise0.1", "lorenz63_noise0.3", "mackey_glass_noise0.01",
          "mackey_glass_noise0.1", "mackey_glass_noise0.3", "lorenz96_noise0.1", "ornstein_uhlenbeck",
          "stochastic_oscillator", "double_well", "white_noise", "random_walk", "usd_eur_log_returns",
-         "sunspots_yearly"]
+         "sunspots_yearly", "youtube_us_log_views", "youtube_us_entertainment_slots"]
 
 
 def case(name: str, *, n: int = 6000, seed: int = 0, cache_dir: str | None = None) -> Case:
@@ -284,7 +306,9 @@ def case(name: str, *, n: int = 6000, seed: int = 0, cache_dir: str | None = Non
     table = {"ornstein_uhlenbeck": lambda: _ou(n, seed), "stochastic_oscillator": lambda: _oscillator(n, seed),
              "double_well": lambda: _double_well(n, seed), "white_noise": lambda: _noise("white_noise", n, seed),
              "random_walk": lambda: _noise("random_walk", n, seed), "usd_eur_log_returns": lambda: _fx(seed, cache_dir),
-             "sunspots_yearly": lambda: _sunspots(seed, cache_dir)}
+             "sunspots_yearly": lambda: _sunspots(seed, cache_dir),
+             "youtube_us_log_views": lambda: _youtube("log_views", cache_dir),
+             "youtube_us_entertainment_slots": lambda: _youtube("entertainment", cache_dir)}
     if name not in table:
         raise KeyError(f"unknown case {name!r}; choose from {CASES}")
     return table[name]()
