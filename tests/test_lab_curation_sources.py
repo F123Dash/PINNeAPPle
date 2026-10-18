@@ -41,6 +41,7 @@ def test_headline_comes_from_passing_checks_only():
     h = headline(checks, "A")
     assert h["kind"] == "reference" and h["text"] == "drag vs wind tunnel · Ahmed 1984"
     assert check_line({"name": "x", "label": "drag vs Ahmed 1984"}) == "drag vs Ahmed 1984"
+    assert check_line({"name": "harmonic stack: closed form", "detail": "tolerance 1e-6"}) == "harmonic stack: closed form"
     assert headline([], "C")["text"] == ""
 
 

@@ -10,7 +10,7 @@
   "gif": true
  },
  "status": "completed",
- "started": 1792337565.096781,
+ "started": 1792339728.655801,
  "tags": [
   "design",
   "optimisation",
@@ -18,7 +18,7 @@
   "statics",
   "newton"
  ],
- "git": "3432db2e",
+ "git": "cc068a92",
  "environment": {
   "python": "3.13.16",
   "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
@@ -33,22 +33,22 @@
   "files": [
    "code/bricks.py"
   ],
-  "sha1": "b284ada529dcb03fc139d3269b7fe592d7271427"
+  "sha1": "84b87a533a8776fae6ac8fe0a18ab54e6509590e"
  },
- "finished": 1792339212.4709167,
+ "finished": 1792340236.2171524,
  "error": null,
  "stages": [
   {
    "name": "closed-form checks",
-   "started": 1792337568.2384555,
+   "started": 1792339729.580135,
    "status": "done",
-   "seconds": 3.572
+   "seconds": 2.031
   },
   {
    "name": "search",
-   "started": 1792337571.8171597,
+   "started": 1792339731.6186078,
    "status": "done",
-   "seconds": 1631.113
+   "seconds": 495.329
   }
  ],
  "files": {
@@ -66,6 +66,6 @@
   "total": 9,
   "failed": 0
  },
- "seconds": 1647.374,
+ "seconds": 507.561,
  "datasets": {}
 }

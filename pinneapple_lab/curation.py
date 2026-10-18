@@ -355,10 +355,12 @@ def _short(text: str, n: int) -> str:
 
 def check_line(check: dict[str, Any], max_chars: int = 64) -> str:
     """One line naming what a check compared against: its ``label`` when the experiment gave one, else the check's
-    name (underscores to spaces) and the first clause of its detail."""
+    name (underscores to spaces) and, unless the name already has a colon, the first clause of its detail."""
     if check.get("label"):
         return _short(check["label"], max_chars)
     name = str(check.get("name", "")).replace("_", " ").strip()
+    if ":" in name:                                    # a name that already says what it compared with
+        return _short(name, max_chars)
     det = re.split(r"[:;]", str(check.get("detail") or ""), maxsplit=1)[0].strip()
     if det and len(name) + 3 < max_chars:
         return name + " \u00b7 " + _short(det, max_chars - len(name) - 3)

@@ -2,16 +2,16 @@
  "stages": [
   {
    "name": "closed-form checks",
-   "started": 1792337566.531407,
+   "started": 1792339729.7343693,
    "status": "done",
-   "seconds": 4.6
+   "seconds": 2.164
   },
   {
    "name": "search",
-   "started": 1792337571.1416283,
+   "started": 1792339731.904496,
    "status": "done",
-   "seconds": 1607.023
+   "seconds": 481.575
   }
  ],
- "updated": 1792339178.165483
+ "updated": 1792340213.4840543
 }
