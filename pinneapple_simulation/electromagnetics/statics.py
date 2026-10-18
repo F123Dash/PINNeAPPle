@@ -247,7 +247,7 @@ def filament_inductance(paths, wire_radius, pieces_per_metre: float = 2000.0, ga
             kern = (w[:, None, None] * w[None, None, :] / dist).sum((0, 2))
             val = dots[i] * kern
             if img is None:  # diagonal block in closed form
-                l, gi = lens[i], g[i]
-                val[i] = 2.0 * (l * math.asinh(l / gi) - math.sqrt(l * l + gi * gi) + gi)
+                ln, gi = lens[i], g[i]
+                val[i] = 2.0 * (ln * math.asinh(ln / gi) - math.sqrt(ln * ln + gi * gi) + gi)
             np.add.at(Lmat[owner[i]], owner, val)
     return 1e-7 * Lmat
