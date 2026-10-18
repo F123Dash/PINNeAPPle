@@ -304,7 +304,7 @@ class RepoResults(Experiment):
     }
     params = {"source": "burgers_pinn"}
     space = {"source": list(SOURCES)}
-    code_files = [_p(s) for v in _SCRIPTS.values() for s in v]
+    code_files = [_p(s) for v in _SCRIPTS.values() for s in v] + [repo_sources.__file__]
 
     def run(self, ctx):
         src = ctx.params["source"]
