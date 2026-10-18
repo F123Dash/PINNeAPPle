@@ -186,7 +186,14 @@ def write_openfoam_from_base(base: str | Path, cases, out_dir: str | Path, edits
     """Copies of ``base`` (a case directory) with the ``edits`` applied per case, and ``plan.json`` for the
     OpenFOAM campaign runner. An edit is ``{"file": "0/U", "key": "boundaryField/inlet/value",
     "value": "uniform ({U} 0 0)"}``; values are templates of the parameters and ``derived`` expressions."""
-    from .openfoam.campaign import Campaign, CampaignRun, edit_file, evaluate, resolve
+    from .openfoam.campaign import (
+        Campaign,
+        CampaignRun,
+        edit_file,
+        evaluate,
+        format_template,
+        resolve,
+    )
     base, out_dir = Path(base), Path(out_dir)
     if not (base / "system" / "controlDict").is_file():
         raise ValueError(f"{base} is not an OpenFOAM case (no system/controlDict)")
@@ -202,10 +209,10 @@ def write_openfoam_from_base(base: str | Path, cases, out_dir: str | Path, edits
         case = out_dir / "cases" / str(row["case_id"])
         shutil.copytree(base, case, dirs_exist_ok=True)
         for e in edits:
-            value = e["value"].format(**{n: v for n, v in values.items()})
+            value = format_template(e["value"], {n: v for n, v in values.items()})
             if e.get("evaluate"):
                 value = str(evaluate(value, values))
-            edit_file(case / e["file"], e["key"], value)
+            edit_file(case / e["file"], e["key"], value, root=case)
         (case / "params.json").write_text(json.dumps({"case_id": row["case_id"], **values}, indent=1, default=str))
         written.append(case)
     plan = Campaign(base="base_case", runs=runs, name=out_dir.name, solver=solver, procs=procs, pre=tuple(pre),
@@ -261,6 +268,8 @@ def write_calculix_cantilever(cases, out_dir: str | Path, elements_per_height: i
 def write_calculix_from_template(template: str, cases, out_dir: str | Path, name: str = "job.inp") -> list[Path]:
     """Fill ``{parameter}`` placeholders of a CalculiX deck per case (``{{`` / ``}}`` for literal braces)."""
     import string
+
+    from .openfoam.campaign import format_template
     fields = {f for _, f, _, _ in string.Formatter().parse(template) if f}
     missing = fields - set(cases.columns)
     if missing:
@@ -269,7 +278,7 @@ def write_calculix_from_template(template: str, cases, out_dir: str | Path, name
     for row in cases.to_dict("records"):
         case = Path(out_dir) / "cases" / str(row["case_id"])
         case.mkdir(parents=True, exist_ok=True)
-        (case / name).write_text(template.format(**row))
+        (case / name).write_text(format_template(template, row))
         out.append(case)
     return out
 

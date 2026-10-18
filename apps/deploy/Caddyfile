@@ -4,16 +4,37 @@
 
 (common) {
 	encode zstd gzip
+	# TLS 1.2+ with Caddy's modern cipher suites; certificates from Let's Encrypt (ACME_EMAIL)
+	tls {
+		protocols tls1.2 tls1.3
+	}
 	header {
-		Strict-Transport-Security "max-age=31536000"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), payment=(), usb=(), geolocation=(self)"
+		Cross-Origin-Opener-Policy "same-origin"
 		-Server
+		-X-Powered-By
+	}
+	# JSON access log on the caddy_data volume, rotated (Authorization and cookies are redacted by Caddy);
+	# fail2ban reads it for repeated 401/429 (docs/security/server.md)
+	log {
+		output file /data/access.log {
+			roll_size 50MiB
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format json
 	}
 }
 
 {$HSS_DOMAIN} {
 	import common
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy heatsink:8080 {
 		transport http {
 			read_timeout 120s
@@ -23,6 +44,9 @@
 
 {$PCB_DOMAIN} {
 	import common
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy pcb:8081 {
 		transport http {
 			read_timeout 120s
@@ -80,6 +104,9 @@
 
 {$IHL_DOMAIN} {
 	import common
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy inverse:8086 {
 		transport http {
 			read_timeout 120s
@@ -161,6 +188,9 @@
 
 {$LAB_DOMAIN} {
 	import common
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy lab:8093 {
 		transport http {
 			read_timeout 300s
@@ -170,6 +200,9 @@
 
 {$OBS_DOMAIN} {
 	import common
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy observatory:8094 {
 		transport http {
 			read_timeout 180s
@@ -179,6 +212,9 @@
 
 {$PLG_DOMAIN} {
 	import common
+	request_body {
+		max_size 1MB
+	}
 	reverse_proxy playground:8095
 }
 
@@ -292,6 +328,9 @@
 
 {$GUIAGENT_DOMAIN} {
 	import common
+	request_body {
+		max_size 60MB
+	}
 	reverse_proxy guiagent:8115 {
 		transport http {
 			read_timeout 120s
