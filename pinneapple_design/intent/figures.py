@@ -61,7 +61,7 @@ def loop_figures(t, spec, d: dict[str, Any], ctx: dict[str, Any], out_dir: str) 
 
     plt = _plt()
     out: dict[str, str] = {}
-    R, Lc, v0, m = d["radius"], d["clothoid"] * d["radius"], d["v0"], d["mass"]
+    R, Lc, v0, m = d["radius"], d["clothoid_ratio"] * d["radius"], d["v0"], d["mass"]
     tr = t.track(d)
     p = tr.sample(1500)
     h, A = 0.5 * CAR["height"], CAR["width"] * CAR["height"]
@@ -104,6 +104,9 @@ def loop_figures(t, spec, d: dict[str, Any], ctx: dict[str, Any], out_dir: str) 
         a.axvspan(*k0, color="#f2f1ee", zorder=0)
     axs[0].set_ylabel("speed [m/s]")
     axs[1].set_ylabel("N / (m g)")
+    axs[1].set_title("normal load from the centre-of-mass path: N = m (v^2 / (R - h) + g cos theta) on the arc, "
+                     f"h = centre-of-mass height ({1e3 * h:.1f} mm worst case, {1e3 * CAR['wheel_r']:.0f} mm "
+                     "Newton's sphere)", loc="left", fontsize=8)
     axs[1].set_xlabel("distance along the track [m] (shaded: the loop)")
     axs[0].legend(fontsize=8, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     axs[0].set_title("Speed and normal load along the track", loc="left", fontsize=10)
@@ -182,7 +185,8 @@ def bracket_figures(t, spec, d: dict[str, Any], ctx: dict[str, Any], out_dir: st
     ax = fig.add_subplot(projection="3d")
     from matplotlib import cm
     from matplotlib.colors import Normalize
-    norm = Normalize(0, float(np.percentile(vm, 99.9)))
+    peak = float(ver.result.outputs["sigma_peak_mpa"])
+    norm = Normalize(0, peak)                     # the scale reaches the reported peak (a nodal value)
     tri = Xd[surf] * 1e3
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     col = Poly3DCollection(tri, facecolors=cm.Blues(norm(vm[surf].mean(1))), edgecolor="none")
@@ -197,6 +201,9 @@ def bracket_figures(t, spec, d: dict[str, Any], ctx: dict[str, Any], out_dir: st
     ax.set_zlabel("z [mm]")
     ax.view_init(18, -60)
     fig.colorbar(cm.ScalarMappable(norm=norm, cmap="Blues"), ax=ax, shrink=0.65, label="von Mises [MPa]")
+    fig.text(0.02, 0.02, "CalculiX nodal von Mises (extrapolated and averaged at the nodes); each surface triangle "
+             "shows the mean of its three corners,\nso the brightest face sits a little below the peak node value "
+             "in the title. Peak taken away from the clamped and the loaded faces.", fontsize=7, color=MUTED)
     ax.set_title(f"CalculiX: von Mises on the deformed shape (x{scale:.0f}); peak "
                  f"{ver.result.outputs['sigma_peak_mpa']:.0f} MPa", loc="left", fontsize=10)
     out["stress"] = _save(fig, out_dir, "bracket_von_mises.png")
@@ -254,7 +261,10 @@ def heatsink_figures(t, spec, d: dict[str, Any], ctx: dict[str, Any], out_dir: s
     ax.set_xlabel("width [mm]")
     ax.set_ylabel("depth [mm]")
     ax.grid(False)
-    ax.set_title(f"Finite-volume base temperature, peak {np.nanmax(T):.1f} °C", loc="left", fontsize=10)
+    tsrc = ver.result.outputs["t_source_c"]
+    ax.set_title(f"Finite-volume temperature of the base underside: map peak {np.nanmax(T):.1f} °C\n"
+                 f"(source / case temperature {tsrc:.1f} °C = base peak + the interface resistance's rise)",
+                 loc="left", fontsize=9)
     out["base_temperature"] = _save(fig, out_dir, "heatsink_base_temperature.png")
     return out
 
