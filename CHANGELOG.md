@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Step skew, tolerances and 3-D export of machines (`pinneapple_simulation.electromagnetics.machines.robustness`,
+  `machines.export`): multi-slice step skew (`skewed_torque`, `skewed_no_load`, `step_skew_factor`), the FEA as a
+  tolerance model for JCGM 101 Monte Carlo (`tolerance_model`), extruded 3-D field of a skewed rotor
+  (`skewed_field_3d`) and VTK unstructured-grid export (`write_vtu`, `solution_to_vtu`). Examples
+  `examples/electrodynamics/15_prius_skew.py` and `17_prius_tolerances.py`, tests `tests/test_emachine_robustness.py`.
 - Design from intent (`pinneapple_design.intent`, `pp.design`): a goal in
   plain language becomes a `RequirementSpec` (values with units checked by `physical_units`, each stated, answered,
   defaulted with its source or missing; follow-up questions for missing critical values; an optional LLM behind

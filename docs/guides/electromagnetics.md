@@ -341,6 +341,84 @@ Notes from the same run:
 - Prius flux map: interpolation vs direct FEA: error relative to 300 N m
 <!-- drive-verification:end -->
 
+### Step skew, tolerances and a 3-D view
+
+`pinneapple_simulation.electromagnetics.machines.robustness`:
+
+* Step skew by multi-slice 2-D FEA. A rotor of `K` axial segments, with segment `k` turned by
+  `delta_k = s (k - (K-1)/2)`. Each segment is a 2-D slice with the same stator and phase currents. The torque and
+  flux linkage are the means over the slices. `skewed_torque` gives load torque and ripple, `skewed_no_load` gives
+  cogging and flux linkage. Inter-segment axial flux and end effects are neglected, as in every multi-slice model.
+  For a harmonic of order `h` per period `lam`, the slice mean multiplies the straight rotor's harmonic by the
+  step-skew factor `|sin(K h pi s / lam) / (K sin(h pi s / lam))|` (`step_skew_factor`).
+* `tolerance_model(geometry)`: the FEA mean torque and ripple as a function of remanence scale, magnet thickness,
+  magnet width and air gap, for `pinneapple_analysis.uncertainty.tolerance.propagate` (JCGM 101 Monte Carlo).
+* `skewed_field_3d` extrudes each segment's 2-D solution into prisms turned by its skew angle.
+  `export.write_vtu` and `export.solution_to_vtu` write VTK unstructured grids for ParaView.
+
+`python examples/electrodynamics/15_prius_skew.py` (run on 2026-10-18; 960 gap nodes, 12 rotor angles per period,
+250 A at 50.3 deg) gives `results/15_prius_skew.json`, `15_prius_skew.png`, `15_prius_skew_3d.png` and
+`15_prius_skew_3d.vtu`. The skew is the total `(K - 1) s`; the slot pitch, which is also the cogging period, is
+7.5 deg:
+
+| Total skew (deg) | Cogging pk-pk, K = 2 (N m) | K = 3 (N m) | Torque, K = 2 (N m) | K = 3 (N m) | Ripple, K = 2 | K = 3 |
+|---|---|---|---|---|---|---|
+| 0 | 1.353 | 1.353 | 345.6 | 345.6 | 22.9 % | 22.9 % |
+| 1.875 | 0.639 | 0.877 | 343.9 | 344.5 | 18.7 % | 20.1 % |
+| 3.75 | 0.624 | 0.472 | 338.8 | 341.1 | 8.8 % | 13.3 % |
+| 5.625 | 0.639 | 0.420 | 330.1 | 335.3 | 11.2 % | 7.9 % |
+| 7.5 | 1.353 | 0.846 | 317.0 | 326.6 | 16.2 % | 7.3 % |
+
+At the classic step-skew optimum, a total skew of `(K-1)/K` of the cogging period, the cogging falls:
+
+* two steps at 3.75 deg: 1.35 to 0.62 N m, with the load ripple down from 22.9 to 8.8 % for 2.0 % less torque;
+* three steps, near 5 deg (5.625 deg computed): 1.35 to 0.42 N m, ripple 7.9 %, torque -3.0 %.
+
+Two steps over a full slot pitch reproduce the straight rotor's cogging exactly, because the two slices are a whole
+cogging period apart.
+
+With the same two-step skew over one slot pitch, the back-EMF (120 positions per electrical period) shows:
+
+* the fundamental falls by 0.96593, against the closed-form factor `cos 15 deg = 0.96593`;
+* every harmonic of the skewed rotor equals the straight harmonic times the factor, to within 1.5e-9 of the
+  fundamental;
+* the phase THD drops from 9.3 to 7.2 %.
+
+The verification case below checks the same identity on the cogging harmonics of 2- and 3-step skews (1.0e-8).
+
+| Case | Quantity | Reference | Error (finest) | Observed order | Status |
+|---|---|---|---|---|---|
+| Step skew: multi-slice cogging vs skew factor | cogging harmonics, 2 and 3 steps | sin(K h pi s / lam) / (K sin(h pi s / lam)) x straight rotor | 1.01e-08 | - | pass |
+
+The identity is exact because the slice offsets are multiples of the moving-band step, so every slice uses the same
+band triangles. It verifies the multi-slice composition, not the 2-D field itself.
+
+<!-- tolerances:start -->
+`python examples/electrodynamics/17_prius_tolerances.py` (run on 2026-10-18) propagates manufacturing tolerances
+through the FEA by Monte Carlo (JCGM 101, `propagate`): 200 samples, one nonlinear FEA each, with 480 gap nodes and
+12 rotor angles at 250 A and 50.3 deg. The tolerances are normal inputs and are stated assumptions, not measured
+data. One standard deviation of each:
+
+* remanence 1 % (a +-2 % batch spread at two sigma);
+* magnet thickness 0.025 mm;
+* magnet width 0.05 mm;
+* air gap 0.025 mm, on a 0.75 mm gap (the rotor radius moves).
+
+Results are in `results/17_prius_tolerances.json` and `17_prius_tolerances.png`:
+
+| Output | Nominal | Mean | Std | 1 % / 99 % | Standardised regression coefficients (remanence, thickness, width, air gap) | R^2 |
+|---|---|---|---|---|---|---|
+| Mean torque (N m) | 343.35 | 343.31 | 1.96 | 338.9 / 347.4 | 0.82, 0.15, 0.24, -0.54 | 0.999 |
+| Ripple (pk-pk) | 20.1 % | 20.2 % | 0.47 % | 19.1 / 21.2 % | -0.19, -0.07, -0.02, -0.95 | 0.983 |
+
+The torque spread (0.57 % of nominal) is set by the remanence first and the air gap second. The ripple spread is
+set almost entirely by the air gap: a larger gap smooths the slot harmonics. Both outputs are close to linear in
+these inputs (R^2 >= 0.98), so a linear surrogate fitted to a few FEA solutions would reproduce this study. All 200
+samples met the stated specification: torque >= 98 % of nominal and ripple <= 25 %. The yield is therefore 1.000,
+with a Wilson 95 % interval of 0.981 to 1.000. The nominal torque differs from the 960-node value (345.6 N m) by
+the mesh; the spread is a difference between samples on the same mesh.
+<!-- tolerances:end -->
+
 ## Verification
 
 Each case compares a solver or reference implementation with an independent result; where the mesh or step is
@@ -438,7 +516,7 @@ Notes from the same run:
   by the integral kinds.
 * `maxwell_checks` uses central differences on tensor grids: fields with discontinuities (material interfaces,
   PEC edges) leave residuals there that are not errors of the field; crop them or check each region separately.
-* Machines: 2-D only (no end windings, no axial flux, no skew in the FEA), magnets at a uniform temperature,
+* Machines: 2-D only (no end windings, no axial flux; skew by multi-slice, without inter-segment axial flux), magnets at a uniform temperature,
   iron loss from B waveforms with the elliptic-to-alternating split (no minor loops, no rotational-loss data),
   magnet eddy loss resistance-limited (valid while the skin depth exceeds the magnet size). The Bertotti fit to the
   M400-50A table has measured errors (see the notes above); the table model is exact at the catalogue points only.
