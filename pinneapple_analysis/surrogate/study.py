@@ -36,7 +36,7 @@ from pinneapple_analysis.trust.trust_report import (
 
 from .data import SurrogateData
 from .limits import OODGate, limitations
-from .methods import CANDIDATES, TrainContext, applicable, fit_candidate
+from .methods import CANDIDATES, NonNegative, TrainContext, applicable, fit_candidate
 from .model import SurrogateModel
 from .pde import parse_pde
 from .splits import Splits, make_splits
@@ -235,6 +235,26 @@ def run_study(data: SurrogateData, *, methods: Sequence[str] | str = "auto", bud
         torch.set_num_threads(old_threads)
 
 
+def nonnegative_mask(data: SurrogateData) -> np.ndarray | None:
+    """Boolean mask over the flattened outputs named in ``data.meta["nonnegative"]``: output names for scalar data,
+    channel names (``meta["channels"]``, the last grid axis) for fields. None when nothing is declared."""
+    names = list(data.meta.get("nonnegative") or [])
+    if not names:
+        return None
+    if data.kind == "field":
+        chans = list(data.meta.get("channels") or [])
+        unknown = [n for n in names if n not in chans]
+        if unknown:
+            raise ValueError(f"meta['nonnegative'] names {unknown}, not channels of the field ({chans})")
+        m = np.zeros(data.grid_shape, bool)
+        m[..., [chans.index(n) for n in names]] = True
+        return m.ravel()
+    unknown = [n for n in names if n not in data.output_names]
+    if unknown:
+        raise ValueError(f"meta['nonnegative'] names {unknown}, not outputs ({data.output_names})")
+    return np.isin(np.asarray(data.output_names), names)
+
+
 def _run(data, methods, budget, seeds, splits, split_options, pde, target, options, log) -> StudyResult:
     kind, metric = data.kind, ("rel_l2" if data.kind == "field" else "nrmse")
     target = float(target if target is not None else DEFAULT_TARGETS[metric])
@@ -245,6 +265,12 @@ def _run(data, methods, budget, seeds, splits, split_options, pde, target, optio
     Xtr, Ytr, Xva, Yva = data.X[sp.train], flat(sp.train), data.X[sp.val], flat(sp.val)
     Xte, Yte, Xsh, Ysh = data.X[sp.test], flat(sp.test), data.X[sp.shift], flat(sp.shift)
     scale = Ytr.std(0) + 1e-12
+    nonneg = nonnegative_mask(data)
+    if nonneg is not None and P is not None:
+        raise ValueError("non-negative outputs are trained on their square root, which a declared PDE does not hold "
+                         "for: drop meta['nonnegative'] or the PDE")
+    Ytr_fit, Yva_fit = (NonNegative.forward_target(Ytr, nonneg), NonNegative.forward_target(Yva, nonneg)) \
+        if nonneg is not None else (Ytr, Yva)
     reasons = applicable(kind, len(sp.train), data.grid_shape, P is not None)
     wanted = list(CANDIDATES) if methods == "auto" else list(methods)
     unknown = [m for m in wanted if m not in CANDIDATES]
@@ -260,7 +286,7 @@ def _run(data, methods, budget, seeds, splits, split_options, pde, target, optio
         if not row["applicable"]:
             continue
         for seed in seeds:
-            ctx = TrainContext(Xtr, Ytr, Xva, Yva, budget, seed, data.grid_shape, data.coords, P,
+            ctx = TrainContext(Xtr, Ytr_fit, Xva, Yva_fit, budget, seed, data.grid_shape, data.coords, P,
                                dict(options.get(mid, {})))
             log(f"{mid} seed {seed}: training")
             try:
@@ -268,6 +294,8 @@ def _run(data, methods, budget, seeds, splits, split_options, pde, target, optio
             except Exception as e:  # a method that fails is reported, not hidden
                 row["seeds"].append({"seed": seed, "error": f"{type(e).__name__}: {e}"})
                 continue
+            if nonneg is not None:                      # errors and timings below are of the squared prediction
+                fitted = NonNegative(fitted, nonneg)
             rec = {"seed": seed, "train_s": float(fitted.info.get("train_wall_s", wall)),
                    "fit_wall_s": float(wall), "n_params": int(fitted.n_params), "size_bytes": fitted.size_bytes(),
                    "info": fitted.info,
@@ -340,6 +368,9 @@ def _run(data, methods, budget, seeds, splits, split_options, pde, target, optio
             "created": created}
     model = SurrogateModel(fitted, gate, input_names=data.input_names, output_names=data.output_names,
                            grid_shape=data.grid_shape, coords=data.coords, coord_names=data.coord_names, card=card)
+    if nonneg is not None:
+        notes.append(f"{', '.join(data.meta['nonnegative'])}: trained on the square root and predicted as its "
+                     "square, so never negative; every error is measured on the predicted values themselves.")
     if any(r["applicable"] and not r["iterative"] for r in rows):
         notes.append("One-shot fits (ridge, gp, gbt) are fitted once and report the time they used; the iterative "
                      f"methods each used the full budget ({_budget_text(budget)}).")
