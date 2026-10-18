@@ -194,12 +194,28 @@
  },
  "numbers": [
   {
-   "quantity": "no yield at the most stressed point",
-   "key": "margin_yield",
-   "value": 0.16730214424324896,
+   "quantity": "bolts stay below their proof load",
+   "key": "margin_bolts",
+   "value": 0.017425454545454633,
    "unit": "",
    "fidelity": "hexahedral FE (SolidFEM)",
    "note": "margin (>= 0 needed)"
+  },
+  {
+   "quantity": "deflection_mm",
+   "key": "deflection_mm",
+   "value": 0.4383264851430749,
+   "unit": "mm",
+   "fidelity": "hexahedral FE (SolidFEM)",
+   "note": ""
+  },
+  {
+   "quantity": "sigma_peak_mpa",
+   "key": "sigma_peak_mpa",
+   "value": 106.39918774459008,
+   "unit": "MPa",
+   "fidelity": "hexahedral FE (SolidFEM)",
+   "note": "peak von Mises (nominal x stress-concentration factor)"
   },
   {
    "quantity": "sigma_nominal_mpa",
@@ -218,14 +234,6 @@
    "note": "margin (>= 0 needed)"
   },
   {
-   "quantity": "sigma_peak_mpa",
-   "key": "sigma_peak_mpa",
-   "value": 106.39918774459008,
-   "unit": "MPa",
-   "fidelity": "hexahedral FE (SolidFEM)",
-   "note": "peak von Mises (nominal x stress-concentration factor)"
-  },
-  {
    "quantity": "bolt_tension_n",
    "key": "bolt_tension_n",
    "value": 5729.166666666666,
@@ -234,26 +242,18 @@
    "note": "per bolt, moment about the toe"
   },
   {
-   "quantity": "mass_g",
-   "key": "mass_g",
-   "value": 256.2190128541933,
-   "unit": "g",
-   "fidelity": "hexahedral FE (SolidFEM)",
-   "note": ""
-  },
-  {
-   "quantity": "bolts stay below their proof load",
-   "key": "margin_bolts",
-   "value": 0.017425454545454633,
+   "quantity": "no yield at the most stressed point",
+   "key": "margin_yield",
+   "value": 0.16730214424324896,
    "unit": "",
    "fidelity": "hexahedral FE (SolidFEM)",
    "note": "margin (>= 0 needed)"
   },
   {
-   "quantity": "deflection_mm",
-   "key": "deflection_mm",
-   "value": 0.4383264851430749,
-   "unit": "mm",
+   "quantity": "mass_g",
+   "key": "mass_g",
+   "value": 256.2190128541933,
+   "unit": "g",
    "fidelity": "hexahedral FE (SolidFEM)",
    "note": ""
   },
@@ -334,14 +334,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.0083,
-    "reduced": 9.7204,
-    "full": 35.2303
+    "closed_form": 0.0081,
+    "reduced": 9.8319,
+    "full": 39.4809
    },
    "s_per_call": {
-    "closed_form": 6.941040833225997e-07,
-    "reduced": 0.511601431315859,
-    "full": 35.23033508699882
+    "closed_form": 6.775249999861899e-07,
+    "reduced": 0.5174676794210583,
+    "full": 39.48087916700001
    }
   },
   "notes": [
@@ -357,14 +357,14 @@
      "material": "al6061_t6"
     },
     "reduced": {
-     "margin_yield": 0.16730214424324896,
+     "margin_bolts": 0.017425454545454633,
+     "deflection_mm": 0.4383264851430749,
+     "sigma_peak_mpa": 106.39918774459008,
      "sigma_nominal_mpa": 109.22158575371543,
      "margin_deflection": 1.0,
-     "sigma_peak_mpa": 106.39918774459008,
      "bolt_tension_n": 5729.166666666666,
-     "mass_g": 256.2190128541933,
-     "margin_bolts": 0.017425454545454633,
-     "deflection_mm": 0.4383264851430749
+     "margin_yield": 0.16730214424324896,
+     "mass_g": 256.2190128541933
     },
     "closed_form": {
      "margin_yield": 0.14906713286713336,
@@ -386,14 +386,14 @@
      "material": "al6061_t6"
     },
     "reduced": {
-     "margin_yield": 0.6375874958409489,
+     "margin_bolts": 0.01742545454545441,
+     "deflection_mm": 0.2423195053177397,
+     "sigma_peak_mpa": 75.84327574278386,
      "sigma_nominal_mpa": 75.84327574278386,
      "margin_deflection": 1.0,
-     "sigma_peak_mpa": 75.84327574278386,
      "bolt_tension_n": 5729.166666666668,
-     "mass_g": 308.98513033868323,
-     "margin_bolts": 0.01742545454545441,
-     "deflection_mm": 0.2423195053177397
+     "margin_yield": 0.6375874958409489,
+     "mass_g": 308.98513033868323
     },
     "closed_form": {
      "margin_yield": 0.6557935162094766,
@@ -415,14 +415,14 @@
      "material": "al6061_t6"
     },
     "reduced": {
-     "margin_yield": 1.8932820692324936,
+     "margin_bolts": 0.33537090909090916,
+     "deflection_mm": 0.10288498915708584,
+     "sigma_peak_mpa": 42.927027862494846,
      "sigma_nominal_mpa": 42.927027862494846,
      "margin_deflection": 1.0,
-     "sigma_peak_mpa": 42.927027862494846,
      "bolt_tension_n": 4365.079365079365,
-     "mass_g": 479.53974285190145,
-     "margin_bolts": 0.33537090909090916,
-     "deflection_mm": 0.10288498915708584
+     "margin_yield": 1.8932820692324936,
+     "mass_g": 479.53974285190145
     },
     "closed_form": {
      "margin_yield": 1.9376219040801717,
@@ -866,21 +866,21 @@
    "full": 1
   },
   "wall_s": {
-   "closed_form": 0.0083,
-   "reduced": 9.7204,
-   "full": 35.2303
+   "closed_form": 0.0081,
+   "reduced": 9.8319,
+   "full": 39.4809
   },
   "s_per_call": {
-   "closed_form": 6.941040833225997e-07,
-   "reduced": 0.511601431315859,
-   "full": 35.23033508699882
+   "closed_form": 6.775249999861899e-07,
+   "reduced": 0.5174676794210583,
+   "full": 39.48087916700001
   }
  },
  "savings": {
   "designs_ranked_without_full_solver": 12019,
   "full_solver_calls": 1,
-  "full_solver_s_per_call": 35.23033508699882,
-  "text": "12019 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 35.2 s each (measured). Running every evaluation on the full solver would have taken about 117.6 h (estimate: evaluations x measured time per full call)."
+  "full_solver_s_per_call": 39.48087916700001,
+  "text": "12019 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 39.5 s each (measured). Running every evaluation on the full solver would have taken about 131.8 h (estimate: evaluations x measured time per full call)."
  },
  "calibration_rounds": [
   {

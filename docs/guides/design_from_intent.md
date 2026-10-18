@@ -62,13 +62,15 @@ in `examples/design_from_intent/_out/`. The numbers below are copied from `_out/
 |---|---|---|---|---|---|---|
 | (a) | "I want a toy car that does a loop" | complete (every value defaulted with a source) | R = 8.4 cm, clothoids 2.5 R = 21.0 cm, launch 2.47 m/s, car 31 g, 1.5 mm PLA strip | will work (1.000, 0.998-1.000) | Newton: goes round at both time steps, v_top 1.507 m/s >= worst-case envelope 1.023 m/s | 2000 / 6600 / 1 |
 | (b) | "a bracket that holds 2 kN" | asks for the arm length (answered: 100 mm) | Al 6061-T6, t = 17 mm, w = 36 mm, mounting leg 72 mm, two M6 8.8 | will work (0.9985, 0.9956-0.9995) | CalculiX: peak 94.3 vs 96.8 MPa (hex FE), deflection 0.380 vs 0.380 mm | 12000 / 19 / 1 |
-| (c) | "a heat sink for a 40 W chip in still air" | asks for the temperature limit (answered: 85 °C) | copper C110, base 100 x 100 x 6.5 mm, 14 fins 1.1 x 47 mm | will work (1.000, 0.998-1.000) | finite volume: 77.7 vs 77.6 °C (network), energy balance 1e-12 | 2000 / 2600 / 1 |
+| (c) | "a heat sink for a 40 W chip in still air" | asks for the temperature limit (answered: 85 °C) | copper C110, base 100 x 100 x 6.5 mm, 14 fins 1.1 x 47 mm | will work (1.000, 0.998-1.000) | finite volume: source (case) temperature 77.7 vs 77.6 °C (network), energy balance 1e-12 | 2000 / 2600 / 1 |
 | (d) | "a wing for a 1.2 kg model glider, at most 2 m span" | complete | span 2.0 m, AR 7.69, taper 0.33, NACA 2412 | will work (1.000, 0.998-1.000) | fine lattice: sink 0.4409 vs 0.4406 m/s, e 0.989 vs 0.990 | 2000 / 6600 / 1 |
 | (e) | "an electric motor for my drone" | out of scope: needs an electromagnetics design template (current-density, thermal, demagnetisation limits) | - | - | - | - |
 
 The closed-form call counts include the Monte-Carlo samples when a template runs its robustness study on the
-calibrated closed form (the bracket). The time the full solver would have needed for every evaluation is in each
-report (measured seconds per full call x evaluations: about 630 h for the loop, 131 h for the bracket).
+calibrated closed form (the bracket). Each report also gives an *estimate*, not a measurement, of the time the full solver would
+have needed for every evaluation: the measured seconds of its one full call times the number of evaluations (about
+650 h for the loop and 130 h for the bracket on the machine of this run; the measured call time varies between
+runs).
 
 ### (a) Loop-the-loop car
 
@@ -80,9 +82,12 @@ up to 0.05 and a launcher 5 % slow), the drag coefficient's worst case is the bl
 about 1.05, Hoerner), the strip material is the printable PLA with its datasheet yield strength.
 
 - *Closed form*: `v_top^2 = v0^2 - 2 g z_top - losses` with the losses at the mean speed, the top condition
-  `v_top^2 >= g R`, the peak load at the end of the entry clothoid.
+  `v_top^2 >= g (R - h)`, the peak load at the end of the entry clothoid.
 - *Reduced*: the 1-D along-track ODE (`d(v^2)/ds` with `N = m (v^2 kappa + g cos theta)`, rolling resistance on `N`,
-  drag, the wheels' inertia), RK4, vectorised: 6600 designs in 6.6 s. Without losses it conserves energy to 0.3 %
+  drag, the wheels' inertia), RK4, vectorised: 6600 designs in 6.6 s. The car is a point on its centre-of-mass
+  path, the track offset inwards by the centre-of-mass height `h` (12.5 mm for the car, 6 mm for Newton's sphere), so
+  `kappa = 1 / (R - h)` on the top arc and `N / (m g) = v_top^2 / (g (R - h)) - 1` at the top: 0.49 at the
+  worst case (1.023 m/s, R - h = 7.14 cm), not the 0.27 a radius of R would give. Without losses it conserves energy to 0.3 %
   and reproduces the `v0^2 = 5 g R` threshold of a circular loop (tests).
 - *Full*: NVIDIA Newton (XPBD) on the 3-D track mesh with its side rails and the helical exit, at two time steps.
   Newton's contact dissipates energy on the curved mesh (5.7 % of the launch energy by the top here, with no friction
@@ -129,8 +134,9 @@ the hand calculation (Elenbaas / Bar-Cohen coefficient evaluated once with the f
 model the converged resistance network, the full model the 3-D finite-volume solve of the base with its energy
 balance, spreading cross-check and grid convergence. The design is sized with the convection coefficient 15 % low
 and the interface resistance 50 % high (the engine's stated band and the paste's spread). In still air within the
-default 100 x 100 x 50 mm envelope only copper meets the limit at that corner: 1.23 kg, 77.7 °C nominal, 83.9 °C
-with the coefficient 15 % low. Operating window: up to 47.2 W at 25 °C, or 31.3 °C ambient at 40 W.
+default 100 x 100 x 50 mm envelope only copper meets the limit at that corner: 1.23 kg, source (case) temperature 77.7 °C nominal, 83.9 °C
+with the coefficient 15 % low (the base underside peaks at 77.2 °C under the source; the paste's
+10 K·mm²/W over 30 x 30 mm adds 0.44 K at 40 W). Operating window: up to 47.2 W at 25 °C, or 31.3 °C ambient at 40 W.
 
 ![Finite-volume base temperature](img/design_from_intent/heatsink_base_temperature.png)
 ![The heat sink](img/design_from_intent/heatsink_render.png)

@@ -249,20 +249,12 @@
  },
  "numbers": [
   {
-   "quantity": "h_w_m2k",
-   "key": "h_w_m2k",
-   "value": 5.161457306916972,
-   "unit": "W/(m\u00b2\u00b7K)",
+   "quantity": "fins can be extruded (gap)",
+   "key": "margin_gap",
+   "value": 3.338461538461538,
+   "unit": "",
    "fidelity": "resistance network",
-   "note": ""
-  },
-  {
-   "quantity": "t_source_c",
-   "key": "t_source_c",
-   "value": 83.99130704887042,
-   "unit": "\u00b0C",
-   "fidelity": "resistance network",
-   "note": ""
+   "note": "margin (>= 0 needed)"
   },
   {
    "quantity": "source stays below its limit",
@@ -273,34 +265,10 @@
    "note": "margin (>= 0 needed)"
   },
   {
-   "quantity": "fin_efficiency",
-   "key": "fin_efficiency",
-   "value": 0.9821613268669152,
-   "unit": "-",
-   "fidelity": "resistance network",
-   "note": ""
-  },
-  {
    "quantity": "r_total_k_w",
    "key": "r_total_k_w",
    "value": 1.4747826762217606,
    "unit": "K/W",
-   "fidelity": "resistance network",
-   "note": ""
-  },
-  {
-   "quantity": "fin_gap_mm",
-   "key": "fin_gap_mm",
-   "value": 6.507692307692308,
-   "unit": "mm",
-   "fidelity": "resistance network",
-   "note": ""
-  },
-  {
-   "quantity": "mass_g",
-   "key": "mass_g",
-   "value": 1228.1772000000003,
-   "unit": "g",
    "fidelity": "resistance network",
    "note": ""
   },
@@ -313,12 +281,44 @@
    "note": "margin (>= 0 needed)"
   },
   {
-   "quantity": "fins can be extruded (gap)",
-   "key": "margin_gap",
-   "value": 3.338461538461538,
-   "unit": "",
+   "quantity": "h_w_m2k",
+   "key": "h_w_m2k",
+   "value": 5.161457306916972,
+   "unit": "W/(m\u00b2\u00b7K)",
    "fidelity": "resistance network",
-   "note": "margin (>= 0 needed)"
+   "note": ""
+  },
+  {
+   "quantity": "fin_gap_mm",
+   "key": "fin_gap_mm",
+   "value": 6.507692307692308,
+   "unit": "mm",
+   "fidelity": "resistance network",
+   "note": ""
+  },
+  {
+   "quantity": "t_source_c",
+   "key": "t_source_c",
+   "value": 83.99130704887042,
+   "unit": "\u00b0C",
+   "fidelity": "resistance network",
+   "note": ""
+  },
+  {
+   "quantity": "fin_efficiency",
+   "key": "fin_efficiency",
+   "value": 0.9821613268669152,
+   "unit": "-",
+   "fidelity": "resistance network",
+   "note": ""
+  },
+  {
+   "quantity": "mass_g",
+   "key": "mass_g",
+   "value": 1228.1772000000003,
+   "unit": "g",
+   "fidelity": "resistance network",
+   "note": ""
   },
   {
    "quantity": "source stays below its limit",
@@ -397,14 +397,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.056,
-    "reduced": 0.2628,
-    "full": 0.3269
+    "closed_form": 0.0871,
+    "reduced": 0.2045,
+    "full": 0.2921
    },
    "s_per_call": {
-    "closed_form": 2.799949949985603e-05,
-    "reduced": 0.00010109154653736578,
-    "full": 0.32689896000010776
+    "closed_form": 4.35335084999906e-05,
+    "reduced": 7.865783807692249e-05,
+    "full": 0.292097950000084
    }
   },
   "notes": [],
@@ -421,15 +421,15 @@
      "material": "cu110"
     },
     "reduced": {
-     "h_w_m2k": 5.161457306916972,
-     "t_source_c": 83.99130704887042,
+     "margin_gap": 3.338461538461538,
      "margin_temp": 0.017099010033697626,
-     "fin_efficiency": 0.9821613268669152,
      "r_total_k_w": 1.4747826762217606,
-     "fin_gap_mm": 6.507692307692308,
-     "mass_g": 1228.1772000000003,
      "margin_aspect": 1.7692307692307696,
-     "margin_gap": 3.338461538461538
+     "h_w_m2k": 5.161457306916972,
+     "fin_gap_mm": 6.507692307692308,
+     "t_source_c": 83.99130704887042,
+     "fin_efficiency": 0.9821613268669152,
+     "mass_g": 1228.1772000000003
     },
     "closed_form": {
      "margin_temp": 0.041921824345797054,
@@ -840,20 +840,20 @@
    "full": 1
   },
   "wall_s": {
-   "closed_form": 0.056,
-   "reduced": 0.2628,
-   "full": 0.3269
+   "closed_form": 0.0871,
+   "reduced": 0.2045,
+   "full": 0.2921
   },
   "s_per_call": {
-   "closed_form": 2.799949949985603e-05,
-   "reduced": 0.00010109154653736578,
-   "full": 0.32689896000010776
+   "closed_form": 4.35335084999906e-05,
+   "reduced": 7.865783807692249e-05,
+   "full": 0.292097950000084
   }
  },
  "savings": {
   "designs_ranked_without_full_solver": 4600,
   "full_solver_calls": 1,
-  "full_solver_s_per_call": 0.32689896000010776,
+  "full_solver_s_per_call": 0.292097950000084,
   "text": "4600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 0.3 s each (measured). Running every evaluation on the full solver would have taken about 0.4 h (estimate: evaluations x measured time per full call)."
  },
  "calibration_rounds": [

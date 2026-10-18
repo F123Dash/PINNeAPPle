@@ -158,26 +158,10 @@
  },
  "numbers": [
   {
-   "quantity": "ld",
-   "key": "ld",
-   "value": 16.30091333073175,
-   "unit": "-",
-   "fidelity": "vortex lattice, coarse",
-   "note": ""
-  },
-  {
-   "quantity": "lift coefficient below the design limit",
-   "key": "margin_cl",
-   "value": 0.0,
-   "unit": "",
-   "fidelity": "vortex lattice, coarse",
-   "note": "margin (>= 0 needed)"
-  },
-  {
-   "quantity": "cl",
-   "key": "cl",
-   "value": 0.8,
-   "unit": "-",
+   "quantity": "speed_m_s",
+   "key": "speed_m_s",
+   "value": 7.182771298845718,
+   "unit": "m/s",
    "fidelity": "vortex lattice, coarse",
    "note": ""
   },
@@ -198,10 +182,10 @@
    "note": ""
   },
   {
-   "quantity": "sink_m_s",
-   "key": "sink_m_s",
-   "value": 0.4406361259098408,
-   "unit": "m/s",
+   "quantity": "cl",
+   "key": "cl",
+   "value": 0.8,
+   "unit": "-",
    "fidelity": "vortex lattice, coarse",
    "note": ""
   },
@@ -222,10 +206,26 @@
    "note": ""
   },
   {
-   "quantity": "speed_m_s",
-   "key": "speed_m_s",
-   "value": 7.182771298845718,
+   "quantity": "lift coefficient below the design limit",
+   "key": "margin_cl",
+   "value": 0.0,
+   "unit": "",
+   "fidelity": "vortex lattice, coarse",
+   "note": "margin (>= 0 needed)"
+  },
+  {
+   "quantity": "sink_m_s",
+   "key": "sink_m_s",
+   "value": 0.4406361259098408,
    "unit": "m/s",
+   "fidelity": "vortex lattice, coarse",
+   "note": ""
+  },
+  {
+   "quantity": "ld",
+   "key": "ld",
+   "value": 16.30091333073175,
+   "unit": "-",
    "fidelity": "vortex lattice, coarse",
    "note": ""
   },
@@ -314,14 +314,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.0687,
-    "reduced": 4.2962,
-    "full": 0.2883
+    "closed_form": 0.0621,
+    "reduced": 4.367,
+    "full": 0.4037
    },
    "s_per_call": {
-    "closed_form": 3.436744900045596e-05,
-    "reduced": 0.0006509361404542605,
-    "full": 0.2882731550016615
+    "closed_form": 3.1035802500014144e-05,
+    "reduced": 0.0006616651124242922,
+    "full": 0.40374807099999543
    }
   },
   "notes": [],
@@ -335,15 +335,15 @@
      "section": "NACA 2412"
     },
     "reduced": {
-     "ld": 16.30091333073175,
-     "margin_cl": 0.0,
-     "cl": 0.8,
+     "speed_m_s": 7.182771298845718,
      "margin_re": 0.9320549948425851,
      "span_eff": 0.9903206153394808,
-     "sink_m_s": 0.4406361259098408,
+     "cl": 0.8,
      "area_m2": 0.5199758934752418,
      "re_mac": 135243.84963898096,
-     "speed_m_s": 7.182771298845718
+     "margin_cl": 0.0,
+     "sink_m_s": 0.4406361259098408,
+     "ld": 16.30091333073175
     },
     "closed_form": {
      "sink_m_s": 0.4383121731227015,
@@ -366,15 +366,15 @@
      "section": "NACA 2412"
     },
     "reduced": {
-     "ld": 16.719559325794354,
-     "margin_cl": 0.0,
-     "cl": 0.8,
+     "speed_m_s": 7.374521435325386,
      "margin_re": 0.8278009473594081,
      "span_eff": 0.9944558108583864,
-     "sink_m_s": 0.44107151938796807,
+     "cl": 0.8,
      "area_m2": 0.49328692293382337,
      "re_mac": 127946.06631515856,
-     "speed_m_s": 7.374521435325386
+     "margin_cl": 0.0,
+     "sink_m_s": 0.44107151938796807,
+     "ld": 16.719559325794354
     },
     "closed_form": {
      "sink_m_s": 0.4397804008527762,
@@ -397,15 +397,15 @@
      "section": "NACA 4412"
     },
     "reduced": {
-     "ld": 16.5052860869115,
-     "margin_cl": 0.0,
-     "cl": 0.8,
+     "speed_m_s": 7.280310209060364,
      "margin_re": 0.9075868180157063,
      "span_eff": 0.9885341526966405,
-     "sink_m_s": 0.4410896103663156,
+     "cl": 0.8,
      "area_m2": 0.5061363369714128,
      "re_mac": 133531.07726109945,
-     "speed_m_s": 7.280310209060364
+     "margin_cl": 0.0,
+     "sink_m_s": 0.4410896103663156,
+     "ld": 16.5052860869115
     },
     "closed_form": {
      "sink_m_s": 0.43836871399901284,
@@ -772,21 +772,21 @@
    "full": 1
   },
   "wall_s": {
-   "closed_form": 0.0687,
-   "reduced": 4.2962,
-   "full": 0.2883
+   "closed_form": 0.0621,
+   "reduced": 4.367,
+   "full": 0.4037
   },
   "s_per_call": {
-   "closed_form": 3.436744900045596e-05,
-   "reduced": 0.0006509361404542605,
-   "full": 0.2882731550016615
+   "closed_form": 3.1035802500014144e-05,
+   "reduced": 0.0006616651124242922,
+   "full": 0.40374807099999543
   }
  },
  "savings": {
   "designs_ranked_without_full_solver": 8600,
   "full_solver_calls": 1,
-  "full_solver_s_per_call": 0.2882731550016615,
-  "text": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 0.3 s each (measured). Running every evaluation on the full solver would have taken about 0.7 h (estimate: evaluations x measured time per full call)."
+  "full_solver_s_per_call": 0.40374807099999543,
+  "text": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 0.4 s each (measured). Running every evaluation on the full solver would have taken about 1.0 h (estimate: evaluations x measured time per full call)."
  },
  "calibration_rounds": [
   {

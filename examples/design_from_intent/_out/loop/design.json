@@ -141,7 +141,7 @@
     "integer": false
    },
    {
-    "name": "clothoid",
+    "name": "clothoid_ratio",
     "label": "clothoid length / R",
     "lower": 0.0,
     "upper": 2.5,
@@ -238,20 +238,29 @@
  },
  "design": {
   "radius": 0.08392212590233154,
-  "clothoid": 2.498212126585065,
+  "clothoid_ratio": 2.498212126585065,
   "v0": 2.4650848447980396,
   "mass": 0.03101345493025515,
+  "clothoid_length": 0.20965527261800326,
   "material": "pla_4043d",
   "thickness": 0.0015
  },
  "numbers": [
   {
-   "quantity": "loop fits the space available",
-   "key": "margin_height",
-   "value": 1.0,
-   "unit": "",
+   "quantity": "thickness",
+   "key": "thickness",
+   "value": 0.0015,
+   "unit": "m",
    "fidelity": "1-D along-track ODE",
-   "note": "margin (>= 0 needed)"
+   "note": ""
+  },
+  {
+   "quantity": "launch_speed",
+   "key": "launch_speed",
+   "value": 2.4650848447980396,
+   "unit": "m/s",
+   "fidelity": "1-D along-track ODE",
+   "note": ""
   },
   {
    "quantity": "footprint",
@@ -262,17 +271,41 @@
    "note": ""
   },
   {
-   "quantity": "loop_height",
-   "key": "loop_height",
-   "value": 0.20849107506722991,
-   "unit": "m",
+   "quantity": "loop fits the space available",
+   "key": "margin_height",
+   "value": 1.0,
+   "unit": "",
+   "fidelity": "1-D along-track ODE",
+   "note": "margin (>= 0 needed)"
+  },
+  {
+   "quantity": "track strip does not yield",
+   "key": "margin_track",
+   "value": 10.838066889244145,
+   "unit": "",
+   "fidelity": "1-D along-track ODE",
+   "note": "margin (>= 0 needed)"
+  },
+  {
+   "quantity": "track_mass_kg",
+   "key": "track_mass_kg",
+   "value": 0.14671728159315986,
+   "unit": "kg",
    "fidelity": "1-D along-track ODE",
    "note": ""
   },
   {
-   "quantity": "car stays on the track",
-   "key": "margin_contact",
-   "value": 0.4950403855651667,
+   "quantity": "v_top",
+   "key": "v_top",
+   "value": 1.0233505969160992,
+   "unit": "m/s",
+   "fidelity": "1-D along-track ODE",
+   "note": "speed at the top, worst-case envelope"
+  },
+  {
+   "quantity": "car body clears the track in the loop",
+   "key": "margin_clearance",
+   "value": 1.0070661488121377,
    "unit": "",
    "fidelity": "1-D along-track ODE",
    "note": "margin (>= 0 needed)"
@@ -286,34 +319,10 @@
    "note": "peak N / (m g), worst-case envelope"
   },
   {
-   "quantity": "v_top",
-   "key": "v_top",
-   "value": 1.0233505969160992,
-   "unit": "m/s",
-   "fidelity": "1-D along-track ODE",
-   "note": "speed at the top, worst-case envelope"
-  },
-  {
-   "quantity": "track_mass_kg",
-   "key": "track_mass_kg",
-   "value": 0.14671728159315986,
-   "unit": "kg",
-   "fidelity": "1-D along-track ODE",
-   "note": ""
-  },
-  {
-   "quantity": "track strip does not yield",
-   "key": "margin_track",
-   "value": 10.838066889244145,
-   "unit": "",
-   "fidelity": "1-D along-track ODE",
-   "note": "margin (>= 0 needed)"
-  },
-  {
-   "quantity": "launch_speed",
-   "key": "launch_speed",
-   "value": 2.4650848447980396,
-   "unit": "m/s",
+   "quantity": "loop_radius",
+   "key": "loop_radius",
+   "value": 0.08392212590233154,
+   "unit": "m",
    "fidelity": "1-D along-track ODE",
    "note": ""
   },
@@ -326,25 +335,17 @@
    "note": "strip bending stress under the peak contact load"
   },
   {
-   "quantity": "car body clears the track in the loop",
-   "key": "margin_clearance",
-   "value": 1.0070661488121377,
+   "quantity": "car stays on the track",
+   "key": "margin_contact",
+   "value": 0.4950403855651667,
    "unit": "",
    "fidelity": "1-D along-track ODE",
    "note": "margin (>= 0 needed)"
   },
   {
-   "quantity": "thickness",
-   "key": "thickness",
-   "value": 0.0015,
-   "unit": "m",
-   "fidelity": "1-D along-track ODE",
-   "note": ""
-  },
-  {
-   "quantity": "loop_radius",
-   "key": "loop_radius",
-   "value": 0.08392212590233154,
+   "quantity": "loop_height",
+   "key": "loop_height",
+   "value": 0.20849107506722991,
    "unit": "m",
    "fidelity": "1-D along-track ODE",
    "note": ""
@@ -450,14 +451,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.0079,
-    "reduced": 7.4097,
-    "full": 261.8082
+    "closed_form": 0.0069,
+    "reduced": 6.3287,
+    "full": 272.5327
    },
    "s_per_call": {
-    "closed_form": 3.926168499674531e-06,
-    "reduced": 0.0011226889522728898,
-    "full": 261.8082187559994
+    "closed_form": 3.433998500014468e-06,
+    "reduced": 0.0009588959483333393,
+    "full": 272.53270733899996
    }
   },
   "notes": [
@@ -468,24 +469,24 @@
     "rank": 0,
     "design": {
      "radius": 0.08392212590233154,
-     "clothoid": 2.498212126585065,
+     "clothoid_ratio": 2.498212126585065,
      "v0": 2.4650848447980396,
      "mass": 0.03101345493025515
     },
     "reduced": {
-     "margin_height": 1.0,
-     "footprint": 0.7992119689873398,
-     "loop_height": 0.20849107506722991,
-     "margin_contact": 0.4950403855651667,
-     "g_peak": 4.999434584464722,
-     "v_top": 1.0233505969160992,
-     "track_mass_kg": 0.14671728159315986,
-     "margin_track": 10.838066889244145,
-     "launch_speed": 2.4650848447980396,
-     "track_stress_mpa": 2.53419754092262,
-     "margin_clearance": 1.0070661488121377,
      "thickness": 0.0015,
-     "loop_radius": 0.08392212590233154
+     "launch_speed": 2.4650848447980396,
+     "footprint": 0.7992119689873398,
+     "margin_height": 1.0,
+     "margin_track": 10.838066889244145,
+     "track_mass_kg": 0.14671728159315986,
+     "v_top": 1.0233505969160992,
+     "margin_clearance": 1.0070661488121377,
+     "g_peak": 4.999434584464722,
+     "loop_radius": 0.08392212590233154,
+     "track_stress_mpa": 2.53419754092262,
+     "margin_contact": 0.4950403855651667,
+     "loop_height": 0.20849107506722991
     },
     "closed_form": {
      "margin_contact": 0.4927490545372384,
@@ -507,24 +508,24 @@
     "rank": 1,
     "design": {
      "radius": 0.12004502319705931,
-     "clothoid": 2.451052249862723,
+     "clothoid_ratio": 2.451052249862723,
      "v0": 2.8938459084500368,
      "mass": 0.1419605135163356
     },
     "reduced": {
-     "margin_height": 1.0,
-     "footprint": 0.8801056019814912,
-     "loop_height": 0.2885781050306446,
-     "margin_contact": 0.1232929185675258,
-     "g_peak": 4.756553478236335,
-     "v_top": 1.0884258243594094,
-     "track_mass_kg": 0.18090658206077742,
-     "margin_track": 1.718265567756474,
-     "launch_speed": 2.8938459084500368,
-     "track_stress_mpa": 11.036449254941841,
-     "margin_clearance": 1.8709747256949765,
      "thickness": 0.0015,
-     "loop_radius": 0.12004502319705931
+     "launch_speed": 2.8938459084500368,
+     "footprint": 0.8801056019814912,
+     "margin_height": 1.0,
+     "margin_track": 1.718265567756474,
+     "track_mass_kg": 0.18090658206077742,
+     "v_top": 1.0884258243594094,
+     "margin_clearance": 1.8709747256949765,
+     "g_peak": 4.756553478236335,
+     "loop_radius": 0.12004502319705931,
+     "track_stress_mpa": 11.036449254941841,
+     "margin_contact": 0.1232929185675258,
+     "loop_height": 0.2885781050306446
     },
     "closed_form": {
      "margin_contact": 0.11368911663359693,
@@ -546,24 +547,24 @@
     "rank": 2,
     "design": {
      "radius": 0.08217612876525687,
-     "clothoid": 1.7472860558453847,
+     "clothoid_ratio": 1.7472860558453847,
      "v0": 2.3426394886999633,
      "mass": 0.14201690459044
     },
     "reduced": {
-     "margin_height": 1.0,
-     "footprint": 0.7400086303262022,
-     "loop_height": 0.19452539036516836,
-     "margin_contact": 0.28504177312181356,
-     "g_peak": 5.741391904240444,
-     "v_top": 0.9371739324939043,
-     "track_mass_kg": 0.13826285797242013,
-     "margin_track": 1.2510989968433885,
-     "launch_speed": 2.3426394886999633,
-     "track_stress_mpa": 13.326823938914997,
-     "margin_clearance": 0.9653092019752116,
      "thickness": 0.0015,
-     "loop_radius": 0.08217612876525687
+     "launch_speed": 2.3426394886999633,
+     "footprint": 0.7400086303262022,
+     "margin_height": 1.0,
+     "margin_track": 1.2510989968433885,
+     "track_mass_kg": 0.13826285797242013,
+     "v_top": 0.9371739324939043,
+     "margin_clearance": 0.9653092019752116,
+     "g_peak": 5.741391904240444,
+     "loop_radius": 0.08217612876525687,
+     "track_stress_mpa": 13.326823938914997,
+     "margin_contact": 0.28504177312181356,
+     "loop_height": 0.19452539036516836
     },
     "closed_form": {
      "margin_contact": 0.2568704010660887,
@@ -650,7 +651,7 @@
    "rank": 0,
    "design": {
     "radius": 0.08392212590233154,
-    "clothoid": 2.498212126585065,
+    "clothoid_ratio": 2.498212126585065,
     "v0": 2.4650848447980396,
     "mass": 0.03101345493025515
    },
@@ -668,7 +669,7 @@
    "rank": 1,
    "design": {
     "radius": 0.12004502319705931,
-    "clothoid": 2.451052249862723,
+    "clothoid_ratio": 2.451052249862723,
     "v0": 2.8938459084500368,
     "mass": 0.1419605135163356
    },
@@ -686,7 +687,7 @@
    "rank": 2,
    "design": {
     "radius": 0.08217612876525687,
-    "clothoid": 1.7472860558453847,
+    "clothoid_ratio": 1.7472860558453847,
     "v0": 2.3426394886999633,
     "mass": 0.14201690459044
    },
@@ -756,7 +757,7 @@
     "detail": "stopping distance [m]: 0.5087 vs 0.5097 on a flat surface"
    }
   ],
-  "wall_s": 256.9852328300476,
+  "wall_s": 252.07915568351746,
   "notes": [
    "NVIDIA Newton 1.7.0, XPBD, 12 iterations: the car is a sphere of the wheel radius (6 mm) on the 3-D track mesh (strip, rails, the exit shifted sideways), launched at the design speed; no air",
    "Newton loses 5.7 % of the launch energy by the top with no friction at all: XPBD contact dissipation on the curved mesh, which barely changes with the time step or a finer mesh. The run is therefore judged against the worst-case envelope (it must still go round and keep at least the envelope's speed at the top), not for equality.",
@@ -1063,21 +1064,21 @@
    "full": 1
   },
   "wall_s": {
-   "closed_form": 0.0079,
-   "reduced": 7.4097,
-   "full": 261.8082
+   "closed_form": 0.0069,
+   "reduced": 6.3287,
+   "full": 272.5327
   },
   "s_per_call": {
-   "closed_form": 3.926168499674531e-06,
-   "reduced": 0.0011226889522728898,
-   "full": 261.8082187559994
+   "closed_form": 3.433998500014468e-06,
+   "reduced": 0.0009588959483333393,
+   "full": 272.53270733899996
   }
  },
  "savings": {
   "designs_ranked_without_full_solver": 8600,
   "full_solver_calls": 1,
-  "full_solver_s_per_call": 261.8082187559994,
-  "text": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 261.8 s each (measured). Running every evaluation on the full solver would have taken about 625.4 h (estimate: evaluations x measured time per full call)."
+  "full_solver_s_per_call": 272.53270733899996,
+  "text": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 272.5 s each (measured). Running every evaluation on the full solver would have taken about 651.1 h (estimate: evaluations x measured time per full call)."
  },
  "calibration_rounds": [
   {
@@ -1085,7 +1086,7 @@
    "options": {},
    "design": {
     "radius": 0.08392212590233154,
-    "clothoid": 2.498212126585065,
+    "clothoid_ratio": 2.498212126585065,
     "v0": 2.4650848447980396,
     "mass": 0.03101345493025515
    },

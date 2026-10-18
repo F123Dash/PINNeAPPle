@@ -12,9 +12,10 @@
   "trust": "APPROVED",
   "design": {
    "radius": 0.08392212590233154,
-   "clothoid": 2.498212126585065,
+   "clothoid_ratio": 2.498212126585065,
    "v0": 2.4650848447980396,
    "mass": 0.03101345493025515,
+   "clothoid_length": 0.20965527261800326,
    "material": "pla_4043d",
    "thickness": 0.0015
   },
@@ -25,14 +26,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.0079,
-    "reduced": 7.4097,
-    "full": 261.8082
+    "closed_form": 0.0069,
+    "reduced": 6.3287,
+    "full": 272.5327
    },
    "s_per_call": {
-    "closed_form": 3.926168499674531e-06,
-    "reduced": 0.0011226889522728898,
-    "full": 261.8082187559994
+    "closed_form": 3.433998500014468e-06,
+    "reduced": 0.0009588959483333393,
+    "full": 272.53270733899996
    }
   },
   "verification": {
@@ -49,8 +50,8 @@
     }
    ]
   },
-  "savings": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 261.8 s each (measured). Running every evaluation on the full solver would have taken about 625.4 h (estimate: evaluations x measured time per full call).",
-  "wall_s": 309.4
+  "savings": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 272.5 s each (measured). Running every evaluation on the full solver would have taken about 651.1 h (estimate: evaluations x measured time per full call).",
+  "wall_s": 317.7
  },
  "bracket": {
   "text": "a bracket that holds 2 kN",
@@ -95,14 +96,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.0083,
-    "reduced": 9.7204,
-    "full": 35.2303
+    "closed_form": 0.0081,
+    "reduced": 9.8319,
+    "full": 39.4809
    },
    "s_per_call": {
-    "closed_form": 6.941040833225997e-07,
-    "reduced": 0.511601431315859,
-    "full": 35.23033508699882
+    "closed_form": 6.775249999861899e-07,
+    "reduced": 0.5174676794210583,
+    "full": 39.48087916700001
    }
   },
   "verification": {
@@ -127,8 +128,8 @@
     }
    ]
   },
-  "savings": "12019 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 35.2 s each (measured). Running every evaluation on the full solver would have taken about 117.6 h (estimate: evaluations x measured time per full call).",
-  "wall_s": 55.5
+  "savings": "12019 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 39.5 s each (measured). Running every evaluation on the full solver would have taken about 131.8 h (estimate: evaluations x measured time per full call).",
+  "wall_s": 59.0
  },
  "heatsink": {
   "text": "a heat sink for a 40 W chip in still air",
@@ -170,14 +171,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.056,
-    "reduced": 0.2628,
-    "full": 0.3269
+    "closed_form": 0.0871,
+    "reduced": 0.2045,
+    "full": 0.2921
    },
    "s_per_call": {
-    "closed_form": 2.799949949985603e-05,
-    "reduced": 0.00010109154653736578,
-    "full": 0.32689896000010776
+    "closed_form": 4.35335084999906e-05,
+    "reduced": 7.865783807692249e-05,
+    "full": 0.292097950000084
    }
   },
   "verification": {
@@ -195,7 +196,7 @@
    ]
   },
   "savings": "4600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 0.3 s each (measured). Running every evaluation on the full solver would have taken about 0.4 h (estimate: evaluations x measured time per full call).",
-  "wall_s": 15.2
+  "wall_s": 15.9
  },
  "glider": {
   "text": "a wing for a 1.2 kg model glider, at most 2 m span",
@@ -221,14 +222,14 @@
     "full": 1
    },
    "wall_s": {
-    "closed_form": 0.0687,
-    "reduced": 4.2962,
-    "full": 0.2883
+    "closed_form": 0.0621,
+    "reduced": 4.367,
+    "full": 0.4037
    },
    "s_per_call": {
-    "closed_form": 3.436744900045596e-05,
-    "reduced": 0.0006509361404542605,
-    "full": 0.2882731550016615
+    "closed_form": 3.1035802500014144e-05,
+    "reduced": 0.0006616651124242922,
+    "full": 0.40374807099999543
    }
   },
   "verification": {
@@ -253,8 +254,8 @@
     }
    ]
   },
-  "savings": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 0.3 s each (measured). Running every evaluation on the full solver would have taken about 0.7 h (estimate: evaluations x measured time per full call).",
-  "wall_s": 11.8
+  "savings": "8600 design evaluations ran on the closed form and the reduced model; the full solver ran 1 time(s) at 0.4 s each (measured). Running every evaluation on the full solver would have taken about 1.0 h (estimate: evaluations x measured time per full call).",
+  "wall_s": 12.1
  },
  "out_of_scope": {
   "text": "an electric motor for my drone",
