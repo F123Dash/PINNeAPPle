@@ -19,6 +19,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   files in and out, FEMM Lua script, ElmerFEM case, MATLAB `.mat`, DXF, `ParameterSpace` / `DatasetSpec` contracts).
   Example `examples/electrodynamics/14_prius_getdp_crosscheck.py` (torque, back-EMF, inductances, cogging
   convergence and diagnosis against GetDP), tests `tests/test_emachine_getdp.py`, `tests/test_emachine_interop.py`.
+- Rotor design of IPM machines with the design-study core (`pinneapple_simulation.electromagnetics.machines.design`):
+  the FEA as a reference evaluator (`rotor_evaluator`), `rotor_design_problem`, and `hybrid_vs_fea_only`
+  (Gaussian-process surrogate + NSGA-II with adaptive FEA sampling against NSGA-II on the FEA, at equal hypervolume,
+  every front design re-evaluated by a finer FEA). Example `examples/electrodynamics/12_prius_rotor_design.py`,
+  tests `tests/test_emachine_design.py`.
 - Thermal network and demagnetisation check of machines (`pinneapple_simulation.electromagnetics.machines.thermal`):
   lumped `ThermalNetwork` (steady state, backward Euler and trapezoidal transients), the seven-node
   `machine_network` of a water-jacketed machine, per-element demagnetisation margin against `Hcj(T)` of the NdFeB

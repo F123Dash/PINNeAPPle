@@ -533,6 +533,59 @@ The network and the demagnetisation field are checked against closed forms (`mac
 
 The element-wise B of P1 elements is first order, hence the observed order of the demagnetisation field.
 
+### Rotor design: FEA + Gaussian-process surrogate + NSGA-II
+
+`pinneapple_simulation.electromagnetics.machines.design` puts the FEA behind the design-study core of
+`pinneapple_design.design_optimizer`:
+
+* `rotor_evaluator` maps five rotor variables (magnet width `W4` and thickness `H3`, V depth `H0` and opening `W0`,
+  bridge `H1`) to the FEA mean torque and ripple at a fixed current, plus the exact magnet mass. Invalid
+  geometries are rejected without a solve.
+* `rotor_design_problem` maximises torque and minimises magnet mass, with ripple at most 30 %.
+* `hybrid_vs_fea_only` compares two studies:
+  * surrogate-assisted NSGA-II (`surrogate_assisted`): a Latin-hypercube start, then rounds of GP fit, NSGA-II on
+    the GP, and FEA on points along the predicted front (adaptive sampling);
+  * NSGA-II that calls the FEA for every individual.
+
+  It compares them at equal quality, the hypervolume of the feasible FEA-evaluated designs, and re-evaluates every
+  design of the hybrid front with a finer FEA (`verify_candidates`).
+
+`python examples/electrodynamics/12_prius_rotor_design.py` (run on 2026-10-18) uses three seeds. The study FEA has
+288 gap nodes and 6 rotor angles at 250 A, 50 deg. The hybrid starts from 24 Latin-hypercube points and runs
+4 rounds of 8 FEA verifications. The FEA-only NSGA-II has a budget of 2000 designs. Results are in
+`results/12_prius_rotor_design.json` and `12_prius_rotor_design.png`:
+
+| Seed | Hybrid FEA calls | Hybrid hypervolume | FEA calls for NSGA-II to reach it | Saving | NSGA-II final (FEA calls) |
+|---|---|---|---|---|---|
+| 0 | 53 | 0.8938 | 711 | 92.5 % | 0.9194 (1582) |
+| 1 | 52 | 0.8893 | 601 | 91.3 % | 0.9067 (1600) |
+| 2 | 51 | 0.9379 | 605 | 91.6 % | 0.9598 (1554) |
+
+At equal quality the hybrid needs 51 to 53 FEA solutions where NSGA-II on the FEA needs 601 to 711, a saving of
+91 to 93 %. Given enough calls, the FEA-only GA ends higher: 0.907 to 0.960 after about 1600 calls. The hypervolume
+is normalised per seed by the ideal and nadir points of both runs, so it compares the two runs of one seed, not
+seeds with each other.
+
+The GP's held-out error on the 8 FEA points of each round, in the last round:
+
+* torque: mean 0.07 to 0.14 %, max 0.35 %;
+* magnet mass: 0.01 % or less;
+* ripple: mean 2.5 to 4.6 %, max 11 %. In the first round it was up to 46 %, so ripple is the weak output.
+
+All 83 designs of the three hybrid fronts were re-evaluated with the finer FEA (480 gap nodes, 12 angles):
+
+* all remain feasible;
+* torque changes by at most 1.1 % (mean 0.8 %);
+* ripple rises by 15 to 19 % on average and by up to 30 %, because 6 rotor angles under-sample it.
+
+A design study should therefore apply its ripple limit with that margin or evaluate ripple with 12 angles.
+
+Against the Prius rotor through the same finer FEA (343.4 N m, 1.236 kg, ripple 20.3 %), each front has 6 to 8
+designs with more torque and less magnet: about 364 N m (+6 %) at 1.21 kg, with ripple 24 to 25 %. These designs
+sit at the lower bound of the bridge, 1.0 mm against the Prius's 1.5 mm. A thinner bridge leaks less magnet flux,
+but the bridge carries the centrifugal load. Mechanical stress, demagnetisation and the torque-speed envelope are not
+constraints of this study, so it does not claim a better rotor. It shows the method and its FEA-call saving.
+
 ## Verification
 
 Each case compares a solver or reference implementation with an independent result; where the mesh or step is
