@@ -362,23 +362,30 @@ class Drive:
         return {"T": sg * float(Tg[0]), "i_d": float(-sgm[0] * np.sin(gm[0])), "i_q": float(sg * sgm[0] * np.cos(gm[0])),
                 "gamma": float(gm[0])}
 
-    def efficiency_map(self, speeds, torques) -> dict:
-        """Efficiency (NaN where infeasible) on ``speeds`` (rad/s) x ``torques`` (N m; negative = generating), and
-        the motoring and braking torque envelopes."""
+    def efficiency_map(self, speeds, torques, relative: bool = False) -> dict:
+        """Efficiency and loss (NaN where infeasible) on ``speeds`` (rad/s) x ``torques``, and the motoring and braking
+        envelopes. ``torques`` in N m (negative = generating), or with ``relative=True`` as fractions in [-1, 1] of the
+        motoring (> 0) and braking (< 0) envelope at each speed, so the map reaches the envelope everywhere; the
+        torque values used are returned as a (speeds, torques) array ``T``."""
         speeds, torques = np.asarray(speeds, float), np.asarray(torques, float)
-        eff = np.full((len(speeds), len(torques)), np.nan)
-        loss = np.full_like(eff, np.nan)
         env_m = np.array([self.max_torque(w)["T"] for w in speeds])
         env_g = np.array([-self.max_torque(w, generating=True)["T"] for w in speeds])
+        if relative:
+            T = np.where(torques[None, :] >= 0, torques[None, :] * env_m[:, None], torques[None, :] * env_g[:, None])
+        else:
+            T = np.broadcast_to(torques[None, :], (len(speeds), len(torques))).copy()
+        eff = np.full(T.shape, np.nan)
+        loss = np.full_like(eff, np.nan)
         for a, w in enumerate(speeds):
-            for b, t in enumerate(torques):
+            for b in range(T.shape[1]):
+                t = float(T[a, b])
                 limit = env_m[a] if t >= 0 else env_g[a]
                 if w <= 0 or abs(t) > limit * (1 + 1e-9) or t == 0:
                     continue
-                op = self.operating_point(float(t), float(w))
+                op = self.operating_point(t, float(w))
                 if op is not None:
                     eff[a, b], loss[a, b] = op["efficiency"], op["loss"]
-        return {"speeds": speeds, "torques": torques, "efficiency": eff, "loss": loss, "envelope": env_m,
+        return {"speeds": speeds, "torques": torques, "T": T, "efficiency": eff, "loss": loss, "envelope": env_m,
                 "envelope_generating": env_g}
 
 
