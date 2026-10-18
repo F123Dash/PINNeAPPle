@@ -37,8 +37,8 @@ from ..validation.splitters import (
 )
 from .base import Forecaster, SeriesData, forecast_origins, targets_at
 
-__all__ = ["Protocol", "ModelSpec", "tune", "evaluate", "run_zoo", "overfitting_study", "surrogate_trained",
-           "skill_horizon"]
+__all__ = ["Protocol", "ModelSpec", "tune", "evaluate", "run_zoo", "merge_zoo", "overfitting_study",
+           "surrogate_trained", "skill_horizon"]
 
 LEVELS = (0.5, 0.8, 0.95)
 
@@ -198,14 +198,16 @@ def skill_horizon(horizons, skill, p_values=None, alpha: float = 0.05) -> int | 
 
 
 def run_zoo(data: SeriesData, specs: Sequence[ModelSpec], protocol: Protocol, *, budget: int | None = None,
-            keep_forecasts: Sequence[str] = (), log: Callable[[str], None] = print, seed: int = 0
-            ) -> dict[str, Any]:
+            keep_forecasts: Sequence[str] = (), keep_models: bool = False, log: Callable[[str], None] = print,
+            seed: int = 0) -> dict[str, Any]:
     """Tune, fit and score every model of the zoo on one series. Returns a JSON-able dict (``_forecasts`` holds
-    the test forecasts of ``keep_forecasts`` for figures and is dropped by ``to_jsonable(drop_private=True)``)."""
+    the test forecasts of ``keep_forecasts`` for figures, ``_models`` the fitted models when ``keep_models``; both
+    are dropped by ``to_jsonable(drop_private=True)``). Zoos run in parts (e.g. one process per model) are
+    combined by :func:`merge_zoo`."""
     H = list(map(int, protocol.horizons))
     split = protocol.final_split(len(data))
     res: dict[str, Any] = {"series": data.name, "dt": data.dt, "protocol": protocol.describe(len(data)),
-                           "models": {}, "_forecasts": {}}
+                           "models": {}, "_forecasts": {}, "_models": {}}
     errs: dict[str, dict[str, np.ndarray]] = {}
     for spec in specs:
         t0 = time.perf_counter()
@@ -224,6 +226,8 @@ def run_zoo(data: SeriesData, specs: Sequence[ModelSpec], protocol: Protocol, *,
         fc, y = ev_test.pop("_forecast"), ev_test.pop("_y")
         if spec.name in keep_forecasts:
             res["_forecasts"][spec.name] = {"forecast": fc, "y": y, "origins": split["test"]}
+        if keep_models:
+            res["_models"][spec.name] = model
         res["_forecasts"].setdefault("_y", y)
         res["models"][spec.name] = {
             "family": spec.family, "n_params": int(model.n_params()), "fit_seconds": model.fit_seconds,
@@ -236,6 +240,34 @@ def run_zoo(data: SeriesData, specs: Sequence[ModelSpec], protocol: Protocol, *,
         log(f"  {spec.name:32s} {spec.family:12s} params={model.n_params():8d} "
             f"fit={model.fit_seconds:7.1f}s val_score={res['models'][spec.name]['val_score']:.3f} "
             f"test_rmse={np.round(ev_test['rmse'], 3).tolist()}")
+    _add_comparisons(res, errs, H)
+    return res
+
+
+def merge_zoo(parts: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Combine :func:`run_zoo` results of the same series and protocol run in parts (each with its models' test
+    forecasts kept): the models and forecasts are pooled and the comparisons (skill, DM tests against persistence
+    and the best baseline, Holm and BH adjustments, family representatives) are recomputed over the whole zoo."""
+    first = parts[0]
+    H = list(map(int, first["protocol"]["horizons"]))
+    res: dict[str, Any] = {"series": first["series"], "dt": first["dt"], "protocol": first["protocol"],
+                           "models": {}, "_forecasts": {}, "_models": {}}
+    errs = {}
+    for p in parts:
+        if p["protocol"] != first["protocol"]:
+            raise ValueError("parts were run with different protocols")
+        for name, m in p["models"].items():
+            m = {k: v for k, v in m.items() if k not in ("dm_vs_persistence", "dm_vs_best_baseline")}
+            res["models"][name] = m
+            if "test" not in m:
+                continue
+            rec = p["_forecasts"].get(name)
+            if rec is None:
+                raise ValueError(f"{name}: run_zoo was called without keep_forecasts for it")
+            res["_forecasts"][name] = rec
+            errs[name] = {"se": rec["forecast"].mean - rec["y"], "crps": rec["forecast"].crps(rec["y"])}
+        res["_models"].update(p.get("_models", {}))
+        res["_forecasts"].setdefault("_y", p["_forecasts"].get("_y"))
     _add_comparisons(res, errs, H)
     return res
 
