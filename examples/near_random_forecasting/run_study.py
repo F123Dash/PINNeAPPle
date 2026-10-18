@@ -36,7 +36,7 @@ def _work(job):
     return out
 
 
-def run(smoke: bool = False, jobs: int = 1, cases=None, out_dir: Path = HERE):
+def run(smoke: bool = False, jobs: int = 1, cases=None, out_dir: Path = HERE, force: bool = False):
     from pinneapple_systems.time_series.forecast_lab import pipeline, plots
     from pinneapple_systems.time_series.forecast_lab.presets import CASES
 
@@ -51,7 +51,7 @@ def run(smoke: bool = False, jobs: int = 1, cases=None, out_dir: Path = HERE):
              for n in (OVERFIT_CASES if not smoke else ["lorenz63_noise0.1"]) if cases is None or n in cases] + todo
     lyap_kw = {"total_times": (2000.0,), "seeds": (0,)} if smoke else {}
     todo = [("lyapunov", "mackey_glass", lyap_kw, str(res_dir / "lyapunov_mackey_glass.json"))] + todo
-    todo = [j for j in todo if not Path(j[3]).exists()]
+    todo = [j for j in todo if not Path(j[3]).exists() or (force and j[0] == "case")]
     if jobs > 1:
         with ProcessPoolExecutor(jobs) as ex:          # longest jobs (the overfitting studies) were queued first
             for out in ex.map(_work, todo):
@@ -96,5 +96,6 @@ if __name__ == "__main__":
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 1)))
     ap.add_argument("--cases", nargs="*")
+    ap.add_argument("--force", action="store_true", help="rerun the named cases even if their results exist")
     a = ap.parse_args()
-    print(run(smoke=a.smoke, jobs=a.jobs, cases=a.cases))
+    print(run(smoke=a.smoke, jobs=a.jobs, cases=a.cases, force=a.force))
