@@ -97,6 +97,12 @@ def table() -> None:
 
 
 if __name__ == "__main__":
+    import os
+    import shutil
+    # a Lab of its own, emptied at the start: an item's letter then comes from this run of the examples, never from
+    # runs recorded by older code
+    os.environ.setdefault("PINNEAPPLE_FLOW_HOME", str(WORK / "home"))
+    shutil.rmtree(Path(os.environ["PINNEAPPLE_FLOW_HOME"]) / "lab", ignore_errors=True)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     names = args or [p.stem for p in sorted(FLOWS_DIR.glob("*.json"))]
     for nm in names:

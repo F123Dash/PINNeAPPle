@@ -256,7 +256,7 @@ def lab(ctx, inputs, params):
             shutil.copy(figure, dst)
             lctx.files.setdefault("figures", []).append(os.path.relpath(dst, lctx.dir))
     FlowValidation.run = run_exp
-    ctx.decide("validation.lab_tiers", "grade with the Lab curation; seal only tiers A and B")
+    ctx.decide("validation.lab_tiers", "grade with the Lab curation (letters A-F)")
     res = lab_run(FlowValidation, root=root)
     cur = curate(LabStore(root))
     item = cur["items"].get(name, {})
@@ -265,6 +265,15 @@ def lab(ctx, inputs, params):
     from pinneapple_lab.curation import TIERS
     ctx.metric("tier", tier, "pinneapple_lab.curation: " + ", ".join(f"{k} {v}" for k, v in TIERS.items()))
     ctx.metric("lab_run_id", res.run_id)
+    run_rec = (cur.get("runs") or {}).get(res.run_id) or {}
+    run_tier = run_rec.get("tier")
+    if run_tier:                                     # this run's own grade: the item's letter is its best run's
+        hl = run_rec.get("headline") or {}
+        ctx.metric("run_tier", run_tier, "this run's grade by the Lab curation; " + (hl.get("text") or ""))
+        if run_tier != tier:
+            ctx.warn(f"this run is graded {run_tier} ({run_rec.get('tier_name', '')}: {hl.get('text', '')}"
+                     f"{'; ' + hl['hint'] if hl.get('hint') else ''}); the item's letter {tier} comes from its best "
+                     f"run ({item.get('best_run', '')}), recorded earlier")
     from ..lab_status import next_steps, seal_status
     st = seal_status(name, root)                                 # the Lab's letter (A-F once it has that scale)
     steps = next_steps(name, root)
@@ -283,7 +292,8 @@ def lab(ctx, inputs, params):
         seal = seal_for(name, root)
     except (SealError, KeyError) as exc:
         ctx.warn(f"no seal: {exc}")
-        ctx.summary(f"tier {tier}: not sealed ({exc})")
+        ctx.summary(f"tier {tier}: not sealed ({exc})" + (f"; this run {run_tier}" if run_tier and run_tier != tier
+                                                          else ""))
         return out
     if figure:
         sealed = stamp_file(figure, seal, out=str(ctx.path("validation_sealed.png")))
@@ -291,5 +301,6 @@ def lab(ctx, inputs, params):
         out["figure"] = artifact(sealed, "png")
         ctx.report["figures"].append({"path": str(sealed), "name": "validation_sealed",
                                       "caption": f"tier {tier} seal"})
-    ctx.summary(f"tier {tier}, sealed")
+    ctx.summary(f"tier {tier}, sealed" + (f"; this run {run_tier} ({(run_rec.get('headline') or {}).get('text', '')})"
+                                          if run_tier and run_tier != tier else ""))
     return out
