@@ -59,55 +59,73 @@ def landscape_tiles(results: Sequence[dict], *, floor: float = -0.5, titles: dic
 
 
 def _height_color(z):
-    """Warm above sea level (skill > 0), cool grey below, light neutral at 0."""
+    """Diverging: warm above sea level (skill > 0), blue below, light neutral at 0."""
     z = np.asarray(z, float)
-    warm, mid, cool = np.array([0.85, 0.30, 0.08]), np.array([0.60, 0.64, 0.70]), np.array([0.28, 0.33, 0.42])
+    warm, mid, cool = np.array([0.90, 0.32, 0.06]), np.array([0.86, 0.85, 0.80]), np.array([0.10, 0.32, 0.80])
     t = np.clip(z, -0.5, 1.0)
     pos = (np.clip(t / 0.6, 0, 1) ** 0.6)[..., None]
-    neg = np.clip(-t / 0.5, 0, 1)[..., None]
+    neg = (np.clip(-t / 0.3, 0, 1) ** 0.7)[..., None]
     return np.where(t[..., None] >= 0, mid + (warm - mid) * pos, mid + (cool - mid) * neg)
 
 
 def render_landscape(tiles: list[dict], path: str, *, ncols: int = 4, resolution=(1600, 1000), samples: int = 64,
                      height_scale: float = 1.2) -> str:
-    """Draw the tiles as surfaces (x: horizon, y: family, z: skill) on a grid of ``ncols`` columns with a
-    translucent sea at skill 0; each tile carries its title and the families along its left edge. A tile with a
-    single family is drawn as a narrow strip."""
+    """Draw the tiles as surfaces (x: horizon, y: family, z: skill) on a grid of ``ncols`` columns over a dark
+    studio floor, each with a translucent sea at skill 0 bounded by a glowing waterline. The families share
+    one labelled axis per row (a tile with a single family is a narrow strip on that family's row); each title
+    stands in front of its tile."""
     from pinneapple_blender.cycles import CyclesScene
-    sc = CyclesScene(resolution=resolution, samples=samples, background=(0.97, 0.97, 0.96), ambient=0.75)
-    W, D, gx, gy = 3.0, 1.6, 1.0, 1.4
+    sc = CyclesScene(resolution=resolution, samples=samples, background=(0.045, 0.05, 0.065), ambient=0.6)
+    W, D, gx, gy = 3.0, 1.6, 1.0, 1.95
+    zfloor = -0.5 * height_scale - 0.06
+    tilt = (32, 0, 0)                                  # text faces the camera direction (0, -1, 1.6)
     nrows = int(np.ceil(len(tiles) / ncols))
     zmax = 0.0
+    fam_y = {f: i / (len(FAMILIES) - 1) * D for i, f in enumerate(FAMILIES)}
     for k, t in enumerate(tiles):
         r, c = divmod(k, ncols)
         ox, oy = c * (W + gx), -r * (D + gy)
         x = np.asarray(t["x"], float)
         Z = np.asarray(t["skill"], float)
         fams = list(t["families"])
-        depth = D if len(Z) > 1 else 0.35
-        if len(Z) == 1:
-            Z = np.vstack([Z, Z])
+        if len(Z) == 1:                                # a strip on that family's row
+            y0 = fam_y.get(fams[0], 0.0)
+            Z, yrows = np.vstack([Z, Z]), np.array([y0 - 0.17, y0 + 0.17])
+        else:
+            yrows = np.array([fam_y.get(f, i) for i, f in enumerate(fams)])
         xs = np.linspace(x.min(), x.max(), 48)
         rows = np.array([np.interp(xs, x, row) for row in Z])
-        ys = np.linspace(0, len(rows) - 1, 6 * len(rows))
-        grid = np.array([np.interp(ys, np.arange(len(rows)), rows[:, j]) for j in range(len(xs))]).T
-        X, Y = np.meshgrid(ox + (xs - xs.min()) / max(np.ptp(xs), 1e-9) * W, oy + ys / max(ys.max(), 1) * depth)
-        sc.add_surface(X, Y, grid * height_scale, _height_color(grid), roughness=0.6)
+        ys = np.linspace(yrows.min(), yrows.max(), 6 * len(rows))
+        grid = np.array([np.interp(ys, yrows, rows[:, j]) for j in range(len(xs))]).T
+        X, Y = np.meshgrid(ox + (xs - xs.min()) / max(np.ptp(xs), 1e-9) * W, oy + ys)
+        sc.add_surface(X, Y, grid * height_scale, _height_color(grid), roughness=0.45)
         zmax = max(zmax, float(grid.max() * height_scale))
-        sc.add_text(t["title"], (ox + W / 2, oy - 0.5, 0.01), size=0.24, rotation=(20, 0, 0))
-        for fi, f in enumerate(fams):
-            yy = oy + (fi / max(len(fams) - 1, 1)) * depth if len(fams) > 1 else oy + depth / 2
-            sc.add_text(f, (ox - 0.08, yy, 0.01), size=0.15, rotation=(20, 0, 0), align="RIGHT",
-                        color=_FAM_RGB.get(f, (0.2, 0.2, 0.2)))
-        sc.add_text(f"horizon ({t['x_unit']}) ->", (ox + W / 2, oy - 0.85, 0.01), size=0.14, rotation=(20, 0, 0),
-                    color=(0.4, 0.4, 0.4))
+        y_lo, y_hi = oy + ys.min(), oy + ys.max()
+        sc.add_plane(0.0, (W, y_hi - y_lo), center=(ox + W / 2, (y_lo + y_hi) / 2), color=(0.30, 0.60, 1.0),
+                     alpha=0.22, roughness=0.05)
+        sc.add_tube([(ox, y_lo, 0), (ox + W, y_lo, 0), (ox + W, y_hi, 0), (ox, y_hi, 0), (ox, y_lo, 0)], 0.012,
+                    (0.45, 0.80, 1.0), emission=4.0)
+        sc.add_text(t["title"], (ox + W / 2, oy - 0.62, 0.05), size=0.27, rotation=tilt, color=(0.95, 0.95, 0.93),
+                    emission=1.6)
+        sc.add_text(f"horizon, {t['x_unit']} ->", (ox + W / 2, oy - 0.98, 0.05), size=0.15, rotation=tilt,
+                    color=(0.62, 0.68, 0.76), emission=1.2)
+    for r in range(nrows):                             # one family axis per row
+        oy = -r * (D + gy)
+        for f in FAMILIES:
+            sc.add_text(f, (-0.55, oy + fam_y[f] - 0.07, 0.05), size=0.24, rotation=tilt, align="RIGHT",
+                        color=_FAM_RGB[f], emission=2.0)
     total_w = ncols * (W + gx) - gx
-    y_lo, y_hi = -(nrows - 1) * (D + gy) - 1.0, D + 0.2
-    sc.add_plane(0.0, (total_w + 2.0, y_hi - y_lo + 0.8), center=(total_w / 2 - 0.3, (y_lo + y_hi) / 2),
-                 color=(0.22, 0.46, 0.72), alpha=0.45, roughness=0.08)
-    sc.fit_camera((-1.4, y_lo, -0.3), (total_w + 0.3, y_hi, zmax), direction=(0.0, -1.0, 1.0), ortho=False,
-                  lens=40, margin=0.98)
-    sc.light("SUN", rotation=(40, 0, 30), energy=2.4)
+    y_lo, y_hi = -(nrows - 1) * (D + gy) - 1.6, D + 0.2
+    sc.add_text("height and colour: RMSE skill of the family's best model vs the best baseline "
+                "(warm above 0, blue below, floored at -0.5); translucent plane = skill 0",
+                (total_w / 2, y_lo + 0.1, 0.05), size=0.17, rotation=tilt, color=(0.62, 0.68, 0.76), emission=1.2)
+    big = (total_w + 30.0, y_hi - y_lo + 30.0)
+    sc.add_plane(zfloor, big, center=(total_w / 2, (y_lo + y_hi) / 2), color=(0.022, 0.025, 0.032), alpha=1.0,
+                 roughness=0.9)
+    sc.fit_camera((-2.5, y_lo, zfloor), (total_w + 0.5, y_hi, zmax), direction=(0.0, -1.0, 1.6), ortho=False,
+                  lens=40, margin=1.02)
+    sc.light("SUN", rotation=(45, 0, -35), energy=3.2)                 # key, front left
+    sc.light("SUN", rotation=(-60, 0, 160), energy=2.2)                # rim, from behind
     return sc.render(path)
 
 

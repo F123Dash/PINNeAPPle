@@ -197,7 +197,8 @@ class CyclesScene:
                              smooth=False, name=name)
 
     def add_text(self, text: str, location, *, size: float = 0.3, color=(0.1, 0.1, 0.1), rotation=(90, 0, 0),
-                 align: str = "CENTER", name="text"):
+                 align: str = "CENTER", emission: float = 0.0, name="text"):
+        """Text object; ``emission`` > 0 makes it glow in its own colour (readable on dark scenes)."""
         bpy = self.bpy
         cu = bpy.data.curves.new(self._name(name), "FONT")
         cu.body = str(text)
@@ -206,7 +207,8 @@ class CyclesScene:
         obj = bpy.data.objects.new(cu.name, cu)
         obj.location = tuple(map(float, location))
         obj.rotation_euler = tuple(math.radians(a) for a in rotation)
-        return self._link(obj, self.material(color, roughness=0.8))
+        obj.visible_shadow = False                     # labels should not cast shadows on the scene
+        return self._link(obj, self.material(color, roughness=0.8, emission=emission))
 
     # -- camera, lights, render -------------------------------------------------
     def camera(self, location, look_at=(0.0, 0.0, 0.0), *, lens: float = 50.0, ortho_scale: float | None = None):

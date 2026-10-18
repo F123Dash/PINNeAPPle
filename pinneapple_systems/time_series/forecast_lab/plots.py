@@ -192,10 +192,11 @@ def plot_fan_charts(panels: list[dict], path: str, *, ncols: int = 2) -> str:
 
 def plot_memorise_vs_learn(records: list[dict], path: str) -> str:
     """For each record of :func:`~.pipeline.memorise_vs_learn`: truth and the two variants' forecasts over the
-    end of the training period (left) and the start of the untouched test period (right), with each variant's
-    RMSE on the whole training and test sets in the legend."""
+    end of the training period (left) and the start of the untouched test period (right). One shared legend;
+    each panel title carries the variants' RMSE on the whole training or test set."""
     plt = _plt()
-    fig, axes = plt.subplots(len(records), 2, figsize=(11, 2.8 * len(records)), squeeze=False, sharey="row")
+    fig, axes = plt.subplots(len(records), 2, figsize=(11, 2.9 * len(records) + 0.5), squeeze=False, sharey="row",
+                             layout="constrained")
     cols = ["#e34948", "#2a78d6"]
     for row, r in zip(axes, records, strict=False):
         for ax, part in zip(row, ("train", "test"), strict=True):
@@ -203,13 +204,13 @@ def plot_memorise_vs_learn(records: list[dict], path: str) -> str:
             idx = np.asarray(r[f"{part}_index"])
             ax.plot(idx, r[f"truth_{part}"], color=_INK, lw=1.0, label="truth")
             for c, (name, v) in zip(cols, r["variants"].items(), strict=False):
-                ax.plot(idx, v[f"pred_{part}"], color=c, lw=1.3, alpha=0.9,
-                        label=f"{name} (RMSE {part} {v['rmse'][part]:.3f})")
+                ax.plot(idx, v[f"pred_{part}"], color=c, lw=1.3, alpha=0.9, label=name)
+            rmse = ", ".join(f"{name.split(':')[0]} {v['rmse'][part]:.3f}" for name, v in r["variants"].items())
             ax.set_title(f"{r['title']}: {'training period (memorised?)' if part == 'train' else 'test period'}"
-                         f", h = {r['horizon']}", fontsize=8, color=_INK)
+                         f", h = {r['horizon']}\nRMSE on the whole {part} set: {rmse}", fontsize=8, color=_INK)
             ax.set_xlabel("sample", fontsize=7, color=_MUTED)
-            ax.legend(fontsize=6, frameon=False, loc="upper left")
-    fig.tight_layout()
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside upper center", ncol=len(labels), fontsize=8, frameon=False)
     fig.savefig(path, dpi=110)
     plt.close(fig)
     return path
