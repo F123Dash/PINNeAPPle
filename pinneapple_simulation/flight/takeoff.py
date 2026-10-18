@@ -34,13 +34,13 @@ SCREEN = 35 * FT
 
 def default_schedule(ac: Aircraft, kind: str = "transport") -> TakeoffSchedule:
     """V_R = 1.05 x the take-off-flap stall speed (CLmax_TO of the aircraft), climb at 1.25 V_s (between V2 = 1.13
-    V_SR and V2 + 10 kt for a transport), rotation at 3 deg/s to 12 deg (transport) or 5 deg/s to 9 deg (light); an
+    V_SR and V2 + 10 kt for a transport), rotation at 3 deg/s to 12 deg (transport) or 6 deg/s to 11 deg (light); an
     assumption of a typical technique, not a certified schedule."""
     Vs = ac.stall_speed()
     if kind == "transport":
         return TakeoffSchedule(V_R=1.05 * Vs, theta_rotation=math.radians(12.0), rotation_rate=math.radians(3.0),
                                V_climb=1.25 * Vs, flap=ac.flap_takeoff)
-    return TakeoffSchedule(V_R=1.10 * Vs, theta_rotation=math.radians(9.0), rotation_rate=math.radians(5.0),
+    return TakeoffSchedule(V_R=1.10 * Vs, theta_rotation=math.radians(11.0), rotation_rate=math.radians(6.0),
                            V_climb=1.30 * Vs, flap=ac.flap_takeoff)
 
 

@@ -115,3 +115,23 @@ def test_spanwise_gusts_roll_the_aircraft_a_uniform_one_does_not(ga):
     h1 = simulate(ga, tr.x, ctl, 6.0, 0.01, wind=f1)
     p3, p1 = np.abs(h3.x[:, 10]).max(), np.abs(h1.x[:, 10]).max()
     assert p3 > 0.02 and p1 < 1e-6 * p3
+
+
+def test_flight_scene_and_figures(ga, tmp_path):
+    from pinneapple_simulation.flight.figures import takeoff_figure
+    from pinneapple_simulation.flight.visuals import body_vertices, flight_scene
+    tr = trim(ga, 55.0, 300.0)
+    h = simulate(ga, tr.x, StickFixed(tr.controls), 1.0, 0.02, record_gamma=True,
+                 wind=FrozenLine(turbulence_spec(300.0, "light"), length=5000, dx=1.0))
+    sc = flight_scene(ga, h, n_frames=10, wind=FrozenLine(turbulence_spec(300.0, "light"), length=5000, dx=1.0))
+    d = sc.extras()["animation"]
+    assert sc.animation.n_frames == 10 and "vlm_load" in {s.name for s in sc.surfaces}
+    assert len(d["vectors"]) == 1 and len(d["hud"]) == 5
+    # the CG maps to the body origin, the nose ends up forward (+x body), the right wing to -y (y left)
+    np.testing.assert_allclose(body_vertices(ga, ga.cg), 0.0, atol=1e-12)
+    assert body_vertices(ga, [0.0, 0, ga.cg[2]])[0] > 0 and body_vertices(ga, [ga.cg[0], 3.0, ga.cg[2]])[1] < 0
+    # the track's first pose is the state's position in z-up axes (north, west, up)
+    pose = sc.animation.pose("aircraft", 0)
+    np.testing.assert_allclose(pose[:3, 3], [h.x[0, 0], -h.x[0, 1], -h.x[0, 2]], atol=1e-6)
+    p = takeoff_figure({"light_ga": h}, {}, str(tmp_path / "f.png"))
+    assert (tmp_path / "f.png").stat().st_size > 1000 and p.endswith("f.png")

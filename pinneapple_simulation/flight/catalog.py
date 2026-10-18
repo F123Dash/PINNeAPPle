@@ -116,6 +116,14 @@ def _assemble(name, af, mass_components, x_cg_target, engines, legs, controls, f
     return ac
 
 
+def _tipback_main_x(x_cg: float, comps, ground_z: float, tipback_deg: float = 15.0) -> float:
+    """Main-gear station for a tip-back angle (CG to main-wheel contact, from the vertical) of ``tipback_deg``, the
+    usual tricycle-gear layout rule (an assumption, used where the parametric airframe has no gear drawing data)."""
+    m = sum(c.mass for c in comps)
+    z_cg = sum(c.mass * float(c.center[2]) for c in comps) / m
+    return x_cg + (z_cg - ground_z) * math.tan(math.radians(tipback_deg))
+
+
 def _standard_controls(flap_eta=(0.05, 0.60), flap_cf=0.30, ail_eta=(0.62, 0.95), ail_cf=0.25, elev_cf=0.35):
     return {"elevator": ControlSurface("elevator", 1, 0.0, 1.01, elev_cf),
             "aileron": ControlSurface("aileron", 0, ail_eta[0], ail_eta[1], ail_cf, antisymmetric=True),
@@ -162,7 +170,7 @@ def light_ga() -> Aircraft:
     comps.append(cylinder("fuselage_systems", rest, [2.6, 0, zc], 0.75 * af.length, 0.45, shell=True))
     x_cg = _wing_ac_cg(af)
     gz = af.ground_z()
-    xm = af.wing_x + 0.55 * af.root_chord + 0.15
+    xm = _tipback_main_x(x_cg, comps, gz)
     legs = [GearLeg("nose", np.array([0.75, 0.0, gz]), steerable=True),
             GearLeg("main_left", np.array([xm, -1.25, gz]), brakes=True),
             GearLeg("main_right", np.array([xm, 1.25, gz]), brakes=True)]
@@ -175,7 +183,7 @@ def light_ga() -> Aircraft:
                             "CG at 25 % MAC", "flaps 10 deg for take-off on 5-60 % of the half-span, ailerons "
                             "62-95 %, elevator 35 % chord, rudder 30 % chord", "CLmax 1.6 with take-off flaps",
                             "engine 140 kg, fuel 100 kg, 240 kg of occupants; the fuselage and systems take the rest",
-                            "fixed gear: its drag is in the calibrated miscellaneous D/q"],
+                            "fixed gear: its drag is in the calibrated miscellaneous D/q", "main gear placed for a 15 deg tip-back angle (the drawn wheel pants stay where the parametric airframe puts them)"],
             "type": "Cessna 172-class light single piston"}
     return _assemble("light_ga", af, comps, x_cg, [eng], legs, _standard_controls(elev_cf=0.40), _fin_from(af, vt),
                      cd0, 0.0, _flap_drag(0.30, 0.55, 10.0), {"pilot": np.array([2.45, -0.3, zc]),
@@ -334,7 +342,7 @@ def motor_glider() -> Aircraft:
     comps.append(cylinder("fuselage_systems", rest, [3.2, 0, zc], 0.8 * af.length, 0.40, shell=True))
     x_cg = af.mac_le_x + 0.30 * af.mac
     gz = af.ground_z()
-    xm = af.wing_x + 0.55 * af.root_chord + 0.15
+    xm = _tipback_main_x(x_cg, comps, gz)
     legs = [GearLeg("nose", np.array([0.8, 0.0, gz]), steerable=True),
             GearLeg("main_left", np.array([xm, -1.0, gz]), brakes=True),
             GearLeg("main_right", np.array([xm, 1.0, gz]), brakes=True)]
@@ -345,7 +353,7 @@ def motor_glider() -> Aircraft:
             "assumptions": ["span 23 m, area 18.7 m^2, mass 850 kg, 84.5 kW (Stemme S10 / S10-VT figures); fuselage, "
                             "tails, taper 0.40, NACA 4412 camber and the nose propeller are the parametric Airframe's, "
                             "not the S10's (which has a mid-fuselage engine and a taildragger gear)",
-                            "tricycle gear for the take-off model", "CG at 30 % MAC", "flaps 10 deg on 5-50 %, "
+                            "tricycle gear for the take-off model, mains at a 15 deg tip-back angle", "CG at 30 % MAC", "flaps 10 deg on 5-50 %, "
                             "CLmax 1.45 at take-off", "wing mass: Raymer general-aviation equation x 0.85 (a "
                             "composite sailplane wing, assumption); miscellaneous CD0 0.0015, gear drag 0.008"],
             "type": "high-aspect-ratio self-launching motor glider (Stemme S10-class)"}

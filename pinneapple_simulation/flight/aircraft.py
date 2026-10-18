@@ -108,11 +108,12 @@ class Aircraft:
         v, w = x[IDX_VEL], x[IDX_OMEGA]
         rho, a, _ = self.atmosphere(x)
         if wind is not None:
-            P = x[0:3] + self.sample_b @ C.T
-            Wb = wind.velocity(t, P) @ C                        # rows: NED -> body (C^T w)
+            P = self.sample_points(x, C)
+            Wn = wind.velocity(t, P)
+            Wb = Wn @ C                                         # rows: NED -> body (C^T w)
             Ws, Wf, Wc = Wb[:-2], Wb[-2], Wb[-1]
         else:
-            Ws = Wf = Wc = None
+            Wn = Ws = Wf = Wc = None
         h_agl = ground_z - float(x[2])
         ae = self.aero.loads(v, w, rho, Ws, Wf, Wc, u.deflections(), height_agl=h_agl + self.wing_dz, gear_down=u.gear_down)
         F = ae["F"].copy()
@@ -135,7 +136,13 @@ class Aircraft:
         Fg_b = C.T @ np.array([0.0, 0.0, self.mass * G0])
         dx = rigid_body_derivative(x, F + Fg_b, M, self.mass, self.inertia, self.inertia_inv)
         return {"dx": dx, "F": F, "M": M, "aero": ae, "thrust": thrust, "gear_loads": loads, "f_spec": f_spec,
-                "rho": rho, "a": a, "C": C, "controls": u, "wind_cg_b": Wc, "h_agl": h_agl}
+                "rho": rho, "a": a, "C": C, "controls": u, "wind_cg_b": Wc, "h_agl": h_agl,
+                "wind_samples": Wn}
+
+    def sample_points(self, x: np.ndarray, C: np.ndarray | None = None) -> np.ndarray:
+        """NED positions of the wind sample points (lattice strips, fin, CG) for state x."""
+        C = quat_to_dcm(x[6:10]) if C is None else C
+        return x[0:3] + self.sample_b @ C.T
 
     def specific_force_at(self, ev: dict[str, Any], x: np.ndarray, r_b: np.ndarray) -> np.ndarray:
         """Specific force [m/s^2] in body axes at body point r_b: f_cg + omega_dot x r + omega x (omega x r)."""

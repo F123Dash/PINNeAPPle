@@ -14,6 +14,18 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Flight dynamics, `pinneapple_simulation.flight`: a 6-DOF rigid aircraft (body axes, quaternion attitude) whose
+  wing and tail loads come from the vortex lattice of `pinneapple_design.aero.vlm` solved every step with the local
+  velocity at each panel (rates, gusts that differ along the span), plus fin and fuselage build-up, engines
+  (turbofan lapse, propeller), landing-gear contact with rolling / side friction, trim, stability derivatives and
+  modes, a pilot / autopilot (attitude, altitude, heading, speed, yaw damper, take-off rotation schedule);
+  MIL-F-8785C / MIL-HDBK-1797 turbulence (Dryden and von Karman, frozen line, forming filters, an isotropic
+  divergence-free 3-D field from random Fourier modes, 1-cosine gusts, log wind profile) checked against the target
+  spectra; take-off (ground roll, V_R, lift-off, 35 ft, crosswind, gusts) with Raymer's closed form; turbulence
+  encounters with cabin accelerations and the Pratt check; four aircraft in `flight.catalog` (C172 class, ATR 72
+  class, A320 class, high-aspect-ratio motor glider) with sources and assumptions; animated 3-D scenes
+  (`flight.visuals.flight_scene`) and figures. Examples in `examples/flight_dynamics/`, guide
+  `docs/guides/flight_dynamics.md`.
 - Studio animations: `pinneapple_tools.visualization.studio.animation.Animation` (rigid tracks with quaternions,
   per-frame arrows, trails, animated per-vertex fields, HUD values, follow camera, `resample`, `at`/`pose`),
   `Scene.animation` in scene.json, a play / slider / speed / follow bar in the browser viewer

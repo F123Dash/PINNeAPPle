@@ -21,6 +21,18 @@ from .aircraft import Aircraft, Controls
 from .rigid_body import G0, IDX_QUAT, kinetic_energy, quat_to_euler, rk4_step
 
 
+class _StepWind:
+    """Wind at the aircraft's sample points at the start and (predicted) end of a step, interpolated linearly in
+    time for the RK stages: second-order in the step, two field evaluations per step instead of four."""
+
+    def __init__(self, w0: np.ndarray, w1: np.ndarray, t0: float, dt: float):
+        self.w0, self.w1, self.t0, self.dt = w0, w1, t0, dt
+
+    def velocity(self, t, points):
+        f = (t - self.t0) / self.dt
+        return self.w0 + f * (self.w1 - self.w0)
+
+
 @dataclass
 class FlightHistory:
     aircraft: str
@@ -63,7 +75,11 @@ class FlightHistory:
 
 def simulate(ac: Aircraft, x0: np.ndarray, controller: Callable[[float, np.ndarray, dict | None], Controls],
              t_end: float, dt: float = 0.01, wind=None, record_every: int = 1, record_gamma: bool = False,
-             stop: Callable[[float, np.ndarray, dict], bool] | None = None, t0: float = 0.0) -> FlightHistory:
+             stop: Callable[[float, np.ndarray, dict], bool] | None = None, t0: float = 0.0,
+             hold_wind: bool = True) -> FlightHistory:
+    """``hold_wind``: sample the wind at the aircraft's sample points at the start of each step and at their
+    predicted end-of-step positions, and interpolate linearly in time over the RK stages (two field evaluations per
+    step instead of four; second order in the step). False samples the field at every stage."""
     x = np.asarray(x0, float).copy()
     n = int(round((t_end - t0) / dt))
     rec: dict[str, list] = {k: [] for k in ("t", "x", "euler", "V", "alpha", "beta", "CL", "f", "thrust", "gear",
@@ -99,7 +115,11 @@ def simulate(ac: Aircraft, x0: np.ndarray, controller: Callable[[float, np.ndarr
             break
         if k == n:
             break
-        x = rk4_step(lambda tt, xx, u=u: ac.evaluate(tt, xx, u, wind)["dx"], t, x, dt)
+        w_step = wind
+        if hold_wind and ev.get("wind_samples") is not None:
+            x_end = x + dt * ev["dx"]                               # Euler prediction of the end-of-step positions
+            w_step = _StepWind(ev["wind_samples"], wind.velocity(t + dt, ac.sample_points(x_end)), t, dt)
+        x = rk4_step(lambda tt, xx, u=u, w=w_step: ac.evaluate(tt, xx, u, w)["dx"], t, x, dt)
         t = t0 + (k + 1) * dt
         if not np.all(np.isfinite(x)):
             raise FloatingPointError(f"state diverged at t = {t:.3f} s")

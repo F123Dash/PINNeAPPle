@@ -159,6 +159,7 @@ class TakeoffPilot:
         self.theta_c = None
         self.t_air = None
         self.r_lp = 0.0
+        self.int_y = 0.0
 
     def __call__(self, t, x, last) -> Controls:
         s = self.s
@@ -190,7 +191,8 @@ class TakeoffPilot:
         u = Controls(throttle=s.throttle, flap=s.flap)
         # lateral: heading towards the centreline
         V_s = max(V, 5.0)
-        dpsi = -float(np.clip((y + 2.0 * ydot) / (4.0 * V_s + 20.0), -0.2, 0.2))
+        self.int_y = float(np.clip(self.int_y + y * dt, -50.0, 50.0))
+        dpsi = -float(np.clip((y + 1.5 * ydot + 0.15 * self.int_y) / (1.5 * V_s + 10.0), -0.25, 0.25))
         psi_c = s.runway_heading + dpsi
         if on_ground:
             lim = math.radians(40) / (1 + (V / 10.0) ** 2) + math.radians(2)
