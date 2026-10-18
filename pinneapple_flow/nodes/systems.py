@@ -127,6 +127,102 @@ def twin(ctx, inputs, params):
     return {"twin": snap, "series": s, "metrics": ctx.report["metrics"]}
 
 
+ENSO_DEFAULT = ["persistence", "climatology", "ar", "ro", "delayed_oscillator", "lim", "im_nudged", "gbm"]
+
+
+@node("forecast.enso", "El Nino forecast (ENSO models)", category="Time series",
+      outputs=[Port("metrics", "metrics"), Port("figure", "figure", required=False)],
+      params=[Param("models", "list", list(ENSO_DEFAULT),
+                    help="names from pinneapple_systems.time_series.enso.study.zoo(): baselines, oscillators "
+                         "(ro, delayed_oscillator), the intermediate coupled model (im_nudged, im_enkf), LIM, CNN, "
+                         "PINNs, hybrids"),
+              Param("quick", "bool", True, help="the study's quick settings (small epochs / members, budget 1)"),
+              Param("test_start", "str", "2012-01", help="first month of the untouched test period"),
+              Param("leads", "list", [3, 6, 9, 12], help="leads (months) shown in the summary table")],
+      calls="pinneapple_systems.time_series.enso: dataset.build_dataset + to_series, study.protocol + run_model, "
+            "pipeline.skill_against + enso_scores; forecast_lab.study.merge_zoo")
+def enso(ctx, inputs, params):
+    """Forecast the Nino 3.4 index with the ENSO library's models under its protocol (tuned on the development
+    period, scored on the untouched test period): RMSE skill against climatology and persistence with Holm-adjusted
+    Diebold-Mariano tests, and the anomaly correlation per lead. The observations (OISST, WOD thermocline, ERA5
+    wind stress) are downloaded once into the PINNeAPPle data cache."""
+    from pinneapple_systems.time_series.enso import dataset as DS
+    from pinneapple_systems.time_series.enso import pipeline, study
+    from pinneapple_systems.time_series.forecast_lab.study import merge_zoo
+    known = {s.name for s in study.zoo(True)}
+    bad = [m for m in params["models"] if m not in known]
+    if bad:
+        raise StepFailed(f"unknown ENSO models {bad}; known: {sorted(known)}")
+    names = list(dict.fromkeys(["persistence", "climatology", *params["models"]]))
+    ctx.decide("forecast.baselines", f"untouched test period from {params['test_start']}; skill against "
+                                    "climatology and persistence", value=params["test_start"])
+    try:
+        ds = DS.build_dataset(log=lambda *a: ctx.log(" ".join(map(str, a))))
+    except Exception as exc:  # noqa: BLE001 - no network and no cache: say so, never substitute data
+        raise StepFailed(f"ENSO observations unavailable ({type(exc).__name__}: {exc}); they are downloaded once "
+                         "from the NOAA / ERA5 buckets into the data cache") from None
+    data = DS.to_series(ds)
+    prot = study.protocol(ds.months, test_start=params["test_start"])
+    parts = []
+    t0 = time.perf_counter()
+    for n in names:
+        ctx.check_stop()
+        ctx.log(f"model {n}")
+        parts.append(study.run_model(n, data, prot, quick=bool(params["quick"]),
+                                     budget=1 if params["quick"] else study.FP.BUDGET, log=ctx.log))
+    merged = merge_zoo(parts)
+    H = list(merged["protocol"]["horizons"])
+    vs_clim = pipeline.skill_against(merged, "climatology")
+    scores = pipeline.enso_scores(merged, data.meta["month_of_year"])
+    leads = [h for h in params["leads"] if h in H]
+    rows = []
+    for n, m in merged["models"].items():
+        if "test" not in m:
+            continue
+        sc = vs_clim["models"].get(n, {})
+        sk_c = sc.get("skill_rmse") or [None] * len(H)
+        sig = sc.get("significant") or [None] * len(H)
+        sk_p = m["test"].get("skill_rmse") or [None] * len(H)
+        acc = (scores.get(n) or {}).get("acc") or [None] * len(H)
+        for h in leads:
+            i = H.index(h)
+            rows.append([n, m["family"], h, sk_c[i], sig[i], sk_p[i] if isinstance(sk_p, list) else sk_p, acc[i]])
+    ctx.table("test period: RMSE skill vs climatology / persistence, anomaly correlation",
+              ["model", "family", "lead [months]", "skill vs climatology", "significant (Holm)",
+               "skill vs persistence", "ACC"], rows)
+    for h in leads:
+        cand = [(r[3], r[0]) for r in rows if r[2] == h and isinstance(r[3], (int, float))
+                and r[1] != "baseline"]
+        if cand:
+            v, n = max(cand)
+            ctx.metric(f"best_skill_vs_climatology_lead{h}", f"{n} ({v:.2f})",
+                       "1 - RMSE / RMSE(climatology) on the test period")
+    ctx.metric("test_period", f"{params['test_start']} to {ds.months[-1]}")
+    ctx.metric("study_seconds", round(time.perf_counter() - t0, 1))
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 2, figsize=(10, 3.4))
+    for n in names:
+        sc = vs_clim["models"].get(n)
+        if sc and n != "climatology":
+            ax[0].plot(H, sc["skill_rmse"], "o-", ms=3, label=n)
+        if n in scores:
+            ax[1].plot(H, scores[n]["acc"], "o-", ms=3, label=n)
+    ax[0].axhline(0, color="k", lw=0.7)
+    ax[0].set_xlabel("lead [months]")
+    ax[0].set_ylabel("RMSE skill vs climatology")
+    ax[1].set_xlabel("lead [months]")
+    ax[1].set_ylabel("anomaly correlation")
+    ax[1].legend(fontsize=7, ncol=2)
+    fig.tight_layout()
+    fa = ctx.figure(fig, "skill", f"Nino 3.4 forecasts, test {params['test_start']} to {ds.months[-1]}")
+    best = ctx.report["metrics"].get(f"best_skill_vs_climatology_lead{leads[1] if len(leads) > 1 else leads[0]}")
+    ctx.summary(f"{len(names)} models on Nino 3.4 (test from {params['test_start']}); best non-baseline skill vs "
+                f"climatology at {leads[1] if len(leads) > 1 else leads[0]} months: {best}")
+    return {"metrics": ctx.report["metrics"], "figure": fa}
+
+
 @node("forecast.lab", "Forecast lab (near-random series)", category="Time series",
       inputs=[Port("series", "series", required=False)],
       outputs=[Port("metrics", "metrics")],

@@ -95,12 +95,15 @@ docker compose -f apps/flow_studio/docker-compose.yml --profile llm --profile po
 | Learning | `train.pinn` (physics, or physics + data), `surrogate.train` (DeepONet, FNO, MLP, POD + MLP), `surrogate.hpo`, `train.finetune` |
 | Inverse | `inverse.discover` (inverse PINN), `inverse.calibrate` (least squares with the FD solver, identifiability) |
 | Data | `data.observe` (sensors from a solution), `data.ingest` (CSV), `data.parametric` (solver sweeps), `data.grf_burgers` (operator benchmark) |
-| Validation | `validate.compare` (relative L2 / max / RMSE against an exact solution or a reference, `pp.trust_card`), `validate.lab` (PINNeAPPle Lab tier A-D, seal on A/B) |
-| Analysis | `uq.sensitivity` (Sobol indices) |
+| Validation | `validate.compare` (relative L2 / max / RMSE against an exact solution or a reference, `pp.trust_card`, and each candidate's own checks such as `validate_pinn`), `validate.lab` (the Lab's seal letter, reason and next steps), `verify.convergence` (three nested grids: observed order, Richardson extrapolation, GCI), `benchmark.arena` (the PINN arena: same problems and budget per model) |
+| Analysis | `uq.sensitivity` (Sobol indices), `uq.propagate` (Latin hypercube / Monte Carlo / Sobol sampling or polynomial chaos on a surrogate) |
+| Methods | `rom.fit` (POD, DMD, operator inference on a solution's snapshots), `gnn.meshgraphnet` (MeshGraphNet on unstructured meshes), `meta.learn` (Reptile / MAML over a coefficient), `transfer.pinn` (fine-tune a trained PINN on a new problem vs from scratch), `surrogate.study` (ridge, GP, boosting, MLP, FNO, DeepONet), `optimize.nsga2` (multi-objective design), `control.compare` (PID, rules, MPC), `assimilate.filter` (EKF / EnKF) |
+| External solvers | `solver.calculix`, `solver.fmu` (Modelica / FMI through fmpy), `solver.newton` (NVIDIA Newton); each reports what it needs when the tool is not installed |
 | Digital twin | `data.stream` (simulated sensors, file, MQTT, OPC UA), `twin.auto` (a twin built from any identified PDE: a coarse grid model, its coefficients estimated online by the ensemble Kalman filter, anomaly alarms, a dashboard), `twin.connect` (the tank twin) |
+| Generated | `auto.*`: every type-hinted public function whose arguments a form can fill safely, generated from the library (`python -m pinneapple_flow autocalls`); each carries whether it ran with its defaults |
 | Library calls | `lib.*` from `pinneapple_flow/libcalls_catalog.py`: presets with `pp.solve` / `pp.compare`, LBM, beam, X-TFC, meshless, terramechanics, CalculiX, FMU, Newton, registry models, ROM study, parametric POD, classical ML / GP, Sobol, Morris, predictability, design of experiments, design from a goal, geometry export (STL / OBJ / glTF / USD / STEP) |
-| Time series | `forecast.lab` (predictability first, then the forecaster zoo on purged walk-forward folds) |
-| Systems | `flight.takeoff` (6-DOF take-off from `pinneapple_simulation.flight`, against Raymer's closed form) |
+| Time series | `forecast.enso` (Nino 3.4 with the ENSO library: oscillators, linear inverse model, intermediate coupled model, data-driven and hybrid forecasters; skill against climatology and persistence on an untouched test period), `forecast.lab` (any series: predictability first, then the forecaster zoo on purged walk-forward folds) |
+| Systems | `flight.takeoff` (6-DOF take-off from `pinneapple_simulation.flight`, against both Raymer variants of `raymer_variants`; optional Blender Cycles still and clip) |
 | Visualization / export | `viz.plot`, `viz.field3d` (three.js viewer), `viz.render` (Blender Cycles when `bpy` is installed, else a matplotlib shaded surface, and says which), `export.report` |
 
 The document format, port types and how another app adds node types: [docs/guides/flow_schema.md](../../docs/guides/flow_schema.md).

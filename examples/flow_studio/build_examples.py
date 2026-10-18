@@ -151,13 +151,14 @@ def inverse_heat():
 
 
 def elnino():
-    fb = FlowBuilder("El Nino forecast (near-random series)",
-                     "Monthly Nino-region sea surface temperature 1950-2010 (statsmodels elnino): predictability report, then baselines and "
-                     "a gradient-boosting forecaster on purged walk-forward folds, untouched test period.")
-    f = fb.add("forecast", "forecast.lab", {"source": "elnino", "horizons": [1, 3, 6, 12],
-                                            "models": ["persistence", "climatology", "ar", "exp_smoothing",
-                                                       "seasonal_naive", "phase_climatology", "gbm"],
-                                            "budget": 2, "n_surrogates": 39}, label="Forecast lab")
+    fb = FlowBuilder("El Nino forecast (ENSO models)",
+                     "Nino 3.4 from OISST with the WOD thermocline (warm-water volume) and ERA5 wind stress: the ENSO "
+                     "library's baselines, recharge and delayed oscillators, linear inverse model, intermediate "
+                     "coupled model and a gradient-boosting forecaster, tuned on 1982-2011 and scored on the untouched "
+                     "test period from 2012 against climatology and persistence.")
+    f = fb.add("forecast", "forecast.enso", {"models": ["persistence", "climatology", "ar", "ro", "delayed_oscillator",
+                                                         "lim", "im_nudged", "gbm"], "quick": True},
+               label="ENSO forecast")
     r = fb.add("report", "export.report", {"title": "El Nino forecast"}, label="Report")
     fb.connect(f, "metrics", r, "items")
     return fb.flow({"kind": "reproduction"})

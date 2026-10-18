@@ -174,6 +174,12 @@ parameters generated from its signature. A user-defined type is data, never code
  "params": {"soil": {"default": "JSC-1A", "hidden": true}, "slip": {"default": 0.3}}}
 ```
 
+`auto.<module>.<function>` nodes are generated from the public API by `pinneapple_flow.autocalls` and committed
+as `pinneapple_flow/autocalls.json`, so the catalog loads without importing those modules. A function qualifies
+when a form can fill every required argument, no argument names a path, URL, host, command, expression or
+credential, and its body neither evaluates text, starts processes nor writes files. Each entry records whether it
+ran with its default values in a fresh interpreter. `python -m pinneapple_flow autocalls` regenerates the file.
+
 `base` must be an allowlisted key and every parameter must exist on it and pass its check. Definitions are stored
 (`custom_nodes` table) or carried in `flow.meta["custom_nodes"]` so a flow that uses them stays portable.
 `python -m pinneapple_flow coverage` lists which library packages and modules are reached by nodes, and why the

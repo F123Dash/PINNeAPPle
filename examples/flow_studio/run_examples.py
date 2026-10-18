@@ -82,7 +82,7 @@ def table() -> None:
         for nid, n in s["nodes"].items():
             if n["summary"] and n["type"] in ("validate.compare", "validate.lab", "inverse.discover", "inverse.calibrate",
                                               "surrogate.train", "surrogate.hpo", "twin.connect", "forecast.lab",
-                                              "uq.sensitivity", "flight.takeoff", "problem.generic",
+                                              "uq.sensitivity", "flight.takeoff", "problem.generic", "forecast.enso",
                                               "twin.auto"):
                 key.append(f"{nid}: {n['summary']}")
             elif n["status"] == "failed":

@@ -1,37 +1,30 @@
 {
  "schema": "pinneapple-flow/1",
- "id": "el-nino-forecast-near-random-series",
- "name": "El Nino forecast (near-random series)",
- "description": "Monthly Nino-region sea surface temperature 1950-2010 (statsmodels elnino): predictability report, then baselines and a gradient-boosting forecaster on purged walk-forward folds, untouched test period.",
+ "id": "el-nino-forecast-enso-models",
+ "name": "El Nino forecast (ENSO models)",
+ "description": "Nino 3.4 from OISST with the WOD thermocline (warm-water volume) and ERA5 wind stress: the ENSO library's baselines, recharge and delayed oscillators, linear inverse model, intermediate coupled model and a gradient-boosting forecaster, tuned on 1982-2011 and scored on the untouched test period from 2012 against climatology and persistence.",
  "nodes": [
   {
    "id": "forecast",
-   "type": "forecast.lab",
+   "type": "forecast.enso",
    "params": {
-    "source": "elnino",
-    "horizons": [
-     1,
-     3,
-     6,
-     12
-    ],
     "models": [
      "persistence",
      "climatology",
      "ar",
-     "exp_smoothing",
-     "seasonal_naive",
-     "phase_climatology",
+     "ro",
+     "delayed_oscillator",
+     "lim",
+     "im_nudged",
      "gbm"
     ],
-    "budget": 2,
-    "n_surrogates": 39
+    "quick": true
    },
    "position": {
     "x": 40.0,
     "y": 40.0
    },
-   "label": "Forecast lab"
+   "label": "ENSO forecast"
   },
   {
    "id": "report",
