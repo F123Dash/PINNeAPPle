@@ -95,8 +95,9 @@ if "takeoff" in R:
                                    ("tailg", "min tail clearance [m]")], {"S35g": 0, "dS": 0, "VLg": 1, "thg": 1})
     p = t["a320_vs_published"]
     T["a320"] = (f"| quantity | value |\n|---|---|\n| simulated all-engines distance to 35 ft, {p['sim_mass_kg']:.0f} kg, "
-                 f"ISA sea level | {p['sim_all_engines_35ft_m']:.0f} m |\n| simulated x 1.15 (the all-engines part of "
-                 f"the certified rule) | {1.15 * p['sim_all_engines_35ft_m']:.0f} m |\n| published | {p['published']} |")
+                 f"ISA sea level | {p['sim_all_engines_35ft_m']:.0f} m |\n| 1.15 x the simulated all-engines distance "
+                 f"(the all-engines part of the certified rule) | {p['sim_all_engines_35ft_m']:.0f} m x 1.15 = "
+                 f"{1.15 * p['sim_all_engines_35ft_m']:.0f} m |\n| published | {p['published']} |")
 if "turbulence" in R:
     u = R["turbulence"]
     # validity: the linear lattice has no stall; alpha at the clean CLmax of the catalog (an assumption) from the trim
