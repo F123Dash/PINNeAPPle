@@ -2,7 +2,7 @@
  "flow": "heat_1d",
  "title": "Heat 1D: PINN vs finite differences vs exact",
  "status": "done",
- "wall_seconds": 48.9,
+ "wall_seconds": 83.7,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -12,7 +12,7 @@
   "geo": {
    "type": "geometry.domain",
    "status": "done",
-   "seconds": 0.0011119842529296875,
+   "seconds": 0.0022635459899902344,
    "error": null,
    "summary": "interval in 1-D, coordinates ['x', 't']",
    "metrics": {
@@ -25,7 +25,7 @@
   "mesh": {
    "type": "geometry.mesh",
    "status": "done",
-   "seconds": 0.001062631607055664,
+   "seconds": 0.0011794567108154297,
    "error": null,
    "summary": "",
    "metrics": {
@@ -54,7 +54,7 @@
   "eq": {
    "type": "equations.system",
    "status": "done",
-   "seconds": 0.016071557998657227,
+   "seconds": 0.019434452056884766,
    "error": null,
    "summary": "heat (linear), 1 PDE(s), 2 condition(s)",
    "metrics": {
@@ -98,15 +98,15 @@
   "fd": {
    "type": "solver.classical",
    "status": "done",
-   "seconds": 0.17645692825317383,
+   "seconds": 0.2387866973876953,
    "error": null,
-   "summary": "FD on 201x41 points in 0.03 s",
+   "summary": "FD on 201x41 points in 0.04 s",
    "metrics": {
     "method": "method of lines + BDF",
     "nfev": 44,
     "n_unknowns": 201,
     "solve_seconds": {
-     "value": 0.0312,
+     "value": 0.0383,
      "how": "wall clock of the solve on this machine"
     }
    },
@@ -119,12 +119,12 @@
   "pinn": {
    "type": "train.pinn",
    "status": "done",
-   "seconds": 47.84078860282898,
+   "seconds": 82.40129590034485,
    "error": null,
-   "summary": "PINN trained in 47.4 s; validation passed",
+   "summary": "PINN trained in 82.0 s; validation passed",
    "metrics": {
     "train_seconds": {
-     "value": 47.39,
+     "value": 81.97,
      "how": "wall clock of training on this machine (CPU)"
     },
     "final_loss": 5.521896582649788e-06,
@@ -195,7 +195,7 @@
   "validate": {
    "type": "validate.compare",
    "status": "done",
-   "seconds": 0.1200864315032959,
+   "seconds": 0.14580416679382324,
    "error": null,
    "summary": "FD: 6.58e-06, PINN: 3.35e-04 (vs exact solution)",
    "metrics": {
@@ -239,6 +239,59 @@
        "PASS"
       ]
      ]
+    },
+    {
+     "title": "candidates' own checks",
+     "columns": [
+      "candidate",
+      "check",
+      "verdict",
+      "detail"
+     ],
+     "rows": [
+      [
+       "PINN",
+       "pinn.residual",
+       "PASS",
+       "relative residual at fresh points: RMS 1.77e-03 (<= 0.05), max 9.12e-03 (<= 0.3, adaptive points included)"
+      ],
+      [
+       "PINN",
+       "pinn.trivial",
+       "PASS",
+       "spread and gradient energy 1.00 x the exact solution's (>= 0.2)"
+      ],
+      [
+       "PINN",
+       "pinn.causality",
+       "PASS",
+       "residual in the last quarter of the time interval 2.0e-03, first quarter 2.3e-03 (late/early 0.9, <= 10 unless the late residual passes); error early 2.8e-04 -> late 3.7e-04"
+      ],
+      [
+       "PINN",
+       "pinn.boundary",
+       "PASS",
+       "boundary condition error 4.34e-04 of the solution scale (<= 0.01)"
+      ],
+      [
+       "PINN",
+       "pinn.initial",
+       "PASS",
+       "initial condition error 2.69e-04 of the solution scale (<= 0.01)"
+      ],
+      [
+       "PINN",
+       "pinn.spectrum",
+       "PASS",
+       "high-wavenumber energy -0% relative to the exact solution (within +/-25%)"
+      ],
+      [
+       "PINN",
+       "pinn.exact",
+       "PASS",
+       "relative L2 error 3.42e-04 (<= 0.02), max 1.49e-03 of the scale"
+      ]
+     ]
     }
    ],
    "figures": [
@@ -248,7 +301,7 @@
   "plot": {
    "type": "viz.plot",
    "status": "done",
-   "seconds": 0.22684812545776367,
+   "seconds": 0.22351503372192383,
    "error": null,
    "summary": "",
    "metrics": {},
@@ -262,19 +315,19 @@
   "lab": {
    "type": "validate.lab",
    "status": "done",
-   "seconds": 0.11989331245422363,
+   "seconds": 0.1841135025024414,
    "error": null,
    "summary": "tier B, sealed",
    "metrics": {
     "lab_status": "completed",
     "tier": {
      "value": "B",
-     "how": "pinneapple_lab.curation: A flagship, B solid, C exploratory, D failed"
+     "how": "pinneapple_lab.curation: A flagship, B solid, C plausible, D exploratory, E known problems, F not usable"
     },
-    "lab_run_id": "flow_heat_1d_pinn_vs_finite_differences_vs_exact_lab-7deccff561cd",
+    "lab_run_id": "flow_heat_1d_pinn_vs_finite_differences_vs_exact_lab-c143d412184f",
     "seal": {
      "value": "B",
-     "how": "pinneapple_lab (ABCD): solid"
+     "how": "pinneapple_lab (ABCDEF): solid"
     }
    },
    "warnings": [],
@@ -288,13 +341,13 @@
      ],
      "rows": [
       [
-       "add figures (a movie, a render or a 3-D view for communication)",
-       "",
-       ""
+       "add figures: three plots, a movie, a render or a 3-D view",
+       "save the key plots, a movie or a render with the run",
+       "viz.field3d"
       ],
       [
-       "document it (docs page, references)",
-       "",
+       "document it: references and a docs page",
+       "cite the papers or data the experiment reproduces, and cite `flow_heat_1d_pinn_vs_finite_differences_vs_exact_lab` in a docs page",
        ""
       ]
      ]

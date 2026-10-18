@@ -2,7 +2,7 @@
  "flow": "aircraft_takeoff",
  "title": "Aircraft take-off (flight library)",
  "status": "done",
- "wall_seconds": 109.7,
+ "wall_seconds": 110.2,
  "machine": "x86_64 x86_64 (linux), CPU only",
  "date": "2026-10-18",
  "meta": {
@@ -12,7 +12,7 @@
   "takeoff": {
    "type": "flight.takeoff",
    "status": "done",
-   "seconds": 105.22785234451294,
+   "seconds": 105.23913621902466,
    "error": null,
    "summary": "ground roll 244 m, 35 ft at 403 m; Raymer 17.8: 311 m with V_LOF = 1.1 V_s (+30%), 410 m with the simulated V_LOF and rotation (-2%)",
    "metrics": {
@@ -64,7 +64,7 @@
      "how": "simulated distance to 35 ft / closed form"
     },
     "render_seconds": {
-     "value": 86.0,
+     "value": 86.3,
      "how": "Cycles on this machine's CPU, still + clip"
     }
    },
@@ -79,7 +79,7 @@
   "report": {
    "type": "export.report",
    "status": "done",
-   "seconds": 0.0019299983978271484,
+   "seconds": 0.0020003318786621094,
    "error": null,
    "summary": "report written (html)",
    "metrics": {
