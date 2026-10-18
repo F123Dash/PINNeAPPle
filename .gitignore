@@ -74,3 +74,4 @@ examples/bricks/_out/viewer_*/
 examples/bricks/_out/turntable_frames/
 
 examples/flight_dynamics/_out/
+examples/flight_dynamics/_*.log
