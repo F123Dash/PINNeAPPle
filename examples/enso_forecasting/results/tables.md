@@ -69,6 +69,41 @@
 | ensemble | 6 | 0.47 | 0.07 | 0.77 | 0.25 | 0.80 | 0.52 | 0.19 |
 | ensemble | 12 | 0.21 | 0.00 | 0.93 | 0.29 | 1.00 | 0.48 | 0.10 |
 
+## skill_vs_climatology
+
+| model | family | RMSE skill vs climatology (h=1,3,6,9,12,18,24) | significant vs climatology (one-sided DM, Holm) at h |
+|---|---|---|---|
+| ar | baseline | 0.65 0.35 0.10 -0.01 -0.01 -0.01 -0.01 | – |
+| arima | baseline | 0.65 0.35 0.09 -0.02 -0.01 0.00 0.01 | – |
+| climatology | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | – |
+| exp_smoothing | baseline | 0.63 0.27 -0.11 -0.32 -0.33 -0.40 -0.52 | – |
+| persistence | baseline | 0.63 0.27 -0.11 -0.32 -0.33 -0.40 -0.52 | – |
+| phase_climatology | baseline | -0.13 -0.15 -0.19 -0.18 -0.13 -0.12 -0.15 | – |
+| seasonal_naive | baseline | -0.67 -0.68 -0.67 -0.62 -0.53 -0.47 -0.47 | – |
+| cnn | data | 0.70 0.47 0.13 0.00 -0.04 0.05 0.05 | 1, 2 |
+| gbm | data | 0.64 0.29 -0.04 -0.12 -0.18 -0.17 -0.25 | 1, 2 |
+| lim | data | 0.67 0.47 0.22 0.09 0.06 0.02 0.02 | 1, 2 |
+| lstm | data | 0.62 0.30 0.01 -0.18 -0.14 -0.06 -0.04 | 1, 2 |
+| mlp | data | 0.66 0.32 -0.10 -0.27 -0.19 -0.03 -0.02 | 1, 2 |
+| tcn | data | 0.62 0.33 -0.08 -0.33 -0.19 -0.06 -0.42 | 1, 2 |
+| transformer | data | 0.66 0.33 0.03 -0.07 -0.03 -0.07 -0.03 | 1, 2 |
+| cnn_pretrained | data+physics | 0.69 0.48 0.22 0.07 0.00 0.05 -0.06 | 1, 2 |
+| gbm_physics_features | data+physics | 0.64 0.31 -0.03 -0.18 -0.21 -0.12 -0.31 | 1, 2 |
+| mlp_physics_loss | data+physics | 0.67 0.40 0.15 0.03 -0.01 0.01 0.06 | 1, 2 |
+| pinn_extrapolation | data+physics | 0.66 0.40 0.17 0.05 0.03 0.02 -0.00 | 1, 2 |
+| pinn_ro | data+physics | 0.47 -0.39 -0.96 -0.30 -0.15 -0.11 -0.18 | 1, 2 |
+| pinn_ro_closure | data+physics | 0.28 -1.03 -0.05 -0.00 -0.33 -0.23 -0.29 | 1 |
+| delayed_oscillator | physical | 0.64 0.33 0.10 -0.02 -0.02 -0.02 -0.02 | 1, 2 |
+| im_nudged | physical | 0.63 0.29 0.03 -0.05 -0.04 -0.01 -0.01 | 1, 2 |
+| ro | physical | 0.67 0.41 0.17 0.05 0.03 0.03 0.01 | 1, 2 |
+| ro_multiple_shooting | physical | 0.67 0.41 0.17 0.05 0.03 0.02 0.00 | 1, 2 |
+| ro_seasonal_multiplicative | physical | 0.68 0.46 0.23 0.09 0.06 0.03 0.02 | 1, 2 |
+| ro_stochastic | physical | 0.67 0.40 0.16 0.05 0.03 0.02 0.02 | 1, 2 |
+| ensemble | hybrid | 0.68 0.46 0.19 0.08 0.03 -0.01 -0.04 | 1, 2 |
+| im_enkf | hybrid | 0.59 0.32 0.08 -0.00 -0.02 -0.05 -0.05 | 1, 2 |
+| ro+gbm | hybrid | 0.64 0.29 -0.00 -0.08 -0.10 -0.15 -0.16 | 1, 2 |
+| ude_ro | hybrid | 0.67 0.41 0.17 0.05 0.03 0.02 0.01 | 1, 2 |
+
 ## spring_barrier
 
 | model | origins | ACC h=6, target Jan-Mar | ACC h=6, target Jun-Aug | ACC h=6, target Sep-Nov |

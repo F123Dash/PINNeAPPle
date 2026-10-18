@@ -33,6 +33,8 @@ Everything comes from one script, [`examples/enso_forecasting/run_study.py`](../
   * the multi-model ensemble.
   At lead 6 their anomaly correlation (ACC) is 0.58–0.70, against 0.36 for persistence and 0.42 for ARIMA.
 * **Significance.**
+  * Against climatology (one-sided DM, Holm across the 23 non-baseline models), every model is significantly better
+    at leads 1–2 only. From lead 3 on, no model is distinguishable from climatology on this test period.
   * Against the best baseline chosen on validation, after Holm correction across the 30-model zoo, only three
     models are significantly better: the ensemble and the pre-trained CNN (leads 1–3) and the CNN (lead 1).
   * Against persistence, many models have positive RMSE skill at every lead (up to 0.31 at lead 6). The
@@ -302,9 +304,50 @@ zoo table. Right: CRPS skill against climatology.*
 
 ### Skill against climatology, with its own tests
 
-{{TABLE:skill_vs_climatology}}
+| model | family | RMSE skill vs climatology (h=1,3,6,9,12,18,24) | significant vs climatology (one-sided DM, Holm) at h |
+|---|---|---|---|
+| ar | baseline | 0.65 0.35 0.10 -0.01 -0.01 -0.01 -0.01 | – |
+| arima | baseline | 0.65 0.35 0.09 -0.02 -0.01 0.00 0.01 | – |
+| climatology | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | – |
+| exp_smoothing | baseline | 0.63 0.27 -0.11 -0.32 -0.33 -0.40 -0.52 | – |
+| persistence | baseline | 0.63 0.27 -0.11 -0.32 -0.33 -0.40 -0.52 | – |
+| phase_climatology | baseline | -0.13 -0.15 -0.19 -0.18 -0.13 -0.12 -0.15 | – |
+| seasonal_naive | baseline | -0.67 -0.68 -0.67 -0.62 -0.53 -0.47 -0.47 | – |
+| cnn | data | 0.70 0.47 0.13 0.00 -0.04 0.05 0.05 | 1, 2 |
+| gbm | data | 0.64 0.29 -0.04 -0.12 -0.18 -0.17 -0.25 | 1, 2 |
+| lim | data | 0.67 0.47 0.22 0.09 0.06 0.02 0.02 | 1, 2 |
+| lstm | data | 0.62 0.30 0.01 -0.18 -0.14 -0.06 -0.04 | 1, 2 |
+| mlp | data | 0.66 0.32 -0.10 -0.27 -0.19 -0.03 -0.02 | 1, 2 |
+| tcn | data | 0.62 0.33 -0.08 -0.33 -0.19 -0.06 -0.42 | 1, 2 |
+| transformer | data | 0.66 0.33 0.03 -0.07 -0.03 -0.07 -0.03 | 1, 2 |
+| cnn_pretrained | data+physics | 0.69 0.48 0.22 0.07 0.00 0.05 -0.06 | 1, 2 |
+| gbm_physics_features | data+physics | 0.64 0.31 -0.03 -0.18 -0.21 -0.12 -0.31 | 1, 2 |
+| mlp_physics_loss | data+physics | 0.67 0.40 0.15 0.03 -0.01 0.01 0.06 | 1, 2 |
+| pinn_extrapolation | data+physics | 0.66 0.40 0.17 0.05 0.03 0.02 -0.00 | 1, 2 |
+| pinn_ro | data+physics | 0.47 -0.39 -0.96 -0.30 -0.15 -0.11 -0.18 | 1, 2 |
+| pinn_ro_closure | data+physics | 0.28 -1.03 -0.05 -0.00 -0.33 -0.23 -0.29 | 1 |
+| delayed_oscillator | physical | 0.64 0.33 0.10 -0.02 -0.02 -0.02 -0.02 | 1, 2 |
+| im_nudged | physical | 0.63 0.29 0.03 -0.05 -0.04 -0.01 -0.01 | 1, 2 |
+| ro | physical | 0.67 0.41 0.17 0.05 0.03 0.03 0.01 | 1, 2 |
+| ro_multiple_shooting | physical | 0.67 0.41 0.17 0.05 0.03 0.02 0.00 | 1, 2 |
+| ro_seasonal_multiplicative | physical | 0.68 0.46 0.23 0.09 0.06 0.03 0.02 | 1, 2 |
+| ro_stochastic | physical | 0.67 0.40 0.16 0.05 0.03 0.02 0.02 | 1, 2 |
+| ensemble | hybrid | 0.68 0.46 0.19 0.08 0.03 -0.01 -0.04 | 1, 2 |
+| im_enkf | hybrid | 0.59 0.32 0.08 -0.00 -0.02 -0.05 -0.05 | 1, 2 |
+| ro+gbm | hybrid | 0.64 0.29 -0.00 -0.08 -0.10 -0.15 -0.16 | 1, 2 |
+| ude_ro | hybrid | 0.67 0.41 0.17 0.05 0.03 0.02 0.01 | 1, 2 |
 
-{{CLIM_TEXT}}
+Against climatology, the test is unambiguous, and sobering:
+* Every non-baseline model beats climatology significantly (Holm-adjusted across the 23 models) at leads 1 and 2
+  only; `pinn_ro_closure` only at lead 1.
+* From lead 3 on, no difference from climatology is significant. The best RMSE skill against climatology is:
+  * lead 3: 0.48 (pre-trained CNN), with the CNN, the LIM and the seasonal recharge oscillator at 0.46–0.47;
+  * lead 6: 0.23 (seasonal recharge oscillator) and 0.22 (LIM, pre-trained CNN);
+  * lead 9: 0.09;
+  * lead 12: 0.06.
+* The positive RMSE skill against persistence at long leads (zoo table) is therefore mostly the damping of the
+  forecast towards climatology, which persistence lacks.
+* Persistence itself is worse than climatology from lead 6 on (−0.11 at lead 6, −0.52 at lead 24).
 
 ### The whole zoo
 
@@ -561,8 +604,9 @@ between months. It was rendered with Blender Cycles through `pinneapple_tools.vi
   So the 3-D thermocline is model-assisted, not observed.
 * **What it shows:** compare January 1997 with December 1997.
   * The warm water spreads east along the equator.
-  * In December 1997 the thermocline is 40–60 m deeper than normal east of about 150W (red) and shallower in the
-    west (blue): the tilt has flattened.
+  * In December 1997 the rendered thermocline at 2S–2N is 30–53 m deeper than normal east of 130W (red) and
+    21–34 m shallower west of 170W (blue): the tilt has flattened. The observed 2S–2N D20 anomalies that month are
+    +34 to +44 m at 125W–95W and −32 to −48 m at 135E–175W.
 * **The still above** is December 1997. `figures/enso_1997_01_slab.png` is January 1997.
 
 ## Comparison with published systems
