@@ -141,7 +141,7 @@ def markdown_tables(results: Sequence[dict], overfit: Sequence[dict] = ()) -> di
     T["skill_horizon"] = "\n".join(rows)
 
     rows = ["| series | model | family | RMSE skill vs persistence per h | CRPS skill vs climatology per h | "
-            "90 % … 95 % coverage (pooled) | PIT deviation | params | fit [s] |", "|---" * 9 + "|"]
+            "coverage of the central 80 % and 95 % intervals (mean over h) | PIT deviation (pooled) | params | final fit [s] |", "|---" * 9 + "|"]
     for r in results:
         z = r["zoo"]
         names = ["persistence", "climatology", "ar"] + [z["family_representative"][f] for f in fams
