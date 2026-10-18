@@ -216,8 +216,18 @@ def test_categorical_and_target_month_scores():
 
 def test_merge_zoo_equals_one_run():
     from pinneapple_systems.time_series import synthetic as syn
-    from pinneapple_systems.time_series.forecast_lab import ARForecaster, Climatology, Persistence, SeriesData
-    from pinneapple_systems.time_series.forecast_lab.study import ModelSpec, Protocol, merge_zoo, run_zoo
+    from pinneapple_systems.time_series.forecast_lab import (
+        ARForecaster,
+        Climatology,
+        Persistence,
+        SeriesData,
+    )
+    from pinneapple_systems.time_series.forecast_lab.study import (
+        ModelSpec,
+        Protocol,
+        merge_zoo,
+        run_zoo,
+    )
     s = syn.ornstein_uhlenbeck(n=800, noise=0.0, seed=4)
     data = SeriesData(s.obs, 0, s.dt, s.name)
     specs = [ModelSpec("persistence", "baseline", Persistence), ModelSpec("climatology", "baseline", Climatology),
