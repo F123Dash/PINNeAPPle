@@ -77,10 +77,11 @@ def run(smoke: bool = False, jobs: int = 1, cases=None, out_dir: Path = HERE):
             if pooled and fam != "baseline":
                 pit.append({"title": f"{r['title']}: {name}", "family": fam, **pooled})
     plots.plot_pit(pit, str(fig_dir / "pit.png"), ncols=6)
-    fans = [p for r in results if r["case"] in ("lorenz63_noise0.1", "double_well", "mackey_glass_noise0.1",
-                                                "usd_eur_log_returns", "sunspots_yearly") for p in r["fan_panels"]]
+    fans = [r["fan_panels"][i] for r in results if r["case"] in (
+        "lorenz63_noise0.1", "mackey_glass_noise0.1", "double_well", "usd_eur_log_returns", "sunspots_yearly")
+        for i in range(0, len(r["fan_panels"]), 2)]                          # one origin per family
     if fans:
-        plots.plot_fan_charts(fans[:12], str(fig_dir / "fan_charts.png"))
+        plots.plot_fan_charts(fans, str(fig_dir / "fan_charts.png"), ncols=3)
     if overfit:
         plots.plot_overfitting(overfit, str(fig_dir / "overfitting.png"))
     return {"results": len(results), "overfit": len(overfit), "dir": str(res_dir)}
