@@ -56,7 +56,8 @@ def test_second_code_verification_never_lifts_a_tier(tmp_path):
     assert weak["headline"]["text"] == ""
     good = out["items"]["_test_referenced"]
     assert good["headline"] == {"kind": "reference", "text": "deflection vs Timoshenko",
-                                "check": "deflection_vs_beam_theory", "missing": "flagship gates (see gaps)"}
+                                "check": "deflection_vs_beam_theory", "missing": "flagship gates (see gaps)",
+                                "label": "deflection vs Timoshenko"}      # the label recorded on the check
 
 
 # ---------------------------------------------------------------------------------------------- new repo sources
