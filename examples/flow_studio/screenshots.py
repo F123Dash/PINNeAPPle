@@ -1,5 +1,6 @@
 """Screenshots of Flow Studio for the docs (docs/flow_studio/): the canvas of a planned flow, a node's result panel
-with the three.js viewer, the PINN node's architecture and validation, and the equation editor.
+with the three.js viewer, the PINN node's architecture and validation, the Lab seal, the decision records and the
+equation editor.
 
 Start the studio first (``python -m pinneapple_flow studio --no-browser``), then::
 
@@ -47,19 +48,38 @@ def main():
         # 2. run it and open the results
         page.click("[data-testid=run]")
         wait_done(page)
-        page.click(".react-flow__node:has-text('3-D viewer')")
+        page.click("[data-testid='node-3-D viewer']")
         page.click("[data-testid=tab-results]")
         page.wait_for_selector("[data-testid=viewer3d] canvas", timeout=60_000)
         page.wait_for_timeout(2500)
         page.screenshot(path=str(OUT / "flow_studio_result_3d.png"))
-        page.click(".react-flow__node:has-text('Validation')")
+        page.click("[data-testid='node-Validation']")
         page.wait_for_selector("[data-testid=figure]")
         page.wait_for_timeout(800)
         page.screenshot(path=str(OUT / "flow_studio_result_validation.png"))
-        page.click(".react-flow__node:has-text('PINN')")
+        page.click("[data-testid='node-PINN']")
         page.wait_for_selector("[data-testid=layer-graph]")
         page.wait_for_timeout(500)
         page.screenshot(path=str(OUT / "flow_studio_result_pinn.png"))
+        # the Lab seal of the validated item and what the next letter needs
+        page.click("[data-testid='node-Lab seal']")
+        page.click("[data-testid=tab-results]")
+        page.wait_for_selector("[data-testid=seal-panel]")
+        page.click("[data-testid=seal-next-steps]")
+        page.wait_for_timeout(800)
+        page.screenshot(path=str(OUT / "flow_studio_lab_seal.png"))
+        # decision records: one node's, then the flow's
+        page.click(".react-flow__node:has-text('equations')")
+        page.click("[data-testid=tab-decisions]")
+        page.wait_for_selector("[data-testid=decision]")
+        page.wait_for_timeout(500)
+        page.screenshot(path=str(OUT / "flow_studio_decisions_node.png"))
+        page.click("[data-testid=open-decisions]")
+        page.wait_for_selector("[data-testid=decisions-report]")
+        page.wait_for_timeout(500)
+        page.screenshot(path=str(OUT / "flow_studio_decisions.png"))
+        page.keyboard.press("Escape")
+        page.mouse.click(5, 5)
         # 3. the architecture editor of a surrogate
         page.click("[data-testid=open-lists]")
         page.click("[data-testid=example-planned_hybrid_surrogate_hpo]")

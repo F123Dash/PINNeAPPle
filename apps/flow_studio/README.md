@@ -81,6 +81,11 @@ docker compose -f apps/flow_studio/docker-compose.yml --profile llm --profile po
   never as code. [docs/flow_studio/COVERAGE.md](../../docs/flow_studio/COVERAGE.md) lists which library modules
   have nodes and why the others do not.
 
+| A node's results: the 3-D view and the Lab seal | Decision records with references and confidence |
+|---|---|
+| ![3-D result](../../docs/flow_studio/flow_studio_result_3d.png) | ![decisions](../../docs/flow_studio/flow_studio_decisions.png) |
+| ![Lab seal and what the next letter needs](../../docs/flow_studio/flow_studio_lab_seal.png) | ![architecture preview](../../docs/flow_studio/flow_studio_architecture.png) |
+
 ## Nodes
 
 | Category | Node types (each wraps the library call shown in the GUI) |
