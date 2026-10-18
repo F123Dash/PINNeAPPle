@@ -75,6 +75,8 @@ def test_uploaded_time_series_study_exports_and_runs(client):
     assert spec["inputs"] == ["t"] and len(spec["outputs"]) == 120
     rec = client.get(f"/api/jobs/{job['id']}/reconstruction", params={"model": "dmd_r8", "snapshot": 2}).json()
     assert rec["rel_l2"] < 1e-3 and len(rec["xy"]) == 120
+    nomesh = client.get(f"/api/jobs/{job['id']}/view3d", params={"model": "dmd_r8", "snapshot": 2})
+    assert nomesh.status_code == 422 and "no mesh" in nomesh.json()["detail"]
     run = client.post("/api/run", files={"model": ("m.rom.npz", npz)}, data={"inputs": json.dumps({"times": [5.5, 9.0]})})
     out = run.json()
     assert run.status_code == 200 and len(out["snapshots"]) == 2 and out["in_range"] == [False, False]
@@ -89,6 +91,20 @@ def test_example_runs_offline(client, eid, best_err):
     assert r["status"] == "done", r.get("error")
     best = next(x for x in r["result"]["study"]["rows"] if x["key"] == r["result"]["best_key"])
     assert best["error_mean"] < best_err and r["result"]["wall_s"] < 60
+    assert r["result"]["snapshots"]["mesh"]["node_sets"] == ["clamp", "loaded tip"]
+    key, job = r["result"]["best_key"], r["id"]
+    v = client.get(f"/api/jobs/{job}/view3d", params={"model": key, "snapshot": 1})
+    assert v.status_code == 200, v.text
+    v = v.json()
+    rec = client.get(f"/api/jobs/{job}/reconstruction", params={"model": key, "snapshot": 1, "field": "von_mises"}).json()
+    assert v["errors"]["von_mises"]["rel_l2"] == pytest.approx(rec["rel_l2"], rel=1e-9)
+    assert v["errors"]["von_mises"]["max"] == pytest.approx(max(abs(e) for e in rec["error"]), rel=1e-9)
+    assert "study mean over 20 held-out designs" in v["errors"]["von_mises"]["summary"][0]
+    assert {m["kind"] for m in v["view"]["markers"]} >= {"bc", "load", "hotspot"}
+    assert v["view"]["deform"]["FEM"]["unit"] == "m" and v["deformation"] == "displacement"
+    glb = client.get(v["glb"])
+    assert glb.status_code == 200 and glb.content[:4] == b"glTF"
+    assert client.get(f"/api/jobs/{job}/view3d", params={"model": key, "snapshot": 99}).status_code == 422
 
 
 def test_bad_uploads_are_refused(client):

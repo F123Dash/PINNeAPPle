@@ -234,13 +234,43 @@ function render() {
       snapshot <select id="rsnap">${RES.test_inputs.map((q, i) => `<option value="${i}">${d.mode === "time" ? `t = ${fmt(q)}` : `#${i + 1}: ${q.map(fmt).join(", ")}`}</option>`).join("")}</select>
       field <select id="rfield">${RES.snapshots.fields.map((f) => `<option>${esc(f.name)}</option>`).join("")}</select></div><span class="meta" id="rinfo"></span></div>
     <div class="recon" id="recon"></div>
+    ${RES.snapshots.mesh ? `<h3>The held-out ${d.mode === "time" ? "snapshot" : "design"} on its body (3-D)</h3>
+    <p class="meta">Same model and snapshot as above. ${esc(RES.snapshots.meta.full_order || "Full-order")}: the stored result; ROM: the prediction at its inputs; the error is |ROM − ${esc(RES.snapshots.meta.full_order || "full-order")}| at each node. Every number below is computed from these two arrays.</p>
+    <div class="v3wrap"><div id="v3d"></div><div class="v3side" id="v3sum"></div></div>` : ""}
     <h3>Checks</h3>${checks}
     <div>${window.renderScope ? renderScope(META.scope) : ""}</div>
     <h3>Limits</h3><ul class="meta">${RES.limits.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>`;
   $$("#trade circle").forEach((c) => c.addEventListener("click", () => { SEL = c.dataset.key; render(); }));
   $$("table.rows tbody tr").forEach((tr) => tr.addEventListener("click", (e) => { if (e.target.closest("a")) return; SEL = tr.dataset.key; render(); }));
-  ["rmodel", "rsnap", "rfield"].forEach((id) => $(`#${id}`).addEventListener("change", () => { if (id === "rmodel") SEL = $("#rmodel").value; recon(); }));
-  recon();
+  ["rmodel", "rsnap", "rfield"].forEach((id) => $(`#${id}`).addEventListener("change", () => { if (id === "rmodel") SEL = $("#rmodel").value; recon(); if (id !== "rfield") view3d(); }));
+  recon(); view3d();
+}
+
+// ------------------------------------------------------------------ 3-D view of the held-out snapshot
+let V3 = null;
+const whenViewer = () => new Promise((res) => window.FieldView3D ? res() : window.addEventListener("fieldview3d-ready", res, { once: true }));
+async function view3d() {
+  if (!$("#v3d")) return;
+  const key = $("#rmodel").value, i = $("#rsnap").value;
+  $("#v3sum").innerHTML = `<p class="meta">computing the view…</p>`;
+  const r = await fetch(`/api/jobs/${JOB}/view3d?model=${encodeURIComponent(key)}&snapshot=${i}`);
+  const j = await r.json();
+  if (!r.ok) { $("#v3d").innerHTML = ""; $("#v3sum").innerHTML = `<span class="err">${esc(j.detail)}</span>`; return; }
+  await whenViewer();
+  const prev = V3 && V3.field ? V3.field.name : null;
+  const start = prev && j.view.fields.some((f) => f.name === prev) ? prev : (j.view.fields.find((f) => f.kind === "error" && /mises|stress/i.test(f.name)) || j.view.fields.find((f) => f.kind === "error")).name;
+  V3 = new FieldView3D($("#v3d"), { meta: j.view, glb: j.glb, field: start, height: 470, onField: (f) => summary3d(j, f) });
+}
+function summary3d(j, f) {
+  const base = f.name.split(":")[0], e = j.errors[base];
+  if (!e) return;
+  const u = e.unit ? ` ${esc(e.unit)}` : "";
+  $("#v3sum").innerHTML = `<h4>Where the error is: ${esc(base)}</h4>${e.summary.map((t) => `<p>${esc(t)}</p>`).join("")}
+    ${e.regions.length ? `<table><thead><tr><th>Region</th><th class="num">nodes</th><th class="num">share of squared error</th><th class="num">RMS / overall</th><th class="num">max${u ? ` [${esc(e.unit)}]` : ""}</th></tr></thead><tbody>
+      ${e.regions.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${g.n}</td><td class="num">${pct(g.share_error)}</td><td class="num">${g.rms_ratio.toFixed(1)}×</td><td class="num">${fmt(g.max)}</td></tr>`).join("")}</tbody></table>` : ""}
+    ${e.hotspots.length ? `<h4>Hotspots E1, E2… (top 10 % of |error|, connected; click to zoom)</h4><ol class="hot">${e.hotspots.map((h, k) => `<li data-k="${k}"><b>${fmt(h.max)}${u}</b> at (${h.at.map(fmt).join(", ")}): ${h.n} nodes, ${pct(h.share)} of the squared error</li>`).join("")}</ol>` : ""}
+    <p class="meta">${esc(j.label)}${j.rank ? ` rank ${j.rank}` : ""} at ${j.input.params ? j.input.params.map((v, q) => `${esc(RES.snapshots.param_names[q] || "p" + q)} = ${fmt(v)}`).join(", ") : `t = ${fmt(j.input.times[0])}`}. Zones: the dataset's node sets grown by 10 % of the body length.</p>`;
+  $$("#v3sum .hot li").forEach((li) => li.addEventListener("click", () => { const h = e.hotspots[+li.dataset.k]; V3.focus(h.at, Math.max(...h.bbox_max.map((x, q) => x - h.bbox_min[q]))); }));
 }
 const VIR = [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]];
 const DIV = [[33, 102, 172], [146, 197, 222], [247, 247, 247], [244, 165, 130], [178, 24, 43]];

@@ -52,7 +52,8 @@
   <section id="tab-runs" class="tab">
     <div class="layout runs-layout">
       <div class="panel"><h2 class="h">Runs</h2><div id="run-list" class="run-list"><div class="muted">No runs yet.</div></div></div>
-      <div id="run-detail"><div class="panel empty"><h3>No run selected</h3><p>Start a run or pick one on the left.</p></div></div>
+      <div><div id="run-detail"><div class="panel empty"><h3>No run selected</h3><p>Start a run or pick one on the left.</p></div></div>
+        <div class="panel" id="v3panel" hidden></div></div>
     </div>
   </section>
 
@@ -76,6 +77,8 @@
   Built on <b>PINNeAPPle</b> (pinneapple_core.workflows: DAG, runs, executors and adapters · pinneapple_core.service: job
   queue, keys, metering · pinneapple_data.contracts: DatasetSpec · OpenFOAM and CalculiX bridges of pinneapple_simulation).
 </footer>
+<script type="importmap">{"imports": {"three": "/vendor/three/three.module.min.js"}}</script>
+<script type="module" src="/shared/fieldview3d.js"></script>
 <script src="/shared/scope.js"></script>
 <script src="/shared/author.js"></script>
 <script src="/static/app.js"></script>
