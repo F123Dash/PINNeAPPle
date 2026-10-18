@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Step skew, tolerances and 3-D export of machines (`pinneapple_simulation.electromagnetics.machines.robustness`,
+  `machines.export`): multi-slice step skew (`skewed_torque`, `skewed_no_load`, `step_skew_factor`), the FEA as a
+  tolerance model for JCGM 101 Monte Carlo (`tolerance_model`), extruded 3-D field of a skewed rotor
+  (`skewed_field_3d`) and VTK unstructured-grid export (`write_vtu`, `solution_to_vtu`). Examples
+  `examples/electrodynamics/15_prius_skew.py` and `17_prius_tolerances.py`, tests `tests/test_emachine_robustness.py`.
 - Rotor design of IPM machines with the design-study core (`pinneapple_simulation.electromagnetics.machines.design`):
   the FEA as a reference evaluator (`rotor_evaluator`), `rotor_design_problem`, and `hybrid_vs_fea_only`
   (Gaussian-process surrogate + NSGA-II with adaptive FEA sampling against NSGA-II on the FEA, at equal hypervolume,
