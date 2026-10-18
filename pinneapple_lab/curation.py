@@ -341,7 +341,7 @@ def assess_run(store, row: dict[str, Any], *, meta: dict[str, Any] | None = None
     stages = trust_stages(d, checks, metrics, dims, tier, readiness, meta, is_ml, list(lim or []))
     return Assessment(row["run_id"], row["experiment"], row["status"], tier, None if score is None else round(score, 1),
                       round(coverage, 2), dims, readiness, gaps, reviewed=bool(rv), stages=stages,
-                      headline=headline(checks, tier))
+                      headline=headline(checks, tier, meta.get("check_labels")))
 
 
 # ---------------------------------------------------------------------- the one-line evidence of an item
@@ -367,23 +367,35 @@ def check_line(check: dict[str, Any], max_chars: int = 64) -> str:
     return _short(name, max_chars)
 
 
-def headline(checks: list[dict[str, Any]], tier: str) -> dict[str, Any]:
+def headline(checks: list[dict[str, Any]], tier: str, labels: dict[str, Any] | None = None) -> dict[str, Any]:
     """The evidence a seal or a showcase tile may print, taken from the run's passing checks only (nothing written by
     hand): ``kind`` "reference" (an independent reference the result was compared with), "benchmark" (a physical
     law, a baseline or unseen data, no independent reference) or "" (nothing passed), ``text`` the line, ``check``
-    the check's name and ``missing`` what the item still lacks for the next claim."""
+    the check's name and ``missing`` what the item still lacks for the next claim.
+
+    ``labels`` (``Experiment.check_labels``) maps a check name to its short display line,
+    ``{"en": ..., "pt": ..., "also": [other check names the line also claims]}``; it becomes ``label`` /
+    ``label_pt`` only when that check and every check in ``also`` passed, so a label never says more than the run
+    showed. A ``label`` recorded on the check itself (``ctx.check(label=...)``) is used when the experiment has none."""
     passing = [c for c in checks if c.get("passed")]
     ref = [c for c in passing if c.get("kind") == "reference"]
     other = [c for c in passing if c.get("kind") in ("physics", "baseline", "generalization")]
     if ref:
-        c = ref[0]
-        return {"kind": "reference", "text": check_line(c), "check": c.get("name", ""),
-                "missing": "" if tier == "A" else "flagship gates (see gaps)"}
-    if other:
-        c = other[0]
-        return {"kind": "benchmark", "text": check_line(c), "check": c.get("name", ""),
-                "missing": "independent reference"}
-    return {"kind": "", "text": "", "check": "", "missing": "a passing check"}
+        c, kind, missing = ref[0], "reference", "" if tier == "A" else "flagship gates (see gaps)"
+    elif other:
+        c, kind, missing = other[0], "benchmark", "independent reference"
+    else:
+        return {"kind": "", "text": "", "check": "", "missing": "a passing check"}
+    out = {"kind": kind, "text": check_line(c), "check": c.get("name", ""), "missing": missing}
+    lab = (labels or {}).get(c.get("name", ""))
+    names = {x.get("name") for x in passing}
+    if isinstance(lab, dict) and all(a in names for a in lab.get("also", [])):
+        out["label"] = lab.get("en", "")
+        if lab.get("pt"):
+            out["label_pt"] = lab["pt"]
+    elif c.get("label"):
+        out["label"] = c["label"]
+    return out
 
 
 # ---------------------------------------------------------------------- the six questions of a trustworthy result
@@ -652,7 +664,8 @@ def curate(store, path_json: str | None = None, path_md: str | None = None) -> d
             meta = {"description": cls.description, "tags": list(cls.tags),
                     "references": list(getattr(cls, "references", []) or []),
                     "limitations": getattr(cls, "limitations", []) or [],
-                    "case_param": getattr(cls, "case_param", "") or ""}
+                    "case_param": getattr(cls, "case_param", "") or "",
+                    "check_labels": getattr(cls, "check_labels", {}) or {}}
         except KeyError:
             cls = None
             meta = {"description": "", "tags": []}

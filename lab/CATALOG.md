@@ -1,6 +1,6 @@
 # PINNeAPPle Lab catalogue
 
-208 runs, generated 2026-10-18 16:19.
+208 runs, generated 2026-10-18 16:40.
 
 | experiment | runs | completed | failed validation | failed | datasets (samples) |
 |---|---|---|---|---|---|
@@ -23,7 +23,7 @@
 | [particle_suspension](#particle_suspension) | 1 | 1 | 0 | 0 | suspension (31) |
 | [pendulum_video](#pendulum_video) | 1 | 1 | 0 | 0 | pendulum (1) |
 | [pipe_flow](#pipe_flow) | 3 | 3 | 0 | 0 | cross_sections (14), sections (3), wall (3) |
-| [repo_results](#repo_results) | 25 | 24 | 1 | 0 | strouhal (3), test_points (120), polar (5), coefficients (1), temperature_fields_2d (5), rollout_scores (2), single_wheel_validation (5), temperature_fields_3d (3), lead_time_skill (4), fields (1), torque_vs_current_angle (13), held_out_error (3) |
+| [repo_results](#repo_results) | 25 | 24 | 1 | 0 | strouhal (3), test_points (120), polar (5), coefficients (1), temperature_fields_2d (5), rollout_scores (2), temperature_fields_3d (3), lead_time_skill (4), fields (1), held_out_error (3), torque_vs_current_angle (13), single_wheel_validation (5) |
 | [rom_study](#rom_study) | 2 | 2 | 0 | 0 | beam_designs (100), wake (1) |
 | [solid_fem](#solid_fem) | 3 | 3 | 0 | 0 | fields (3) |
 | [vehicle_cfd](#vehicle_cfd) | 1 | 1 | 0 | 0 | streamlines (40), surface (1) |

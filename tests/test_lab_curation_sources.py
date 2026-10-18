@@ -84,3 +84,16 @@ def test_benchmark_arena_records_its_failed_audit(tmp_path):
     r = run("repo_results", {"source": "benchmark_arena"}, root=str(tmp_path))
     assert r.status == "failed_validation"                                     # the dataset audit fails: reported
     assert r.metrics["interpolation_mlp_rel_l2"] < r.metrics["interpolation_pinn_rel_l2"]
+
+
+def test_check_labels_only_when_every_claimed_check_passes():
+    checks = [{"name": "settling_vs_schiller_naumann", "passed": True, "kind": "reference", "detail": ""},
+              {"name": "speed_vs_zwietering", "passed": True, "kind": "reference", "detail": ""}]
+    labels = {"settling_vs_schiller_naumann": {"en": "vs Zwietering and Schiller-Naumann",
+                                               "pt": "vs Zwietering e Schiller-Naumann",
+                                               "also": ["speed_vs_zwietering"]}}
+    h = headline(checks, "A", labels)
+    assert h["label"] == "vs Zwietering and Schiller-Naumann" and h["label_pt"] == "vs Zwietering e Schiller-Naumann"
+    checks[1]["passed"] = False                               # the line would claim a check that failed
+    h = headline(checks, "B", labels)
+    assert "label" not in h and h["text"].startswith("settling vs schiller naumann")

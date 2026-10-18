@@ -290,6 +290,7 @@ class RepoResults(Experiment):
     tags = ["import", "benchmark", "dataset"]
     case_param = "source"
     case_descriptions = SOURCES
+    check_labels = repo_sources.CHECK_LABELS
     limitations = {
         "burgers_pinn": ["5.9 % relative L2 against the exact solution (a well-tuned PINN reaches < 1 %)"],
         "fin_inverse_3d": ["the network's own h is 7 % low (weak flux constraint); the finite-volume refit is exact"],
@@ -303,7 +304,7 @@ class RepoResults(Experiment):
     }
     params = {"source": "burgers_pinn"}
     space = {"source": list(SOURCES)}
-    code_files = [_p(s) for v in _SCRIPTS.values() for s in v]
+    code_files = [_p(s) for v in _SCRIPTS.values() for s in v] + [repo_sources.__file__]
 
     def run(self, ctx):
         src = ctx.params["source"]

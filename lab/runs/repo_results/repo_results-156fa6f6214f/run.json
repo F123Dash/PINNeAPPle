@@ -6,13 +6,13 @@
   "source": "design_from_intent"
  },
  "status": "completed",
- "started": 1792337544.3331301,
+ "started": 1792341617.9638717,
  "tags": [
   "import",
   "benchmark",
   "dataset"
  ],
- "git": "3432db2e",
+ "git": "38374d23",
  "environment": {
   "python": "3.13.16",
   "platform": "Linux-6.18.44-fc-v139-x86_64-with-glibc2.39",
@@ -62,18 +62,19 @@
    "code/03_reluctance_rotor.py",
    "code/trough_case.py",
    "code/run_public_benchmarks.py",
-   "code/run_use_cases.py"
+   "code/run_use_cases.py",
+   "code/repo_sources.py"
   ],
-  "sha1": "d8f082470cdbbf07017a9230d009c078b7a5a471"
+  "sha1": "9da7ebab94799ec54e393c6b7eb79f8fc2b2dcd4"
  },
- "finished": 1792337544.3860142,
+ "finished": 1792341618.0044513,
  "error": null,
  "stages": [
   {
    "name": "import",
-   "started": 1792337544.3813338,
+   "started": 1792341617.992604,
    "status": "done",
-   "seconds": 0.004
+   "seconds": 0.012
   }
  ],
  "files": {
@@ -98,6 +99,6 @@
   "total": 8,
   "failed": 0
  },
- "seconds": 0.053,
+ "seconds": 0.041,
  "datasets": {}
 }
