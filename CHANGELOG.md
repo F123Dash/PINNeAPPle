@@ -14,6 +14,20 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Design from intent (`pinneapple_design.intent`, `pp.design`): a goal in
+  plain language becomes a `RequirementSpec` (values with units checked by `physical_units`, each stated, answered,
+  defaulted with its source or missing; follow-up questions for missing critical values; an optional LLM behind
+  `IntentLLM` whose values must be quoted from the text), a `PhysicsPlan` from a registry of problem templates, a
+  multi-fidelity optimisation (closed-form screening, the design-study core on the reduced model or its GP surrogate,
+  the full solver on the chosen design, calls and wall time per fidelity), a Monte-Carlo robustness study, a trust
+  report and a verdict, and a `DesignPackage` (STEP / STL / glTF, bill of materials with cited properties, operating
+  window, build instructions, limits, `report.html` / `report.pdf`, `pinneapple check` inputs). Templates: toy car
+  loop-the-loop (energy balance, 1-D along-track ODE, Newton), angle bracket (beam theory, hexahedral FE, CalculiX),
+  plate-fin heat sink (the heat-sink sizer physics and its finite-volume base model), model glider wing (lifting
+  line, vortex lattice); out-of-scope requests are refused with what would be needed. `materials` holds the cited
+  material properties; `templates/example_spring.py` is the template-authoring example.
+- `plate_fin_heatsink.evaluate` takes the starting fin-root temperature (`t_root_guess_c`): with `max_iter=1` the
+  convection coefficient is evaluated once at that temperature (a hand calculation).
 - 3-D case in the Surrogate Studio (day 14): the ROM Lab's solid FEM cantilever as a field dataset
   (`pinneapple_analysis.surrogate.from_snapshots` / `snapshot_values` for snapshots on a node lattice). The page shows
   held-out errors per field, per zone and on the tip displacement and the largest stress
