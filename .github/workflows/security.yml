@@ -25,11 +25,11 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0          # gitleaks scans the commits of the pull request
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -90,7 +90,7 @@ jobs:
           caddy=$(sed -n 's/^ *image: *\(caddy:[^ ]*\).*/\1/p' apps/deploy/docker-compose.yml | head -1)
           trivy image --quiet --format cyclonedx -o sbom-caddy.cdx.json "$caddy"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: security-reports
@@ -102,8 +102,8 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install
@@ -123,7 +123,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build the HeatSink Sizer image
         run: docker build -f apps/heatsink_sizer/Dockerfile -t pinneapple/heatsink-sizer:ci .
       - name: Runs as non-root with a read-only root filesystem and no capabilities
@@ -143,7 +143,7 @@ jobs:
             | tar xz -C /usr/local/bin trivy
           trivy image --quiet --scanners vuln,secret --severity HIGH,CRITICAL pinneapple/heatsink-sizer:ci
           trivy image --quiet --format cyclonedx -o sbom-heatsink-sizer.cdx.json pinneapple/heatsink-sizer:ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-heatsink-sizer
           path: sbom-heatsink-sizer.cdx.json
