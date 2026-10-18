@@ -14,16 +14,17 @@ Environment (all optional):
   MDL_FREE_INFERENCES, MDL_FREE_HOSTED_MODELS   free use per caller and month
   MDL_MAX_ROWS                rows per prediction call (default 5000)
   MDL_UPLOAD_MAX_MB, MDL_DATA_DIR   see apps/_shared/README.md
+  MDL_ALLOW_PICKLE_UPLOAD     1: accept Surrogate Studio model.zip uploads (default off: loading one unpickles it,
+                              which runs code; the hash in its card comes from the same zip and proves nothing)
+  MDL_REMOTE_ALLOW_HOSTS      hosts a remote ModelRef may point at although they are not public (e.g. surrogate)
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import re
 import sys
 import tempfile
-import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,9 @@ from pydantic import BaseModel
 
 from pinneapple_registry.gateway import KINDS, OOD_POLICIES, ModelGateway
 from pinneapple_registry.gateway_api import gateway_router
+from pinneapple_security.archives import ArchiveLimits, safe_extract_zip
+from pinneapple_security.model_security import scan_checkpoint
+from pinneapple_security.web import UnsafeURL, check_outbound_url
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
 from appkit import install, install_runtime, principal  # noqa: E402
@@ -155,18 +159,21 @@ async def publish_surrogate(request: Request, file: UploadFile = File(...), name
     """A Surrogate Studio ``model.zip``. Admin only: loading it unpickles the model (sha256-checked against its
     card), which runs code — upload only models you produced."""
     who = _publisher(request, admin_only=True)
+    if (os.environ.get("MDL_ALLOW_PICKLE_UPLOAD") or "").lower() not in ("1", "true", "yes"):
+        raise HTTPException(403, "Pickled surrogate uploads are off on this server (loading one runs code). Publish "
+                                 "an ONNX export, or set MDL_ALLOW_PICKLE_UPLOAD=1 for models you produced yourself.")
     rt.consume(request, "hosted_models", 1)
     raw = await file.read()
     with tempfile.TemporaryDirectory() as d:
         try:
-            with zipfile.ZipFile(io.BytesIO(raw)) as z:
-                for m in z.namelist():
-                    if m.startswith("/") or ".." in Path(m).parts:
-                        raise ValueError(f"unsafe path in the zip: {m}")
-                z.extractall(d)
+            safe_extract_zip(raw, d, ArchiveLimits(max_members=200, max_total_bytes=500 * 2**20))
             card = next(Path(d).rglob("card.json"), None)
             if card is None:
                 raise ValueError("no card.json in the zip (export model.zip from the Surrogate Studio)")
+            for pkl in Path(d).rglob("*.pkl"):                # defence in depth: refuse known code-running globals
+                rep = scan_checkpoint(str(pkl))
+                if not rep.safe:
+                    raise ValueError(f"{pkl.name} would import {rep.dangerous or rep.errors}: refused")
             v = GW.publish(_name(name), str(card.parent), kind="pinneapple.surrogate", ood_policy=ood_policy,
                            source=f"surrogate model.zip by {who}", override_reason=override_reason or None)
         except HTTPException:
@@ -189,6 +196,13 @@ def publish_ref(request: Request, body: RefBody):
     """A ModelRef (pinneapple_data.contracts): ``zoo:<name>``, or an http(s) URI of a model behind the same API
     (Surrogate Studio, another gateway). Admin only: the gateway will call that URL."""
     _publisher(request, admin_only=True)
+    uri = str(body.model_ref.get("uri", ""))
+    if uri.startswith(("http://", "https://")):
+        allow = (os.environ.get("MDL_REMOTE_ALLOW_HOSTS") or "").split(",")
+        try:
+            check_outbound_url(uri, allow_hosts=allow)
+        except UnsafeURL as e:
+            raise HTTPException(422, f"{e} (MDL_REMOTE_ALLOW_HOSTS)") from None
     rt.consume(request, "hosted_models", 1)
     try:
         v = GW.publish_ref(body.model_ref, name=_name(body.name or body.model_ref.get("name", "")),

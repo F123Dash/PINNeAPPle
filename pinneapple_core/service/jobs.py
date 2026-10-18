@@ -18,8 +18,10 @@ at most ``max_retries + 1`` extra times, then marked failed.
 from __future__ import annotations
 
 import json
+import logging
 import multiprocessing as mp
 import os
+import signal
 import sqlite3
 import threading
 import time
@@ -30,6 +32,8 @@ from pathlib import Path
 from typing import Any
 
 from .db import LocalDB, connect, transaction
+
+_log = logging.getLogger("pinneapple.jobs")
 
 STATUSES = ("queued", "running", "done", "failed", "cancelled")
 FINAL = ("done", "failed", "cancelled")
@@ -122,7 +126,12 @@ class JobQueue:
 
     def __init__(self, db_path: str | Path, *, app: str = "", max_concurrent: int = 2, executor: str = "thread",
                  workdir: str | Path | None = None, poll_interval: float = 0.2, heartbeat_interval: float = 2.0,
-                 stale_after: float = 30.0, resume_interrupted: bool = True, max_seconds: float | None = None):
+                 stale_after: float = 30.0, resume_interrupted: bool = True, max_seconds: float | None = None,
+                 limits: dict[str, float] | None = None, log_tracebacks: bool = True):
+        """``limits`` (process executor): ``memory_mb`` (address space), ``cpu_seconds``, ``max_files`` per job
+        process, applied with ``setrlimit`` before the job runs; a job and every process it starts are killed
+        together. ``log_tracebacks=False`` keeps tracebacks in the server log and out of the job log the caller
+        can read."""
         if executor not in ("thread", "process"):
             raise ValueError("executor must be 'thread' or 'process'")
         self.db_path = Path(db_path)
@@ -136,6 +145,8 @@ class JobQueue:
         self.stale_after = stale_after
         self.resume_interrupted = resume_interrupted
         self.max_seconds = max_seconds
+        self.limits = {k: float(v) for k, v in (limits or {}).items() if v}
+        self.log_tracebacks = log_tracebacks
         self.worker_id = f"{os.getpid()}-{uuid.uuid4().hex[:6]}"
         self._kinds: dict[str, tuple[JobFn, str]] = {}
         self._active: dict[str, threading.Thread] = {}
@@ -349,7 +360,7 @@ class JobQueue:
         ref = f"{fn.__module__}:{fn.__qualname__}"
         proc = ctx.Process(target=_process_entry, daemon=True,
                            args=(child, ref, str(self.db_path), job["id"], job["params"], str(workdir),
-                                 job["attempts"]))
+                                 job["attempts"], self.limits))
         proc.start()
         child.close()
         outcome = None
@@ -362,13 +373,11 @@ class JobQueue:
                 proc.join(5)
                 break
             if deadline is not None and time.time() > deadline:
-                proc.kill()
-                proc.join(5)
+                _kill_group(proc)
                 return ("timeout", f"killed after the time limit of {job['max_seconds']:g} s", "")
             row = self._db.conn.execute("SELECT cancel_requested FROM jobs WHERE id=?", (job["id"],)).fetchone()
             if row and row["cancel_requested"]:
-                proc.kill()
-                proc.join(5)
+                _kill_group(proc)
                 return ("cancelled", "cancelled on request (process killed)", "")
         if outcome is None:
             proc.join(5)
@@ -379,9 +388,12 @@ class JobQueue:
     def _finish(self, job: dict[str, Any], kind: str, payload: Any, detail: str) -> None:
         job_id, attempt = job["id"], job["attempts"]
         now = time.time()
-        if detail:
+        if detail and self.log_tracebacks:
             for line in detail.rstrip().splitlines()[-40:]:
                 self.log(job_id, line, attempt)
+        elif detail:
+            _log.error("job %s (%s) attempt %d failed:\n%s", job_id, self.app, attempt, detail.rstrip())
+            self.log(job_id, "details are in the server log", attempt)
         if kind == "ok":
             try:
                 result = json.dumps(payload, default=_json_default)
@@ -410,9 +422,38 @@ class JobQueue:
                                (now, payload, job_id))
 
 
+def _kill_group(proc) -> None:
+    """Kill a job process and everything it started (it leads its own process group)."""
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (AttributeError, ProcessLookupError, PermissionError, OSError):
+        proc.kill()
+    proc.join(5)
+
+
+def _apply_limits(limits: dict[str, float] | None) -> None:
+    if hasattr(os, "setsid"):
+        try:
+            os.setsid()                                       # own process group: a kill reaches its children too
+        except OSError:
+            pass
+    if not limits:
+        return
+    import resource
+    for key, res, scale in (("memory_mb", resource.RLIMIT_AS, 2**20), ("cpu_seconds", resource.RLIMIT_CPU, 1),
+                            ("max_files", resource.RLIMIT_NOFILE, 1)):
+        if limits.get(key):
+            v = int(limits[key] * scale)
+            soft, hard = resource.getrlimit(res)
+            if hard != resource.RLIM_INFINITY:
+                v = min(v, hard)
+            resource.setrlimit(res, (v, hard if hard != resource.RLIM_INFINITY else v))
+
+
 def _process_entry(pipe, ref: str, db_path: str, job_id: str, params: dict[str, Any], workdir: str,
-                   attempt: int) -> None:
+                   attempt: int, limits: dict[str, float] | None = None) -> None:
     import importlib
+    _apply_limits(limits)
     out = open(Path(workdir) / "output.log", "a", buffering=1)
     os.dup2(out.fileno(), 1)
     os.dup2(out.fileno(), 2)

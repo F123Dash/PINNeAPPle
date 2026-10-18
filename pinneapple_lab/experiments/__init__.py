@@ -24,6 +24,7 @@ from . import (  # noqa: F401
     car,
     cylinder,
     discovery,
+    em_pinn,
     examples,
     landing,
     ode,

@@ -32,6 +32,7 @@ import json
 import os
 import platform
 import re
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -316,6 +317,27 @@ class LabReport:
         return body
 
 
+_CWD_LOCK = threading.Lock()
+
+
+def _strip_field(p: Any) -> Path:
+    s = str(p)
+    return Path(s.rsplit(":", 1)[0]) if ":" in s[2:] else Path(s)
+
+
+def _assert_confined(cfg: Any, root: Path) -> None:
+    """Uploaded configs may only point at uploaded files: a result or reference path outside ``root`` (``/etc/...``,
+    ``../``) would read server files into the report."""
+    for t in cfg.targets:
+        for p in (getattr(t, "path", None), getattr(getattr(t, "reference", None), "path", None)):
+            if p is None or getattr(t, "zoo", None) or getattr(t, "hub", None):
+                continue
+            q = _strip_field(p)
+            q = (q if q.is_absolute() else root / q).resolve()
+            if not q.is_relative_to(root):
+                raise ValueError(f"{t.name}: {p} is outside the uploaded files")
+
+
 def run_validation(workdir: str | Path, config: str | Path | None = None, *, allow_code: bool = False,
                    title: str = "Validation") -> LabReport:
     """Run ``pinneapple check`` on the inputs under ``workdir`` with ``config`` (default
@@ -329,6 +351,7 @@ def run_validation(workdir: str | Path, config: str | Path | None = None, *, all
     cfg = load_config(cfile, root=root)
     if not allow_code:
         assert_no_code(cfg)
+        _assert_confined(cfg, root)
     text = cfile.read_text(encoding="utf-8")
     inputs = _manifest(root)
     csha = sha256_bytes(text.encode())
@@ -340,12 +363,13 @@ def run_validation(workdir: str | Path, config: str | Path | None = None, *, all
             parts["reference"] = _hash_path(t.reference.path)
         t_hash[t.name] = sha256_json(parts)
     t0 = utc_now()
-    cwd = os.getcwd()
-    try:
-        os.chdir(root)                                    # relative paths in messages
-        report = run(config=cfg, use_baseline=False)
-    finally:
-        os.chdir(cwd)
+    with _CWD_LOCK:                                       # the working directory is process-wide
+        cwd = os.getcwd()
+        try:
+            os.chdir(root)                                # relative paths in messages
+            report = run(config=cfg, use_baseline=False)
+        finally:
+            os.chdir(cwd)
     t1 = utc_now()
     versions = _versions()
     ledger = EvidenceLedger()
