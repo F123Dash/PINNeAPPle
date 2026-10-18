@@ -25,7 +25,13 @@ from .encounter import (
     turbulence_encounter,
 )
 from .simulate import FlightHistory, simulate
-from .takeoff import default_schedule, raymer_takeoff, simulate_takeoff, takeoff_metrics
+from .takeoff import (
+    default_schedule,
+    raymer_takeoff,
+    raymer_variants,
+    simulate_takeoff,
+    takeoff_metrics,
+)
 from .trim import ground_equilibrium, modes, stability_derivatives, trim
 from .turbulence import (
     DiscreteGust,
@@ -39,7 +45,7 @@ from .turbulence import (
 )
 
 __all__ = ["catalog", "Aircraft", "Controls", "simulate", "FlightHistory", "trim", "ground_equilibrium",
-           "stability_derivatives", "modes", "simulate_takeoff", "takeoff_metrics", "raymer_takeoff",
+           "stability_derivatives", "modes", "simulate_takeoff", "takeoff_metrics", "raymer_takeoff", "raymer_variants",
            "default_schedule", "turbulence_encounter", "encounter_metrics", "gust_sensitivity", "discrete_gust",
            "pratt_check", "turbulence_spec", "psd", "FrozenLine", "FrozenField3D", "DrydenFilter", "DiscreteGust",
            "ShearWind", "pratt_gust_load"]

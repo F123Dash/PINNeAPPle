@@ -232,14 +232,14 @@ def _flight_available():
       outputs=[Port("metrics", "metrics"), Port("series", "series"), Port("figure", "figure", required=False)],
       params=[Param("aircraft", "str", "light_ga", help="name in pinneapple_simulation.flight.catalog"),
               Param("kind", "enum", "light", choices=["light", "transport"])],
-      calls="pinneapple_simulation.flight.takeoff.simulate_takeoff + takeoff_metrics + raymer_takeoff",
+      calls="pinneapple_simulation.flight.takeoff.simulate_takeoff + takeoff_metrics + raymer_variants",
       available=_flight_available)
 def takeoff(ctx, inputs, params):
     """Simulate a take-off with the 6-DOF flight library (vortex lattice in the loop) and compare the distance
     with Raymer's closed form."""
     from pinneapple_simulation.flight import catalog
     from pinneapple_simulation.flight.takeoff import (
-        raymer_takeoff,
+        raymer_variants,
         simulate_takeoff,
         takeoff_metrics,
     )
@@ -247,13 +247,15 @@ def takeoff(ctx, inputs, params):
     ctx.decide("flight.raymer", "take-off distance compared with Raymer's closed form")
     hist = simulate_takeoff(ac, kind=params["kind"])
     m = takeoff_metrics(ac, hist)
-    ray = raymer_takeoff(ac)
+    rv = raymer_variants(ac, m, params["kind"])        # the same two closed forms the flight guide quotes
     for k, v in m.items():
         if isinstance(v, (int, float)):
             ctx.metric(k, v)
-    for k, v in ray.items():
-        if isinstance(v, (int, float)):
-            ctx.metric(f"raymer_{k}", v)
+    labels = {"raymer_1p1Vs": "Raymer sec. 17.8, V_LOF = 1.1 V_stall, rotation 1 s (light) / 3 s (transport)",
+              "raymer_sim_VLOF": "Raymer sec. 17.8 with the simulated V_LOF and rotation time"}
+    for name, v in rv.items():
+        ctx.metric(f"{name}_total_35ft_m", v["total_35ft_m"], labels[name])
+        ctx.metric(f"sim_over_{name}", v["sim_over_raymer"], "simulated distance to 35 ft / closed form")
     x = np.asarray(hist.x)
     s = ctx.save_npz("trajectory", t=np.asarray(hist.t), values=x[:, :3])
     s.update({"channels": ["north", "east", "down"]})
@@ -263,15 +265,14 @@ def takeoff(ctx, inputs, params):
     fig, ax = plt.subplots(figsize=(6.5, 3))
     ax.plot(x[:, 0] - x[0, 0], -x[:, 2] + x[0, 2], label="6-DOF simulation")
     ax.axhline(10.668, color="k", lw=0.8, ls="--", label="35 ft screen")
-    d = ray.get("total_35ft_m")
-    if isinstance(d, (int, float)):
-        ax.axvline(d, color="r", lw=0.8, ls=":", label="Raymer closed form")
+    for (name, v), c in zip(rv.items(), ("r", "m"), strict=True):
+        ax.axvline(v["total_35ft_m"], color=c, lw=0.8, ls=":", label=labels[name].split(", ", 1)[-1][:40])
     ax.set_xlabel("distance along the runway [m]")
     ax.set_ylabel("height [m]")
     ax.legend(fontsize=8)
     fig_a = ctx.figure(fig, "takeoff", "take-off trajectory")
-    sim, cf = m.get("distance_35ft_m"), ray.get("total_35ft_m")
-    if isinstance(sim, (int, float)) and isinstance(cf, (int, float)):
-        ctx.summary(f"ground roll {m.get('ground_roll_m', float('nan')):.0f} m, 35 ft at {sim:.0f} m "
-                    f"(Raymer {cf:.0f} m, {100 * (sim - cf) / cf:+.0f}%)")
+    a, b = rv["raymer_1p1Vs"], rv["raymer_sim_VLOF"]
+    ctx.summary(f"ground roll {m['ground_roll_m']:.0f} m, 35 ft at {m['distance_35ft_m']:.0f} m; Raymer 17.8: "
+                f"{a['total_35ft_m']:.0f} m with V_LOF = 1.1 V_s ({100 * (a['sim_over_raymer'] - 1):+.0f}%), "
+                f"{b['total_35ft_m']:.0f} m with the simulated V_LOF and rotation ({100 * (b['sim_over_raymer'] - 1):+.0f}%)")
     return {"metrics": ctx.report["metrics"], "series": s, "figure": fig_a}
