@@ -35,7 +35,7 @@ References
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, Optional, Tuple
+from collections.abc import Callable
 
 import numpy as np
 
@@ -74,10 +74,10 @@ class ExtendedKalmanFilter:
         n_obs: int,
         f: Callable[[np.ndarray], np.ndarray],
         h: Callable[[np.ndarray], np.ndarray],
-        Q: Optional[np.ndarray] = None,
-        R: Optional[np.ndarray] = None,
-        F_jac: Optional[Callable] = None,
-        H_jac: Optional[Callable] = None,
+        Q: np.ndarray | None = None,
+        R: np.ndarray | None = None,
+        F_jac: Callable | None = None,
+        H_jac: Callable | None = None,
         *,
         eps_fd: float = 1e-5,
     ) -> None:
@@ -119,13 +119,13 @@ class ExtendedKalmanFilter:
             return self._H_jac(x)
         return self._jacobian_fd(self.h, x, self.eps_fd)
 
-    def initialize(self, x0: np.ndarray, P0: Optional[np.ndarray] = None) -> None:
+    def initialize(self, x0: np.ndarray, P0: np.ndarray | None = None) -> None:
         """Set initial state estimate and covariance."""
         self.x = np.asarray(x0, dtype=np.float64)
         if P0 is not None:
             self.P = np.asarray(P0, dtype=np.float64)
 
-    def predict(self) -> Tuple[np.ndarray, np.ndarray]:
+    def predict(self) -> tuple[np.ndarray, np.ndarray]:
         """Predict step: propagate state and covariance."""
         x_pred = self.f(self.x)
         F = self._F(self.x)
@@ -134,7 +134,7 @@ class ExtendedKalmanFilter:
         self.P = P_pred
         return x_pred, P_pred
 
-    def update(self, y: np.ndarray) -> Dict[str, np.ndarray]:
+    def update(self, y: np.ndarray) -> dict[str, np.ndarray]:
         """
         Update step: fuse observation y with the prior.
 
@@ -163,7 +163,7 @@ class ExtendedKalmanFilter:
             "innovation_cov": S,
         }
 
-    def step(self, y: np.ndarray) -> Dict[str, np.ndarray]:
+    def step(self, y: np.ndarray) -> dict[str, np.ndarray]:
         """Predict + update in one call."""
         self.predict()
         return self.update(y)
@@ -198,8 +198,8 @@ class EnsembleKalmanFilter:
         n_obs: int,
         f: Callable[[np.ndarray], np.ndarray],
         h: Callable[[np.ndarray], np.ndarray],
-        Q: Optional[np.ndarray] = None,
-        R: Optional[np.ndarray] = None,
+        Q: np.ndarray | None = None,
+        R: np.ndarray | None = None,
         n_ens: int = 100,
         inflation: float = 1.02,
         seed: int = 0,
@@ -220,7 +220,7 @@ class EnsembleKalmanFilter:
     def initialize(
         self,
         x0: np.ndarray,
-        P0: Optional[np.ndarray] = None,
+        P0: np.ndarray | None = None,
     ) -> None:
         """Initialize ensemble around x0."""
         x0 = np.asarray(x0, dtype=np.float64)
@@ -253,7 +253,7 @@ class EnsembleKalmanFilter:
         mu = self.mean
         self.ensemble = mu[:, None] + self.inflation * (self.ensemble - mu[:, None])
 
-    def update(self, y: np.ndarray) -> Dict[str, np.ndarray]:
+    def update(self, y: np.ndarray) -> dict[str, np.ndarray]:
         """
         Stochastic EnKF analysis step.
 
@@ -291,7 +291,7 @@ class EnsembleKalmanFilter:
             "K": K,
         }
 
-    def step(self, y: np.ndarray) -> Dict[str, np.ndarray]:
+    def step(self, y: np.ndarray) -> dict[str, np.ndarray]:
         """Predict + update in one call."""
         self.predict()
         return self.update(y)
@@ -316,8 +316,8 @@ def gaspari_cohn(d: np.ndarray) -> np.ndarray:
 
 
 def enkf_analysis(ens: np.ndarray, y: np.ndarray, hx: np.ndarray, r_var: np.ndarray, *,
-                  loc_xy: Optional[np.ndarray] = None, loc_yy: Optional[np.ndarray] = None,
-                  inflation: float = 1.0, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+                  loc_xy: np.ndarray | None = None, loc_yy: np.ndarray | None = None,
+                  inflation: float = 1.0, rng: np.random.Generator | None = None) -> np.ndarray:
     """Stochastic EnKF analysis (perturbed observations; Burgers et al. 1998, Mon. Wea. Rev. 126:1719) of an
     ensemble ``ens`` (N, n_state) given observations ``y`` (m,), their forecast equivalents ``hx`` (N, m) and
     independent observation-error variances ``r_var`` (m,).
