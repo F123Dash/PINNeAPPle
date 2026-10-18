@@ -45,8 +45,9 @@ SOURCES = {
     "a320_tofl": ("A320-200, MTOW 78 t, sea level ISA: take-off field length about 2,090-2,100 m (certified, one engine"
                   " inoperative and 1.15 x all-engines distance, whichever is longer); e.g. "
                   "https://www.skytamer.com/Airbus_A320.html, https://aircraftinvestigation.info/airplanes/"
-                  "Airbus_A320-200_CFM56.html (which also quotes about 1,825 m at 73.5 t). Authoritative source: "
-                  "Airbus, A320 Aircraft Characteristics - Airport and Maintenance Planning (rev. Jun 2024)."),
+                  "Airbus_A320-200_CFM56.html (which also quotes about 1,825 m at 73.5 t); secondary sources. The primary "
+                  "source, Airbus' A320 Aircraft Characteristics - Airport and Maintenance Planning, was not checked "
+                  "(it could not be opened from the environment of this study)."),
     "cfm56_5b4": ("CFM56-5B4 take-off rating 27,000 lbf (120 kN): CFM International; EASA TCDS E.003 (CFM56-5B/-5C)."),
     "atr72_600": ("ATR 72-600: MTOW 23,000 kg (option; basic 22,800 kg), take-off field length 1,315 m at MTOW, ISA, "
                   "sea level; PW127M normal take-off power 2,475 shp, one-engine (reserve) take-off power 2,750 shp. "
