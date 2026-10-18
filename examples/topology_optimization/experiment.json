@@ -41,11 +41,19 @@
   ]
  },
  "references": [],
- "status": "not curated",
- "lab": {},
+ "status": "curated",
+ "lab": {
+  "item": "repo_results/topology_optimization",
+  "items": [
+   "repo_results/topology_optimization"
+  ],
+  "experiment": "repo_results",
+  "run_id": "repo_results-ea46a4b7c9e3",
+  "tier": "B"
+ },
  "provenance": {
   "source": "register",
   "methods": "inferred from names",
-  "git": "cfaaf553"
+  "git": "c31f0955"
  }
 }

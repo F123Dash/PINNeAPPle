@@ -40,11 +40,19 @@
   ]
  },
  "references": [],
- "status": "not curated",
- "lab": {},
+ "status": "curated",
+ "lab": {
+  "item": "repo_results/meshgraphnet",
+  "items": [
+   "repo_results/meshgraphnet"
+  ],
+  "experiment": "repo_results",
+  "run_id": "repo_results-cbac6f31f681",
+  "tier": "B"
+ },
  "provenance": {
   "source": "register",
   "methods": "inferred from names",
-  "git": "cfaaf553"
+  "git": "c31f0955"
  }
 }

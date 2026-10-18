@@ -174,3 +174,61 @@ def test_the_repository_passes_its_own_gate():
     assert flight.links["guide"] == "docs/guides/flight_dynamics.md" and 847 in flight.links["pr"]
     assert enso.links["guide"] == "docs/guides/enso_forecasting.md" and 846 in enso.links["pr"]
     assert np.all([m.schema == M.SCHEMA for _, m in M.scan(lab="")])
+
+
+# ---------------------------------------------------------------------------------------------- committed results
+def test_results_rules_extract_only_what_the_files_hold():
+    from pinneapple_lab.results_rules import RESULTS_RULES, Bound, check_citations
+    assert check_citations(REPO) == []                        # every threshold is on the line it cites
+    for rel, rules in RESULTS_RULES.items():
+        m = M.from_results(os.path.join(REPO, rel))
+        assert M.validate(m, os.path.join(REPO, rel)) == [] and m.checks, rel
+        for r in rules:                                       # every file a rule reads is committed
+            assert os.path.exists(os.path.join(REPO, rel, r.file)), (rel, r.file)
+    flight = M.from_results(os.path.join(REPO, "examples", "flight_dynamics"))
+    data = json.load(open(os.path.join(REPO, "examples", "flight_dynamics", "results", "verification.json")))
+    c = next(c for c in flight.checks if c["name"] == "energy conserved, dt 0.02 s")
+    assert c["value"] == data["conservation"]["0.02"]["energy_rel_error"] and c["max"] == 1e-8
+    assert all(isinstance(r, Bound) is False or r.source.startswith("tests/") for rs in RESULTS_RULES.values()
+               for r in rs)
+
+
+def test_extract_flags_bounds_and_check_lists(tmp_path):
+    from pinneapple_lab.results_rules import Bound, CheckList, Flag, Metric, extract
+    (tmp_path / "r.json").write_text(json.dumps({
+        "runs": [{"name": "a", "err": 0.02, "ok": True, "departed": False}, {"name": "b", "err": 0.2, "ok": False}],
+        "checks": [{"case": "x", "passed": True, "error": 1e-3, "tol": 0.01}, {"case": "y", "passed": "?"}]}))
+    rules = [Metric("r.json", "runs.*.err", "err_{o[name]}", "", "from r.json"),
+             Flag("r.json", "runs.*.ok", "{o[name]} ok", "sanity"),
+             Flag("r.json", "runs.*.departed", "{o[name]} stays", "physics", invert=True),
+             Bound("r.json", "runs.*.err", "{o[name]} error", "reference", "0.05", "tests/x.py:1"),
+             CheckList("r.json", "checks", "{r[case]}", "reference", value_key="error", tolerance_key="tol"),
+             Metric("missing.json", "a", "a", "", "nothing")]
+    metrics, checks = extract(str(tmp_path), rules)
+    assert [x["name"] for x in metrics] == ["err_a", "err_b"]
+    by = {c["name"]: c for c in checks}
+    assert by["a ok"]["passed"] and not by["b ok"]["passed"] and by["a stays"]["passed"] and "b stays" not in by
+    assert by["a error"]["passed"] and not by["b error"]["passed"] and by["b error"]["max"] == 0.05
+    assert by["x"] == {"name": "x", "passed": True, "kind": "reference", "detail": "recorded by the study in r.json",
+                       "value": 1e-3, "rtol": 0.01} and "y" not in by        # a record without a verdict is skipped
+
+
+def test_folders_graded_through_the_lab():
+    cur = json.load(open(os.path.join(REPO, "lab", "curation.json")))
+    for rel in ("examples/flight_dynamics", "examples/enso_forecasting", "examples/bricks",
+                "examples/electrodynamics", "examples/near_random_forecasting", "examples/black_hole_weather"):
+        m = M.load(os.path.join(REPO, rel))
+        assert m.status == "curated" and m.lab["item"] in cur["items"], rel
+    assert M.lab_items_for("examples/electrodynamics", cur)[0] == "repo_results/em_verification"
+
+
+def test_identical_actions_are_listed_once():
+    from pinneapple_lab.curation import next_steps
+    from pinneapple_lab.next_steps import explain, group
+    lab = os.path.join(REPO, "lab")
+    gaps = next_steps("em_pinn/em_tm_cavity", lab)
+    groups = group(gaps)
+    assert len(gaps) == 3 and len(groups) == 1 and len(groups[0]["gaps"]) == 3     # Ez, Hx, Hy share the commands
+    text = explain(gaps)
+    assert text.count("validate_pinn(net, problem)") == 1 and "for the 3 gaps above" in text
+    assert len(group([g.to_dict() for g in gaps])) == 1                             # dicts too (record, page)

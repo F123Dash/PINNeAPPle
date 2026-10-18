@@ -21,6 +21,9 @@ class ManifestImport(Experiment):
 
     def run(self, ctx):
         path = ctx.params["path"]
+        if not os.path.isabs(path):
+            from ..manifest import REPO
+            path = os.path.join(REPO, path)                # a manifest inside the checkout, stored relative to it
         m = load(path)
         base = os.path.dirname(path)
         ctx.input("manifest", m.to_dict())
