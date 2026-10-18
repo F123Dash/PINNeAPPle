@@ -58,9 +58,9 @@ class BricksExperiment(Experiment):
         newton = bool(p["newton"]) and importlib.util.find_spec("newton") is not None
         with ctx.stage("closed-form checks"):
             val = validation.validate(newton=newton, fea=True)
-        for r in val["rows"]:
-            ctx.check(r["check"], bool(r["passed"]), value=r["rel_error"], detail=f"tolerance {r['tolerance']}",
-                      kind="reference")
+        for r in val["rows"]:          # the statics engine on canonical stacks with exact answers: it verifies the
+            ctx.check(r["check"], bool(r["passed"]), value=r["rel_error"],     # solver, not the builds it designs
+                      detail=f"tolerance {r['tolerance']}", kind="verification")
         make = make_goal(p["case"])
         seeds = tuple(range(int(p["seeds"])))
         with ctx.stage("search"):

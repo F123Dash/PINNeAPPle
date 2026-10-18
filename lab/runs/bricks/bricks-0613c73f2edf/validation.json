@@ -9,7 +9,7 @@
   "max": null,
   "min": null,
   "detail": "tolerance 0.001",
-  "kind": "reference"
+  "kind": "verification"
  },
  {
   "name": "single block overhang limit / length",
@@ -21,7 +21,7 @@
   "max": null,
   "min": null,
   "detail": "tolerance 0.001",
-  "kind": "reference"
+  "kind": "verification"
  },
  {
   "name": "stud cantilever brick_1x4 on 1 stud(s): tension per stud",
@@ -33,7 +33,7 @@
   "max": null,
   "min": null,
   "detail": "tolerance 1e-06",
-  "kind": "reference"
+  "kind": "verification"
  },
  {
   "name": "stud cantilever brick_1x8 on 2 stud(s): tension per stud",
@@ -45,7 +45,7 @@
   "max": null,
   "min": null,
   "detail": "tolerance 1e-06",
-  "kind": "reference"
+  "kind": "verification"
  },
  {
   "name": "tower of 8 2x2 bricks: tipping push at the top",
@@ -57,7 +57,7 @@
   "max": null,
   "min": null,
   "detail": "tolerance 1e-06",
-  "kind": "reference"
+  "kind": "verification"
  },
  {
   "name": "plate beam: sum of support reactions",
@@ -69,7 +69,7 @@
   "max": null,
   "min": null,
   "detail": "tolerance 1e-06",
-  "kind": "reference"
+  "kind": "verification"
  },
  {
   "name": "voxel FEA plate beam: mid-span deflection (Timoshenko)",
@@ -81,7 +81,7 @@
   "max": null,
   "min": null,
   "detail": "tolerance 0.02",
-  "kind": "reference"
+  "kind": "verification"
  },
  {
   "name": "a_strategy_found_a_feasible_build",

@@ -228,7 +228,10 @@ stamp_file("wake.gif", s, corner="tl", size=0.3, opacity=0.9)   # GIF frame by f
 
 `corner="auto"` (the default) scores each corner by the colour gradient and spread under the badge, so colour
 bars, axis labels and the subject push it elsewhere; for figures it also never overlaps a colour-bar axes.
-`size` is the badge width as a fraction of the image width, `opacity` its alpha.
+`size` is the badge width as a fraction of the image width, `opacity` its alpha. A plot filled to its edges has no
+free corner; then the badge goes in a strip added under it (`extend="auto"`) instead of covering the axes:
+
+![The Prius field stamped: no free corner, so the seal sits in a strip under the plot](../assets/showcase/seal_stamped_figure.jpg)
 
 ```bash
 python -m pinneapple_lab seal repo_results/prius_pmsm -o seal.svg
