@@ -145,8 +145,10 @@ def run(smoke: bool = False, jobs: int = 1, models=None, out_dir: Path = HERE, r
     moy = data.meta["month_of_year"]
     scores = pipeline.enso_scores(merged, moy)
     panels = pipeline.case_panels(parts, merged, data, events=events)
-    out = {"zoo": merged, "enso_scores": scores, "case_panels": panels,
-           "event_1997_98": {n: {"train_last_label": v["train_last_label"], "origins": v["origins"],
+    vs_clim = pipeline.skill_against(merged, "climatology")
+    out = {"zoo": merged, "enso_scores": scores, "case_panels": panels, "skill_vs_climatology": vs_clim,
+           "event_1997_98": {n: {"train_last_label": v["train_last_label"], "data_end": v["data_end"],
+                                 "origins": v["origins"],
                                  "median": v["forecast"].quantiles([0.5])[0].tolist()} for n, v in events["1997/98"].items()},
            "model_info": {n: p.get("_model_info") for n, p in parts.items()}}
     for k in ("solver_checks", "shallow_water_pinn", "spring_barrier", "phase"):
@@ -163,15 +165,17 @@ def run(smoke: bool = False, jobs: int = 1, models=None, out_dir: Path = HERE, r
     H = merged["protocol"]["horizons"]
     curves = {}
     for n, m in out["zoo"]["models"].items():
-        if "test" not in m or not (n in reps.values() or n in ("persistence", "climatology", "ar")):
+        if "test" not in m or not (n in reps.values() or n in ("persistence", "climatology", "arima")):
             continue
-        sig = [bool(d and (d.get("p_holm") or 1) < 0.05) for d in m["dm_vs_best_baseline"]]
+        sv = out["skill_vs_climatology"]["models"][n]
         curves[n] = {"family": m["family"], "horizons": H, "acc": out["enso_scores"][n]["acc"],
-                     "rmse_skill_vs_best_baseline": m["skill_vs_best_baseline"],
-                     "rmse_skill_vs_best_baseline_significant": sig,
+                     "rmse_skill_vs_climatology": sv["skill_rmse"],
                      "crps_skill_vs_climatology": m["test"].get("crps_skill_vs_climatology")}
+        if "significant" in sv:
+            curves[n]["rmse_skill_vs_climatology_significant"] = sv["significant"]
     plots.plot_skill_vs_lead(curves, str(fig_dir / "skill_vs_lead.png"),
-                             metrics=("acc", "rmse_skill_vs_best_baseline", "crps_skill_vs_climatology"))
+                             metrics=("acc", "rmse_skill_vs_climatology", "crps_skill_vs_climatology"),
+                             labels={"rmse_skill_vs_climatology": "RMSE skill vs climatology (test)"})
     fam_order = ["physical", "hybrid", "data", "data+physics"]
     plots.plot_plumes([p for p in panels], str(fig_dir / "plumes.png"), ncols=3)
     sb = {}

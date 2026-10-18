@@ -293,9 +293,18 @@ What the zoo shows:
 
 ![skill vs lead](../../examples/enso_forecasting/figures/skill_vs_lead.png)
 
-*Representatives of each family (chosen on the validation block) and three baselines. Left: anomaly correlation
-(dotted line: 0.5). Middle: RMSE skill against the best baseline at each lead; filled markers where the
-Holm-adjusted DM test against it is significant at 5 %. Right: CRPS skill against climatology.*
+*Representatives of each family (chosen on the validation block) and three baselines (persistence, climatology,
+ARIMA). Left: anomaly correlation (dotted line: 0.5). Middle: RMSE skill against climatology on the test period;
+filled markers where the one-sided DM test against climatology, Holm-adjusted across the non-baseline models at that
+lead, is significant at 5 % (`pipeline.skill_against`). The skill against the validation-chosen "best baseline" is
+not plotted, because that reference switches to the seasonal naive forecast at lead 7 (see below). It stays in the
+zoo table. Right: CRPS skill against climatology.*
+
+### Skill against climatology, with its own tests
+
+{{TABLE:skill_vs_climatology}}
+
+{{CLIM_TEXT}}
 
 ### The whole zoo
 
@@ -447,8 +456,14 @@ In all three events the median forecasts underestimated the peak, from February 
 
 *Forecasts at leads 1, 3, 6, 9, 12, 18 and 24 months from the origin (dotted line), one colour per family
 representative: median marker, 50 % (thick) and 90 % (thin) intervals; observed Niño-3.4 in black; grey band
-±0.5 K. 1997/98: models refitted on data whose labels end before 1997-01. 2023/24: models fitted for the main test
-(training labels end in 2007), origins after the test period.*
+±0.5 K. Each panel title says whether its forecasts are out of sample:
+* 1997/98: "out-of-sample: refit, data to 1996-12". The models were refitted on data up to 1996-12 only (training
+  labels to 1993-06, the rest as the validation block). No year from 1997 on entered the fit.
+* 2015/16: "out-of-sample: test period".
+* 2023/24: "out-of-sample: after the test period". These are the models fitted for the main test (training labels
+  end in 2007).
+
+No panel is in-sample.*
 
 ## 6. The recharge oscillator in phase space
 
@@ -536,14 +551,18 @@ In short:
 between months. It was rendered with Blender Cycles through `pinneapple_tools.visualization.studio.render`
 (`enso.render`, `pipeline.slab_frames`).
 * **The slab** covers 120E–80W and 20S–20N, with depths exaggerated (1 scene unit per 100 m).
-* **Top surface** (0–20N): the observed monthly OISST SST.
-* **Curtain along the equator:** the equatorial SST, from the surface down to the thermocline.
-* **Lower surface:** the 20 °C isotherm. It is built from two parts:
+* **Top surface** (2S–20N): the observed monthly OISST SST.
+* **Wall along 2S:** the SST of that row, from the surface down to the thermocline. It is the southern face of a
+  4°-wide equatorial band, so the warm layer's thickness is visible.
+* **Lower surface:** the 20 °C isotherm, coloured by its depth anomaly. The scale is diverging, ±40 m, red =
+  deeper, with its own colour bar at the bottom left. The surface is built from two parts:
   * the mean D20 of the casts over 1982–2011, in 2° × 10° bins;
   * plus the anomaly of the 2-D shallow-water model forced by ERA5 stress, scaled by its fitted amplitude factor.
   So the 3-D thermocline is model-assisted, not observed.
-* **What it shows:** compare January 1997 with December 1997. The warm water spreads east along the equator and the
-  thermocline tilt flattens.
+* **What it shows:** compare January 1997 with December 1997.
+  * The warm water spreads east along the equator.
+  * In December 1997 the thermocline is 40–60 m deeper than normal east of about 150W (red) and shallower in the
+    west (blue): the tilt has flattened.
 * **The still above** is December 1997. `figures/enso_1997_01_slab.png` is January 1997.
 
 ## Comparison with published systems
