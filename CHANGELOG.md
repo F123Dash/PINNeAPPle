@@ -14,6 +14,11 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Second FEA code and interoperability for machines: `machines.getdp` (the same machine in gmsh + GetDP, nonlinear
+  2-D A-formulation with Arkkio torque, as an independent cross-check) and `machines.interop` (pyleecan machine
+  files in and out, FEMM Lua script, ElmerFEM case, MATLAB `.mat`, DXF, `ParameterSpace` / `DatasetSpec` contracts).
+  Example `examples/electrodynamics/14_prius_getdp_crosscheck.py` (torque, back-EMF, inductances, cogging
+  convergence and diagnosis against GetDP), tests `tests/test_emachine_getdp.py`, `tests/test_emachine_interop.py`.
 - Step skew, tolerances and 3-D export of machines (`pinneapple_simulation.electromagnetics.machines.robustness`,
   `machines.export`): multi-slice step skew (`skewed_torque`, `skewed_no_load`, `step_skew_factor`), the FEA as a
   tolerance model for JCGM 101 Monte Carlo (`tolerance_model`), extruded 3-D field of a skewed rotor

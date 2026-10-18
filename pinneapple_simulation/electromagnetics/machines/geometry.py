@@ -26,7 +26,12 @@ from dataclasses import dataclass, field
 import numpy as np
 
 __all__ = ["Polygon", "SectorGeometry", "arc", "VRotor", "RoundBottomSlots", "polygon_area", "prius_2004",
-           "MachineGeometry", "geometry_errors"]
+           "MachineGeometry", "geometry_errors", "ROTOR_VARIABLES"]
+
+# design ranges of the V-rotor variables (name, lower, upper), metres, around the Prius values
+# W4 18.9, H3 6.5, H0 10.96, W0 42, H1 1.5 mm
+ROTOR_VARIABLES = (("W4", 0.0140, 0.0220), ("H3", 0.0045, 0.0075), ("H0", 0.0085, 0.0135), ("W0", 0.0360, 0.0450),
+                   ("H1", 0.0010, 0.0020))
 
 TWO_PI = 2.0 * math.pi
 

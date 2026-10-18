@@ -19,14 +19,10 @@ import time
 
 import numpy as np
 
-from .geometry import MachineGeometry, geometry_errors, prius_2004
+from .geometry import ROTOR_VARIABLES, MachineGeometry, geometry_errors, prius_2004
 from .pmsm import IPMMachine
 
 __all__ = ["rotor_evaluator", "rotor_design_problem", "hybrid_vs_fea_only", "ROTOR_VARIABLES"]
-
-# (name, lower, upper) in metres, around the Prius values W4 18.9, H3 6.5, H0 10.96, W0 42, H1 1.5 mm
-ROTOR_VARIABLES = (("W4", 0.0140, 0.0220), ("H3", 0.0045, 0.0075), ("H0", 0.0085, 0.0135), ("W0", 0.0360, 0.0450),
-                   ("H1", 0.0010, 0.0020))
 
 
 def rotor_evaluator(**kwargs):
