@@ -71,6 +71,28 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
 
 ### Added
+- Lab quality seals for every tier, A to F (`pinneapple_lab.curation`, `pinneapple_lab.seal`). The curation now
+  grades on six letters: A flagship and B solid unchanged, C plausible (every check passes, the trust card's model,
+  physics or benchmark stage answered, B gates not met), D exploratory (consistent, not validated), E known problems
+  (a failing check: large error vs a reference, unseen inputs, a baseline) and F not usable (crashed, diverged, a
+  failing physics check, or every reference check failing with nothing else independent passing). The old C maps
+  to C/D, the old D to E/F (`TIER_HISTORY`). E and F items record the main failing check and the next step to the
+  letter above in EN and PT (`headline["hint"]`, `hint_pt`), and their seals always print both (no compact form).
+  Six colours from green to dark red, each letter and tier line at WCAG contrast >= 4.5 on the badge (tested);
+  `lang="pt"` on `render_seal`, `stamp_figure`, `stamp_file`, `stamp_all`, `sealed_savefig`; `tiers=` /
+  `--tiers A,B` to keep a selection to validated items (default: every tier); `python -m pinneapple_lab legend`.
+  Reports, `lab/CURATION.md` and the catalogue show the six tiers and, for E and F, the problem and the next step.
+  Migration: the committed lab re-curated (19 A, 50 B, 0 C, 6 D, 1 E, 5 F items; A and B items and headlines
+  identical); legend and stamped examples in `docs/assets/seals/`; guide in `docs/core_concepts/lab.md`.
+- What an item lacks for the next letter, and how to get there with PINNeAPPle (`pinneapple_lab.next_steps`,
+  `pinneapple_lab.curation.next_steps(item) -> list[Gap]`). Every curated item records its gaps (failing checks with
+  the measured value against the threshold, unanswered trust-card stages, missed flagship gates, and for A what would
+  strengthen it), each with actions from a tested registry (lab rerun / refinement sweep, `pinneapple check`,
+  `ctx.check`, `pp.compare`, `pp.trust_card`, `pp.validate`, `validate_pinn`, `TrustGate`, `gci_check`,
+  `coverage_check`, `pp.benchmark.run`, ...) with the item's parameters filled in, EN and PT. The seal's full form
+  carries a "↑ next" line; `python -m pinneapple_lab seal --explain <item>`, reports and the catalogue show the full
+  list; `python -m pinneapple_lab improve <item> [--run]` (dry run by default) runs only the registered lab commands
+  and re-curates.
 - ENSO prediction (`pinneapple_systems.time_series.enso`): openly licensed, checksummed data (`data`: NOAA OISST
   v2.1 monthly tropical-Pacific SST and Nino indices, World Ocean Database moored-buoy / XBT / Argo 20 C isotherm
   depth, ERA5 stress and a Tahiti - Darwin index from WeatherBench 2, NCEI heat content and the statsmodels Nino 1+2
