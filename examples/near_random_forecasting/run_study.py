@@ -28,6 +28,8 @@ def _work(job):
     kind, name, kw, out = job
     if kind == "case":
         res = pipeline.run_case(name, **kw)
+    elif kind == "lyapunov":
+        res = pipeline.lyapunov_study(**kw)
     else:
         res = pipeline.run_overfitting(name, **kw)
     Path(out).write_text(json.dumps(res))
@@ -47,6 +49,8 @@ def run(smoke: bool = False, jobs: int = 1, cases=None, out_dir: Path = HERE):
     todo = [("case", n, kw, str(res_dir / "cases" / f"{n}.json")) for n in names]
     todo = [("overfit", n, ov_kw, str(res_dir / f"overfitting_{n}.json"))
              for n in (OVERFIT_CASES if not smoke else ["lorenz63_noise0.1"]) if cases is None or n in cases] + todo
+    lyap_kw = {"total_times": (2000.0,), "seeds": (0,)} if smoke else {}
+    todo = [("lyapunov", "mackey_glass", lyap_kw, str(res_dir / "lyapunov_mackey_glass.json"))] + todo
     todo = [j for j in todo if not Path(j[3]).exists()]
     if jobs > 1:
         with ProcessPoolExecutor(jobs) as ex:          # longest jobs (the overfitting studies) were queued first
