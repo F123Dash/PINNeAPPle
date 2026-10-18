@@ -100,7 +100,7 @@ def test_no_load_flux_is_on_the_d_axis_and_cogging_is_periodic(prius):
     assert T1 == pytest.approx(T0, abs=1e-6 * max(1.0, abs(T0)))
 
 
-@pytest.mark.parametrize("name", [n for n in mv.CASES if not n.startswith(("Drive", "Prius flux map"))])
+@pytest.mark.parametrize("name", [n for n in mv.CASES if n.startswith(("Magnetised ring", "Machine sector", "Prius IPM"))])
 def test_machine_verification_case(name):
     """Each case meets its tolerance: closed forms at second order, torque consistency, the published curve."""
     r = mv.run([name], quick=True)[0]
