@@ -1,30 +1,42 @@
-"""What the zoo's demo Space shows: a model's prediction for one input and along a sweep of one input, each with
-its physics checks and validity range.
+"""What the zoo's demo Space shows, computed by the library: each model's prediction along a sweep of each input,
+with its ensemble spread or conformal bound and where its query checks warn or fail, and the files of the static
+Space that shows them.
 
-The Space (``apps/zoo_space/app.py``, published to ``huggingface.co/spaces/PINNeAPPle-Labs/zoo-demo`` by
-``scripts/zoo/publish_to_hub.py``) is only the UI around these functions; the same calls work in a notebook:
+The Space (``huggingface.co/spaces/PINNeAPPle-Labs/zoo-demo``, a static Space: no server) is the page in
+``apps/zoo_space/`` over the files :func:`export_space` writes:
+
+* ``models/<name>.sweeps.json`` (:func:`precompute`): for every input, a sweep from 15 % below to 15 % above its
+  range, the other inputs at a held-out test case; the predictions, their band, and the verdict of the query checks
+  at every point (pass / warn / fail); the checks at the test case and the model's trust decision;
+* ``models/<name>.onnx`` and ``models/<name>.json`` (:func:`pinneapple_hub.zoo.web.export_web`): the model and its
+  query checks as one ONNX graph, so the page can evaluate the visitor's own inputs in the browser;
+* ``lib/onnx.js``, ``lib/zoo.js``: the browser runtime (a dependency-free ONNX interpreter and the JS twin of
+  :func:`pinneapple_hub.zoo.checks.evaluate`; ``tests/js/zoo_space.test.mjs`` checks it against these files).
+
+The same calls work in a notebook:
 
     from pinneapple_hub.zoo import demo
     c = demo.controls("airfoil_cst_rans_mlp")                      # inputs, units, ranges, a held-out case
     r = demo.sweep("airfoil_cst_rans_mlp", {k["name"]: k["value"] for k in c}, vary="alpha_deg")
-    demo.figure(r).savefig("polar.png"); print(demo.report(r))
-
-Out-of-range parts of a sweep are shaded red (the query checks fail: an extrapolation), warnings yellow.
+    r["status"]                                                     # pass / warn / fail along the sweep
 """
 from __future__ import annotations
 
 import functools
+import json
+import shutil
 import warnings
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from . import _artifacts as art
 
-__all__ = ["models", "controls", "sweep", "figure", "report", "trust"]
+__all__ = ["models", "controls", "sweep", "trust", "bands", "precompute", "export_space"]
 
-STATUS_COLOR = {"pass": "#2e7d32", "warn": "#f9a825", "fail": "#c62828"}
+SWEEP_POINTS = 41
 
 
 def models() -> list[str]:
@@ -79,13 +91,8 @@ def controls(name: str) -> list[dict[str, Any]]:
 
 
 def _checks(zm, X: np.ndarray) -> list[dict[str, Any]]:
-    from .checks import has_query_checks, query_checks
-    if has_query_checks(zm):
-        return query_checks(zm, X)
-    inside = zm.in_range(X)
-    return [{"checks": [{"name": "inputs inside the validity range", "status": "pass" if ok else "fail",
-                         "rule": "PC601", "kind": "trust", "detail_text": ""}],
-             "verdict": {"status": "pass" if ok else "fail"}} for ok in inside]
+    from .checks import query_checks
+    return query_checks(zm, X)
 
 
 def sweep(name: str, values: Mapping[str, float], vary: str, *, n: int = 61, margin: float = 0.15) -> dict[str, Any]:
@@ -116,61 +123,66 @@ def sweep(name: str, values: Mapping[str, float], vary: str, *, n: int = 61, mar
                                                                 [*zm.card.inputs, *zm.card.outputs]}}
 
 
-def _main_outputs(pred: Mapping[str, np.ndarray]) -> list[str]:
-    return [k for k in pred if not k.endswith("_std") and "upper95" not in k]
-
-
-def figure(result: Mapping[str, Any]):
-    """Matplotlib figure of a :func:`sweep`: one panel per output (mean, +-2 std band of the ensemble or the
-    conformal 95 % upper bound when the model has one), the chosen input marked, the checks' status shaded."""
-    from matplotlib.figure import Figure
-    outs = _main_outputs(result["pred"])
-    fig = Figure(figsize=(4.2 * len(outs), 3.6))                  # not pyplot: nothing is kept open per request
-    axes = fig.subplots(1, len(outs), squeeze=False)
-    x, st, units = result["x"], result["status"], result["units"]
-    for ax, k in zip(axes[0], outs, strict=True):
-        y = result["pred"][k]
-        ax.plot(x, y, color="#1f4e79", lw=2, label=k)
-        if f"{k}_std" in result["pred"]:
-            s = result["pred"][f"{k}_std"]
-            ax.fill_between(x, y - 2 * s, y + 2 * s, color="#1f4e79", alpha=0.18, lw=0, label="±2 std (ensemble)")
+def bands(outputs: Sequence[str]) -> dict[str, dict[str, Any]]:
+    """The main outputs of a model and how each one's uncertainty is drawn: ``{"std": "<name>_std"}`` (ensemble
+    spread, drawn as +-2 std) or ``{"upper": "<name with upper95>"}`` (split-conformal 95 % upper bound)."""
+    out: dict[str, dict[str, Any]] = {}
+    for k in outputs:
+        if k.endswith("_std") or "upper95" in k:
+            continue
         up = f"{k.removesuffix('_k_w')}_upper95_k_w" if k.endswith("_k_w") else ""
-        if up in result["pred"]:
-            ax.plot(x, result["pred"][up], color="#1f4e79", ls="--", lw=1, label="95 % upper bound")
-        for i in range(len(x) - 1):
-            if st[i] != "pass" or st[i + 1] != "pass":
-                worst = "fail" if "fail" in (st[i], st[i + 1]) else "warn"
-                ax.axvspan(x[i], x[i + 1], color=STATUS_COLOR[worst], alpha=0.12, lw=0)
-        x0 = result["inputs"][result["vary"]]
-        ax.axvline(x0, color="k", lw=0.8, ls=":")
-        ax.plot([x0], [result["point"][k]], "o", color="k", ms=5)
-        ax.set_xlabel(f"{result['vary']} [{units.get(result['vary'], '')}]")
-        ax.set_ylabel(f"{k} [{units.get(k, '')}]")
-        ax.grid(alpha=0.3)
-        ax.legend(fontsize=8, loc="best")
-    fig.suptitle(f"{result['model']}: shaded = checks warn (yellow) / fail (red, outside the validity range)",
-                 fontsize=9)
-    fig.tight_layout()
-    return fig
+        out[k] = ({"std": f"{k}_std"} if f"{k}_std" in outputs else {"upper": up} if up in outputs else {})
+    return out
 
 
-def report(result: Mapping[str, Any]) -> str:
-    """Markdown: the prediction at the chosen input, the verdict and every query check, and the model's trust
-    decision as a whole."""
-    name = result["model"]
+def _evaluation(e: Mapping[str, Any]) -> dict[str, Any]:
+    keep = ("id", "rule", "name", "severity", "kind", "group", "status", "value", "detail_text")
+    return {"verdict": e["verdict"], "checks": [{k: c.get(k) for k in keep} for c in e["checks"]]}
+
+
+def precompute(name: str, *, n: int = SWEEP_POINTS) -> dict[str, Any]:
+    """Everything the static Space shows for one model without running it: the inputs (:func:`controls`), the
+    outputs with units and bands (:func:`bands`), the model's trust decision (:func:`trust`), the prediction and the
+    query checks at the held-out case, and one :func:`sweep` per input (x, every output, verdict per point)."""
+    from .web import _round
+    zm = _model(name)
     e = art.entry("models", name)
-    pc = result["point_checks"]
-    units = result["units"]
-    t = trust(name)
-    lines = [f"### {name} v{e['version']}", "",
-             f"**Verdict for this input: {pc['verdict']['status'].upper()}**"
-             + (f" ({pc['verdict'].get('title', '')})" if pc["verdict"].get("title") else ""), "",
-             "| Output | Value | Unit |", "|---|---|---|",
-             *(f"| `{k}` | {v:.6g} | {units.get(k, '')} |" for k, v in result["point"].items()), "",
-             "| Check | Rule | Status | Detail |", "|---|---|---|---|",
-             *(f"| {c['name']} | {c.get('rule', '')} | {c['status']} | {c.get('detail_text', '')} |"
-               for c in pc["checks"]), "",
-             f"Model trust decision (`pp.zoo.validate`: card metrics reproduced, physics checks): "
-             f"**{t['decision']}**", "",
-             f"Model card: https://huggingface.co/{e['hf_repo']} · revision `{e['revision']}`"]
-    return "\n".join(lines)
+    c = controls(name)
+    values = {d["name"]: d["value"] for d in c}
+    sweeps, first = {}, None
+    for d in c:
+        r = sweep(name, values, d["name"], n=n)
+        first = first or r
+        sweeps[d["name"]] = {"x": r["x"].tolist(), "range": list(r["range"]),
+                             "pred": {k: v.tolist() for k, v in r["pred"].items()}, "status": r["status"]}
+    units = first["units"]
+    outs = list(first["pred"])
+    return _round({
+        "model": name, "version": e["version"], "revision": e["revision"], "hub": f"https://huggingface.co/{e['hf_repo']}",
+        "task": zm.card.task, "description": zm.card.description, "inputs": c,
+        "outputs": [{"name": k, "unit": units.get(k, ""), **b} for k, b in bands(outs).items()],
+        "all_outputs": outs, "trust": trust(name),
+        "default": {"inputs": values, "pred": first["point"], "checks": _evaluation(first["point_checks"])},
+        "sweeps": sweeps, "files": {"onnx": f"{name}.onnx", "meta": f"{name}.json"}})
+
+
+def export_space(directory: str | Path, models_: Sequence[str] | None = None) -> dict[str, Any]:
+    """Write the data and runtime of the static Space into ``directory``: ``models/<name>.{onnx,json,sweeps.json}``,
+    ``lib/{onnx,zoo}.js`` and ``index.json`` (the models, in order, with their task and trust decision)."""
+    from .web import export_web, runtime_dir
+    d = Path(directory)
+    (d / "models").mkdir(parents=True, exist_ok=True)
+    (d / "lib").mkdir(exist_ok=True)
+    for f in ("onnx.js", "zoo.js"):
+        shutil.copy2(runtime_dir() / f, d / "lib" / f)
+    entries = []
+    for name in models_ or models():
+        _model(name)                      # loads the model and fetches its reference data (read offline below)
+        export_web(name, d / "models")
+        pre = precompute(name)
+        (d / "models" / f"{name}.sweeps.json").write_text(json.dumps(pre, ensure_ascii=False) + "\n")
+        entries.append({"name": name, "task": pre["task"], "version": pre["version"],
+                        "revision": pre["revision"], "trust": pre["trust"]["decision"]})
+    index = {"models": entries, "generator": "pinneapple_hub.zoo.demo.export_space"}
+    (d / "index.json").write_text(json.dumps(index, indent=1, ensure_ascii=False) + "\n")
+    return index

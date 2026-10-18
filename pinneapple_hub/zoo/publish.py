@@ -10,13 +10,15 @@ item's ``revision``, plus one Space for the demo:
   its staged files or, with ``hub_fallback``, from the copy already on the Hub (SHA-256 checked again);
 * **models**: ``weights.pt``, ``config.json``, ``model_card.json`` of the manifest plus ``model.safetensors``,
   ``model.onnx`` and ``example.json`` derived from them, and the card (:func:`pinneapple_hub.zoo.hub_cards.model_card`);
-* **the Space** ``PINNeAPPle-Labs/zoo-demo``: the Gradio app ``apps/zoo_space/app.py`` running
-  :mod:`pinneapple_hub.zoo.demo`, with the library installed from a wheel uploaded next to it.
+* **the Space** ``PINNeAPPle-Labs/zoo-demo``: a static Space (no server) built by :func:`build_space`: the page of
+  ``apps/zoo_space`` over the sweeps, bands and check verdicts :mod:`pinneapple_hub.zoo.demo` computes from the
+  published models, and the models' ONNX graphs with their query checks for the visitor's own inputs.
 
 Checks after an upload, all anonymous: :func:`verify_files` (every manifest file at the tag, SHA-256),
 :func:`verify_viewer` (datasets-server ``is-valid``, ``splits`` and ``first-rows`` of every split),
 :func:`verify_models` (load from the Hub, card metrics reproduced, the card's example reproduced by the PyTorch,
-safetensors and ONNX copies, the card's "How to use" code run) and :func:`verify_space` (the Space's build stage).
+safetensors and ONNX copies, the card's "How to use" code run) and :func:`verify_space` (the Space runs and serves its
+page and data).
 """
 from __future__ import annotations
 
@@ -42,7 +44,7 @@ from . import _artifacts as art
 from . import hub_cards
 
 __all__ = ["plan", "prepare", "publish", "publish_space", "verify_files", "verify_viewer", "verify_models",
-           "verify_space", "space_files", "DATASETS_SERVER"]
+           "verify_space", "build_space", "DATASETS_SERVER"]
 
 DATASETS_SERVER = os.environ.get("HF_DATASETS_SERVER", "https://datasets-server.huggingface.co").rstrip("/")
 DERIVED_MODEL_FILES = ("model.safetensors", "model.onnx", "example.json")
@@ -236,36 +238,64 @@ def publish(items: Iterable[dict], token: str, *, work: Path | None = None, tags
     return failed
 
 
-def space_files(app_dir: Path, wheel: Path) -> dict[str, Path | bytes]:
-    """Files of the demo Space: the Gradio app, its README (Space configuration), requirements and the wheel."""
-    return {"app.py": app_dir / "app.py", "README.md": hub_cards.space_readme().encode(),
-            "requirements.txt": hub_cards.space_requirements(wheel.name).encode(),
-            f"wheels/{wheel.name}": wheel}
+SPACE_UI = ("index.html", "app.js", "space.css")
+PLAYGROUND_UI = {"js/charts.js": "js/charts.js", "js/ui.js": "js/ui.js", "css/app.css": "css/app.css",
+                 "icon.svg": "icon.svg"}
 
 
-SPACE_PLAN = ("hosting a Gradio (or Docker) Space, even on free cpu-basic hardware, needs a Team or Enterprise plan "
-              "for the organisation; static Spaces are free. Subscribe the organisation, or run the workflow with "
-              "space=false (every other upload and check still runs).")
+def build_space(out: Path, app_dir: Path, playground_dir: Path, models: Sequence[str] | None = None) -> list[str]:
+    """Write the static demo Space into ``out``: the data and runtime of :func:`pinneapple_hub.zoo.demo.export_space`,
+    the page of ``app_dir`` (``apps/zoo_space``), the Playground's charts, widgets, styles and icon
+    (``playground_dir`` = ``apps/playground/site``) and the README (Space configuration). Returns the files written,
+    relative to ``out``."""
+    from . import demo
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    demo.export_space(out, models)
+    for f in SPACE_UI:
+        shutil.copy2(Path(app_dir) / f, out / f)
+    for dst, src in PLAYGROUND_UI.items():
+        (out / dst).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(Path(playground_dir) / src, out / dst)
+    (out / "README.md").write_text(hub_cards.space_readme())
+    return sorted(str(f.relative_to(out)) for f in out.rglob("*") if f.is_file())
 
 
-def publish_space(token: str, app_dir: Path, wheel: Path) -> None:
-    """Create or update the demo Space (one commit; older wheels deleted)."""
+SPACE_PLAN = ("the Hub refused to create the Space (HTTP 402: a plan is required for this kind of Space); static "
+              "Spaces are free for every organisation. Run the workflow with space=false to publish everything else.")
+
+
+def publish_space(token: str, app_dir: Path, playground_dir: Path, *, work: Path | None = None,
+                  from_hub: bool = True) -> list[str]:
+    """Build the static demo Space (:func:`build_space`) and upload it in one commit, deleting the files of an earlier
+    version that the new one does not have. With ``from_hub`` the sweeps are computed from the models and data
+    downloaded from the Hub (the bundled copies ignored), i.e. from what was published. Returns the files uploaded."""
     from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
     api = HfApi(token=token)
     repo = hub_cards.SPACE_REPO
+    work = _workdir(work)
+    site = work / "space"
+    keep = {k: os.environ.get(k) for k in ("PINNEAPPLE_ZOO_IGNORE_BUNDLED", "PINNEAPPLE_ZOO_CACHE")}
+    if from_hub:
+        os.environ.update(PINNEAPPLE_ZOO_IGNORE_BUNDLED="1", PINNEAPPLE_ZOO_CACHE=str(work / "space-cache"))
     try:
-        api.create_repo(repo, repo_type="space", space_sdk="gradio", exist_ok=True)
+        files = build_space(site, app_dir, playground_dir)
+    finally:
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.update({k: v})
+    try:
+        api.create_repo(repo, repo_type="space", space_sdk="static", exist_ok=True)
     except Exception as exc:
         if getattr(getattr(exc, "response", None), "status_code", None) == 402:
-            raise SystemExit(f"::error::the Hub refused to create the Gradio Space {repo} (HTTP 402): {SPACE_PLAN}") from exc
+            raise SystemExit(f"::error::{repo}: {SPACE_PLAN}") from exc
         raise
-    files = space_files(app_dir, wheel)
-    ops = [CommitOperationAdd(path_in_repo=k, path_or_fileobj=v if isinstance(v, bytes) else str(v))
-           for k, v in files.items()]
+    ops = [CommitOperationAdd(path_in_repo=f, path_or_fileobj=str(site / f)) for f in files]
     ops += [CommitOperationDelete(path_in_repo=f) for f in api.list_repo_files(repo, repo_type="space")
-            if f.startswith("wheels/") and f not in files]
-    api.create_commit(repo, operations=ops, repo_type="space", commit_message=f"zoo demo, {wheel.name}")
-    print(f"published space -> {hub_cards.space_url()} ({wheel.name})")
+            if f not in files and f != ".gitattributes"]
+    api.create_commit(repo, operations=ops, repo_type="space", commit_message="zoo demo (static)")
+    size = sum((site / f).stat().st_size for f in files)
+    print(f"published space -> {hub_cards.space_url()} (static, {len(files)} files, {size / 1e6:.1f} MB)")
+    return files
 
 
 # ============================================================================================== verify: files
@@ -508,11 +538,33 @@ def verify_models(names: Sequence[str] | None = None) -> int:
 # ============================================================================================== verify: Space
 SPACE_OK = {"RUNNING"}
 SPACE_FAILED = {"BUILD_ERROR", "RUNTIME_ERROR", "CONFIG_ERROR", "NO_APP_FILE", "DELETING"}
+SPACE_MARKER = "PINNeAPPle zoo demo"
 
 
-def verify_space(*, timeout: float = 2400, interval: float = 30, runtime=None, sleep=time.sleep) -> int:
-    """Wait for the demo Space to build and run; 0 when it reaches RUNNING, 1 when it fails or times out. Prints the
-    stage, hardware and the Space URL."""
+def _space_host(runtime) -> str:
+    """Host that serves the Space's page: the runtime's own domain when it reports one, else the static host."""
+    raw = getattr(runtime, "raw", None) or {}
+    for d in raw.get("domains", []) or []:
+        if d.get("domain"):
+            return d["domain"]
+    owner, name = hub_cards.SPACE_REPO.split("/")
+    return f"{owner}-{name}".lower().replace("_", "-") + ".static.hf.space"
+
+
+def _fetch(url: str, timeout: float = 60) -> tuple[int, str]:
+    req = urllib.request.Request(url, headers={"User-Agent": "pinneapple-zoo-verify"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read().decode(errors="replace")
+    except urllib.error.HTTPError as e:
+        return e.code, ""
+    except Exception as e:  # noqa: BLE001 - network error: reported
+        return 0, str(e)
+
+
+def verify_space(*, timeout: float = 2400, interval: float = 30, runtime=None, fetch=_fetch, sleep=time.sleep) -> int:
+    """Wait for the demo Space to run and serve its page; 0 when the stage is RUNNING and the page, ``index.json``
+    and every model's sweeps load (anonymously), 1 otherwise. Prints the stage, hardware and what was fetched."""
     if runtime is None:
         from huggingface_hub import HfApi
         api = HfApi()
@@ -520,16 +572,39 @@ def verify_space(*, timeout: float = 2400, interval: float = 30, runtime=None, s
         def runtime():
             return api.get_space_runtime(hub_cards.SPACE_REPO)
 
+    last = {}
+
     def stage():
         try:
             r = runtime()
         except Exception as exc:  # noqa: BLE001 - not created yet / transient
             return False, {"stage": f"unavailable ({exc})", "hardware": None}
+        last["runtime"] = r
         s = str(getattr(r, "stage", ""))
         return s in SPACE_OK | SPACE_FAILED, {"stage": s, "hardware": getattr(r, "hardware", None)}
 
     _, st = _poll(stage, timeout, interval, sleep)
     ok = st["stage"] in SPACE_OK
-    print(f"space {hub_cards.SPACE_REPO}: stage {st['stage']}, hardware {st['hardware']} -> "
-          f"{'OK' if ok else 'BAD'} ({hub_cards.space_url()})")
+    print(f"space {hub_cards.SPACE_REPO}: stage {st['stage']}, hardware {st['hardware']} ({hub_cards.space_url()})")
+    if ok:
+        base = f"https://{_space_host(last.get('runtime'))}"
+
+        def page():
+            code, body = fetch(f"{base}/index.html")
+            return code == 200 and SPACE_MARKER in body, code
+
+        served, code = _poll(page, min(timeout, 600), interval, sleep)
+        print(f"  {base}/index.html: HTTP {code}{'' if served else ' (page not served)'}")
+        ok = served
+        if served:
+            code, body = fetch(f"{base}/index.json")
+            names = [m["name"] for m in json.loads(body)["models"]] if code == 200 else []
+            print(f"  index.json: HTTP {code}, models {names}")
+            for n in names:
+                c, b = fetch(f"{base}/models/{n}.sweeps.json")
+                good = c == 200 and bool(json.loads(b).get("sweeps")) if c == 200 else False
+                print(f"  models/{n}.sweeps.json: HTTP {c}{'' if good else ' BAD'}")
+                ok &= good
+            ok &= bool(names)
+    print(f"space: {'OK' if ok else 'BAD'}")
     return 0 if ok else 1

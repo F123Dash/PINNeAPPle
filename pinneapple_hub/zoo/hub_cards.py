@@ -23,7 +23,7 @@ import yaml
 
 from . import _artifacts as art
 
-__all__ = ["SPACE_REPO", "space_url", "space_readme", "space_requirements", "split_order", "dataset_card", "model_example", "model_card",
+__all__ = ["SPACE_REPO", "space_url", "space_readme", "split_order", "dataset_card", "model_example", "model_card",
            "front_matter", "parse_front_matter", "code_blocks", "CITE"]
 
 SPACE_REPO = "PINNeAPPle-Labs/zoo-demo"
@@ -39,7 +39,8 @@ NO_HOSTED_INFERENCE = (
     "normalised, the outputs denormalised (and, for ensembles, averaged with their spread), and every query is "
     "checked against the validity range and the model's physics checks. The `pinneapple` library does all of "
     "that (below); the ONNX graph carries the pre- and post-processing but not the checks; the "
-    f"[zoo demo Space](https://huggingface.co/spaces/{SPACE_REPO}) runs the library in the browser.")
+    f"[zoo demo Space](https://huggingface.co/spaces/{SPACE_REPO}) shows the model along a sweep of each input and "
+    "runs it, with its checks, in your browser.")
 # the zoo is not in a PyPI release yet (0.7.0 predates it): install from GitHub
 INSTALL = 'pip install "pinneapple @ git+https://github.com/PINNeAPPle-Labs/PINNeAPPle"'
 _SPLIT_FIRST = ("train", "val", "validation", "cal", "test")
@@ -310,7 +311,8 @@ def model_card(name: str, *, example: Mapping[str, Any], onnx_info: Mapping[str,
     head = body[:3] + ["", f"`{name}` v{e['version']} (revision `{e['revision']}`) · part of the [PINNeAPPle]({GITHUB}) "
                        f"zoo · training data [{ds['hf_repo']}]({_hub_url(ds)})", "",
                        f"**Try it without installing anything:** [PINNeAPPle zoo demo]({space_url()}) (pick "
-                       f"`{name}`; predictions plotted with their physics checks and validity range).", ""]
+                       f"`{name}`: its predictions along each input with their band and where its physics checks warn "
+                       "or fail, and your own inputs evaluated in the browser).", ""]
     files_rows = [("weights.pt", "PyTorch `state_dict` (`torch.load(weights_only=True)`), what `pp.zoo.load` reads"),
                   ("config.json", "architecture and normalisation"),
                   ("model_card.json", "the model card: inputs, outputs, validity range, metrics, trust report")]
@@ -337,38 +339,28 @@ def model_card(name: str, *, example: Mapping[str, Any], onnx_info: Mapping[str,
 
 
 # ============================================================================================== the demo Space
-SPACE_SDK_VERSION = "6.30.0"
-
-
 def space_readme() -> str:
-    """README of the demo Space: the Space configuration (Gradio app, the models and datasets it uses) and a short
-    description."""
+    """README of the demo Space: the configuration of a static Space (``index.html``, no server), the models and
+    datasets it shows, and what the page does."""
     man = art.manifest()
     meta = {"title": "PINNeAPPle zoo demo", "emoji": "🍍", "colorFrom": "yellow", "colorTo": "green",
-            "sdk": "gradio", "sdk_version": SPACE_SDK_VERSION, "python_version": "3.11", "app_file": "app.py",
-            "pinned": True, "license": "apache-2.0",
+            "sdk": "static", "app_file": "index.html", "pinned": True, "license": "apache-2.0",
             "short_description": "Zoo surrogates with their physics checks",
             "models": sorted(e["hf_repo"] for e in man["models"].values()),
             "datasets": sorted({man["datasets"][e["dataset"]]["hf_repo"] for e in man["models"].values()}),
-            "tags": ["pinneapple", "physics", "surrogate-model", "trust"]}
+            "tags": ["pinneapple", "physics", "surrogate-model", "trust", "onnx"]}
     rows = [f"| [`{n}`]({_hub_url(e)}) | {e['task']} | `{e['revision']}` |" for n, e in sorted(man["models"].items())]
     return front_matter(meta) + "\n" + "\n".join([
         "# PINNeAPPle zoo demo", "",
-        "Every model of the [PINNeAPPle](" + GITHUB + ") zoo, downloaded from its Hub repo (SHA-256 checked) and run "
-        "by the library: the prediction for your input and along a sweep of one input, with the ensemble spread or "
-        "conformal bound, the per-query physics checks (validity range, physical outputs, model residuals) and the "
-        "model's trust decision.", "",
+        "Every model of the [PINNeAPPle](" + GITHUB + ") zoo along a sweep of each of its inputs: the prediction, its "
+        "ensemble spread or conformal 95 % bound, and where the model's query checks (validity range, physical "
+        "outputs, model residuals) warn or fail, with the model's trust decision. The sweeps were computed from the "
+        "published models when the zoo was published; **Evaluate in your browser** runs the model's ONNX graph, with "
+        "the same query checks, on your own inputs.", "",
         "| Model | Task | Revision |", "|---|---|---|", *rows, "",
-        "The app is `apps/zoo_space/app.py` of the repository (UI only); the logic is `pinneapple_hub.zoo.demo`. "
-        "The publishing workflow uploads it with a wheel of the library built from the same commit.", ""])
-
-
-def space_requirements(wheel: str) -> str:
-    """``requirements.txt`` of the Space: CPU torch and the library from the wheel uploaded with the app (Gradio
-    itself comes from ``sdk_version``)."""
-    return ("--extra-index-url https://download.pytorch.org/whl/cpu\n"
-            "torch\n"
-            f"pinneapple[hub] @ https://huggingface.co/spaces/{SPACE_REPO}/resolve/main/wheels/{wheel}\n")
+        "A static Space: the page is `apps/zoo_space` of the repository (UI only), the data is written by "
+        "`pinneapple_hub.zoo.demo.export_space` and the browser runtime is `pinneapple_hub/zoo/web` "
+        "(a dependency-free ONNX interpreter and the JS twin of the query checks, tested against Python).", ""])
 
 
 def example_json(example: Mapping[str, Any]) -> str:

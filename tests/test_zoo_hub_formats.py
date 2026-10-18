@@ -6,7 +6,9 @@ from __future__ import annotations
 import ast
 import fnmatch
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import warnings
@@ -332,31 +334,37 @@ def test_verify_viewer_reads_is_valid_splits_and_first_rows():
     assert e["hf_repo"] == "PINNeAPPle-Labs/single-wheel-tests"
 
 
-def test_verify_space_waits_for_running_and_fails_on_errors():
+def _fake_fetch(pages):
+    def fetch(url, timeout=60):
+        for suffix, (code, body) in pages.items():
+            if url.endswith(suffix):
+                return code, body
+        return 404, ""
+    return fetch
+
+
+def test_verify_space_waits_for_running_and_checks_the_page_and_data():
     from types import SimpleNamespace
 
     from pinneapple_hub.zoo import publish
-    stages = iter(["BUILDING", "BUILDING", "RUNNING"])
-    assert publish.verify_space(interval=0, sleep=lambda s: None,
-                                runtime=lambda: SimpleNamespace(stage=next(stages), hardware="cpu-basic")) == 0
-    assert publish.verify_space(interval=0, sleep=lambda s: None,
-                                runtime=lambda: SimpleNamespace(stage="BUILD_ERROR", hardware=None)) == 1
+    pages = {"/index.html": (200, "<title>PINNeAPPle zoo demo</title>"),
+             "/index.json": (200, json.dumps({"models": [{"name": "m1"}]})),
+             "/models/m1.sweeps.json": (200, json.dumps({"sweeps": {"x": {}}}))}
+    stages = iter(["BUILDING", "RUNNING"])
+    run = lambda: SimpleNamespace(stage=next(stages), hardware=None,                       # noqa: E731
+                                  raw={"domains": [{"domain": "org-zoo-demo.static.hf.space"}]})
+    assert publish.verify_space(interval=0, sleep=lambda s: None, runtime=run, fetch=_fake_fetch(pages)) == 0
+    missing = {k: v for k, v in pages.items() if "sweeps" not in k}
+    assert publish.verify_space(interval=0, sleep=lambda s: None, fetch=_fake_fetch(missing),
+                                runtime=lambda: SimpleNamespace(stage="RUNNING", hardware=None, raw={})) == 1
+    assert publish.verify_space(interval=0, sleep=lambda s: None, fetch=_fake_fetch(pages),
+                                runtime=lambda: SimpleNamespace(stage="CONFIG_ERROR", hardware=None)) == 1
 
 
-def test_space_files_and_readme():
-    wheel = Path("pinneapple-0.7.0-py3-none-any.whl")
-    from pinneapple_hub.zoo import publish
-    files = publish.space_files(ROOT / "apps" / "zoo_space", wheel)
-    assert set(files) == {"app.py", "README.md", "requirements.txt", f"wheels/{wheel.name}"}
-    meta = hub_cards.parse_front_matter(files["README.md"].decode())
-    assert meta["sdk"] == "gradio" and meta["app_file"] == "app.py"
-    assert sorted(meta["models"]) == sorted(e["hf_repo"] for e in art.manifest()["models"].values())
-    assert f"/wheels/{wheel.name}" in files["requirements.txt"].decode()
-
-
-# ============================================================================================== demo
-def test_demo_sweep_marks_extrapolation_and_plots():
-    from pinneapple_hub.zoo import demo
+# ============================================================================================== demo Space
+def test_demo_sweep_marks_extrapolation_and_the_heatsink_natural_checks_follow_in_range():
+    from pinneapple_hub import zoo
+    from pinneapple_hub.zoo import checks, demo
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for name in ("airfoil_cst_rans_mlp", "heatsink_natural_mlp"):
@@ -365,24 +373,69 @@ def test_demo_sweep_marks_extrapolation_and_plots():
             inside = (r["x"] >= r["range"][0]) & (r["x"] <= r["range"][1])
             assert {r["status"][i] for i in np.nonzero(~inside)[0]} == {"fail"}       # beyond the range: fail
             assert r["point_checks"]["verdict"]["status"] == "pass"
-            fig = demo.figure(r)
-            assert len(fig.axes) == len([k for k in r["pred"] if not k.endswith("_std") and "upper95" not in k])
-            assert "APPROVED" in demo.report(r)
+        zm = zoo.load("heatsink_natural_mlp")                     # query checks now cover the natural heat sink
+        X, _ = zm.reference("test")
+        X = np.concatenate([X, X * np.r_[np.ones(10), 3.0]])     # the power tripled: many leave the range
+        res = checks.query_checks(zm, X)
+        rng_fail = np.array([any(c["status"] == "fail" and c["rule"] == "PC601" for c in r["checks"]) for r in res])
+        assert np.array_equal(rng_fail, ~zm.in_range(X)) and rng_fail.any() and not rng_fail.all()
 
 
-def test_space_app_builds_and_answers():
-    pytest.importorskip("gradio")
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("zoo_space_app", ROOT / "apps" / "zoo_space" / "app.py")
-    app = importlib.util.module_from_spec(spec)
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setenv("PINNEAPPLE_ZOO_IGNORE_BUNDLED", "0")
-        spec.loader.exec_module(app)
-        app.build()
-        upd = app._fields("rover_contact_grc1_viper")
-        assert upd[0]["choices"] == ["slip", "sinkage_m"]
-        fig, md = app._run("rover_contact_grc1_viper", "slip", None, None)
-        assert fig.axes and "Verdict for this input: PASS" in md
+def test_demo_precompute_has_bands_zones_and_the_trust_decision():
+    from pinneapple_hub.zoo import demo
+    assert demo.bands(["Cl", "Cl_std", "Cd", "Cd_std", "LD", "LD_std"]) == {
+        "Cl": {"std": "Cl_std"}, "Cd": {"std": "Cd_std"}, "LD": {"std": "LD_std"}}
+    assert demo.bands(["r_base_k_w", "r_base_upper95_k_w"]) == {"r_base_k_w": {"upper": "r_base_upper95_k_w"}}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        p = demo.precompute("rover_contact_grc1_viper", n=21)
+    assert [d["name"] for d in p["inputs"]] == ["slip", "sinkage_m"] and p["trust"]["decision"] == "APPROVED"
+    assert {o["name"] for o in p["outputs"]} == {"Fx_N", "Fz_N", "My_Nm"}
+    assert p["default"]["checks"]["verdict"]["status"] == "pass"
+    for sw in p["sweeps"].values():
+        assert len(sw["x"]) == 21 and set(sw["pred"]) == set(p["all_outputs"])
+        assert set(sw["status"]) >= {"pass", "fail"}                            # the zones the page shades
+        assert all(len(v) == 21 for v in sw["pred"].values())
+
+
+@pytest.fixture(scope="module")
+def space(tmp_path_factory):
+    pytest.importorskip("onnx")
+    from pinneapple_hub.zoo import publish
+    out = tmp_path_factory.mktemp("space")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        files = publish.build_space(out, ROOT / "apps" / "zoo_space", ROOT / "apps" / "playground" / "site")
+    return out, files
+
+
+def test_static_space_has_its_page_data_and_runtime(space):
+    out, files = space
+    names = sorted(art.manifest()["models"])
+    assert {"index.html", "app.js", "space.css", "README.md", "index.json", "lib/onnx.js", "lib/zoo.js",
+            "js/charts.js", "js/ui.js", "css/app.css", "icon.svg"} <= set(files)
+    for n in names:
+        assert {f"models/{n}.onnx", f"models/{n}.json", f"models/{n}.sweeps.json"} <= set(files)
+    assert [m["name"] for m in json.loads((out / "index.json").read_text())["models"]] == names
+    meta = hub_cards.parse_front_matter((out / "README.md").read_text())
+    assert meta["sdk"] == "static" and meta["app_file"] == "index.html" and "sdk_version" not in meta
+    assert sorted(meta["models"]) == sorted(e["hf_repo"] for e in art.manifest()["models"].values())
+    html = (out / "index.html").read_text()
+    assert "PINNeAPPle zoo demo" in html and "<script" in html and "cdn" not in html.lower()  # no external code
+    imports = re.findall(r'from "([^"]+)"', (out / "app.js").read_text())
+    assert imports and all((out / i).is_file() for i in imports)              # every module the page loads ships
+    assert sum((out / f).stat().st_size for f in files) < 5e6
+
+
+def test_space_runs_the_same_numbers_and_checks_in_the_browser_runtime(space):
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    out, _ = space
+    run = subprocess.run([node, "--test", str(ROOT / "tests" / "js" / "zoo_space.test.mjs")], capture_output=True,
+                         text=True, timeout=600, env={**os.environ, "SPACE_DIR": str(out)})
+    assert run.returncode == 0, run.stdout[-3000:] + run.stderr[-2000:]
+    assert f"# pass {len(art.manifest()['models'])}" in run.stdout
 
 
 # ============================================================================================== publish end to end
@@ -481,22 +534,36 @@ def test_verify_model_checks_what_the_card_promises(model_cards, tmp_path, monke
     assert any("example not reproduced" in p for p in problems) and any("front matter" in p for p in problems)
 
 
-def test_publish_space_explains_the_plan_the_hub_requires(tmp_path, monkeypatch):
-    """The Hub answers 402 when an organisation without a Team plan creates a Gradio Space (publish run after #811);
-    the error says why and what to do instead of a bare traceback."""
+def test_publish_space_uploads_a_static_space_and_explains_a_refusal(tmp_path, monkeypatch, capsys):
     hub = pytest.importorskip("huggingface_hub")
     from types import SimpleNamespace
 
     from pinneapple_hub.zoo import publish
 
-    class Refusing(_FakeApi):
-        def create_repo(self, repo, repo_type=None, **kw):
-            err = RuntimeError("402 Payment Required")
-            err.response = SimpleNamespace(status_code=402)
-            raise err
+    def fake_build(out, app_dir, playground_dir, models=None):
+        (out / "models").mkdir(parents=True)
+        for f in ("index.html", "README.md", "models/m.json"):
+            (out / f).write_text("x")
+        return ["README.md", "index.html", "models/m.json"]
 
-    monkeypatch.setattr(hub, "HfApi", lambda token=None: Refusing())
-    wheel = tmp_path / "pinneapple-0.7.0-py3-none-any.whl"
-    wheel.write_bytes(b"wheel")
-    with pytest.raises(SystemExit, match="Team or Enterprise plan.*space=false"):
-        publish.publish_space("token", ROOT / "apps" / "zoo_space", wheel)
+    monkeypatch.setattr(publish, "build_space", fake_build)
+    api = _FakeApi(remote=[".gitattributes", "app.py", "requirements.txt", "wheels/old.whl", "index.html"])
+    created = []
+    api.create_repo = lambda repo, repo_type=None, **kw: created.append((repo, repo_type, kw.get("space_sdk")))
+    monkeypatch.setattr(hub, "HfApi", lambda token=None: api)
+    files = publish.publish_space("token", tmp_path, tmp_path, work=tmp_path / "w", from_hub=False)
+    assert files == ["README.md", "index.html", "models/m.json"]
+    assert created == [(hub_cards.SPACE_REPO, "space", "static")]
+    ops = api.commits[0][2]
+    assert sorted(o.path_in_repo for o in ops if type(o).__name__ == "CommitOperationDelete") == [
+        "app.py", "requirements.txt", "wheels/old.whl"]                       # the old Gradio Space's files go
+    assert "static" in capsys.readouterr().out
+
+    def refuse(repo, repo_type=None, **kw):
+        err = RuntimeError("402 Payment Required")
+        err.response = SimpleNamespace(status_code=402)
+        raise err
+
+    api.create_repo = refuse
+    with pytest.raises(SystemExit, match="HTTP 402.*space=false"):
+        publish.publish_space("token", tmp_path, tmp_path, work=tmp_path / "w2", from_hub=False)

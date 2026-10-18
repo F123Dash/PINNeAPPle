@@ -69,6 +69,10 @@ check = [
   "h5py>=3.8",
   "cryptography>=41",
 ]
+# Electromagnetics: independent Mie implementation for the cross-check (pinneapple_simulation.electromagnetics)
+em = [
+  "miepython>=3.0",
+]
 # Evidence Report PDF in pinneapple_veriphysics (the Decision Record itself needs only the standard library)
 veriphysics = [
   "reportlab>=4.0",

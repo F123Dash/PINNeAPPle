@@ -91,3 +91,7 @@ def trust_stages():
 
 def darcy_checks():
     return leaf("pinneapple_physics.darcy_checks")
+
+
+def maxwell_checks():
+    return leaf("pinneapple_physics.maxwell_checks")
