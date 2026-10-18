@@ -149,6 +149,26 @@ def _has(mod):
         return False
 
 
+MIN_BPY = (4, 2)             # pinneapple_tools.visualization.studio.blender.MIN_BPY (not imported: it is cheap, bpy is not)
+
+
+def _bpy_status():
+    """(usable, reason) for the installed bpy, read from its package metadata without importing it."""
+    if not _has("bpy"):
+        return False, "bpy (Blender) not installed"
+    from importlib.metadata import PackageNotFoundError, version
+    try:
+        v = tuple(int(x) for x in version("bpy").split(".")[:2])
+    except (PackageNotFoundError, ValueError):
+        return True, ""                                         # running inside Blender: no pip metadata
+    if v < MIN_BPY:
+        return False, f"bpy {v[0]}.{v[1]} is older than the supported {MIN_BPY[0]}.{MIN_BPY[1]}"
+    return True, ""
+
+
+BPY_OK, BPY_WHY = _bpy_status()
+
+
 def _chromium_ok():
     if not _has("playwright"):
         return False
@@ -169,7 +189,7 @@ def test_viewer_screenshot_moves(tmp_path):
     assert A.shape == (300, 480) and np.abs(A - Bm).mean() > 0.05     # the body (and the HUD) moved
 
 
-@pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
+@pytest.mark.skipif(not BPY_OK, reason=BPY_WHY)
 def test_blender_render_animation(tmp_path):
     _in_subprocess("_blender_render_animation", tmp_path)
 
@@ -275,7 +295,7 @@ def test_compose_grid_video(tmp_path):
     assert s["height"] > 72 and s["height"] % 2 == 0 and int(s["nb_read_frames"]) >= 4   # the longest clip: 1.25 s
 
 
-@pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
+@pytest.mark.skipif(not BPY_OK, reason=BPY_WHY)
 def test_blender_cinematic_render(tmp_path):
     _in_subprocess("_blender_cinematic_render", tmp_path)
 
@@ -322,7 +342,7 @@ def test_scene_materials_override_and_unknown():
     assert "KHR_materials_clearcoat" in m["extensions"]
 
 
-@pytest.mark.skipif(not _has("bpy"), reason="bpy (Blender) not installed")
+@pytest.mark.skipif(not BPY_OK, reason=BPY_WHY)
 def test_blender_render_still(tmp_path):
     _in_subprocess("_blender_render_still", tmp_path)
 
@@ -339,3 +359,8 @@ def _blender_render_still(tmp_path):
     out = render_still(sc, str(tmp_path / "still.png"), 3, size=(64, 36), samples=1, camera="chase_low",
                        motion_blur=True, dof=4.0)
     assert Image.open(out).size == (64, 36)
+
+
+def test_min_bpy_matches_library():
+    from pinneapple_tools.visualization.studio import blender
+    assert blender.MIN_BPY == MIN_BPY

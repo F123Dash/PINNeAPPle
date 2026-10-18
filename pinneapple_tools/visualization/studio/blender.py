@@ -41,6 +41,92 @@ def _to_blender(P: np.ndarray, axes: str) -> np.ndarray:
     return P
 
 
+MIN_BPY = (4, 2)          # oldest Blender-as-a-module release these renderers are tested on (4.2 LTS and 5.x)
+
+
+def _check_bpy(bpy) -> None:
+    v = tuple(bpy.app.version[:2])
+    if v < MIN_BPY:
+        raise RuntimeError(f"pinneapple studio renders need Blender / bpy >= {MIN_BPY[0]}.{MIN_BPY[1]} "
+                           f"(found {bpy.app.version_string}); pip install 'bpy>=4.2'")
+
+
+def _set_input(node, names, value) -> bool:
+    """Set the first input of ``node`` among ``names`` that exists (socket names differ between Blender versions,
+    e.g. "Coat Weight" (4.x/5.x) and "Clearcoat" (3.x)). Returns whether one was found."""
+    for n in names:
+        if n in node.inputs:
+            node.inputs[n].default_value = value
+            return True
+    return False
+
+
+def _table_material(bpy, name: str, st: dict):
+    """Principled BSDF material from an entry of ``MATERIALS`` (sRGB colour -> linear unless ``"linear"``, metallic,
+    roughness, clearcoat, transmission, alpha, emissive), as the glTF export of the same table describes it."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    b = next(n for n in m.node_tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled")
+    col = [c if st.get("linear") else c ** 2.2 for c in st.get("color", (0.62, 0.65, 0.69))]
+    b.inputs["Base Color"].default_value = (*col, 1.0)
+    b.inputs["Metallic"].default_value = float(st.get("metallic", 0.0))
+    b.inputs["Roughness"].default_value = float(st.get("roughness", 0.5))
+    if st.get("clearcoat"):
+        _set_input(b, ("Coat Weight", "Clearcoat"), float(st["clearcoat"]))
+        _set_input(b, ("Coat Roughness", "Clearcoat Roughness"), 0.05)
+    if st.get("transmission"):
+        _set_input(b, ("Transmission Weight", "Transmission"), float(st["transmission"]))
+    if st.get("alpha", 1.0) < 1.0:
+        b.inputs["Alpha"].default_value = float(st["alpha"])
+        if hasattr(m, "blend_method"):
+            m.blend_method = "BLEND"
+    if st.get("emissive"):
+        _set_input(b, ("Emission Color", "Emission"), (*[c ** 2.2 for c in st["emissive"]], 1.0))
+        _set_input(b, ("Emission Strength",), 4.0)
+    if st.get("double_sided") is False and hasattr(m, "use_backface_culling"):
+        m.use_backface_culling = True
+    return m
+
+
+def _build_objects(bpy, bs, surfaces, axes: str, materials: dict | None = None, names: Sequence[str] | None = None):
+    """One mesh object per surface, built directly (no glTF import): vertices in Blender axes, triangles, the
+    per-vertex fields as FLOAT point attributes ``_NAME`` (upper case, as the glTF export names them), a material per
+    material name from ``MATERIALS`` + ``materials``. Returns the objects in surface order."""
+    from .scene import MATERIALS
+    table = {**MATERIALS, **(materials or {})}
+    B = blender_axes(axes)
+    mats, out = {}, []
+    for i, s in enumerate(surfaces):
+        V = (np.asarray(s.vertices, float) @ B.T).astype(np.float32)
+        F = np.asarray(s.faces, np.int32).reshape(-1, 3)
+        nm = names[i] if names is not None else s.name
+        me = bpy.data.meshes.new(nm)
+        me.vertices.add(len(V))
+        me.vertices.foreach_set("co", V.ravel())
+        me.loops.add(3 * len(F))
+        me.loops.foreach_set("vertex_index", F.ravel())
+        me.polygons.add(len(F))
+        me.polygons.foreach_set("loop_start", np.arange(0, 3 * len(F), 3, dtype=np.int32))
+        try:                                                   # read-only (derived from loop_start) on newer Blender
+            me.polygons.foreach_set("loop_total", np.full(len(F), 3, np.int32))
+        except (AttributeError, TypeError, RuntimeError):
+            pass
+        me.update(calc_edges=True)
+        for fname, vals in getattr(s, "fields", {}).items():
+            a = np.asarray(vals, np.float32).ravel()
+            if len(a) != len(V):
+                continue
+            at = me.attributes.new("_" + fname.upper().lstrip("_"), "FLOAT", "POINT")
+            at.data.foreach_set("value", a)
+        if s.material not in mats:
+            mats[s.material] = _table_material(bpy, s.material, table.get(s.material, MATERIALS["grey"]))
+        me.materials.append(mats[s.material])
+        ob = bpy.data.objects.new(nm, me)
+        bs.collection.objects.link(ob)
+        out.append(ob)
+    return out
+
+
 def render(scene, out: str, *, field: Optional[str] = None, field_range: Optional[Tuple[float, float]] = None,
            lines: Union[bool, str] = False, line_range: Optional[Tuple[float, float]] = None,
            slice: Optional[str] = None, slice_range: Optional[Tuple[float, float]] = None,
@@ -58,13 +144,10 @@ def render(scene, out: str, *, field: Optional[str] = None, field_range: Optiona
     import bpy
     from mathutils import Vector
 
-    if isinstance(scene, str):
-        glb, axes, sc = scene, "z_up", None
-    else:
-        sc = scene
-        axes = sc.axes
-        glb = os.path.join(tempfile.mkdtemp(), "scene.glb")
-        sc.save(glb)
+    from .scene import Scene
+    _check_bpy(bpy)
+    sc = Scene.from_file(scene) if isinstance(scene, str) else scene
+    axes = sc.axes
     studio = background == "studio"
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -79,8 +162,8 @@ def render(scene, out: str, *, field: Optional[str] = None, field_range: Optiona
     bs.view_settings.look = "None"
     bs.view_settings.exposure = 0.0 if (studio and (field or slice)) else (-0.5 if studio else -0.3)
 
-    bpy.ops.import_scene.gltf(filepath=glb)
-    objs = [o for o in bs.objects if o.type == "MESH"]
+    objs = _build_objects(bpy, bs, sc.surfaces, axes, getattr(sc, "materials", None))
+    _smooth(objs)
     mins = Vector((min(min((o.matrix_world @ Vector(c))[i] for c in o.bound_box) for o in objs) for i in range(3)))
     maxs = Vector((max(max((o.matrix_world @ Vector(c))[i] for c in o.bound_box) for o in objs) for i in range(3)))
     centre, size_l = (mins + maxs) / 2, (maxs - mins).length
@@ -741,7 +824,7 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
     from mathutils import Quaternion, Vector
 
     from .compose import cmap_color, default_range, draw_colorbars
-    from .scene import Scene, Surface
+    _check_bpy(bpy)
     anim = scene.animation
     if anim is None:
         raise ValueError("scene.animation is None: build an Animation and set scene.animation first")
@@ -765,10 +848,6 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
         cb_on = dict.fromkeys(COLORBAR_KINDS, False)
     bars = []                                                  # (kind, title, lo, hi, cmap)
 
-    # surfaces with unique node names so the imported objects map back to them
-    tagged = [Surface(f"s{i:04d}", s.vertices, s.faces, s.material, s.fields, s.group) for i, s in enumerate(scene.surfaces)]
-    glb = os.path.join(tempfile.mkdtemp(), "scene.glb")
-    Scene(tagged, axes=scene.axes, materials=dict(getattr(scene, "materials", {}) or {})).save(glb)
     studio = background == "studio"
     missing = scene.unknown_materials() if hasattr(scene, "unknown_materials") else []
     if missing:
@@ -802,11 +881,9 @@ def render_animation(scene, out_dir: str, *, frames: int | Sequence[int] | None 
         bs.render.motion_blur_shutter = float(min(1.0, max(1e-3, shutter_s / dt)))
     bs.frame_start, bs.frame_end = 1, max(1, len(ks))
 
-    bpy.ops.import_scene.gltf(filepath=glb)
-    objs = {}
-    for o in list(bs.objects):
-        if o.type == "MESH" and o.name[:1] == "s" and o.name[1:5].isdigit():
-            objs[int(o.name[1:5])] = o
+    # the surfaces, built directly (object i is surface i, named s0000, s0001, ...)
+    objs = dict(enumerate(_build_objects(bpy, bs, scene.surfaces, scene.axes, getattr(scene, "materials", None),
+                                         names=[f"s{i:04d}" for i in range(len(scene.surfaces))])))
     if smooth:
         _smooth([o for i, o in objs.items() if scene.surfaces[i].group in anim.tracks])
     for m in bpy.data.materials:                               # procedural ground
