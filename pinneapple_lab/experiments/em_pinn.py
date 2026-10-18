@@ -25,6 +25,14 @@ CASES = {
 @register
 class EMPinn(Experiment):
     name = "em_pinn"
+    check_labels = {
+        "rel_l2_Az_vs_closed_form": {"en": "A_z vs Amp\u00e8re's law (exact)", "pt": "A_z vs lei de Amp\u00e8re (exata)"},
+        "rel_l2_Ar_vs_closed_form": {"en": "skin effect vs exact solution", "pt": "efeito pelicular vs solu\u00e7\u00e3o exata",
+                                     "also": ["rel_l2_Ai_vs_closed_form"]},
+        "rel_l2_phi_vs_closed_form": {"en": "potential vs exact solution", "pt": "potencial vs solu\u00e7\u00e3o exata"},
+        "rel_l2_Ez_vs_closed_form": {"en": "TM mode vs exact solution", "pt": "modo TM vs solu\u00e7\u00e3o exata",
+                                     "also": ["rel_l2_Hx_vs_closed_form", "rel_l2_Hy_vs_closed_form"]},
+    }
     version = "1"
     description = ("Physics-informed networks on the electromagnetics presets with closed-form solutions "
                    "(electrostatics, magnetostatics, a TM cavity, the skin effect), scored against the exact field.")

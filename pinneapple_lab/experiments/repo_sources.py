@@ -69,7 +69,7 @@ def _prius_pmsm(ctx):
     ctx.metric("torque_rms_vs_yang_2013_Nm", c["rms_error_Nm"])
     ctx.metric("torque_max_abs_vs_yang_2013_Nm", c["max_abs_error_Nm"])
     ctx.check("peak_torque_vs_yang_2013", value=float(T.max()), reference=float(Y.max()), rtol=0.05, kind="reference",
-              label="torque vs Yang et al. 2013",
+              label="torque vs published FEA (Yang et al. 2013)",
               detail="published FEA of the same motor (Yang, Krishnamurthy & Brown, IEEE IEMDC 2013): another group "
                      "and code, not a measurement; tolerance 5 % (machines.verification); largest deviation "
                      f"{c['max_abs_error_Nm']:+.1f} N m at {c['max_abs_error_at_deg']:.0f} deg, rms {c['rms_error_Nm']:.1f} N m")
@@ -591,6 +591,38 @@ LIMITATIONS = {
     "weather_era5": ["phase 1 only; the model's skill against persistence and climatology is quoted in the README but "
                      "no committed file holds it, so the lab records no check: commit horizon.json from "
                      "run_use_cases.py to curate it"],
+}
+
+# the short lines seals and showcase tiles print for each item's headline check (see Experiment.check_labels)
+CHECK_LABELS = {
+    "drag_vs_wind_tunnel": {"en": "drag vs wind tunnel (Ahmed, Ramm & Faltin, 1984)",
+                            "pt": "arrasto vs t\u00fanel de vento (Ahmed, Ramm & Faltin, 1984)"},
+    "peak_torque_vs_yang_2013": {"en": "torque vs published FEA (Yang et al. 2013)",
+                                 "pt": "torque vs FEA publicado (Yang et al. 2013)"},
+    "coaxial_capacitor_p1_fem": {"en": "32 cases vs closed forms and published values",
+                                 "pt": "32 casos vs formas fechadas e valores publicados"},
+    "cd_vs_xfoil_tripped": {"en": "drag vs XFOIL \u00b7 lift slope vs thin-airfoil theory",
+                            "pt": "arrasto vs XFOIL \u00b7 inclina\u00e7\u00e3o vs teoria do aerof\u00f3lio fino",
+                            "also": ["lift_slope_vs_thin_airfoil_theory"]},
+    "drag_balance_pressure_plus_friction": {"en": "force balance (pressure + friction)",
+                                            "pt": "balan\u00e7o de for\u00e7as (press\u00e3o + atrito)"},
+    "held_out_sinkage_improves_after_calibration": {
+        "en": "held-out sinkage improves (published wheel tests)",
+        "pt": "afundamento em testes retidos melhora (ensaios publicados)"},
+    "beats_best_baseline_on_untouched_test": {"en": "beats the best baseline on an untouched test (DM, Holm)",
+                                              "pt": "supera o melhor baseline em teste intocado (DM, Holm)"},
+    "maxwell_stress_vs_coenergy_torque": {"en": "Maxwell-stress torque = co-energy torque",
+                                          "pt": "torque de Maxwell = torque de co-energia"},
+    "wltc_energy_balance_lossless_drive": {"en": "WLTC energy balance", "pt": "balan\u00e7o de energia WLTC"},
+    "end_leakage_ratio_below_one": {"en": "3-D end leakage below the 2-D flux",
+                                    "pt": "fuga 3-D nas pontas abaixo do fluxo 2-D"},
+    "torque_and_emf_fall_with_magnet_temperature": {"en": "torque and EMF fall with magnet temperature",
+                                                    "pt": "torque e FEM caem com a temperatura do \u00edm\u00e3"},
+    "optimised_conductor_beats_uniform": {"en": "optimised layout beats uniform material",
+                                          "pt": "layout otimizado supera material uniforme"},
+    "mass_balance_5mm": {"en": "mass balance within 1 %", "pt": "balan\u00e7o de massa dentro de 1 %"},
+    "loop_v_top_full_solver_at_least_bound": {"en": "loop speed \u2265 closed-form bound (Newton)",
+                                              "pt": "velocidade no loop \u2265 limite anal\u00edtico (Newton)"},
 }
 
 RUN = {"prius_pmsm": _prius_pmsm, "prius_end_effects": _prius_end_effects, "prius_thermal_demag": _prius_thermal_demag,
