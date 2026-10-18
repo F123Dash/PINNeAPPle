@@ -156,7 +156,7 @@ class LoopCarTemplate(ProblemTemplate):
 
     def _all(self) -> list[DesignVariable]:
         return [DesignVariable("radius", 0.08, 0.30, "m", "loop radius R"),
-                DesignVariable("clothoid", 0.0, 2.5, "", "clothoid length / R"),
+                DesignVariable("clothoid_ratio", 0.0, 2.5, "", "clothoid length / R"),
                 DesignVariable("v0", 1.0, 6.0, "m/s", "launch speed"),
                 DesignVariable("mass", 0.02, 0.15, "kg", "car mass")]
 
@@ -178,6 +178,7 @@ class LoopCarTemplate(ProblemTemplate):
         d = dict(design)
         for k, v in self._fixed(spec).items():
             d.setdefault(k, v)
+        d["clothoid_length"] = d["clothoid_ratio"] * d["radius"]       # [m]
         d["material"] = spec["track_material"]
         y = self.evaluate(REDUCED, np.array([[design[v.name] for v in self.variables(spec)]]), spec)
         d["thickness"] = float(y["thickness"][0])
@@ -203,7 +204,7 @@ class LoopCarTemplate(ProblemTemplate):
                  ) -> dict[str, np.ndarray]:
         p = self._unpack(X, spec)
         n = len(next(iter(p.values())))
-        R, c, v0, m = p["radius"], p["clothoid"], p["v0"], p["mass"]
+        R, c, v0, m = p["radius"], p["clothoid_ratio"], p["v0"], p["mass"]
         Lc = c * R
         # the worst case of the envelope unless the robustness study passes sampled values
         crr_in = crr
@@ -278,7 +279,7 @@ class LoopCarTemplate(ProblemTemplate):
         from pinneapple_simulation.external_solvers.newton_physics import validate
 
         d = self.full_design(design, spec)
-        R, Lc, v0, m = d["radius"], d["clothoid"] * d["radius"], d["v0"], d["mass"]
+        R, Lc, v0, m = d["radius"], d["clothoid_ratio"] * d["radius"], d["v0"], d["mass"]
         track = self.track(d)
         rc = CAR["wheel_r"]
         same = LT.along_track(R, Lc, v0, m, crr=0.0, cd=0.0, com_height=rc, run_in=0.3, run_out=0.3)
@@ -332,7 +333,7 @@ class LoopCarTemplate(ProblemTemplate):
 
     # ------------------------------------------------------------------ package
     def track(self, d: dict[str, Any]) -> LT.LoopTrack:
-        return LT.LoopTrack(d["radius"], d["clothoid"] * d["radius"], run_in=0.3, run_out=0.3, width=0.04,
+        return LT.LoopTrack(d["radius"], d["clothoid_ratio"] * d["radius"], run_in=0.3, run_out=0.3, width=0.04,
                             pitch=0.05)
 
     def geometry(self, spec: RequirementSpec, design: dict[str, Any]):
@@ -379,7 +380,7 @@ class LoopCarTemplate(ProblemTemplate):
                          ) -> list[dict[str, Any]]:
         """Measured on the 1-D model: the ranges over which the chosen design still completes the loop."""
         d = self.full_design(design, spec)
-        R, Lc, v0, m = d["radius"], d["clothoid"] * d["radius"], d["v0"], d["mass"]
+        R, Lc, v0, m = d["radius"], d["clothoid_ratio"] * d["radius"], d["v0"], d["mass"]
         h, mw, A, rho = 0.5 * CAR["height"], self.wheel_inertia(), CAR["width"] * CAR["height"], _rho_air()
         base = dict(crr=spec["crr_max"], cd=spec["cd_range"], area=A, com_height=h, wheel_inertia=mw, rho=rho)
 
@@ -438,7 +439,7 @@ class LoopCarTemplate(ProblemTemplate):
             f"Print or cut the track strip ({mat.label}, {d['thickness'] * 1e3:.1f} mm thick) from track.stl / "
             f"track.step: {tr.length() * 100:.0f} cm of running surface, 40 mm wide, with 8 mm side rails.",
             f"Shape the loop: top arc radius {d['radius'] * 100:.1f} cm, entry and exit clothoids "
-            f"{d['clothoid'] * d['radius'] * 100:.1f} cm long; the exit is shifted 5 cm sideways so it clears the "
+            f"{d['clothoid_length'] * 100:.1f} cm long; the exit is shifted 5 cm sideways so it clears the "
             "entry.",
             f"Clamp the strip to a stand every {spec['support_spacing'] * 100:.0f} cm; the loop is "
             f"{tr.height() * 100:.1f} cm tall.",
