@@ -94,6 +94,7 @@
     * [Model Calibration Lab (day 18)](apps/calibration_lab.md)
     * [PhysicsNeMo trains, PINNeAPPle says when to trust](guides/physicsnemo_trust.md)
     * [Electromagnetics and electrodynamics](guides/electromagnetics.md)
+    * [Flight dynamics, turbulence and take-off](guides/flight_dynamics.md)
     * [Topology optimisation](guides/topology_optimization.md)
     * [Engineering Evidence Report (day 30)](apps/evidence_report.md)
     * [Physics Validation Lab (day 24)](apps/validation_lab.md)
