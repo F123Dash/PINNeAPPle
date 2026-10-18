@@ -81,12 +81,15 @@ def enso_scores(merged: dict[str, Any], month_of_year: np.ndarray, threshold: fl
 
 def case_panels(parts: dict[str, dict], merged: dict[str, Any], data, *, families=("physical", "hybrid", "data",
                                                                                      "data+physics"),
-                events: dict[str, Any] | None = None, months_before: int = 18) -> list[dict]:
+                events: dict[str, Any] | None = None, months_before: int = 18,
+                leads: Sequence[int] = (1, 3, 6, 9, 12, 18, 24)) -> list[dict]:
     """Plume panels: for every case-study origin, the representative of each family (from ``merged``) with its
     quantiles at the evaluated leads. ``parts[name]["_cases"]`` holds forecasts from origins after the development
     period; ``events[label][name]`` (from :func:`.study.event_hindcast`) those of refitted models."""
     months = data.meta["months"]
-    H = np.asarray(merged["protocol"]["horizons"])
+    Hall = list(merged["protocol"]["horizons"])
+    keep = [Hall.index(h) for h in leads if h in Hall]
+    H = np.asarray(Hall)[keep]
     reps = merged.get("family_representative", {})
     by_origin: dict[tuple[str, int], list[dict]] = {}
     for fam in families:
@@ -96,7 +99,7 @@ def case_panels(parts: dict[str, dict], merged: dict[str, Any], data, *, familie
         srcs = [(lab, rec) for lab, rec in parts.get(name, {}).get("_cases", {}).items()]
         srcs += [(lab, ev[name]) for lab, ev in (events or {}).items() if name in ev]
         for lab, rec in srcs:
-            q = rec["forecast"].quantiles(QUANTILES)                    # (5, n, nh)
+            q = rec["forecast"].quantiles(QUANTILES)[:, :, keep]        # (5, n, n_leads)
             for i, o in enumerate(rec["origins"]):
                 by_origin.setdefault((lab, int(o)), []).append(
                     {"family": fam, "name": name, "t": [_ym_float(months[min(int(o) + h, len(months) - 1)])
@@ -105,7 +108,7 @@ def case_panels(parts: dict[str, dict], merged: dict[str, Any], data, *, familie
                      "q": q[:, i, :].tolist()})
     panels = []
     for (lab, o), fams in sorted(by_origin.items(), key=lambda kv: kv[0][1]):
-        lo, hi = max(0, o - months_before), min(len(months), o + int(H.max()) + 1)
+        lo, hi = max(0, o - months_before), min(len(months), o + int(max(Hall)) + 1)
         panels.append({"title": f"{lab}: forecasts from {months[o]}", "event": lab, "origin": months[o],
                        "origin_t": _ym_float(months[o]), "t_obs": [_ym_float(m) for m in months[lo:hi]],
                        "y_obs": data.y[lo:hi].tolist(), "fams": fams})
@@ -129,10 +132,13 @@ def spring_barrier_hindcasts(data, prot, makers: dict[str, Any], *, block: int =
     return out
 
 
-def phase_portrait(data, prot, *, seasonal=("R", "F1", "F2", "eps"), seed: int = 0) -> dict[str, Any]:
-    """Observed (h, T) over the record, the deterministic paths of the fitted recharge oscillators started from the
-    first observed state (the constant one and the seasonal one), and one stochastic realisation of each with the
-    record's length; parameters fitted on the training segment."""
+def phase_portrait(data, prot, *, seasonal=("R", "F1", "F2", "eps"), seed: int = 0,
+                   onsets: Sequence[str] = ("1997-04", "2009-06", "2015-03", "2023-04"), n_path: int = 48
+                   ) -> dict[str, Any]:
+    """Observed (h, T) over the record (and its 3-month running mean), the deterministic paths of the fitted
+    recharge oscillators (constant and seasonal) for ``n_path`` months from the observed state at each El Nino
+    onset in ``onsets``, and one stochastic realisation of each with the record's length; parameters fitted on the
+    training segment."""
     from ..forecast_lab.base import train_end
     sp = prot.final_split(len(data))
     end = train_end(sp["train"], prot.horizons)
@@ -148,11 +154,22 @@ def phase_portrait(data, prot, *, seasonal=("R", "F1", "F2", "eps"), seed: int =
         det = O.simulate_recharge(p, [T[0], h[0]], n - 1, stochastic=False, month_offsets=moy[:1])[0, 0]
         sto = O.simulate_recharge(p, [T[0], h[0]], n - 1, seed=seed, month_offsets=moy[:1])[0, 0]
         e = O.ro_eigen(**p.mean())
-        out["models"][name] = {"params": p.to_dict(), "deterministic": {"T": det[:, 0].tolist(), "h": det[:, 1].tolist()},
+        months = list(data.meta["months"])
+        paths = {}
+        for on in onsets:
+            if on in months:
+                i = months.index(on)
+                P = O.simulate_recharge(p, [T[i], h[i]], n_path, stochastic=False, month_offsets=moy[i:i + 1])[0, 0]
+                paths[on] = {"T": P[:, 0].tolist(), "h": P[:, 1].tolist()}
+        out["models"][name] = {"params": p.to_dict(), "onset_paths": paths,
+                               "deterministic": {"T": det[:, 0].tolist(), "h": det[:, 1].tolist()},
                                "stochastic": {"T": sto[:, 0].tolist(), "h": sto[:, 1].tolist(),
                                               "std_T": float(sto[:, 0].std()), "std_h": float(sto[:, 1].std())},
                                "eigen": {"growth": e["growth"], "period": e["period"]}}
     out["observed"]["std_T"], out["observed"]["std_h"] = float(T.std()), float(h.std())
+    k = np.ones(3) / 3
+    out["observed"]["T_smooth"] = np.convolve(T, k, "same").tolist()
+    out["observed"]["h_smooth"] = np.convolve(h, k, "same").tolist()
     lags = list(range(-12, 13, 3))
     out["lag_corr_T_vs_h"] = {"lags": lags, "corr": [float(np.corrcoef(T[max(0, k):n + min(0, k)],
                                                                        h[max(0, -k):n + min(0, -k)])[0, 1]) for k in lags],

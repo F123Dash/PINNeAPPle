@@ -113,6 +113,7 @@ def plot_spring_barrier(maps: dict[str, dict], path: str, *, ncols: int = 3, key
             ax.clabel(cs, fmt="%.1f", fontsize=5)
     for ax in axes.ravel()[len(names):]:
         ax.axis("off")
+    fig.subplots_adjust(hspace=0.6, wspace=0.35)
     if im is not None:
         fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.6, label="anomaly correlation")
     fig.savefig(path, dpi=110, bbox_inches="tight")
@@ -133,7 +134,10 @@ def plot_phase_portrait(traj: dict[str, dict], path: str) -> str:
             if (k == 0) != bool(d.get("left", i == 0 or d.get("family") == "observed")):
                 continue
             c = d.get("color") or FAMILY_COLORS.get(d.get("family"), _INK)
-            ax.plot(d["h"], d["T"], color=c, lw=d.get("lw", 1.0), alpha=d.get("alpha", 0.9), label=name)
+            ax.plot(d["h"], d["T"], color=c, lw=d.get("lw", 1.0), alpha=d.get("alpha", 0.9),
+                    label=name if d.get("label", True) else None)
+            if d.get("left") and d.get("lw", 1.0) > 1.5:                   # mark the start of a model path
+                ax.scatter(d["h"][0], d["T"][0], color=c, s=18, zorder=4)
             if d.get("arrows"):
                 h, T = np.asarray(d["h"]), np.asarray(d["T"])
                 for j in range(0, len(h) - 1, max(1, len(h) // 12)):
@@ -142,7 +146,8 @@ def plot_phase_portrait(traj: dict[str, dict], path: str) -> str:
         ax.set_xlabel("h: 5S-5N D20 anomaly (WWV proxy) [m]", fontsize=8, color=_MUTED)
         ax.set_ylabel("T: Nino 3.4 anomaly [K]", fontsize=8, color=_MUTED)
         ax.legend(fontsize=6.5, frameon=False, loc="upper left")
-    axes[0].set_title("observed and the fitted recharge oscillators' mean paths", fontsize=9, color=_INK)
+    axes[0].set_title("observed, and the fitted oscillators' mean paths from four El Nino onsets (dots)", fontsize=9,
+                      color=_INK)
     axes[1].set_title("one stochastic realisation per model (same length as the record)", fontsize=9, color=_INK)
     fig.tight_layout()
     fig.savefig(path, dpi=110)
