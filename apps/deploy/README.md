@@ -15,6 +15,15 @@ pcb.example.org      ─▶│                ─▶ pcb:8081      │
 
 Only Caddy publishes ports. The apps are reachable only through it.
 
+**Security.** The containers run as an unprivileged user (uid 10001) with a read-only root filesystem, no Linux
+capabilities and no privilege escalation; Caddy adds TLS 1.2+, security headers, a body limit per site and a
+rotated access log; each app adds its own login lockout, rate limits, CSP and audit trail. Set logins as hashes
+(`<PREFIX>_PASSWORD_HASH`, from `python -m pinneapple_security hash-password`). Host hardening (SSH keys only,
+firewall, fail2ban, automatic updates, Docker daemon, backups) and the read-only check `sudo ./check_server.sh`:
+[docs/security/server.md](../../docs/security/server.md); credential rotation and incidents:
+[docs/security/runbook.md](../../docs/security/runbook.md). **Upgrading** a server whose volumes were written by
+the earlier root containers: run the one-time `chown` in docs/security/server.md before `docker compose up -d`.
+
 ## 1. Server
 
 - **Size:** 4 vCPU / 8 GB RAM is comfortable for the apps at demo traffic (e.g. Hetzner CX32 or CPX31). 2 vCPU / 4 GB works

@@ -1299,6 +1299,16 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   NASA-STD-7009A credibility, mutation testing, metamorphic relations, adversarial robustness of neural operators,
   the arena proposed in #707).
 
+### Security (deployment)
+- App images run as uid 10001 (`USER 10001:0`, `HOME=/tmp`); Compose adds a read-only root filesystem, `/tmp`
+  tmpfs, `cap_drop: ALL`, `no-new-privileges`, pids/CPU limits and log rotation (`x-app-hardening`); only Caddy
+  publishes ports. Existing root-owned volumes need a one-time `chown` (docs/security/server.md).
+- Caddy: TLS 1.2+, HSTS with subdomains, frame/permissions/opener policies, a body limit on every site, rotated JSON
+  access log; Caddy and the Playground base image pinned by digest (Playground: `caddy:2-alpine`, from 7 critical
+  CVEs to none).
+- `apps/deploy/check_server.sh` (read-only host check), fail2ban filters and jail for Caddy and the app auth events,
+  host hardening guide `docs/security/server.md`, `tests/test_deploy_security.py`.
+
 ## [0.7.0] - 2026-10-13
 
 ### Added
