@@ -37,6 +37,11 @@ jobs:
       - name: Validation arena — replay the stored escapes and false alarms (must pass)
         run: pinneapple check --arena-cases
 
+      - name: Near-random forecasting — predictability, surrogates, purged splits, DM tests, forecaster zoo (must pass)
+        run: |
+          pip install scikit-learn statsmodels
+          pytest tests/test_near_random_forecasting.py -q -p no:warnings
+
       - name: Agents — AGENTS.md examples and the MCP server (must pass)
         run: pytest tests/test_agents_md.py tests/test_mcp_server.py -q
 

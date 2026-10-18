@@ -14,6 +14,18 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Forecasting near-random series without overfitting (`pinneapple_systems.time_series.forecast_lab`): one
+  interface for baselines (persistence, climatology, AR, ARIMA, exponential smoothing), data-driven direct
+  forecasters (gradient boosting, MLP, LSTM, TCN, transformer), data + physics (physics features, physics-residual
+  loss), physical models (fitted ODE / delay ODE, Kalman-filtered linear SDEs, SDE drift regression, EnKF, SINDy)
+  and hybrids (physics + learned correction, UDE closures); the protocol (`study.Protocol`, `tune`, `run_zoo`,
+  `overfitting_study`, `surrogate_trained`), presets of the study cases and figures. Predictability before
+  modelling (`time_series.predictability`: AR fit, permutation and sample entropy, Rosenstein exponent, shuffled /
+  phase / IAAFT surrogates and the surrogate test), ground-truth generators (`time_series.synthetic`: Lorenz-63/96,
+  Mackey-Glass, OU, noise-driven oscillator, double well, noise controls, Benettin exponents), purged walk-forward /
+  purged k-fold / shuffled k-fold splitters, Diebold-Mariano with HLN correction, Holm and Benjamini-Hochberg,
+  PIT and coverage helpers, and pinned, checksummed public series (`time_series.datasets.public`: USD/EUR daily from
+  FRED, yearly sunspots). Tests `tests/test_near_random_forecasting.py` (a must-pass CI step).
 - Slides of the e-machine study: `examples/electrodynamics/18_emachine_slides.py` builds 12 slides (PPTX, and PDF
   with LibreOffice) from the results of examples 10 to 17, every number read from the result files, each slide with
   its limits (needs `python-pptx`).
