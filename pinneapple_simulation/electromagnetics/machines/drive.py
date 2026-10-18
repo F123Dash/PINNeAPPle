@@ -232,13 +232,15 @@ class FluxMap:
 @dataclass
 class Drive:
     """A machine (flux map) fed by a voltage-source inverter: current and voltage amplitude limits, phase
-    resistance. ``n_d`` sets the resolution of the search over ``i_d`` (refined by golden section)."""
+    resistance, end-winding leakage inductance ``L_end`` (:mod:`.endwinding`). ``n_d`` sets the resolution of the search
+    over ``i_d`` (refined by golden section)."""
 
     machine: object
     R: float
     I_max: float
     V_max: float
     n_d: int = 241
+    L_end: float = 0.0  # end-winding leakage (H), added to psi_d and psi_q (no torque: L i_d i_q - L i_q i_d = 0)
 
     def _currents_for_torque(self, T_req: float, i_d: np.ndarray, iters: int = 60):
         """``i_q`` with ``torque(i_d, i_q) = T_req`` for each ``i_d`` (bisection on [0, I_max] for T_req >= 0,
@@ -256,6 +258,8 @@ class Drive:
 
     def voltage(self, i_d, i_q, w_e):
         d, q = self.machine.psi(i_d, i_q)
+        d = d + self.L_end * np.asarray(i_d, float)
+        q = q + self.L_end * np.asarray(i_q, float)
         v_d = self.R * i_d - w_e * q
         v_q = self.R * i_q + w_e * d
         return np.hypot(v_d, v_q)
