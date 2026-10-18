@@ -15,6 +15,7 @@
     python -m pinneapple_lab seal repo_results/ahmed_body -o seal.svg                # the item's quality seal
     python -m pinneapple_lab stamp repo_results/ahmed_body render.jpg -o out.jpg     # seal a figure / GIF / MP4
     python -m pinneapple_lab stamp --all --out export/sealed                         # every figure of every A/B item
+    python -m pinneapple_lab showcase --lang en,pt --out docs/assets/showcase         # the animated panel
 Use ``--root`` (or ``$PINNEAPPLE_LAB``) to choose the database folder.
 """
 from __future__ import annotations
@@ -113,6 +114,11 @@ def main(argv=None) -> int:
     sp.add_argument("--size", type=float, default=0.24, help="seal width / image width")
     sp.add_argument("--opacity", type=float, default=0.95)
     sp.add_argument("--no-reason", action="store_true")
+    sh = sub.add_parser("showcase", help="the animated showcase panel (MP4, GIF, PNG) from the curation")
+    sh.add_argument("--lang", default="en", help="en, pt or en,pt")
+    sh.add_argument("--out", default="docs/assets/showcase")
+    sh.add_argument("--seconds", type=float, default=8.0)
+    sh.add_argument("--fps", type=int, default=15)
     e = sub.add_parser("export")
     e.add_argument("name")
     e.add_argument("dataset")
@@ -134,6 +140,12 @@ def main(argv=None) -> int:
         if not (a.item and a.file):
             ap.error("stamp needs ITEM FILE, or --all")
         print(stamp_file(a.file, seal_for(a.item, LabStore(a.root)), a.out, **kw))
+        return 0
+    if a.cmd == "showcase":
+        from .showcase import panel
+        for lang in a.lang.split(","):
+            meta = panel(LabStore(a.root), lang=lang.strip(), out_dir=a.out, seconds=a.seconds, fps=a.fps)
+            print(json.dumps({k: meta[k] for k in ("files", "sizes_bytes")}, indent=1))
         return 0
     if a.cmd == "site":
         from .html import write_site
