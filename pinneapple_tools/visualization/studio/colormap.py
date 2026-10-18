@@ -23,7 +23,7 @@ RDBU = [(0.0, (33, 102, 172)), (0.25, (103, 169, 207)), (0.5, (247, 247, 247)), 
         (1.0, (178, 24, 43))]
 
 
-def ramp(t: float, stops=None) -> Tuple[float, float, float]:
+def ramp(t: float, stops=None) -> tuple[float, float, float]:
     """sRGB colour of a piecewise-linear scale (default :data:`JET`) at t in [0, 1], floats in [0, 1]."""
     stops = stops or JET
     t = min(1.0, max(0.0, float(t)))
