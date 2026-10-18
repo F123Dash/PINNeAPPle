@@ -309,7 +309,7 @@ def markdown_tables(res: dict[str, Any], leads: Sequence[int] = (1, 3, 6, 9, 12,
 
     rep = z.get("family_representative", {})
     rows = ["| family | representative (val.) | last lead with significant skill vs persistence | vs best baseline | "
-            "CRPS skill vs climatology (h=" + ",".join(str(H[i]) for i in li) + ") | 90 % coverage (mean over h) |"
+            "CRPS skill vs climatology (h=" + ",".join(str(H[i]) for i in li) + ") | 95 % coverage (mean over h) |"
             " PIT deviation |", "|---" * 7 + "|"]
     for fam in fams:
         n = rep.get(fam)
