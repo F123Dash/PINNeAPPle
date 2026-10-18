@@ -276,8 +276,8 @@ quantity.
 | quantity | value |
 |---|---|
 | simulated all-engines distance to 35 ft, 73500 kg, ISA sea level | 1691 m |
-| simulated x 1.15 (the all-engines part of the certified rule) | 1945 m |
-| published | A320-200, MTOW 78 t, sea level ISA: take-off field length about 2,090-2,100 m (certified, one engine inoperative and 1.15 x all-engines distance, whichever is longer); e.g. https://www.skytamer.com/Airbus_A320.html, https://aircraftinvestigation.info/airplanes/Airbus_A320-200_CFM56.html (which also quotes about 1,825 m at 73.5 t). Authoritative source: Airbus, A320 Aircraft Characteristics - Airport and Maintenance Planning (rev. Jun 2024). |
+| 1.15 x the simulated all-engines distance (the all-engines part of the certified rule) | 1691 m x 1.15 = 1945 m |
+| published | A320-200, MTOW 78 t, sea level ISA: take-off field length about 2,090-2,100 m (certified, one engine inoperative and 1.15 x all-engines distance, whichever is longer); e.g. https://www.skytamer.com/Airbus_A320.html, https://aircraftinvestigation.info/airplanes/Airbus_A320-200_CFM56.html (which also quotes about 1,825 m at 73.5 t); secondary sources. The primary source, Airbus' A320 Aircraft Characteristics - Airport and Maintenance Planning, was not checked (it could not be opened from the environment of this study). |
 <!-- /table:a320 -->
 
 **Crosswind.** The wind is 15 kt at 20 ft from the right, with the MIL-F-8785C logarithmic profile. The pilot keeps
