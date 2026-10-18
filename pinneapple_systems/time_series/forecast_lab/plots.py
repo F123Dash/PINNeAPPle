@@ -195,8 +195,7 @@ def plot_memorise_vs_learn(records: list[dict], path: str) -> str:
     end of the training period (left) and the start of the untouched test period (right), with each variant's
     RMSE on the whole training and test sets in the legend."""
     plt = _plt()
-    fig, axes = plt.subplots(len(records), 2, figsize=(11, 2.8 * len(records)), squeeze=False,
-                             gridspec_kw={"wspace": 0.08})
+    fig, axes = plt.subplots(len(records), 2, figsize=(11, 2.8 * len(records)), squeeze=False, sharey="row")
     cols = ["#e34948", "#2a78d6"]
     for row, r in zip(axes, records, strict=False):
         for ax, part in zip(row, ("train", "test"), strict=True):
@@ -210,7 +209,6 @@ def plot_memorise_vs_learn(records: list[dict], path: str) -> str:
                          f", h = {r['horizon']}", fontsize=8, color=_INK)
             ax.set_xlabel("sample", fontsize=7, color=_MUTED)
             ax.legend(fontsize=6, frameon=False, loc="upper left")
-        row[1].sharey(row[0])
     fig.tight_layout()
     fig.savefig(path, dpi=110)
     plt.close(fig)
@@ -241,9 +239,8 @@ def plot_surprise_calendar(records: list[dict], path: str, *, vmax: float = 1.0)
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("surprise", ["#2a78d6", "#e4e3df", "#e34948"])
     cmap.set_bad("white")
-    heights = [1.0 + 0.0 * len(r["dates"]) for r in records]
-    fig, axes = plt.subplots(len(records), 1, figsize=(11, 1.9 * len(records) + 0.6), squeeze=False,
-                             gridspec_kw={"height_ratios": heights})
+    fig, axes = plt.subplots(len(records), 1, figsize=(11, 2.4 * len(records) + 0.4), squeeze=False,
+                             layout="constrained")
     im = None
     for ax, r in zip(axes[:, 0], records, strict=False):
         ratio = np.log2((np.asarray(r["abs_error_model"]) + 1e-12) / (np.asarray(r["abs_error_baseline"]) + 1e-12))
@@ -256,12 +253,12 @@ def plot_surprise_calendar(records: list[dict], path: str, *, vmax: float = 1.0)
         ax.set_xticks(range(0, len(cal["week_starts"]), step))
         ax.set_xticklabels(cal["week_starts"][::step], fontsize=6, rotation=30, ha="right")
         win = float(np.mean(ratio < 0))
-        ax.set_title(f"{r['title']}: {r['model']} vs {r['baseline']} at h = {r['horizon']} "
+        ax.set_title(f"{r['title']}\n{r['model']} vs {r['baseline']} at h = {r['horizon']} "
                      f"({cal['first']} to {cal['last']}; model closer on {win:.0%} of {len(ratio)} days)",
                      fontsize=8, color=_INK)
         for s in ax.spines.values():
             s.set_visible(False)
-    cb = fig.colorbar(im, ax=axes[:, 0].tolist(), shrink=0.8, pad=0.01)
+    cb = fig.colorbar(im, ax=axes[:, 0].tolist(), shrink=0.6, pad=0.01)
     cb.set_label("log2(|model error| / |baseline error|)", fontsize=7)
     cb.ax.tick_params(labelsize=6)
     fig.savefig(path, dpi=110, bbox_inches="tight")
