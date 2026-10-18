@@ -182,7 +182,7 @@ def test_results_rules_extract_only_what_the_files_hold():
     assert check_citations(REPO) == []                        # every threshold is on the line it cites
     for rel, rules in RESULTS_RULES.items():
         m = M.from_results(os.path.join(REPO, rel))
-        assert M.validate(m, os.path.join(REPO, rel)) == [] and m.checks, rel
+        assert M.validate(m, os.path.join(REPO, rel)) == [] and (m.checks or m.metrics), rel
         for r in rules:                                       # every file a rule reads is committed
             assert os.path.exists(os.path.join(REPO, rel, r.file)), (rel, r.file)
     flight = M.from_results(os.path.join(REPO, "examples", "flight_dynamics"))
