@@ -74,7 +74,7 @@ The zoo per series, defined in `forecast_lab.presets`:
 
 | family | models |
 |---|---|
-| baseline | persistence, climatology (training mean and std), AR(p) by AIC, ARIMA(p ≤ 2, d ≤ 1, q ≤ 1) by AIC, simple exponential smoothing |
+| baseline | persistence, climatology (training mean and std), AR(p) by AIC, ARIMA(p ≤ 2, d ≤ 1, q ≤ 1) by AIC, simple exponential smoothing, seasonal naive (the value whole periods before the target) and phase-aligned mean cycle (`PhaseClimatology`: the training cycle, re-aligned to the phase of each origin by least squares over the last 1 or 3 periods; tuned). The period is the highest peak of the training periodogram. |
 | data | gradient boosting on lags (scikit-learn histogram GBM, one per horizon), MLP, LSTM (`time_series.models.LSTMForecaster`), TCN (`TCNForecaster`), transformer (`pinneapple_neural` `VanillaTransformer`) |
 | data + physics | GBM with physics features (the fitted vector field or drift at the origin state, or the Kalman-filtered state and energy); MLP with a physics-residual loss on the predicted path (fully observed ODEs; λ ∈ {0, 0.01, 0.1, 1} tuned) |
 | physical | the governing ODE / delay ODE with parameters fitted by multiple shooting on the training data, deliberately misspecified versions (Lorenz-63 without the −xz term, Mackey–Glass with delay 14 instead of 17, an OU model of the oscillator and of the double well), SINDy, EnKF (40 members) on the fitted ODE, Kalman-filtered linear SDEs (OU, damped oscillator), SDE drift regression with Euler–Maruyama ensembles |
@@ -99,9 +99,32 @@ never see the true parameters.
 | sunspots | yearly mean sunspot number 1700–2008, NOAA NGDC (public domain), as shipped by statsmodels | 309 | 1 year | real |
 
 The largest Lyapunov exponents come from the equations (Benettin two-trajectory method,
-`synthetic.largest_lyapunov_benettin`): 0.893 (Lorenz-63; Sprott 2003, *Chaos and Time-Series Analysis*, gives 0.906), 0.0046 per unit time
-(Mackey–Glass) and 1.677 (Lorenz-96). One Lyapunov time (LT) is 22 samples for Lorenz-63, 72 for Mackey–Glass and
-12 for Lorenz-96.
+`synthetic.largest_lyapunov_benettin`, natural logarithm per unit time):
+* 0.893 for Lorenz-63 (Sprott 2003, *Chaos and Time-Series Analysis*, gives 0.906);
+* 0.0049 for Mackey–Glass (`synthetic.mackey_glass_lyapunov`, a perturbation of the whole delay history,
+  50 000 time units at step 0.1);
+* 1.677 for Lorenz-96.
+
+One Lyapunov time (LT) is 22 samples for Lorenz-63, 68 for Mackey–Glass and 12 for Lorenz-96.
+
+The Mackey–Glass value was checked for convergence (`pipeline.lyapunov_study`,
+`results/lyapunov_mackey_glass.json`; three seeds each, which change the initial history and the perturbation
+direction):
+
+| step | 10 000 time units | 50 000 | 200 000 |
+|---|---|---|---|
+| 0.1 | 0.00481 ± 0.00056 | 0.00498 ± 0.00017 | 0.00501 ± 0.00015 |
+| 0.05 | 0.00509 ± 0.00033 | 0.00504 ± 0.00003 | 0.00516 ± 0.00003 |
+
+* At 10 000 time units (the first version of this study used one such run, 0.0046) the seed alone moves the
+  estimate by about ±10 %.
+* With longer runs the estimate settles at 0.0050 (step 0.1) to 0.0052 (step 0.05). The 3 % dependence on the
+  step is presumably the integration error of the delayed term, which is interpolated linearly at the half step.
+* The value used for the LT axes (0.0049) is within 5 % of the finest estimate.
+* A reviewer quoted 0.006 to 0.007 for τ = 17 from Farmer (1982, Physica D 4:366) and Wolf et al. (1985, Physica
+  D 16:285). Those papers could not be consulted from this environment, so their units (nats or bits per unit
+  time) and settings are not checked here. Our converged value is 13 to 29 % below that range. If those values
+  are in bits, they would convert to 0.0042–0.0049 nats; this is an open question, not a resolution.
 
 ## 1. Is there anything to predict?
 
@@ -151,8 +174,8 @@ What this says:
 * The sunspots reject the time-reversal null (p = 0.01): cycles rise faster than they decay.
 * The Rosenstein exponent is unreliable. It gives 0.20 for the (non-chaotic) double well and 0.14 and 0.17 for the
   linear OU and oscillator. For Lorenz-96 it gives 0.76, against the true 1.68: a scalar embedding of a
-  40-dimensional system does not recover it. For Mackey–Glass it is 1.1 to 1.8 times the true value (0.0052 to 0.0085,
-  against 0.0046). The estimate also depends on the fit window of the divergence curve; the default here is
+  40-dimensional system does not recover it. For Mackey–Glass it is 1.1 to 1.7 times the Benettin value (0.0052 to
+  0.0085, against 0.0049). The estimate also depends on the fit window of the divergence curve; the default here is
   samples 5–30, and `tests/test_near_random_forecasting.py` only asks for 0.6–1.3 on noise-free Lorenz-63 (true
   0.906). Use it only next to a surrogate test, never alone.
 
@@ -202,9 +225,9 @@ baseline. The horizons in samples (and LT) are listed per series.
 | Lorenz-63, noise 0.01 std | 1, 2, 4, 8, 16, 32, 64, 128 | gbm: 128 (5.72 LT) / 32 (1.43 LT) | gbm_physics_features: 128 (5.72 LT) / 32 (1.43 LT) | enkf: 128 (5.72 LT) / 64 (2.86 LT) | ode_fitted+gbm: 128 (5.72 LT) / 64 (2.86 LT) |
 | Lorenz-63, noise 0.1 std | 1, 2, 4, 8, 16, 32, 64, 128 | transformer: 128 (5.72 LT) / 32 (1.43 LT) | gbm_physics_features: 128 (5.72 LT) / 32 (1.43 LT) | enkf: 128 (5.72 LT) / 32 (1.43 LT) | ode_fitted+gbm: 128 (5.72 LT) / 32 (1.43 LT) |
 | Lorenz-63, noise 0.3 std | 1, 2, 4, 8, 16, 32, 64, 128 | lstm: 128 (5.72 LT) / 32 (1.43 LT) | mlp_physics_loss: 128 (5.72 LT) / 32 (1.43 LT) | enkf: 128 (5.72 LT) / 32 (1.43 LT) | ode_missing_xz+gbm: 128 (5.72 LT) / 16 (0.71 LT) |
-| Mackey-Glass, noise 0.01 std | 1, 2, 4, 8, 16, 32, 64, 128, 256 | tcn: 256 (3.53 LT) / 256 (3.53 LT) | gbm_physics_features: 256 (3.53 LT) / 256 (3.53 LT) | dde_fitted: 256 (3.53 LT) / 128 (1.77 LT) | dde_fitted+gbm: 256 (3.53 LT) / 256 (3.53 LT) |
-| Mackey-Glass, noise 0.1 std | 1, 2, 4, 8, 16, 32, 64, 128, 256 | tcn: 256 (3.53 LT) / 256 (3.53 LT) | gbm_physics_features: 256 (3.53 LT) / 256 (3.53 LT) | dde_fitted: 256 (3.53 LT) / 128 (1.77 LT) | dde_fitted+gbm: 256 (3.53 LT) / 256 (3.53 LT) |
-| Mackey-Glass, noise 0.3 std | 1, 2, 4, 8, 16, 32, 64, 128, 256 | transformer: 256 (3.53 LT) / 256 (3.53 LT) | gbm_physics_features: 256 (3.53 LT) / 256 (3.53 LT) | dde_fitted: 256 (3.53 LT) / 16 (0.22 LT) | dde_fitted+gbm: 256 (3.53 LT) / 256 (3.53 LT) |
+| Mackey-Glass, noise 0.01 std | 1, 2, 4, 8, 16, 32, 64, 128, 256 | tcn: 256 (3.76 LT) / 128 (1.88 LT) | gbm_physics_features: 256 (3.76 LT) / 128 (1.88 LT) | dde_fitted: 256 (3.76 LT) / 64 (0.94 LT) | dde_fitted+gbm: 256 (3.76 LT) / 128 (1.88 LT) |
+| Mackey-Glass, noise 0.1 std | 1, 2, 4, 8, 16, 32, 64, 128, 256 | tcn: 256 (3.76 LT) / 64 (0.94 LT) | gbm_physics_features: 256 (3.76 LT) / 128 (1.88 LT) | dde_fitted: 256 (3.76 LT) / 32 (0.47 LT) | dde_fitted+gbm: 256 (3.76 LT) / 128 (1.88 LT) |
+| Mackey-Glass, noise 0.3 std | 1, 2, 4, 8, 16, 32, 64, 128, 256 | transformer: 256 (3.76 LT) / 32 (0.47 LT) | gbm_physics_features: 256 (3.76 LT) / 32 (0.47 LT) | dde_fitted: 256 (3.76 LT) / 16 (0.24 LT) | dde_fitted+gbm: 256 (3.76 LT) / 32 (0.47 LT) |
 | Lorenz-96 (K=40), noise 0.1 std | 1, 2, 4, 8, 16, 32, 64 | gbm: 64 (5.37 LT) / 8 (0.67 LT) | gbm_physics_features: 64 (5.37 LT) / 8 (0.67 LT) | enkf: 64 (5.37 LT) / 32 (2.68 LT) | ode_fitted+gbm: 64 (5.37 LT) / 16 (1.34 LT) |
 | Ornstein-Uhlenbeck | 1, 2, 4, 8, 16, 32 | lstm: 32 / none | gbm_physics_features: 32 / none | ou_kalman: 32 / none | ou_kalman+gbm: 32 / none |
 | Noise-driven damped oscillator | 1, 2, 4, 8, 16, 32, 64 | mlp: 64 / none | gbm_physics_features: 64 / none | oscillator_kalman: 64 / none | oscillator_kalman+gbm: 64 / none |
@@ -217,12 +240,13 @@ baseline. The horizons in samples (and LT) are listed per series.
 * **Against persistence everything looks good**, up to the longest horizon on most series, because persistence is
   a poor forecast once the horizon passes the correlation time
   ([figure](../../examples/near_random_forecasting/figures/skill_vs_persistence.png)). Against the best baseline
-  (usually AR or ARIMA, chosen on validation) the picture is honest:
+  (chosen on validation at each horizon: AR or ARIMA, and on Mackey–Glass the phase-aligned mean cycle from
+  h = 16 on) the picture is honest:
   * Lorenz-63: 1.4 LT for every family at noise 0.1, and at noise 0.3 except the hybrid (0.7 LT). At noise 0.01
     the EnKF and the hybrid reach 2.9 LT and the data models 1.4 LT.
-  * Mackey–Glass: the data, data + physics and hybrid families keep skill up to the longest horizon tested
-    (3.5 LT) at all three noise levels. The fitted delay equation alone drops out earlier: 1.8 LT at low noise,
-    0.2 LT at noise 0.3.
+  * Mackey–Glass: 1.9 LT for the data, data + physics and hybrid families at noise 0.01. At noise 0.1 it is
+    1.9 LT for data + physics and hybrid and 0.9 LT for the data family. At noise 0.3 it is 0.5 LT for all three.
+    The fitted delay equation alone stops earlier: 0.9, 0.5 and 0.2 LT.
   * Lorenz-96: 2.7 LT for the EnKF, 1.3 LT for the hybrid, 0.7 LT for the data and data + physics families.
 * **Linear stochastic series: no family beats the linear baseline at any horizon.** That is the correct answer.
   The fitted Kalman models recover the true parameters:
@@ -321,105 +345,121 @@ persistence), so periods of different volatility compare. RMSE divided by the se
 
 ## 4. Point and probabilistic scores
 
-For each series: persistence, climatology, AR and the family representatives. Each cell is a list over the
+For each series: persistence, climatology, AR, the phase-aligned mean cycle and the family representatives. Each cell is a list over the
 horizons of that series.
 
 | series | model | family | RMSE skill vs persistence per h | CRPS skill vs climatology per h | coverage of the central 80 % and 95 % intervals (mean over h) | PIT deviation (pooled) | params | final fit [s] |
 |---|---|---|---|---|---|---|---|---|
 | Lorenz-63, noise 0.01 std | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.73 0.49 0.10 -0.25 -0.23 -0.26 -0.32 -0.38 | 0.78 (80 %), 0.94 (95 %) | 0.05 | 0 | 0.0 |
 | Lorenz-63, noise 0.01 std | climatology | baseline | -2.74 -0.95 -0.12 0.19 0.25 0.24 0.26 0.28 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.74 (80 %), 0.97 (95 %) | 0.13 | 2 | 0.0 |
-| Lorenz-63, noise 0.01 std | ar | baseline | 0.71 0.56 0.32 0.23 0.25 0.25 0.26 0.28 | 0.92 0.78 0.40 0.06 0.01 0.00 -0.00 -0.00 | 0.74 (80 %), 0.94 (95 %) | 0.12 | 16 | 1.1 |
-| Lorenz-63, noise 0.01 std | gbm | data | 0.93 0.96 0.96 0.95 0.81 0.66 0.27 0.23 | 0.98 0.98 0.97 0.94 0.78 0.59 0.04 -0.06 | 0.83 (80 %), 0.95 (95 %) | 0.21 | 69600 | 3.3 |
-| Lorenz-63, noise 0.01 std | gbm_physics_features | data+physics | 0.94 0.96 0.96 0.94 0.78 0.60 0.27 0.25 | 0.99 0.98 0.96 0.93 0.75 0.55 0.04 -0.04 | 0.85 (80 %), 0.95 (95 %) | 0.23 | 69600 | 2.7 |
+| Lorenz-63, noise 0.01 std | ar | baseline | 0.71 0.56 0.32 0.23 0.25 0.25 0.26 0.28 | 0.92 0.78 0.40 0.06 0.01 0.00 -0.00 -0.00 | 0.74 (80 %), 0.94 (95 %) | 0.12 | 16 | 0.4 |
+| Lorenz-63, noise 0.01 std | phase_climatology | baseline | -2.98 -1.08 -0.21 0.13 0.20 0.20 0.21 0.23 | -0.06 -0.06 -0.07 -0.07 -0.06 -0.05 -0.06 -0.06 | 0.79 (80 %), 0.96 (95 %) | 0.11 | 668 | 0.6 |
+| Lorenz-63, noise 0.01 std | gbm | data | 0.93 0.96 0.96 0.95 0.81 0.66 0.27 0.23 | 0.98 0.98 0.97 0.94 0.78 0.59 0.04 -0.06 | 0.83 (80 %), 0.95 (95 %) | 0.21 | 69600 | 3.5 |
+| Lorenz-63, noise 0.01 std | gbm_physics_features | data+physics | 0.94 0.96 0.96 0.94 0.78 0.60 0.27 0.25 | 0.99 0.98 0.96 0.93 0.75 0.55 0.04 -0.04 | 0.85 (80 %), 0.95 (95 %) | 0.23 | 69600 | 3.1 |
 | Lorenz-63, noise 0.01 std | enkf | physical | 0.96 0.98 0.99 0.98 0.96 0.88 0.74 0.29 | 0.99 0.99 0.99 0.98 0.97 0.95 0.82 0.16 | 0.57 (80 %), 0.70 (95 %) | 0.39 | 9 | 0.1 |
 | Lorenz-63, noise 0.01 std | ode_fitted+gbm | hybrid | 0.95 0.98 0.98 0.97 0.89 0.80 0.51 0.25 | 0.99 0.99 0.98 0.97 0.85 0.76 0.42 -0.03 | 0.87 (80 %), 0.96 (95 %) | 0.43 | 10403 | 1.3 |
 | Lorenz-63, noise 0.1 std | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.70 0.47 0.10 -0.25 -0.24 -0.27 -0.33 -0.38 | 0.78 (80 %), 0.94 (95 %) | 0.05 | 0 | 0.0 |
 | Lorenz-63, noise 0.1 std | climatology | baseline | -2.31 -0.90 -0.11 0.19 0.25 0.24 0.26 0.27 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.76 (80 %), 0.97 (95 %) | 0.14 | 2 | 0.0 |
-| Lorenz-63, noise 0.1 std | ar | baseline | 0.24 0.26 0.19 0.22 0.25 0.25 0.26 0.27 | 0.77 0.61 0.28 0.04 0.01 0.00 -0.00 -0.00 | 0.75 (80 %), 0.95 (95 %) | 0.11 | 15 | 0.4 |
-| Lorenz-63, noise 0.1 std | transformer | data | 0.62 0.78 0.84 0.78 0.70 0.52 0.22 0.25 | 0.89 0.88 0.86 0.76 0.66 0.40 -0.05 -0.03 | 0.82 (80 %), 0.95 (95 %) | 0.11 | 18056 | 22.9 |
-| Lorenz-63, noise 0.1 std | gbm_physics_features | data+physics | 0.61 0.77 0.84 0.78 0.64 0.42 0.23 0.25 | 0.88 0.88 0.86 0.76 0.58 0.28 -0.03 -0.04 | 0.82 (80 %), 0.95 (95 %) | 0.13 | 69600 | 2.6 |
+| Lorenz-63, noise 0.1 std | ar | baseline | 0.24 0.26 0.19 0.22 0.25 0.25 0.26 0.27 | 0.77 0.61 0.28 0.04 0.01 0.00 -0.00 -0.00 | 0.75 (80 %), 0.95 (95 %) | 0.11 | 15 | 0.9 |
+| Lorenz-63, noise 0.1 std | phase_climatology | baseline | -2.51 -1.01 -0.19 0.14 0.20 0.20 0.22 0.23 | -0.05 -0.05 -0.05 -0.06 -0.05 -0.05 -0.06 -0.05 | 0.79 (80 %), 0.96 (95 %) | 0.12 | 669 | 0.8 |
+| Lorenz-63, noise 0.1 std | transformer | data | 0.62 0.78 0.84 0.78 0.70 0.52 0.22 0.25 | 0.89 0.88 0.86 0.76 0.66 0.40 -0.05 -0.03 | 0.82 (80 %), 0.95 (95 %) | 0.11 | 18056 | 22.8 |
+| Lorenz-63, noise 0.1 std | gbm_physics_features | data+physics | 0.61 0.77 0.84 0.78 0.64 0.42 0.23 0.25 | 0.88 0.88 0.86 0.76 0.58 0.28 -0.03 -0.04 | 0.82 (80 %), 0.95 (95 %) | 0.13 | 69600 | 3.2 |
 | Lorenz-63, noise 0.1 std | enkf | physical | 0.65 0.80 0.87 0.84 0.74 0.62 0.31 0.27 | 0.88 0.88 0.88 0.84 0.78 0.65 0.21 0.05 | 0.57 (80 %), 0.71 (95 %) | 0.39 | 9 | 0.1 |
-| Lorenz-63, noise 0.1 std | ode_fitted+gbm | hybrid | 0.61 0.78 0.84 0.77 0.64 0.45 0.25 0.25 | 0.88 0.88 0.86 0.76 0.60 0.32 -0.00 -0.04 | 0.81 (80 %), 0.95 (95 %) | 0.18 | 31203 | 2.6 |
+| Lorenz-63, noise 0.1 std | ode_fitted+gbm | hybrid | 0.61 0.78 0.84 0.77 0.64 0.45 0.25 0.25 | 0.88 0.88 0.86 0.76 0.60 0.32 -0.00 -0.04 | 0.81 (80 %), 0.95 (95 %) | 0.18 | 31203 | 2.7 |
 | Lorenz-63, noise 0.3 std | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.53 0.37 0.05 -0.27 -0.26 -0.29 -0.35 -0.37 | 0.79 (80 %), 0.95 (95 %) | 0.05 | 0 | 0.0 |
 | Lorenz-63, noise 0.3 std | climatology | baseline | -1.10 -0.59 -0.06 0.20 0.25 0.25 0.27 0.27 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.76 (80 %), 0.97 (95 %) | 0.15 | 2 | 0.0 |
-| Lorenz-63, noise 0.3 std | ar | baseline | 0.05 0.09 0.14 0.22 0.26 0.25 0.27 0.27 | 0.55 0.43 0.19 0.03 0.01 0.00 0.00 -0.00 | 0.76 (80 %), 0.95 (95 %) | 0.12 | 15 | 0.0 |
-| Lorenz-63, noise 0.3 std | lstm | data | 0.36 0.53 0.65 0.62 0.56 0.34 0.26 0.24 | 0.70 0.70 0.68 0.55 0.44 0.14 -0.01 -0.03 | 0.79 (80 %), 0.94 (95 %) | 0.05 | 18312 | 8.3 |
-| Lorenz-63, noise 0.3 std | mlp_physics_loss | data+physics | 0.33 0.50 0.61 0.50 0.46 0.33 0.26 0.25 | 0.68 0.69 0.64 0.41 0.32 0.12 -0.01 -0.03 | 0.78 (80 %), 0.94 (95 %) | 0.09 | 67712 | 6.2 |
+| Lorenz-63, noise 0.3 std | ar | baseline | 0.05 0.09 0.14 0.22 0.26 0.25 0.27 0.27 | 0.55 0.43 0.19 0.03 0.01 0.00 0.00 -0.00 | 0.76 (80 %), 0.95 (95 %) | 0.12 | 15 | 0.1 |
+| Lorenz-63, noise 0.3 std | phase_climatology | baseline | -1.22 -0.69 -0.13 0.15 0.20 0.20 0.22 0.23 | -0.05 -0.06 -0.06 -0.05 -0.06 -0.05 -0.06 -0.04 | 0.78 (80 %), 0.95 (95 %) | 0.17 | 670 | 1.6 |
+| Lorenz-63, noise 0.3 std | lstm | data | 0.36 0.53 0.65 0.62 0.56 0.34 0.26 0.24 | 0.70 0.70 0.68 0.55 0.44 0.14 -0.01 -0.03 | 0.79 (80 %), 0.94 (95 %) | 0.05 | 18312 | 8.8 |
+| Lorenz-63, noise 0.3 std | mlp_physics_loss | data+physics | 0.33 0.50 0.61 0.50 0.46 0.33 0.26 0.25 | 0.68 0.69 0.64 0.41 0.32 0.12 -0.01 -0.03 | 0.78 (80 %), 0.94 (95 %) | 0.09 | 67712 | 6.5 |
 | Lorenz-63, noise 0.3 std | enkf | physical | 0.36 0.52 0.64 0.58 0.54 0.34 0.27 0.25 | 0.65 0.66 0.64 0.55 0.46 0.21 0.06 -0.00 | 0.55 (80 %), 0.70 (95 %) | 0.44 | 9 | 0.1 |
-| Lorenz-63, noise 0.3 std | ode_missing_xz+gbm | hybrid | 0.33 0.49 0.60 0.51 0.50 0.30 0.26 0.25 | 0.68 0.68 0.63 0.44 0.36 0.09 -0.00 -0.03 | 0.80 (80 %), 0.95 (95 %) | 0.06 | 31203 | 2.8 |
+| Lorenz-63, noise 0.3 std | ode_missing_xz+gbm | hybrid | 0.33 0.49 0.60 0.51 0.50 0.30 0.26 0.25 | 0.68 0.68 0.63 0.44 0.36 0.09 -0.00 -0.03 | 0.80 (80 %), 0.95 (95 %) | 0.06 | 31203 | 2.9 |
 | Mackey-Glass, noise 0.01 std | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.57 0.18 -0.41 -0.92 0.22 0.27 -0.15 -0.67 -0.64 | 0.77 (80 %), 0.97 (95 %) | 0.10 | 0 | 0.0 |
 | Mackey-Glass, noise 0.01 std | climatology | baseline | -1.32 -0.22 0.29 0.47 -0.25 -0.32 0.14 0.40 0.39 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.79 (80 %), 0.96 (95 %) | 0.30 | 2 | 0.0 |
-| Mackey-Glass, noise 0.01 std | ar | baseline | 0.74 0.64 0.65 0.71 0.12 0.18 0.33 0.43 0.39 | 0.89 0.71 0.52 0.46 0.31 0.39 0.22 0.06 0.00 | 0.79 (80 %), 0.96 (95 %) | 0.17 | 21 | 0.1 |
-| Mackey-Glass, noise 0.01 std | tcn | data | 0.94 0.94 0.95 0.95 0.94 0.90 0.87 0.68 0.61 | 0.97 0.95 0.93 0.91 0.95 0.93 0.85 0.49 0.39 | 0.74 (80 %), 0.90 (95 %) | 0.16 | 29065 | 54.1 |
-| Mackey-Glass, noise 0.01 std | gbm_physics_features | data+physics | 0.94 0.94 0.96 0.97 0.88 0.80 0.73 0.68 0.60 | 0.98 0.95 0.95 0.95 0.91 0.85 0.70 0.51 0.38 | 0.79 (80 %), 0.92 (95 %) | 0.08 | 78300 | 4.4 |
-| Mackey-Glass, noise 0.01 std | dde_fitted | physical | 0.96 0.98 0.99 0.99 0.95 0.92 0.87 0.67 0.37 | 0.98 0.98 0.98 0.97 0.96 0.94 0.86 0.51 -0.00 | 0.82 (80 %), 0.94 (95 %) | 0.15 | 2 | 0.8 |
-| Mackey-Glass, noise 0.01 std | dde_fitted+gbm | hybrid | 0.97 0.98 0.99 0.99 0.97 0.96 0.94 0.79 0.61 | 0.99 0.99 0.99 0.98 0.98 0.97 0.93 0.68 0.39 | 0.79 (80 %), 0.91 (95 %) | 0.07 | 78302 | 9.9 |
+| Mackey-Glass, noise 0.01 std | ar | baseline | 0.74 0.64 0.65 0.71 0.12 0.18 0.33 0.43 0.39 | 0.89 0.71 0.52 0.46 0.31 0.39 0.22 0.06 0.00 | 0.79 (80 %), 0.96 (95 %) | 0.17 | 21 | 0.7 |
+| Mackey-Glass, noise 0.01 std | phase_climatology | baseline | -0.20 0.34 0.60 0.71 0.29 0.28 0.52 0.60 0.61 | 0.49 0.47 0.45 0.45 0.44 0.46 0.46 0.33 0.37 | 0.79 (80 %), 0.94 (95 %) | 0.17 | 18 | 0.0 |
+| Mackey-Glass, noise 0.01 std | tcn | data | 0.94 0.94 0.95 0.95 0.94 0.90 0.87 0.68 0.61 | 0.97 0.95 0.93 0.91 0.95 0.93 0.85 0.49 0.39 | 0.74 (80 %), 0.90 (95 %) | 0.16 | 29065 | 57.6 |
+| Mackey-Glass, noise 0.01 std | gbm_physics_features | data+physics | 0.94 0.94 0.96 0.97 0.88 0.80 0.73 0.68 0.60 | 0.98 0.95 0.95 0.95 0.91 0.85 0.70 0.51 0.38 | 0.79 (80 %), 0.92 (95 %) | 0.08 | 78300 | 4.3 |
+| Mackey-Glass, noise 0.01 std | dde_fitted | physical | 0.96 0.98 0.99 0.99 0.95 0.92 0.87 0.67 0.37 | 0.98 0.98 0.98 0.97 0.96 0.94 0.86 0.51 -0.00 | 0.82 (80 %), 0.94 (95 %) | 0.15 | 2 | 0.9 |
+| Mackey-Glass, noise 0.01 std | dde_fitted+gbm | hybrid | 0.97 0.98 0.99 0.99 0.97 0.96 0.94 0.79 0.61 | 0.99 0.99 0.99 0.98 0.98 0.97 0.93 0.68 0.39 | 0.79 (80 %), 0.91 (95 %) | 0.07 | 78302 | 10.4 |
 | Mackey-Glass, noise 0.1 std | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.54 0.18 -0.41 -0.92 0.22 0.26 -0.15 -0.67 -0.64 | 0.78 (80 %), 0.97 (95 %) | 0.09 | 0 | 0.0 |
 | Mackey-Glass, noise 0.1 std | climatology | baseline | -1.18 -0.22 0.29 0.47 -0.25 -0.30 0.14 0.40 0.39 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.80 (80 %), 0.96 (95 %) | 0.29 | 2 | 0.0 |
-| Mackey-Glass, noise 0.1 std | ar | baseline | 0.47 0.54 0.64 0.70 0.13 0.19 0.33 0.43 0.39 | 0.76 0.63 0.50 0.44 0.31 0.39 0.22 0.06 0.01 | 0.79 (80 %), 0.96 (95 %) | 0.15 | 22 | 0.4 |
-| Mackey-Glass, noise 0.1 std | tcn | data | 0.73 0.85 0.89 0.90 0.80 0.75 0.72 0.63 0.60 | 0.88 0.88 0.85 0.82 0.85 0.81 0.68 0.41 0.38 | 0.79 (80 %), 0.92 (95 %) | 0.05 | 29065 | 40.0 |
-| Mackey-Glass, noise 0.1 std | gbm_physics_features | data+physics | 0.71 0.83 0.89 0.92 0.73 0.61 0.60 0.63 0.59 | 0.87 0.86 0.85 0.85 0.79 0.71 0.55 0.42 0.36 | 0.81 (80 %), 0.95 (95 %) | 0.08 | 35100 | 3.7 |
-| Mackey-Glass, noise 0.1 std | dde_fitted | physical | 0.71 0.84 0.91 0.92 0.76 0.66 0.57 0.54 0.33 | 0.87 0.87 0.87 0.85 0.82 0.76 0.54 0.27 -0.07 | 0.82 (80 %), 0.94 (95 %) | 0.14 | 2 | 0.7 |
-| Mackey-Glass, noise 0.1 std | dde_fitted+gbm | hybrid | 0.72 0.85 0.91 0.93 0.78 0.71 0.65 0.64 0.58 | 0.87 0.88 0.88 0.86 0.83 0.79 0.62 0.43 0.35 | 0.81 (80 %), 0.94 (95 %) | 0.10 | 35102 | 9.5 |
+| Mackey-Glass, noise 0.1 std | ar | baseline | 0.47 0.54 0.64 0.70 0.13 0.19 0.33 0.43 0.39 | 0.76 0.63 0.50 0.44 0.31 0.39 0.22 0.06 0.01 | 0.79 (80 %), 0.96 (95 %) | 0.15 | 22 | 0.0 |
+| Mackey-Glass, noise 0.1 std | phase_climatology | baseline | -0.14 0.34 0.60 0.71 0.29 0.28 0.52 0.60 0.60 | 0.49 0.47 0.45 0.45 0.44 0.45 0.45 0.32 0.37 | 0.79 (80 %), 0.95 (95 %) | 0.12 | 18 | 0.0 |
+| Mackey-Glass, noise 0.1 std | tcn | data | 0.73 0.85 0.89 0.90 0.80 0.75 0.72 0.63 0.60 | 0.88 0.88 0.85 0.82 0.85 0.81 0.68 0.41 0.38 | 0.79 (80 %), 0.92 (95 %) | 0.05 | 29065 | 44.3 |
+| Mackey-Glass, noise 0.1 std | gbm_physics_features | data+physics | 0.71 0.83 0.89 0.92 0.73 0.61 0.60 0.63 0.59 | 0.87 0.86 0.85 0.85 0.79 0.71 0.55 0.42 0.36 | 0.81 (80 %), 0.95 (95 %) | 0.08 | 35100 | 4.0 |
+| Mackey-Glass, noise 0.1 std | dde_fitted | physical | 0.71 0.84 0.91 0.92 0.76 0.66 0.57 0.54 0.33 | 0.87 0.87 0.87 0.85 0.82 0.76 0.54 0.27 -0.07 | 0.82 (80 %), 0.94 (95 %) | 0.14 | 2 | 1.1 |
+| Mackey-Glass, noise 0.1 std | dde_fitted+gbm | hybrid | 0.72 0.85 0.91 0.93 0.78 0.71 0.65 0.64 0.58 | 0.87 0.88 0.88 0.86 0.83 0.79 0.62 0.43 0.35 | 0.81 (80 %), 0.94 (95 %) | 0.10 | 35102 | 9.9 |
 | Mackey-Glass, noise 0.3 std | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.41 0.13 -0.41 -0.89 0.17 0.19 -0.15 -0.65 -0.64 | 0.79 (80 %), 0.97 (95 %) | 0.07 | 0 | 0.0 |
 | Mackey-Glass, noise 0.3 std | climatology | baseline | -0.69 -0.16 0.29 0.47 -0.18 -0.21 0.14 0.39 0.39 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.80 (80 %), 0.96 (95 %) | 0.26 | 2 | 0.0 |
-| Mackey-Glass, noise 0.3 std | ar | baseline | 0.25 0.42 0.59 0.66 0.15 0.20 0.31 0.42 0.39 | 0.57 0.50 0.43 0.37 0.29 0.35 0.20 0.06 0.01 | 0.81 (80 %), 0.96 (95 %) | 0.12 | 21 | 0.7 |
-| Mackey-Glass, noise 0.3 std | transformer | data | 0.42 0.61 0.76 0.81 0.55 0.44 0.50 0.56 0.55 | 0.67 0.67 0.67 0.65 0.63 0.54 0.43 0.29 0.30 | 0.78 (80 %), 0.93 (95 %) | 0.08 | 18537 | 35.7 |
-| Mackey-Glass, noise 0.3 std | gbm_physics_features | data+physics | 0.40 0.59 0.74 0.79 0.44 0.36 0.49 0.58 0.56 | 0.65 0.65 0.64 0.62 0.55 0.48 0.42 0.33 0.31 | 0.80 (80 %), 0.95 (95 %) | 0.07 | 35100 | 3.8 |
-| Mackey-Glass, noise 0.3 std | dde_fitted | physical | 0.35 0.57 0.73 0.77 0.38 0.21 0.23 0.41 0.31 | 0.62 0.64 0.63 0.58 0.50 0.38 0.14 0.05 -0.09 | 0.83 (80 %), 0.95 (95 %) | 0.10 | 2 | 0.9 |
-| Mackey-Glass, noise 0.3 std | dde_fitted+gbm | hybrid | 0.42 0.59 0.75 0.80 0.48 0.38 0.48 0.58 0.55 | 0.66 0.66 0.65 0.63 0.58 0.50 0.41 0.33 0.29 | 0.81 (80 %), 0.95 (95 %) | 0.06 | 35102 | 9.3 |
+| Mackey-Glass, noise 0.3 std | ar | baseline | 0.25 0.42 0.59 0.66 0.15 0.20 0.31 0.42 0.39 | 0.57 0.50 0.43 0.37 0.29 0.35 0.20 0.06 0.01 | 0.81 (80 %), 0.96 (95 %) | 0.12 | 21 | 0.4 |
+| Mackey-Glass, noise 0.3 std | phase_climatology | baseline | 0.03 0.33 0.57 0.68 0.29 0.28 0.48 0.58 0.58 | 0.43 0.42 0.41 0.41 0.40 0.41 0.41 0.30 0.33 | 0.81 (80 %), 0.96 (95 %) | 0.06 | 18 | 0.0 |
+| Mackey-Glass, noise 0.3 std | transformer | data | 0.42 0.61 0.76 0.81 0.55 0.44 0.50 0.56 0.55 | 0.67 0.67 0.67 0.65 0.63 0.54 0.43 0.29 0.30 | 0.78 (80 %), 0.93 (95 %) | 0.08 | 18537 | 43.7 |
+| Mackey-Glass, noise 0.3 std | gbm_physics_features | data+physics | 0.40 0.59 0.74 0.79 0.44 0.36 0.49 0.58 0.56 | 0.65 0.65 0.64 0.62 0.55 0.48 0.42 0.33 0.31 | 0.80 (80 %), 0.95 (95 %) | 0.07 | 35100 | 4.0 |
+| Mackey-Glass, noise 0.3 std | dde_fitted | physical | 0.35 0.57 0.73 0.77 0.38 0.21 0.23 0.41 0.31 | 0.62 0.64 0.63 0.58 0.50 0.38 0.14 0.05 -0.09 | 0.83 (80 %), 0.95 (95 %) | 0.10 | 2 | 1.0 |
+| Mackey-Glass, noise 0.3 std | dde_fitted+gbm | hybrid | 0.42 0.59 0.75 0.80 0.48 0.38 0.48 0.58 0.55 | 0.66 0.66 0.65 0.63 0.58 0.50 0.41 0.33 0.29 | 0.81 (80 %), 0.95 (95 %) | 0.06 | 35102 | 9.5 |
 | Lorenz-96 (K=40), noise 0.1 std | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.72 0.49 0.11 -0.31 -0.48 -0.32 -0.43 | 0.82 (80 %), 0.95 (95 %) | 0.14 | 0 | 0.0 |
 | Lorenz-96 (K=40), noise 0.1 std | climatology | baseline | -2.44 -0.89 -0.08 0.25 0.33 0.25 0.31 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.80 (80 %), 0.95 (95 %) | 0.14 | 2 | 0.0 |
-| Lorenz-96 (K=40), noise 0.1 std | ar | baseline | 0.25 0.30 0.25 0.27 0.33 0.25 0.31 | 0.79 0.64 0.32 0.03 0.01 0.00 -0.00 | 0.80 (80 %), 0.95 (95 %) | 0.06 | 11 | 0.1 |
-| Lorenz-96 (K=40), noise 0.1 std | gbm | data | 0.40 0.52 0.49 0.43 0.35 0.24 0.26 | 0.83 0.76 0.55 0.26 0.05 -0.00 -0.06 | 0.79 (80 %), 0.93 (95 %) | 0.05 | 20300 | 14.7 |
-| Lorenz-96 (K=40), noise 0.1 std | gbm_physics_features | data+physics | 0.52 0.67 0.62 0.47 0.37 0.24 0.26 | 0.86 0.83 0.66 0.31 0.08 -0.00 -0.07 | 0.80 (80 %), 0.94 (95 %) | 0.06 | 60900 | 12.9 |
+| Lorenz-96 (K=40), noise 0.1 std | ar | baseline | 0.25 0.30 0.25 0.27 0.33 0.25 0.31 | 0.79 0.64 0.32 0.03 0.01 0.00 -0.00 | 0.80 (80 %), 0.95 (95 %) | 0.06 | 11 | 1.0 |
+| Lorenz-96 (K=40), noise 0.1 std | phase_climatology | baseline | -2.19 -0.84 -0.12 0.18 0.25 0.14 0.23 | 0.09 0.04 -0.02 -0.08 -0.10 -0.12 -0.12 | 0.82 (80 %), 0.95 (95 %) | 0.10 | 33 | 0.0 |
+| Lorenz-96 (K=40), noise 0.1 std | gbm | data | 0.40 0.52 0.49 0.43 0.35 0.24 0.26 | 0.83 0.76 0.55 0.26 0.05 -0.00 -0.06 | 0.79 (80 %), 0.93 (95 %) | 0.05 | 20300 | 16.2 |
+| Lorenz-96 (K=40), noise 0.1 std | gbm_physics_features | data+physics | 0.52 0.67 0.62 0.47 0.37 0.24 0.26 | 0.86 0.83 0.66 0.31 0.08 -0.00 -0.07 | 0.80 (80 %), 0.94 (95 %) | 0.06 | 60900 | 14.2 |
 | Lorenz-96 (K=40), noise 0.1 std | enkf | physical | 0.62 0.79 0.87 0.87 0.73 0.44 0.35 | 0.87 0.88 0.87 0.84 0.72 0.36 0.08 | 0.53 (80 %), 0.69 (95 %) | 0.46 | 81 | 0.6 |
-| Lorenz-96 (K=40), noise 0.1 std | ode_fitted+gbm | hybrid | 0.53 0.74 0.81 0.80 0.63 0.31 0.27 | 0.86 0.86 0.83 0.75 0.51 0.12 -0.06 | 0.82 (80 %), 0.95 (95 %) | 0.10 | 9101 | 9.3 |
+| Lorenz-96 (K=40), noise 0.1 std | ode_fitted+gbm | hybrid | 0.53 0.74 0.81 0.80 0.63 0.31 0.27 | 0.86 0.86 0.83 0.75 0.51 0.12 -0.06 | 0.82 (80 %), 0.95 (95 %) | 0.10 | 9101 | 7.3 |
 | Ornstein-Uhlenbeck | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 | 0.56 0.44 0.24 0.03 -0.21 -0.45 | 0.76 (80 %), 0.92 (95 %) | 0.10 | 0 | 0.0 |
 | Ornstein-Uhlenbeck | climatology | baseline | -1.25 -0.78 -0.31 -0.03 0.17 0.29 | 0.00 0.00 0.00 0.00 0.00 0.00 | 0.78 (80 %), 0.93 (95 %) | 0.13 | 2 | 0.0 |
-| Ornstein-Uhlenbeck | ar | baseline | 0.03 0.04 0.07 0.12 0.20 0.29 | 0.57 0.46 0.29 0.14 0.03 -0.01 | 0.77 (80 %), 0.93 (95 %) | 0.11 | 4 | 0.1 |
-| Ornstein-Uhlenbeck | lstm | data | 0.02 0.04 0.07 0.12 0.20 0.29 | 0.57 0.46 0.29 0.14 0.02 -0.02 | 0.76 (80 %), 0.93 (95 %) | 0.11 | 17670 | 3.3 |
-| Ornstein-Uhlenbeck | gbm_physics_features | data+physics | 0.03 0.04 0.07 0.12 0.19 0.28 | 0.57 0.46 0.29 0.15 0.02 -0.03 | 0.77 (80 %), 0.93 (95 %) | 0.09 | 7800 | 1.1 |
+| Ornstein-Uhlenbeck | ar | baseline | 0.03 0.04 0.07 0.12 0.20 0.29 | 0.57 0.46 0.29 0.14 0.03 -0.01 | 0.77 (80 %), 0.93 (95 %) | 0.11 | 4 | 0.2 |
+| Ornstein-Uhlenbeck | phase_climatology | baseline | -1.22 -0.76 -0.32 -0.06 0.13 0.25 | 0.01 0.00 -0.01 -0.03 -0.06 -0.08 | 0.74 (80 %), 0.94 (95 %) | 0.16 | 820 | 0.6 |
+| Ornstein-Uhlenbeck | lstm | data | 0.02 0.04 0.07 0.12 0.20 0.29 | 0.57 0.46 0.29 0.14 0.02 -0.02 | 0.76 (80 %), 0.93 (95 %) | 0.11 | 17670 | 3.6 |
+| Ornstein-Uhlenbeck | gbm_physics_features | data+physics | 0.03 0.04 0.07 0.12 0.19 0.28 | 0.57 0.46 0.29 0.15 0.02 -0.03 | 0.77 (80 %), 0.93 (95 %) | 0.09 | 7800 | 1.2 |
 | Ornstein-Uhlenbeck | ou_kalman | physical | 0.03 0.04 0.07 0.12 0.20 0.29 | 0.57 0.46 0.29 0.14 0.03 -0.00 | 0.80 (80 %), 0.95 (95 %) | 0.09 | 4 | 0.6 |
-| Ornstein-Uhlenbeck | ou_kalman+gbm | hybrid | 0.03 0.04 0.08 0.12 0.19 0.28 | 0.57 0.46 0.30 0.14 0.02 -0.03 | 0.78 (80 %), 0.93 (95 %) | 0.09 | 7804 | 1.1 |
+| Ornstein-Uhlenbeck | ou_kalman+gbm | hybrid | 0.03 0.04 0.08 0.12 0.19 0.28 | 0.57 0.46 0.30 0.14 0.02 -0.03 | 0.78 (80 %), 0.93 (95 %) | 0.09 | 7804 | 1.2 |
 | Noise-driven damped oscillator | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.70 0.48 0.03 -0.65 -0.76 -0.47 -0.60 | 0.84 (80 %), 0.97 (95 %) | 0.10 | 0 | 0.0 |
 | Noise-driven damped oscillator | climatology | baseline | -2.35 -0.92 -0.03 0.39 0.43 0.32 0.37 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.81 (80 %), 0.96 (95 %) | 0.08 | 2 | 0.0 |
-| Noise-driven damped oscillator | ar | baseline | 0.42 0.56 0.62 0.66 0.63 0.41 0.37 | 0.83 0.77 0.63 0.45 0.35 0.13 0.01 | 0.82 (80 %), 0.96 (95 %) | 0.06 | 12 | 0.2 |
+| Noise-driven damped oscillator | ar | baseline | 0.42 0.56 0.62 0.66 0.63 0.41 0.37 | 0.83 0.77 0.63 0.45 0.35 0.13 0.01 | 0.82 (80 %), 0.96 (95 %) | 0.06 | 12 | 0.1 |
+| Noise-driven damped oscillator | phase_climatology | baseline | -1.71 -0.60 0.09 0.45 0.50 0.31 0.34 | 0.19 0.16 0.12 0.09 0.12 -0.02 -0.04 | 0.85 (80 %), 0.98 (95 %) | 0.12 | 27 | 0.0 |
 | Noise-driven damped oscillator | mlp | data | 0.41 0.55 0.61 0.65 0.62 0.39 0.35 | 0.82 0.77 0.62 0.43 0.34 0.10 -0.04 | 0.80 (80 %), 0.96 (95 %) | 0.08 | 19591 | 1.5 |
-| Noise-driven damped oscillator | gbm_physics_features | data+physics | 0.40 0.54 0.61 0.66 0.63 0.40 0.37 | 0.82 0.76 0.62 0.45 0.34 0.13 0.00 | 0.83 (80 %), 0.97 (95 %) | 0.07 | 9100 | 2.4 |
-| Noise-driven damped oscillator | oscillator_kalman | physical | 0.42 0.56 0.62 0.66 0.63 0.41 0.37 | 0.83 0.77 0.63 0.45 0.35 0.13 0.01 | 0.80 (80 %), 0.95 (95 %) | 0.05 | 5 | 1.8 |
-| Noise-driven damped oscillator | oscillator_kalman+gbm | hybrid | 0.42 0.56 0.62 0.67 0.63 0.41 0.36 | 0.83 0.77 0.63 0.45 0.35 0.13 -0.01 | 0.82 (80 %), 0.96 (95 %) | 0.05 | 9105 | 2.4 |
+| Noise-driven damped oscillator | gbm_physics_features | data+physics | 0.40 0.54 0.61 0.66 0.63 0.40 0.37 | 0.82 0.76 0.62 0.45 0.34 0.13 0.00 | 0.83 (80 %), 0.97 (95 %) | 0.07 | 9100 | 2.8 |
+| Noise-driven damped oscillator | oscillator_kalman | physical | 0.42 0.56 0.62 0.66 0.63 0.41 0.37 | 0.83 0.77 0.63 0.45 0.35 0.13 0.01 | 0.80 (80 %), 0.95 (95 %) | 0.05 | 5 | 2.4 |
+| Noise-driven damped oscillator | oscillator_kalman+gbm | hybrid | 0.42 0.56 0.62 0.67 0.63 0.41 0.36 | 0.83 0.77 0.63 0.45 0.35 0.13 -0.01 | 0.82 (80 %), 0.96 (95 %) | 0.05 | 9105 | 2.5 |
 | Double-well (regime switching) | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.73 0.67 0.55 0.43 0.28 0.06 -0.18 -0.47 | 0.80 (80 %), 0.95 (95 %) | 0.06 | 0 | 0.0 |
 | Double-well (regime switching) | climatology | baseline | -2.57 -1.82 -1.09 -0.65 -0.28 0.00 0.18 0.34 | 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 | 0.73 (80 %), 1.00 (95 %) | 0.45 | 2 | 0.0 |
-| Double-well (regime switching) | ar | baseline | 0.03 0.02 0.04 0.05 0.08 0.14 0.21 0.33 | 0.74 0.67 0.56 0.46 0.33 0.16 0.04 0.00 | 0.80 (80 %), 0.96 (95 %) | 0.13 | 6 | 0.1 |
-| Double-well (regime switching) | transformer | data | 0.04 0.03 0.05 0.07 0.10 0.14 0.21 0.31 | 0.74 0.68 0.57 0.47 0.34 0.17 0.05 -0.03 | 0.78 (80 %), 0.95 (95 %) | 0.17 | 2936 | 8.3 |
-| Double-well (regime switching) | gbm_physics_features | data+physics | 0.04 0.04 0.06 0.08 0.09 0.13 0.19 0.32 | 0.74 0.68 0.58 0.48 0.34 0.17 0.02 -0.01 | 0.81 (80 %), 0.95 (95 %) | 0.11 | 10400 | 0.6 |
+| Double-well (regime switching) | ar | baseline | 0.03 0.02 0.04 0.05 0.08 0.14 0.21 0.33 | 0.74 0.67 0.56 0.46 0.33 0.16 0.04 0.00 | 0.80 (80 %), 0.96 (95 %) | 0.13 | 6 | 0.2 |
+| Double-well (regime switching) | phase_climatology | baseline | -2.60 -1.89 -1.17 -0.73 -0.36 -0.08 0.12 0.26 | 0.01 -0.01 -0.02 -0.03 -0.04 -0.06 -0.07 -0.10 | 0.79 (80 %), 0.99 (95 %) | 0.44 | 490 | 0.8 |
+| Double-well (regime switching) | transformer | data | 0.04 0.03 0.05 0.07 0.10 0.14 0.21 0.31 | 0.74 0.68 0.57 0.47 0.34 0.17 0.05 -0.03 | 0.78 (80 %), 0.95 (95 %) | 0.17 | 2936 | 8.5 |
+| Double-well (regime switching) | gbm_physics_features | data+physics | 0.04 0.04 0.06 0.08 0.09 0.13 0.19 0.32 | 0.74 0.68 0.58 0.48 0.34 0.17 0.02 -0.01 | 0.81 (80 %), 0.95 (95 %) | 0.11 | 10400 | 0.5 |
 | Double-well (regime switching) | sde_poly3 | physical | 0.04 0.05 0.06 0.07 0.09 0.13 0.21 0.34 | 0.75 0.69 0.59 0.50 0.37 0.19 0.06 0.03 | 0.77 (80 %), 0.94 (95 %) | 0.07 | 5 | 0.0 |
-| Double-well (regime switching) | sde_poly1_nn_closure | hybrid | 0.04 0.04 0.06 0.08 0.09 0.13 0.20 0.33 | 0.75 0.68 0.59 0.50 0.37 0.19 0.05 0.01 | 0.77 (80 %), 0.94 (95 %) | 0.08 | 324 | 3.3 |
+| Double-well (regime switching) | sde_poly1_nn_closure | hybrid | 0.04 0.04 0.06 0.08 0.09 0.13 0.20 0.33 | 0.75 0.68 0.59 0.50 0.37 0.19 0.05 0.01 | 0.77 (80 %), 0.94 (95 %) | 0.08 | 324 | 2.9 |
 | White noise | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 | -0.50 -0.38 -0.46 -0.40 -0.36 | 0.79 (80 %), 0.95 (95 %) | 0.04 | 0 | 0.0 |
 | White noise | climatology | baseline | 0.34 0.28 0.31 0.28 0.26 | 0.00 0.00 0.00 0.00 0.00 | 0.80 (80 %), 0.94 (95 %) | 0.07 | 2 | 0.0 |
-| White noise | ar | baseline | 0.34 0.28 0.31 0.28 0.26 | 0.00 0.00 0.00 0.00 0.00 | 0.80 (80 %), 0.94 (95 %) | 0.07 | 2 | 0.2 |
-| White noise | lstm | data | 0.33 0.28 0.31 0.28 0.26 | -0.00 -0.00 0.00 -0.00 0.00 | 0.80 (80 %), 0.94 (95 %) | 0.08 | 4709 | 3.5 |
+| White noise | ar | baseline | 0.34 0.28 0.31 0.28 0.26 | 0.00 0.00 0.00 0.00 0.00 | 0.80 (80 %), 0.94 (95 %) | 0.07 | 2 | 0.7 |
+| White noise | phase_climatology | baseline | 0.33 0.27 0.31 0.28 0.25 | -0.01 -0.01 -0.01 -0.01 -0.02 | 0.79 (80 %), 0.94 (95 %) | 0.05 | 46 | 0.0 |
+| White noise | lstm | data | 0.33 0.28 0.31 0.28 0.26 | -0.00 -0.00 0.00 -0.00 0.00 | 0.80 (80 %), 0.94 (95 %) | 0.08 | 4709 | 3.3 |
 | Random walk | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 | 0.96 0.95 0.92 0.89 0.84 | 0.77 (80 %), 0.93 (95 %) | 0.09 | 0 | 0.0 |
 | Random walk | climatology | baseline | -25.31 -17.02 -11.81 -8.09 -5.11 | 0.00 0.00 0.00 0.00 0.00 | 0.97 (80 %), 1.00 (95 %) | 1.31 | 2 | 0.0 |
-| Random walk | ar | baseline | -0.00 -0.00 -0.00 -0.00 -0.01 | 0.96 0.95 0.92 0.89 0.84 | 0.76 (80 %), 0.93 (95 %) | 0.10 | 3 | 0.0 |
-| Random walk | transformer | data | -0.00 -0.00 -0.00 -0.00 0.00 | 0.96 0.95 0.92 0.89 0.84 | 0.76 (80 %), 0.93 (95 %) | 0.10 | 17893 | 5.0 |
+| Random walk | ar | baseline | -0.00 -0.00 -0.00 -0.00 -0.01 | 0.96 0.95 0.92 0.89 0.84 | 0.76 (80 %), 0.93 (95 %) | 0.10 | 3 | 0.1 |
+| Random walk | phase_climatology | baseline | -12.65 -8.47 -5.80 -3.95 -2.40 | 0.49 0.49 0.48 0.47 0.45 | 0.93 (80 %), 0.98 (95 %) | 0.39 | 846 | 0.6 |
+| Random walk | transformer | data | -0.00 -0.00 -0.00 -0.00 0.00 | 0.96 0.95 0.92 0.89 0.84 | 0.76 (80 %), 0.93 (95 %) | 0.10 | 17893 | 5.4 |
 | USD/EUR daily log-returns | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 | -0.36 -0.36 -0.37 -0.40 -0.38 | 0.76 (80 %), 0.90 (95 %) | 0.10 | 0 | 0.0 |
 | USD/EUR daily log-returns | climatology | baseline | 0.29 0.28 0.29 0.31 0.30 | 0.00 0.00 0.00 0.00 0.00 | 0.91 (80 %), 0.98 (95 %) | 0.42 | 2 | 0.0 |
-| USD/EUR daily log-returns | ar | baseline | 0.29 0.28 0.29 0.31 0.30 | 0.04 0.04 0.04 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.13 | 2 | 0.3 |
-| USD/EUR daily log-returns | mlp | data | 0.29 0.28 0.29 0.30 0.29 | 0.04 0.04 0.05 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.12 | 18309 | 1.8 |
+| USD/EUR daily log-returns | ar | baseline | 0.29 0.28 0.29 0.31 0.30 | 0.04 0.04 0.04 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.13 | 2 | 0.1 |
+| USD/EUR daily log-returns | phase_climatology | baseline | 0.26 0.25 0.27 0.27 0.27 | 0.01 -0.00 0.01 -0.02 -0.01 | 0.77 (80 %), 0.90 (95 %) | 0.11 | 5 | 0.0 |
+| USD/EUR daily log-returns | mlp | data | 0.29 0.28 0.29 0.30 0.29 | 0.04 0.04 0.05 0.04 0.04 | 0.77 (80 %), 0.90 (95 %) | 0.12 | 18309 | 2.0 |
 | Sunspots (yearly) | persistence | baseline | 0.00 0.00 0.00 0.00 0.00 0.00 | 0.44 -0.05 -0.49 -0.86 -0.26 0.40 | 0.46 (80 %), 0.70 (95 %) | 0.68 | 0 | 0.0 |
 | Sunspots (yearly) | climatology | baseline | -0.79 0.01 0.27 0.40 0.16 -0.65 | 0.00 0.00 0.00 0.00 0.00 0.00 | 0.58 (80 %), 0.77 (95 %) | 0.75 | 2 | 0.0 |
 | Sunspots (yearly) | ar | baseline | 0.35 0.48 0.55 0.61 0.47 -0.07 | 0.65 0.52 0.43 0.38 0.41 0.40 | 0.64 (80 %), 0.81 (95 %) | 0.50 | 20 | 0.0 |
-| Sunspots (yearly) | mlp | data | 0.39 0.45 0.50 0.51 0.28 -0.06 | 0.67 0.48 0.35 0.20 0.09 0.38 | 0.58 (80 %), 0.72 (95 %) | 0.56 | 18438 | 0.2 |
-| Sunspots (yearly) | gbm_physics_features | data+physics | 0.48 0.48 0.50 0.54 0.28 0.02 | 0.72 0.53 0.35 0.22 0.11 0.44 | 0.61 (80 %), 0.77 (95 %) | 0.37 | 7386 | 0.9 |
-| Sunspots (yearly) | oscillator_kalman | physical | 0.31 0.36 0.38 0.44 0.24 -0.48 | 0.62 0.41 0.18 0.07 0.12 0.12 | 0.62 (80 %), 0.81 (95 %) | 0.52 | 5 | 0.5 |
-| Sunspots (yearly) | oscillator_kalman+gbm | hybrid | 0.47 0.52 0.54 0.57 0.35 -0.08 | 0.72 0.58 0.44 0.33 0.22 0.37 | 0.68 (80 %), 0.81 (95 %) | 0.43 | 7529 | 2.2 |
+| Sunspots (yearly) | phase_climatology | baseline | -0.17 0.30 0.46 0.56 0.40 -0.20 | 0.27 0.23 0.22 0.22 0.24 0.24 | 0.40 (80 %), 0.63 (95 %) | 0.81 | 12 | 0.0 |
+| Sunspots (yearly) | mlp | data | 0.39 0.45 0.50 0.51 0.28 -0.06 | 0.67 0.48 0.35 0.20 0.09 0.38 | 0.58 (80 %), 0.72 (95 %) | 0.56 | 18438 | 0.6 |
+| Sunspots (yearly) | gbm_physics_features | data+physics | 0.48 0.48 0.50 0.54 0.28 0.02 | 0.72 0.53 0.35 0.22 0.11 0.44 | 0.61 (80 %), 0.77 (95 %) | 0.37 | 7386 | 0.8 |
+| Sunspots (yearly) | oscillator_kalman | physical | 0.31 0.36 0.38 0.44 0.24 -0.48 | 0.62 0.41 0.18 0.07 0.12 0.12 | 0.62 (80 %), 0.81 (95 %) | 0.52 | 5 | 1.1 |
+| Sunspots (yearly) | oscillator_kalman+gbm | hybrid | 0.47 0.52 0.54 0.57 0.35 -0.08 | 0.72 0.58 0.44 0.33 0.22 0.37 | 0.68 (80 %), 0.81 (95 %) | 0.43 | 7529 | 1.2 |
 
 ![PIT of the family representatives](../../examples/near_random_forecasting/figures/pit.png)
 
-* **Validation-calibrated Gaussians are well calibrated on the synthetic series.** Their 95 % intervals cover 0.90
-  to 0.97 of the test targets on every synthetic series.
+* **Validation-calibrated Gaussians are well calibrated on the synthetic series.** For the family
+  representatives, their 95 % intervals cover 0.90 to 0.97 of the test targets on every synthetic series. The
+  baselines range from 0.92 to 1.00: climatology over-covers on the random walk and the double well (1.00), and so
+  does the phase-aligned cycle on the oscillator and the double well (0.98, 0.99).
 * **The EnKF ensembles are under-dispersed.** Their 95 % intervals cover 0.69 to 0.71 averaged over horizons, and
   0.47 at h = 1 on Lorenz-63 noise 0.1. Their PIT deviation is 0.39 to 0.46. The other synthetic representatives
   are at 0.05 to 0.23, except the hybrid on Lorenz-63 noise 0.01 (0.43).
@@ -429,7 +469,7 @@ horizons of that series.
     an assumption; it was not tested.
   * The EnKF still has the best CRPS at every horizon on Lorenz-63 (noise 0.01) and Lorenz-96, and from h = 4 on
     at noise 0.1.
-* **Sunspots are not calibrated by anything** (95 % coverage 0.70 to 0.81, PIT deviation 0.37 to 0.75). A
+* **Sunspots are not calibrated by anything** (95 % coverage 0.63 to 0.81, PIT deviation 0.37 to 0.81). A
   validation block from the past cannot calibrate a test period whose cycles differ in amplitude. The fan chart
   shows a test-period peak near 190; that the amplitude change is the cause is a reading of the figure, not a
   test.
@@ -439,10 +479,12 @@ horizons of that series.
 The full zoo (every model, its parameter count, tuning configurations, tuning and final-fit wall time, mean skill,
 and the horizons where it beats the best baseline after Holm) is in
 [`results/tables.md`](../../examples/near_random_forecasting/results/tables.md) under "zoo". The whole study took
-12 417 s of wall time summed over the 14 series (worker time on 4 CPU cores, no GPU), plus the three overfitting
+13 190 s of wall time summed over the 14 series (worker time on 4 CPU cores, no GPU), plus the three overfitting
 studies.
 
-A few fan charts on the test period (one origin per family):
+A few forecasts on the test period (one origin per family). The forecasts exist only at the evaluated horizons
+(the models are direct), so they are drawn as a median marker with 50 % (thick) and 90 % (thin) intervals at those
+horizons, with no line joining them.
 
 ![Fan charts](../../examples/near_random_forecasting/figures/fan_charts.png)
 
@@ -457,6 +499,11 @@ A few fan charts on the test period (one origin per family):
 * **Compare against the best baseline chosen on validation, not against persistence.** Persistence is beaten by
   the climatological mean on every mean-reverting series. Skill against persistence alone would have credited the
   noise controls with +0.3.
+* **Near-periodic series need a periodic baseline.** On Mackey–Glass, the phase-aligned mean cycle keeps 0.58 to
+  0.61 skill against persistence at h = 256 samples (3.8 LT), more than AR's 0.39. With it in the baseline set,
+  every family's skill horizon dropped (see section 2). Without it, the first version of this study credited the
+  learned models with skill to 3.5 LT at every noise level. On the sunspots, seasonal naive (period 11) matches
+  AR at 5 years (0.61) but is not better on validation, and on the oscillator AR stays the best baseline.
 * **Chaotic system, known equations, fully observed:** fit the parameters on the training data and assimilate with
   an EnKF. It had the longest or joint-longest skill horizon on Lorenz-63 and the longest on Lorenz-96. Calibrate its spread separately; here it
   was under-dispersed.
