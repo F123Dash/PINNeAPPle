@@ -111,11 +111,12 @@ def frame_indices(hist: FlightHistory, n_frames: int) -> np.ndarray:
 def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind=None, runway: bool = True,
                  runway_length: float | None = None, gust_grid: int = 7, gust_scale: float | None = None,
                  load: bool = True, title: str | None = None, follow: bool = True,
-                 parts=None) -> Any:
+                 parts=None, arrows: bool = True, wisps: bool = False, trail_nz: bool = True) -> Any:
     """Animated scene of ``hist``. ``wind``: the field the aircraft flew through, sampled on a heading-aligned
     horizontal grid around the aircraft (``gust_grid`` x ``gust_grid`` points over 2 spans, at the CG height and one
     semi-span above and below) and drawn as arrows coloured by the vertical gust; ``load``: the lattice dCp per frame
-    (needs ``hist.gamma``, i.e. ``record_gamma=True``)."""
+    (needs ``hist.gamma``, i.e. ``record_gamma=True``); ``arrows`` / ``wisps``: the gust as moving arrows and / or
+    as static wisps along the flown corridor (:func:`gust_wisps`); ``trail_nz``: the trail coloured by n_z."""
     from pinneapple_tools.visualization.studio.animation import Animation, quat_from_matrix
     from pinneapple_tools.visualization.studio.scene import Scene
     ks = frame_indices(hist, n_frames)
@@ -127,7 +128,10 @@ def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind
     surfs = aircraft_surfaces(ac, parts=parts)
     anim = Animation(t)
     anim.add_track("aircraft", pos, quats)
-    anim.add_trail("trajectory", pos)
+    if trail_nz:
+        anim.add_trail("trajectory", pos, values=hist.nz[ks], label="Load factor n_z [g]", cmap="jet")
+    else:
+        anim.add_trail("trajectory", pos)
     if load and hist.gamma is not None:
         lat = lattice_surface(ac)
         surfs.append(lat)
@@ -137,7 +141,10 @@ def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind
         lo, hi = np.percentile(dcp, [1, 99])
         anim.add_surface_field("vlm_load", np.repeat(dcp, 4, axis=1), label="Lifting-surface load dCp (vortex lattice)",
                                color_range=(float(min(lo, 0.0)), float(hi)))
-    if wind is not None:
+    lines = []
+    if wind is not None and wisps:
+        lines.append(gust_wisps(ac, hist, wind))
+    if wind is not None and arrows:
         b = ac.af.span
         g = np.linspace(-b, b, gust_grid)
         GX, GY = np.meshgrid(g, g, indexing="ij")
@@ -169,9 +176,40 @@ def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind
         L = runway_length or max(1.3 * float(hist.x[:, 0].max()) + 600.0, 1500.0)
         width = 45.0 if ac.af.span > 25 else 25.0
         surfs = runway_surfaces(L, width) + surfs
-    sc = Scene(surfs, axes="z_up", title=title or f"{ac.info.get('type', ac.name)}")
+    sc = Scene(surfs, lines=lines, axes="z_up", title=title or f"{ac.info.get('type', ac.name)}")
     sc.animation = anim
     return sc
+
+
+def gust_wisps(ac: Aircraft, hist: FlightHistory, wind, n_lat: int = 5, n_vert: int = 3, spacing: float | None = None,
+               exaggeration: float = 1.5, ahead: float = 0.15):
+    """The frozen gust field as static wisps: lines parallel to the mean flight path through the corridor the
+    aircraft flew (``n_lat`` x ``n_vert`` lines over +-1 span sideways and +-0.5 span up and down, extended by
+    ``ahead`` x the flown distance), sampled every ``spacing`` (default span / 4), each point lifted by
+    ``exaggeration`` x the vertical gust [m per m/s] and coloured by it (up positive) on a diverging scale."""
+    from pinneapple_tools.visualization.studio.scene import Lines
+    b = ac.af.span
+    p0, p1 = hist.x[0, :3], hist.x[-1, :3]
+    d = p1[:2] - p0[:2]
+    L = float(np.linalg.norm(d)) or 1.0
+    e = np.r_[d / L, 0.0]
+    n = np.array([-e[1], e[0], 0.0])
+    ds = spacing or b / 4
+    s = np.arange(-ahead * L, (1 + ahead) * L, ds)
+    pts, vals = [], []
+    for a in np.linspace(-b, b, n_lat):
+        for dz in np.linspace(-b / 2, b / 2, n_vert):
+            P = p0 + np.outer(s, e) + a * n + np.array([0.0, 0.0, float(np.mean(hist.x[:, 2]) - p0[2]) + dz])
+            w_up = -wind.velocity(0.0, P)[:, 2]
+            Q = P @ S_FLIP.T
+            Q[:, 2] += exaggeration * w_up
+            pts.append(Q)
+            vals.append(w_up)
+    lim = float(max(np.abs(np.concatenate(vals)).max(), 1e-6))
+    lines = Lines(pts, vals, name="gust_wisps", label="Vertical gust w [m/s] (up +), frozen field")
+    for k, v in (("cmap", "coolwarm"), ("alpha", 0.55), ("radius", 0.012 * b), ("color_range", (-lim, lim))):
+        setattr(lines, k, v)
+    return lines
 
 
 def scene_summary(sc) -> dict[str, Any]:
