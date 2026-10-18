@@ -38,6 +38,14 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
 
 ### Added
+- Visual pack and a YouTube case for the near-random forecasting study: in-process Cycles renderer
+  (`pinneapple_blender.cycles`: surfaces, tubes, point clouds, translucent planes, ribbons, text, camera fitting,
+  frames to MP4; needs `pip install bpy`), render data and scenes in `time_series.forecast_lab.renders` (predictability
+  landscape, forecast cones refitted at every horizon, attractor vs surrogates, ensemble divergence), 2-D figures
+  `plots.plot_memorise_vs_learn` and `plots.plot_surprise_calendar` (with `pipeline.memorise_vs_learn` and
+  `pipeline.surprise_record`), steppers in `time_series.synthetic`, and `datasets.public.load_youtube_trending_us`
+  (Kaggle "Trending YouTube Video Statistics", CC0, pinned GitHub copy with SHA-256). Tests
+  `tests/test_near_random_visuals.py`.
 - Forecasting near-random series without overfitting (`pinneapple_systems.time_series.forecast_lab`): one
   interface for baselines (persistence, climatology, AR, ARIMA, exponential smoothing), data-driven direct
   forecasters (gradient boosting, MLP, LSTM, TCN, transformer), data + physics (physics features, physics-residual

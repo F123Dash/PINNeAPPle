@@ -10,7 +10,7 @@ from collections.abc import Sequence
 import numpy as np
 
 __all__ = ["FAMILY_COLORS", "plot_skill_vs_horizon", "plot_overfitting", "plot_surrogate_tests", "plot_pit",
-           "plot_fan_charts"]
+           "plot_fan_charts", "plot_memorise_vs_learn", "calendar_grid", "plot_surprise_calendar"]
 
 FAMILY_COLORS = {"data": "#2a78d6", "data+physics": "#eb6834", "physical": "#1baf7a", "hybrid": "#6250d6",
                  "baseline": "#52514e"}
@@ -186,5 +186,82 @@ def plot_fan_charts(panels: list[dict], path: str, *, ncols: int = 2) -> str:
         ax.axis("off")
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(path, dpi=110)
+    plt.close(fig)
+    return path
+
+
+def plot_memorise_vs_learn(records: list[dict], path: str) -> str:
+    """For each record of :func:`~.pipeline.memorise_vs_learn`: truth and the two variants' forecasts over the
+    end of the training period (left) and the start of the untouched test period (right). One shared legend;
+    each panel title carries the variants' RMSE on the whole training or test set."""
+    plt = _plt()
+    fig, axes = plt.subplots(len(records), 2, figsize=(11, 2.9 * len(records) + 0.5), squeeze=False, sharey="row",
+                             layout="constrained")
+    cols = ["#e34948", "#2a78d6"]
+    for row, r in zip(axes, records, strict=False):
+        for ax, part in zip(row, ("train", "test"), strict=True):
+            _style(ax)
+            idx = np.asarray(r[f"{part}_index"])
+            ax.plot(idx, r[f"truth_{part}"], color=_INK, lw=1.0, label="truth")
+            for c, (name, v) in zip(cols, r["variants"].items(), strict=False):
+                ax.plot(idx, v[f"pred_{part}"], color=c, lw=1.3, alpha=0.9, label=name)
+            rmse = ", ".join(f"{name.split(':')[0]} {v['rmse'][part]:.3f}" for name, v in r["variants"].items())
+            ax.set_title(f"{r['title']}: {'training period (memorised?)' if part == 'train' else 'test period'}"
+                         f", h = {r['horizon']}\nRMSE on the whole {part} set: {rmse}", fontsize=8, color=_INK)
+            ax.set_xlabel("sample", fontsize=7, color=_MUTED)
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside upper center", ncol=len(labels), fontsize=8, frameon=False)
+    fig.savefig(path, dpi=110)
+    plt.close(fig)
+    return path
+
+
+def calendar_grid(dates: list[str], values) -> dict:
+    """Arrange daily ``values`` on a week (column) x weekday (row) grid; days without a value are NaN.
+    Returns the grid (7, n_weeks), the Monday of each week and the day range."""
+    import datetime as dt
+    d = [dt.date.fromisoformat(x) for x in dates]
+    start = d[0] - dt.timedelta(days=d[0].weekday())
+    n_weeks = (d[-1] - start).days // 7 + 1
+    grid = np.full((7, n_weeks), np.nan)
+    for day, v in zip(d, values, strict=True):
+        k = (day - start).days
+        grid[k % 7, k // 7] = v
+    return {"grid": grid, "week_starts": [str(start + dt.timedelta(weeks=w)) for w in range(n_weeks)],
+            "first": str(d[0]), "last": str(d[-1])}
+
+
+def plot_surprise_calendar(records: list[dict], path: str, *, vmax: float = 1.0) -> str:
+    """Calendar heatmaps, one per record (``title``, ``dates``, ``abs_error_model``, ``abs_error_baseline``,
+    ``model``, ``baseline``, ``horizon``): each day coloured by log2(|error of the model| / |error of the best
+    baseline|) -- blue where the model was closer, red where the baseline was, grey midpoint at equal error, white
+    where there is no forecast for that day."""
+    plt = _plt()
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap = LinearSegmentedColormap.from_list("surprise", ["#2a78d6", "#e4e3df", "#e34948"])
+    cmap.set_bad("white")
+    fig, axes = plt.subplots(len(records), 1, figsize=(11, 2.4 * len(records) + 0.4), squeeze=False,
+                             layout="constrained")
+    im = None
+    for ax, r in zip(axes[:, 0], records, strict=False):
+        ratio = np.log2((np.asarray(r["abs_error_model"]) + 1e-12) / (np.asarray(r["abs_error_baseline"]) + 1e-12))
+        cal = calendar_grid(r["dates"], np.clip(ratio, -4 * vmax, 4 * vmax))
+        im = ax.imshow(np.ma.masked_invalid(cal["grid"]), aspect="auto", cmap=cmap, vmin=-vmax, vmax=vmax,
+                       interpolation="nearest")
+        ax.set_yticks(range(7))
+        ax.set_yticklabels(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], fontsize=6)
+        step = max(1, len(cal["week_starts"]) // 12)
+        ax.set_xticks(range(0, len(cal["week_starts"]), step))
+        ax.set_xticklabels(cal["week_starts"][::step], fontsize=6, rotation=30, ha="right")
+        win = float(np.mean(ratio < 0))
+        ax.set_title(f"{r['title']}\n{r['model']} vs {r['baseline']} at h = {r['horizon']} "
+                     f"({cal['first']} to {cal['last']}; model closer on {win:.0%} of {len(ratio)} days)",
+                     fontsize=8, color=_INK)
+        for s in ax.spines.values():
+            s.set_visible(False)
+    cb = fig.colorbar(im, ax=axes[:, 0].tolist(), shrink=0.6, pad=0.01)
+    cb.set_label("log2(|model error| / |baseline error|)", fontsize=7)
+    cb.ax.tick_params(labelsize=6)
+    fig.savefig(path, dpi=110, bbox_inches="tight")
     plt.close(fig)
     return path
