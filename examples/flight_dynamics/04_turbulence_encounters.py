@@ -19,11 +19,6 @@ import numpy as np
 import pinneapple as pp
 from pinneapple_simulation.flight import catalog
 from pinneapple_simulation.flight.encounter import pratt_check, turbulence_encounter
-from pinneapple_simulation.flight.figures import (
-    encounter_bars_figure,
-    encounter_traces_figure,
-    gust_sensitivity_figure,
-)
 from pinneapple_simulation.flight.turbulence import turbulence_spec
 from pinneapple_simulation.flight.verification import ENCOUNTER_SPEED
 from pinneapple_simulation.flight.visuals import flight_scene
@@ -66,7 +61,24 @@ def job(name, kind, ctl, seed, severity="severe", field="3d"):
     return kind, name, m
 
 
-if __name__ == "__main__":
+def save_moderate(name):
+    """A moderate-turbulence run with the autopilot for the visuals, for an aircraft whose severe run departs."""
+    ac = catalog.build(name)
+    h, m, tr, d, wind = turbulence_encounter(ac, ENCOUNTER_SPEED[name], H, turbulence_spec(H, "moderate"),
+                                             duration=DURATION, controller="autopilot", seed=0, record_gamma=True)
+    d_out = os.path.join(OUT, f"{name}_turbulence_moderate")
+    os.makedirs(d_out, exist_ok=True)
+    pickle.dump({"hist": h, "wind": wind}, open(os.path.join(d_out, "run.pkl"), "wb"))
+    web_viewer(flight_scene(ac, h, n_frames=200, wind=wind, runway=False,
+                            title=f"{ac.info['type']}: moderate turbulence, {H:.0f} m"), os.path.join(d_out, "viewer"))
+    print(name, "moderate (visuals):", {k: m[k] for k in ("dnz_cg_rms", "phi_rms_deg", "departed")}, flush=True)
+
+
+if __name__ == "__main__" and "--moderate-visuals" in sys.argv:
+    # python 04_turbulence_encounters.py --moderate-visuals motor_glider
+    for n in sys.argv[sys.argv.index("--moderate-visuals") + 1:]:
+        save_moderate(n)
+elif __name__ == "__main__":
     from concurrent.futures import ProcessPoolExecutor
     names = catalog.names()
     jobs = [(n, "main", c, sd, "severe", "3d") for n in names for c in ("stick_fixed", "autopilot") for sd in SEEDS]
@@ -78,9 +90,7 @@ if __name__ == "__main__":
     order = {n: i for i, n in enumerate(names)}
     for kind, _, m in sorted(done, key=lambda r: order[r[1]]):
         {"main": res["runs"], "line": res["line_field"], "intensity": res["intensity"], "pratt": res["pratt"]}[kind].append(m)
-    traces = {}
     for name in catalog.names():
-        traces[name] = pickle.load(open(os.path.join(OUT, f"{name}_turbulence", "run.pkl"), "rb"))["hist"]
         screenshot(os.path.join(OUT, f"{name}_turbulence", "viewer"),
                    os.path.join(OUT, f"{name}_turbulence", "viewer.png"), frame=120)
 
@@ -102,6 +112,4 @@ if __name__ == "__main__":
             summary.append(s)
     res["summary"] = summary
     json.dump(pp.to_jsonable(res), open(os.path.join(HERE, "results", "turbulence.json"), "w"), indent=1)
-    encounter_traces_figure(traces, os.path.join(ASSETS, "turbulence_traces.png"))
-    encounter_bars_figure([s for s in summary if s["controller"] == "autopilot"], os.path.join(ASSETS, "turbulence_rms.png"))
-    gust_sensitivity_figure(summary, res["pratt"], os.path.join(ASSETS, "gust_sensitivity.png"))
+    # figures and tables: 06_tables.py (from this JSON and the saved runs)

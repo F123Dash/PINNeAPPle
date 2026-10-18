@@ -106,8 +106,11 @@ def lateral_figure(runs: Mapping[str, object], path: str, title: str = "Crosswin
     return _save(fig, path)
 
 
-def encounter_traces_figure(runs: Mapping[str, object], path: str, window: float = 20.0, t0: float = 10.0) -> str:
-    """Small multiples: vertical load-factor increment at the CG and roll angle, one row per aircraft."""
+def encounter_traces_figure(runs: Mapping[str, object], path: str, window: float = 20.0, t0: float = 10.0,
+                            notes: Mapping[str, str] | None = None) -> str:
+    """Small multiples: vertical load-factor increment at the CG and roll angle, one row per aircraft; ``notes``
+    adds a remark to an aircraft's row title (e.g. the turbulence level shown)."""
+    notes = notes or {}
     n = len(runs)
     fig, axs = _fig(n, 2, w=12.0, h=1.9)
     for i, (name, h) in enumerate(runs.items()):
@@ -115,19 +118,25 @@ def encounter_traces_figure(runs: Mapping[str, object], path: str, window: float
         sel = (h.t >= t0) & (h.t <= t0 + window)
         axs[i][0].plot(h.t[sel], h.nz[sel] - 1, color=col, lw=1.2)
         axs[i][1].plot(h.t[sel], np.degrees(h.euler[sel, 0]), color=col, lw=1.2)
-        _style(axs[i][0], f"{LABELS.get(name, name)}: Δn_z at the CG" if i == 0 else LABELS.get(name, name),
+        lab = LABELS.get(name, name) + (f" ({notes[name]})" if name in notes else "")
+        _style(axs[i][0], f"{lab}: Δn_z at the CG" if i == 0 else lab,
                "time [s]" if i == n - 1 else None, "g")
         _style(axs[i][1], "Bank angle" if i == 0 else None, "time [s]" if i == n - 1 else None, "deg")
     return _save(fig, path)
 
 
 def encounter_bars_figure(table: Sequence[Mapping], path: str) -> str:
-    """RMS vertical load-factor increment at the CG and at the cabin stations, per aircraft (grouped bars)."""
+    """RMS vertical load-factor increment at the CG and at the cabin stations, per aircraft (grouped bars). Rows with
+    ``status == "departed"`` (the run left the model's validity) get a note instead of bars."""
     fig, axs = _fig(1, 2, w=12.0, h=3.6)
     names = [r["aircraft"] for r in table]
     xs = np.arange(len(names))
     ax = axs[0][0]
     for i, r in enumerate(table):
+        if r.get("status") == "departed":
+            for a_ in axs[0]:
+                a_.text(i, 0.0, "departed:\noutside the model", ha="center", va="bottom", fontsize=7.5, color=MUTED)
+            continue
         st = [("CG", r["dnz_cg_rms"])] + [(k, v["dnz_rms"]) for k, v in r["cabin"].items()]
         w = 0.8 / len(st)
         for j, (lab, v) in enumerate(st):
@@ -139,6 +148,8 @@ def encounter_bars_figure(table: Sequence[Mapping], path: str) -> str:
     _style(ax, "RMS Δn_z: CG (solid) and cabin stations (light)", None, "g")
     ax = axs[0][1]
     for i, r in enumerate(table):
+        if r.get("status") == "departed":
+            continue
         ax.bar(i, r["phi_rms_deg"], 0.55, color=AIRCRAFT_COLORS.get(r["aircraft"], MUTED))
         ax.text(i, r["phi_rms_deg"], f"{r['phi_rms_deg']:.1f}°", ha="center", va="bottom", fontsize=8, color=INK)
     ax.set_xticks(xs, [LABELS.get(n, n) for n in names], fontsize=7.5)
@@ -152,6 +163,7 @@ def gust_sensitivity_figure(table: Sequence[Mapping], pratt: Sequence[Mapping], 
     fig, axs = _fig(1, 2, w=11.0, h=3.8)
     ax = axs[0][0]
     hi = 0.0
+    table = [r for r in table if r.get("status") != "departed"]
     for r in table:
         col = AIRCRAFT_COLORS.get(r["aircraft"], MUTED)
         mk = "o" if r.get("controller") == "stick_fixed" else "s"
@@ -163,7 +175,7 @@ def gust_sensitivity_figure(table: Sequence[Mapping], pratt: Sequence[Mapping], 
     seen = list(dict.fromkeys(r["aircraft"] for r in table))
     ax.legend([Line2D([], [], marker="o", ls="", color=AIRCRAFT_COLORS.get(n, MUTED), ms=7) for n in seen],
               [LABELS.get(n, n) for n in seen], fontsize=7.5, frameon=False, loc="upper left")
-    _style(ax, "RMS Δn_z: simulated vs quasi-steady A·σ_w  (○ stick fixed, □ autopilot)",
+    _style(ax, "RMS Δn_z vs quasi-steady A·σ_w\n○ stick fixed, □ autopilot; departed runs left out",
            "A·σ_w (fixed wing, no alleviation) [g]", "simulated [g]")
     ax = axs[0][1]
     hi = 0.0

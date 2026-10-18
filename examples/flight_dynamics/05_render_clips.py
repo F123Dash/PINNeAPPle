@@ -70,10 +70,14 @@ for name in names:
                              hud_keys=["V", "h", "nz"], fps=12, mp4=True, name=f"{name}_takeoff")
         publish(r, f"{name}_takeoff")
         print(name, "take-off", r["mp4"], flush=True)
-    run = load(f"{name}_turbulence") if "turbulence" not in skip else None
+    # the severe run of an aircraft that departs (outside the model) is replaced by its moderate run
+    sev = "severe"
+    if os.path.exists(os.path.join(OUT, f"{name}_turbulence_moderate", "run.pkl")):
+        sev = "moderate"
+    run = load(f"{name}_turbulence" + ("_moderate" if sev == "moderate" else "")) if "turbulence" not in skip else None
     if run:
         sc = flight_scene(ac, run["hist"], n_frames=a.frames, wind=run["wind"], runway=False, arrows=False,
-                          wisps=True, title=f"{ac.info['type']}: severe turbulence")
+                          wisps=True, title=f"{ac.info['type']}: {sev} turbulence")
         r = render_animation(sc, os.path.join(OUT, f"{name}_turbulence", "frames"), size=size, samples=a.samples,
                              camera="chase", haze=a.haze, dof=8.0, trails={"alpha": 0.6}, hud_keys=["V", "nz", "phi"],
                              sparkline="nz", fps=12, mp4=True, name=f"{name}_turbulence")

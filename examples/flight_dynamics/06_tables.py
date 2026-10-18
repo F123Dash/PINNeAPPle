@@ -172,6 +172,29 @@ if "same_gust" in R:
                                     ("dh", "max Δh [m]")], {"V": 0, "ws": 0, "dn": 3, "qs": 3, "pr": 3, "th": 2,
                                                              "dh": 1})
 
+if "turbulence" in R:                       # turbulence figures, departed runs marked (status from above)
+    import pickle
+
+    from pinneapple_simulation.flight.figures import (
+        encounter_bars_figure,
+        encounter_traces_figure,
+        gust_sensitivity_figure,
+    )
+    ASSETS = os.path.join(HERE, "..", "..", "docs", "assets", "flight_dynamics")
+    summ = R["turbulence"]["summary"]
+    encounter_bars_figure([s for s in summ if s["controller"] == "autopilot"], os.path.join(ASSETS, "turbulence_rms.png"))
+    gust_sensitivity_figure(summ, R["turbulence"]["pratt"], os.path.join(ASSETS, "gust_sensitivity.png"))
+    traces, notes = {}, {}
+    for n in [s["aircraft"] for s in summ if s["controller"] == "autopilot"]:
+        for case, note in ((f"{n}_turbulence", "severe"), (f"{n}_turbulence_moderate", "moderate")):
+            f = os.path.join(HERE, "_out", case, "run.pkl")
+            dep = next(s["status"] for s in summ if s["aircraft"] == n and s["controller"] == "autopilot") == "departed"
+            if os.path.exists(f) and (note == "moderate") == dep:
+                traces[n] = pickle.load(open(f, "rb"))["hist"]
+                notes[n] = f"{note}, autopilot"
+    if traces:
+        encounter_traces_figure(traces, os.path.join(ASSETS, "turbulence_traces.png"), notes=notes)
+
 with open(os.path.join(HERE, "results", "tables.md"), "w") as f:
     for k, v in T.items():
         f.write(f"## {k}\n\n{v}\n\n")

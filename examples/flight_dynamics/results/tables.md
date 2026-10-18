@@ -108,8 +108,8 @@
 | Turboprop (ATR 72 class) | autopilot | 120 | 3698 | 0.0846 | 0.576 | 0.276 | 0.012 | 0.90 | -0.84 | 4.2 | 11.9 | 3.4 | 0.034 | aft row: 0.299 / 1.06 | 10.1 | 11.8 | valid |
 | Airliner (A320 class) | stick fixed | 128 | 5879 | 0.0520 | 0.331 | 0.365 | 0.122 | 1.44 | -0.72 | 15.4 | 40.3 | 10.1 | 0.040 | aft row: 0.401 / 1.66 | 13.5 | 14.1 | beyond stall |
 | Airliner (A320 class) | autopilot | 128 | 5879 | 0.0520 | 0.321 | 0.216 | 0.021 | 0.57 | -0.69 | 4.1 | 12.1 | 2.7 | 0.026 | aft row: 0.249 / 0.80 | 14.6 | 14.1 | beyond stall |
-| Motor glider (AR 28) | stick fixed | 30 | 446 | 0.1832 | 1.289 | 4.530 | 10.059 | 51.06 | -278.67 | 64.9 | 161.1 | 32.0 | 0.454 | pilot: 4.528 / 281.84 | 123.6 | 7.5 | departed |
-| Motor glider (AR 28) | autopilot | 30 | 446 | 0.1832 | 1.109 | 0.542 | 0.189 | 3.04 | -2.37 | 32.4 | 168.1 | 17.3 | 0.064 | pilot: 0.536 / 3.83 | 157.6 | 7.5 | departed |
+| Motor glider (AR 28) | stick fixed | 40 | 446 | 0.2471 | 1.667 | 33.091 | 97.174 | 1743.49 | -15.98 | 39.0 | 98.4 | 20.4 | 1.073 | pilot: 32.332 / 1629.10 | 73.8 | 7.4 | departed |
+| Motor glider (AR 28) | autopilot | 40 | 446 | 0.2471 | 1.517 | 0.452 | 0.049 | 1.51 | -1.46 | 11.3 | 34.8 | 7.4 | 0.048 | pilot: 0.445 / 1.51 | 26.5 | 7.4 | departed |
 
 ## spanwise
 
@@ -118,7 +118,7 @@
 | Light GA (C172 class) | 23.1 | 12.2 | 0.712 | 0.412 |
 | Turboprop (ATR 72 class) | 19.3 | 2.4 | 0.628 | 0.350 |
 | Airliner (A320 class) | 15.4 | 8.3 | 0.365 | 0.250 |
-| Motor glider (AR 28) | 64.9 | 53.6 | 4.530 | 1.077 |
+| Motor glider (AR 28) | 39.0 | 34.9 | 33.091 | 0.935 |
 
 ## intensity
 
@@ -130,9 +130,9 @@
 | Light GA (C172 class) | light | 1.84 | 0.100 | 0.30 | 2.1 | 7.1 | valid |
 | Light GA (C172 class) | moderate | 2.88 | 0.147 | 0.59 | 2.8 | 8.9 | valid |
 | Light GA (C172 class) | severe (mean of seeds) | 7.05 | 0.355 | 1.20 | 8.4 | 17.1 | beyond stall |
-| Motor glider (AR 28) | light | 1.84 | 0.094 | 0.32 | 2.6 | 11.5 | beyond stall |
-| Motor glider (AR 28) | moderate | 2.88 | 0.135 | 0.42 | 4.0 | 19.2 | departed |
-| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | 0.542 | 3.04 | 32.4 | 157.6 | departed |
+| Motor glider (AR 28) | light | 1.84 | 0.118 | 0.42 | 2.4 | 4.5 | valid |
+| Motor glider (AR 28) | moderate | 2.88 | 0.185 | 0.58 | 3.5 | 8.6 | beyond stall |
+| Motor glider (AR 28) | severe (mean of seeds) | 7.05 | 0.452 | 1.51 | 11.3 | 26.5 | departed |
 | Turboprop (ATR 72 class) | light | 1.84 | 0.081 | 0.26 | 1.1 | 3.0 | valid |
 | Turboprop (ATR 72 class) | moderate | 2.88 | 0.125 | 0.40 | 1.7 | 3.9 | valid |
 | Turboprop (ATR 72 class) | severe (mean of seeds) | 7.05 | 0.276 | 0.90 | 4.2 | 10.1 | valid |
@@ -144,7 +144,7 @@
 | Light GA (C172 class) | 55 | 19.7 | 0.693 | 1.698 | 1.177 | 1.283 | 1.090 |
 | Turboprop (ATR 72 class) | 120 | 62.9 | 0.812 | 0.748 | 0.607 | 0.673 | 1.109 |
 | Airliner (A320 class) | 128 | 62.1 | 0.811 | 0.460 | 0.373 | 0.407 | 1.092 |
-| Motor glider (AR 28) | 30 | 19.3 | 0.691 | 1.621 | 1.120 | 1.331 | 1.189 |
+| Motor glider (AR 28) | 40 | 19.1 | 0.689 | 2.185 | 1.506 | 1.794 | 1.191 |
 
 ## same_gust
 
@@ -153,5 +153,5 @@
 | Light GA (C172 class) | 55 | 666 | 1.82 | 0.625 | rear seat: 0.652 | 1.463 | 1.014 | 5.40 | 4.4 |
 | Turboprop (ATR 72 class) | 120 | 3698 | 0.83 | 0.571 | aft row: 0.627 | 0.644 | 0.523 | 1.31 | 1.6 |
 | Airliner (A320 class) | 128 | 5879 | 0.78 | 0.357 | aft row: 0.429 | 0.396 | 0.321 | 0.86 | 1.4 |
-| Motor glider (AR 28) | 30 | 446 | 3.33 | 0.735 | pilot: 0.733 | 1.396 | 0.965 | 5.69 | 20.7 |
+| Motor glider (AR 28) | 40 | 446 | 2.50 | 0.939 | pilot: 0.934 | 1.883 | 1.297 | 3.21 | 15.5 |
 

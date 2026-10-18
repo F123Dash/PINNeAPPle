@@ -159,8 +159,9 @@ def flight_scene(ac: Aircraft, hist: FlightHistory, *, n_frames: int = 240, wind
             W.append(wind.velocity(hist.t[k], P) @ S_FLIP.T)
         Org, W = np.array(Org), np.array(W)
         sc = gust_scale or 0.5 * b / max(float(np.abs(W).max()), 1e-6)
-        anim.add_vectors("gust", Org, W * sc, values=W[..., 2], label="Vertical gust w [m/s] (up +)",
-                         color_range=(-float(np.abs(W[..., 2]).max()), float(np.abs(W[..., 2]).max())))
+        anim.add_vectors("gust", Org, W * sc, values=W[..., 2], label="Vertical gust w [m/s] (up +)", cmap="coolwarm",
+                         color_range=(-float(np.percentile(np.abs(W[..., 2]), 98)),
+                                      float(np.percentile(np.abs(W[..., 2]), 98))))
     anim.add_hud("V", hist.airspeed[ks] / KT, "Airspeed", "kt", "{:.0f}")
     if runway:                                     # height of the CG above its height at rest on the gear
         anim.add_hud("h", (hist.altitude[ks] - hist.altitude[0]) / FT, "Height", "ft", "{:.0f}")
@@ -205,7 +206,7 @@ def gust_wisps(ac: Aircraft, hist: FlightHistory, wind, n_lat: int = 5, n_vert: 
             Q[:, 2] += exaggeration * w_up
             pts.append(Q)
             vals.append(w_up)
-    lim = float(max(np.abs(np.concatenate(vals)).max(), 1e-6))
+    lim = float(max(np.percentile(np.abs(np.concatenate(vals)), 98), 1e-6))
     lines = Lines(pts, vals, name="gust_wisps", label="Vertical gust w [m/s] (up +), frozen field")
     for k, v in (("cmap", "coolwarm"), ("alpha", 0.55), ("radius", 0.012 * b), ("color_range", (-lim, lim))):
         setattr(lines, k, v)
