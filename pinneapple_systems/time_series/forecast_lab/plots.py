@@ -173,7 +173,7 @@ def plot_fan_charts(panels: list[dict], path: str, *, ncols: int = 2) -> str:
         ht = np.asarray(p["horizons_t"])
         ax.fill_between(ht, q[0], q[4], color=c, alpha=0.18, lw=0, label="90 % interval")
         ax.fill_between(ht, q[1], q[3], color=c, alpha=0.35, lw=0, label="50 % interval")
-        ax.plot(ht, q[2], color=c, lw=2, label="median")
+        ax.plot(ht, q[2], color=c, lw=2, marker="o", ms=3, label="median (at the forecast horizons)")
         ax.plot(p["t_hist"], p["y_hist"], color=_MUTED, lw=1.2, label="observed")
         ax.plot(p["t_future"], p["y_future"], color=_INK, lw=1.2, ls=":", label="truth (test)")
         ax.set_title(p["title"], fontsize=8, color=_INK)
