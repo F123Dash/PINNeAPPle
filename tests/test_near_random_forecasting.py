@@ -235,3 +235,30 @@ def test_run_zoo_scores_and_tests_a_small_zoo():
     assert res["models"]["gbm"]["n_configs"] == 2
     assert "p_holm" in res["models"]["gbm"]["dm_vs_persistence"][0]
     assert set(res["family_representative"]) == {"baseline", "data"}
+
+
+def test_periodic_baselines_follow_a_drifting_cycle():
+    from pinneapple_systems.time_series.forecast_lab import (
+        PhaseClimatology,
+        SeasonalNaive,
+        SeriesData,
+        dominant_period,
+        forecast_origins,
+        targets_at,
+    )
+    rng = np.random.default_rng(0)
+    t = np.arange(4000)
+    phase = 2 * np.pi * t / 12.5 + np.cumsum(0.02 * rng.standard_normal(4000))   # period 12.5, drifting phase
+    y = np.sin(phase) + 0.1 * rng.standard_normal(4000)
+    assert abs(dominant_period(y[:3000]) - 12.5) < 0.3
+    data = SeriesData(y[:, None])
+    H = [1, 6, 40]
+    tr, te = forecast_origins(0, 3000, H, min_history=40), forecast_origins(3000, 4000, H, stride=3)
+    yt = targets_at(data, te, H)
+    clim = np.sqrt(np.mean(yt ** 2, axis=0))                                       # mean-zero climatology
+    for m, upto in ((SeasonalNaive(), 2), (PhaseClimatology(fit_cycles=2), 3)):
+        # seasonal naive looks back k whole (integer) periods, so it only works within about one period
+        m.fit(data, tr, None, H)
+        rmse = np.sqrt(np.mean((m.predict(data, te).mean - yt) ** 2, axis=0))
+        assert np.all(rmse[:upto] < 0.6 * clim[:upto]), (m.name, rmse, clim)
+    assert SeasonalNaive().fit(data, tr, None, H).info["period"] in (12, 13)
