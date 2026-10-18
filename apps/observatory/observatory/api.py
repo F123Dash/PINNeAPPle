@@ -17,6 +17,7 @@ Environment (all optional):
 """
 from __future__ import annotations
 
+import collections
 import io
 import json
 import math
@@ -741,7 +742,21 @@ def lensing_info(elongation: float = Query(0.2666, gt=0.2, le=180)):
 
 
 # ---------------------------------------------------------------------------------------------------- engine
-_CACHE: dict = {}
+class _Bounded(collections.OrderedDict):
+    """Result cache keyed on request values: the oldest entries go past ``limit`` (memory stays bounded)."""
+
+    def __init__(self, limit: int):
+        super().__init__()
+        self.limit = limit
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self.move_to_end(key)
+        while len(self) > self.limit:
+            self.popitem(last=False)
+
+
+_CACHE: dict = _Bounded(int(os.environ.get("OBS_CACHE_ENTRIES") or 256))
 _CACHE_LOCK = threading.Lock()
 
 
