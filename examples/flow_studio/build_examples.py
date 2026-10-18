@@ -29,6 +29,8 @@ PROMPTS = {
                             "(a digital twin) and detect leaks.",
     "planned_hybrid_surrogate_hpo": "Build a fast surrogate of a vibrating string for many wave speeds: a mixed "
                                     "ROM + NN model with hyperparameter tuning and a sensitivity analysis.",
+    "planned_pde_twin": "A 1 m metal rod cools down by heat conduction. Build a digital twin from 5 temperature "
+                        "sensors along the rod, estimate the thermal diffusivity online and detect when it changes.",
 }
 
 
@@ -114,7 +116,7 @@ def operator_burgers():
                      "DeepONet and an FNO trained on the same samples, held-out test errors.")
     d = fb.add("data", "data.grf_burgers", {"n_samples": 512, "n": 128, "nu": 0.01, "t_end": 0.5},
                label="Operator set (GRF -> Burgers)")
-    don = fb.add("deeponet", "surrogate.train", {"kind": "deeponet", "epochs": 400, "lr": 1e-3,
+    don = fb.add("deeponet", "surrogate.train", {"kind": "deeponet", "epochs": 2000, "lr": 1e-3,
                                                  "architecture": {"hidden": 128, "modes": 64, "depth": 3}},
                  label="DeepONet")
     fno = fb.add("fno", "surrogate.train", {"kind": "fno", "epochs": 300, "lr": 2e-3,

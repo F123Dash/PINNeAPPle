@@ -60,4 +60,13 @@ add(
     LibCall("ts.predictability", "pinneapple_systems.time_series.predictability:predictability_report",
             "Predictability report", "Time series", "surrogate tests, entropies, Lyapunov estimate of a series",
             refs=("theiler1992surrogate",), inputs=SER),
+    # ---- data, design, exports
+    LibCall("doe.design", f"{W}:doe_design", "Design of experiments", "Data",
+            "pinneapple_data.doe.design: LHS / Sobol / Halton / maximin / factorial cases over a parameter space, "
+            "with coverage metrics", refs=("mckay1979lhs",)),
+    LibCall("design.intent", f"{W}:design_intent", "Design from a goal (text)", "Design",
+            "pinneapple_design.intent.design: a plain-language goal to a verified design package, or the questions "
+            "it still needs"),
+    LibCall("export.geometry", f"{W}:geometry_export", "Export a library geometry", "Export",
+            "pinneapple_design.geometry_library: build a parametric geometry and write STL / OBJ / glTF / USD / STEP"),
 )

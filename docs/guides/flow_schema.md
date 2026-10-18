@@ -132,12 +132,32 @@ Every choice a flow makes carries a record (`pinneapple_flow.decisions.Decision`
 | `evidence` | what in the repository backs the decision: a test, an example result, a library constant |
 | `confidence`, `label` | 0-1 and high / medium / low; a decision with neither a usable reference nor evidence is `no_reference: true`, capped at 0.35 (0.5 for a user's own choice) and carries a `suggestion` (run a validation node or a benchmark) |
 | `uncited_reason` | why a rule has no literature reference (reading the user's words, a project convention, a rule of thumb) |
+| `raise_with` | for a `no reference` or low-confidence decision: registered node types that would back it with evidence (`pinneapple_flow.decisions.RAISE_NODES`, by topic); the GUI inserts them wired into the flow |
 
 Where they live: planner and LLM decisions in `flow.meta["decisions"]`; user edits in `flow.meta["user_edits"]`
 (`{"node", "param", "value", "notes"?, "references"?}`, turned into user decisions by
 `pinneapple_flow.decisions.collect`); decisions a node takes while running in its report (`report["decisions"]`). The
 store keeps all of them per flow version and per run (table `decisions`); `export.report` prints a "Decisions and
 references" section. `tests/test_flow_decisions.py` checks that every rule cites the registry or says why not.
+
+## Lab seal and what would raise it
+
+`pinneapple_flow.lab_status` reads, never computes, the quality letter of a validated item:
+
+* `seal_status(item, lab)` gives `{"letter", "name", "scale", "reason", "failing_check", "hint", "sealed", "source"}`.
+  The letter comes from the Lab curation record (`pinneapple_lab.curation`, tiers A-D today) or from its seal
+  letter (A-F, with the failing check and how to raise it) once the Lab provides that scale. `letter: null` means
+  the item was never curated.
+* `next_steps(item, lab)` calls `pinneapple_lab.curation.next_steps` when it exists. Each gap keeps the Lab's
+  `action` / `command` / `params`, and `nodes` holds the registered node types that carry the action out: the
+  action names a node type, or a library call a registered node wraps. Without that API the result is
+  `available: false` with the curation's plain gaps, and no node suggestions.
+* `insert_nodes(flow, anchor, [{"type", "params"}])` adds registered node types and wires each input by port
+  type: from the anchor first, then its upstream nodes, then any other node. One output feeds at most one input of
+  a new node.
+
+`validate.lab` stores the first two under `report["lab"]`. The service attaches the run's seals to every node
+result (`lab`). HTTP: `GET /api/lab/seal?item=`, `GET /api/lab/next-steps?item=`, `POST /api/flows/insert-nodes`.
 
 ## Library-call nodes and user-defined node types
 

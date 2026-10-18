@@ -17,7 +17,9 @@ function Ref({ r }: { r: Reference }) {
   );
 }
 
-export function DecisionList({ decisions, onAnnotate }: { decisions: Decision[]; onAnnotate?: (d: Decision, notes: string, ref: string) => void }) {
+export function DecisionList({ decisions, onAnnotate, onRaise }: {
+  decisions: Decision[]; onAnnotate?: (d: Decision, notes: string, ref: string) => void; onRaise?: (d: Decision, type: string) => void;
+}) {
   const [edit, setEdit] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [ref, setRef] = useState("");
@@ -39,6 +41,13 @@ export function DecisionList({ decisions, onAnnotate }: { decisions: Decision[];
           {d.evidence.map((e, i) => <div key={i} className="text-[10.5px] text-slate-500">evidence ({e.kind}): {e.ref} — {e.detail}</div>)}
           {d.uncited_reason && <div className="text-[10.5px] italic text-slate-500">no literature reference: {d.uncited_reason}</div>}
           {d.suggestion && <div className="text-[10.5px] text-amber-800 mt-0.5">{d.suggestion}</div>}
+          {onRaise && (d.raise_with || []).length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-0.5" data-testid="raise-with">
+              {(d.raise_with || []).map((t) => (
+                <button key={t} className="text-[10.5px] px-1.5 rounded border border-sky-200 text-sky-700" onClick={() => onRaise(d, t)}>+ {t}</button>
+              ))}
+            </div>
+          )}
           {d.notes && <div className="text-[10.5px] text-slate-600">note: {d.notes}</div>}
           {d.decided_by.kind === "user" && onAnnotate && (edit === d.id ? (
             <div className="mt-1 space-y-1">

@@ -14,6 +14,16 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Flow Studio decision records: every planner, LLM and user choice records who decided, why, references from a
+  curated registry (`pinneapple_flow/references.yaml`; LLM citations are checked), evidence and a confidence.
+  Uncited choices are flagged `no reference` and suggest nodes that would back them.
+- Flow nodes for any problem and its twin: `problem.generic` (candidate equations from text, data and units, plus
+  SINDy / PDE-FIND discovery), `data.stream` and `twin.auto` (the twin is built from the identified model, with EnKF
+  coefficient estimation and anomaly alarms).
+- `lib.*` nodes: a curated allowlist of library calls with forms generated from their signatures, user-defined node
+  types stored as data, and `docs/flow_studio/COVERAGE.md`.
+- Lab seal in Flow Studio: the letter, the reason and the next steps are read from `pinneapple_lab`
+  (`pinneapple_flow.lab_status`); the "insert nodes" buttons are wired by port type.
 - PINNeAPPle Flow (`pinneapple_flow`, extra `[flow]`) and Flow Studio (`apps/flow_studio`, `python -m pinneapple_flow
   studio`): engineering flows as typed node graphs in a versioned JSON document (`pinneapple-flow/1`, documented in
   `docs/guides/flow_schema.md`), a catalog of nodes that each wrap a library call (domain with the 1-D / 2-D / 3-D

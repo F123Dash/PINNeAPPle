@@ -93,6 +93,21 @@ def create_app(service: FlowService | None = None) -> FastAPI:
     def check_reference(body: JSONBody):
         return svc.check_reference(body)
 
+    @app.get("/api/lab/seal")
+    def lab_seal(item: str):
+        return svc.seal(item)
+
+    @app.get("/api/lab/next-steps")
+    def lab_next_steps(item: str):
+        return svc.next_steps(item)
+
+    @app.post("/api/flows/insert-nodes")
+    def insert_nodes(body: JSONBody):
+        try:
+            return svc.insert_nodes(body.get("flow") or {}, body.get("anchor"), list(body.get("nodes") or []))
+        except (ValueError, KeyError, FlowError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+
     @app.get("/api/library-calls")
     def library_calls():
         return svc.library_calls()

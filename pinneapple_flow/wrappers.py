@@ -221,3 +221,71 @@ def model_architecture(name: str = "fno", in_dim: int = 1, out_dim: int = 1, hid
         raise StepFailed(f"{name}: {exc}") from None
     g = learn.layer_graph(m)
     return {"model": name, "parameters": g["total_params"], "layers": len(g["nodes"]), "arguments": cls_kw}
+
+
+DOE_METHODS = Literal["lhs", "sobol", "halton", "random", "maximin", "full_factorial", "fractional_factorial"]
+
+
+def doe_design(parameters: dict = None, n: int = 16, method: DOE_METHODS = "lhs", seed: int = 0,
+               out_dir: str = "") -> dict:
+    """``pinneapple_data.doe.design`` over a parameter space given as ``{"name": [low, high], ...}`` (or a
+    ``Parameter`` dict per name). Writes the cases as CSV in the node's folder."""
+    from pathlib import Path
+
+    from pinneapple_data.contracts import ParameterSpace
+    from pinneapple_data.doe.designs import METHODS, design
+    if method not in METHODS:
+        raise StepFailed(f"unknown method {method!r}; one of {METHODS}")
+    parameters = parameters or {"x1": [0.0, 1.0], "x2": [0.0, 1.0]}
+    specs = []
+    for name, v in parameters.items():
+        spec = dict(v) if isinstance(v, dict) else {"low": float(v[0]), "high": float(v[1])}
+        specs.append({"name": name, **spec})
+    try:
+        space = ParameterSpace(name="flow_doe", parameters=specs)
+    except Exception as exc:  # noqa: BLE001 - pydantic validation message is the useful part
+        raise StepFailed(f"parameter space: {exc}") from exc
+    d = design(space, n, method, seed=seed)
+    path = ""
+    if out_dir:
+        path = str(Path(out_dir) / "cases.csv")
+        d.cases.to_csv(path, index=False)
+    from pinneapple_data.doe.coverage import coverage
+    cov = coverage(d.unit, space.names)
+    return {"method": d.method, "n_cases": len(d), "min_distance": float(_min_distance(d.unit)),
+            "cases_csv": path, "coverage": {k: v for k, v in cov.items() if isinstance(v, (int, float, str))}}
+
+
+def _min_distance(unit):
+    from pinneapple_data.doe.designs import min_distance
+    return min_distance(unit)
+
+
+GEOMETRY_FORMATS = Literal["stl", "obj", "glb", "usda", "step"]
+
+
+def geometry_export(name: str = "caarc_building", fmt: GEOMETRY_FORMATS = "stl", lod: str = "light",
+                    out_dir: str = "") -> dict:
+    """Build a parametric geometry of ``pinneapple_design.geometry_library`` and write it (STL / OBJ / glTF binary /
+    USD ASCII / STEP) in the node's folder."""
+    from pathlib import Path
+
+    from pinneapple_design import geometry_library as gl
+    if name not in gl.list():
+        raise StepFailed(f"unknown geometry {name!r}; one of {gl.list()}")
+    geom = gl.build(name, lod=lod)
+    path = geom.export(str(Path(out_dir or ".") / f"{name}.{fmt}"), fmt)
+    info = gl.info(name)
+    return {"geometry": name, "format": fmt, "file": path, "bytes": Path(path).stat().st_size,
+            **{k: v for k, v in info.items() if isinstance(v, (int, float, str))}}
+
+
+def design_intent(text: str = "a heat sink for a 20 W chip in still air", seed: int = 0, budget: int = 200,
+                  n_screen: int = 500, out_dir: str = "") -> dict:
+    """``pinneapple_design.intent.design``: a plain-language goal to a verified design package (files in the node's
+    folder), or the questions it still needs, or why it is out of scope."""
+    from pinneapple_design.intent.api import design
+    res = design(text, seed=seed, budget=budget, n_screen=n_screen, out_dir=out_dir or None)
+    kind = type(res).__name__
+    out = res.to_dict() if hasattr(res, "to_dict") else {}
+    return {"outcome": kind, **{k: v for k, v in out.items() if k not in ("candidates",)}}

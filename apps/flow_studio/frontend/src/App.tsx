@@ -11,6 +11,7 @@ import { PlannerDialog } from "./components/PlannerDialog";
 import { CustomNodeDialog } from "./components/CustomNodeDialog";
 import { DecisionList } from "./components/DecisionsPanel";
 import { ResultPanel } from "./components/ResultPanel";
+import { SealPanel } from "./components/SealPanel";
 import type { Catalog, Decision, DecisionsResult, FlowDoc, NodeResult, NodeType } from "./types";
 import { PORT_COLORS } from "./types";
 
@@ -121,6 +122,19 @@ function Studio() {
     const type = e.dataTransfer.getData("application/pinneapple-node");
     if (type) addNode(type, rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }));
   };
+  // add registered nodes suggested by a seal gap or a weak decision, wired by port type in the library
+  const insertNodes = async (anchor: string | null, items: { type: string; params?: Record<string, any> }[]) => {
+    try {
+      const keep = runId;
+      const r = await api.insertNodes(toDoc(), anchor, items);
+      load(r.flow);
+      setRunId(keep);
+      say(`added ${items.map((i) => i.type).join(", ")}${r.unwired.length ? ` · connect: ${r.unwired.join(", ")}` : " (wired)"}`);
+    } catch (e) {
+      say(String(e));
+    }
+  };
+
   const patchNode = (id: string, patch: Partial<FlowNodeData>) => {
     if (patch.params) {
       const old = (nodes.find((n) => n.id === id)?.data as FlowNodeData | undefined)?.params || {};
@@ -280,9 +294,14 @@ function Studio() {
                     onDelete={() => { setNodes((ns) => ns.filter((n) => n.id !== sel.id)); setEdges((es) => es.filter((e) => e.source !== sel.id && e.target !== sel.id)); setSelected(null); }}
                   />
                 ) : tab === "results" ? (
-                  <ResultPanel result={result} onAccept={(k) => patchNode(sel.id, { params: { ...selData.params, candidate: k } })} />
+                  <>
+                    {result?.lab && result.lab.length > 0 && (
+                      <div className="px-3 pt-3"><SealPanel seals={result.lab} onInsert={(ns) => insertNodes(sel.id, ns)} /></div>
+                    )}
+                    <ResultPanel result={result} onAccept={(k) => patchNode(sel.id, { params: { ...selData.params, candidate: k } })} />
+                  </>
                 ) : (
-                  <div className="p-3"><DecisionList decisions={selData.decisions || []} onAnnotate={annotate} /></div>
+                  <div className="p-3"><DecisionList decisions={selData.decisions || []} onAnnotate={annotate} onRaise={(d, t) => insertNodes(d.node || sel.id, [{ type: t }])} /></div>
                 )}
               </div>
             </>
@@ -333,7 +352,7 @@ function Studio() {
             {Object.entries(decisions.by_node).map(([nid, ds]) => (
               <div key={nid} className="mb-3">
                 <div className="text-[12px] font-semibold mb-1">{nid || "flow"}</div>
-                <DecisionList decisions={ds} onAnnotate={annotate} />
+                <DecisionList decisions={ds} onAnnotate={annotate} onRaise={(d, t) => { setShowDecisions(false); insertNodes(d.node || null, [{ type: t }]); }} />
               </div>
             ))}
           </div>

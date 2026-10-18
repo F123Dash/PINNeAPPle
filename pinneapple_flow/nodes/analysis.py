@@ -239,10 +239,20 @@ def lab(ctx, inputs, params):
     ctx.metric("lab_status", res.status)
     ctx.metric("tier", tier, "pinneapple_lab.curation: A flagship, B solid, C exploratory, D failed")
     ctx.metric("lab_run_id", res.run_id)
-    gaps = (cur["runs"].get(res.run_id) or {}).get("gaps") or []
-    if gaps:
-        ctx.table("what the tier is missing", ["gap"], [[g if isinstance(g, str) else json.dumps(g)] for g in gaps])
-    out = {"report": ctx.save_json("lab", {"tier": tier, "run": res.run_id, "item": item, "status": res.status})}
+    from ..lab_status import next_steps, seal_status
+    st = seal_status(name, root)                                 # the Lab's letter (A-F once it has that scale)
+    steps = next_steps(name, root)
+    ctx.report["lab"] = {"item": name, "root": root, "seal": st, "next_steps": steps}
+    if st["letter"]:
+        ctx.metric("seal", st["letter"], f"pinneapple_lab ({st['scale']}): {st['name']}")
+    if st["failing_check"]:
+        ctx.warn(f"failing check: {st['failing_check']}" + (f"; to raise it: {st['hint']}" if st["hint"] else ""))
+    if steps["gaps"]:
+        ctx.table("what the next letter needs", ["gap", "suggested action", "nodes"],
+                  [[g["gap"], g["action"] or g["command"], ", ".join(n["type"] for n in g["nodes"])]
+                   for g in steps["gaps"]])
+    out = {"report": ctx.save_json("lab", {"tier": tier, "run": res.run_id, "item": item, "status": res.status,
+                                           "seal": st, "next_steps": steps})}
     try:
         seal = seal_for(name, root)
     except (SealError, KeyError) as exc:

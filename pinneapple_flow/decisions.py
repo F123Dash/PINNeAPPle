@@ -27,6 +27,24 @@ TOPICS = ("equations", "dimension", "bcs", "coefficients", "method", "architectu
 RAISE_HINT = ("no reference and no evidence in the library: connect a validation node (validate.compare against an "
               "exact solution, a reference solver or measurements) or run a benchmark to raise the confidence")
 
+# node types that would back a weak decision with evidence, by topic (all registered; checked by the tests). The
+# GUI offers them as "add node" buttons that insert them wired into the flow (pinneapple_flow.lab_status).
+RAISE_NODES: dict[str, tuple[str, ...]] = {
+    "equations": ("validate.compare", "inverse.discover"),
+    "dimension": ("validate.compare",),
+    "bcs": ("validate.compare",),
+    "coefficients": ("inverse.calibrate", "validate.compare"),
+    "method": ("validate.compare", "lib.compare.preset"),
+    "architecture": ("surrogate.hpo", "validate.compare"),
+    "hyperparameters": ("surrogate.hpo",),
+    "hpo": ("validate.compare", "uq.sensitivity"),
+    "twin": ("validate.compare",),
+    "validation": ("validate.lab",),
+    "route": ("validate.compare",),
+    "data": ("data.observe",),
+    "other": ("validate.compare",),
+}
+
 
 @dataclass
 class Decision:
@@ -44,6 +62,7 @@ class Decision:
     label: str = ""                                  # high | medium | low
     no_reference: bool = False
     suggestion: str = ""
+    raise_with: list[str] = field(default_factory=list)      # node types that would raise a low confidence
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:10])
     created: float = field(default_factory=time.time)
 
@@ -76,6 +95,7 @@ def score(d: Decision) -> Decision:
         d.suggestion = RAISE_HINT
     d.confidence = round(max(0.05, min(c, 0.95)), 2)
     d.label = "high" if d.confidence >= 0.75 else "medium" if d.confidence >= 0.5 else "low"
+    d.raise_with = list(RAISE_NODES.get(d.topic, ())) if d.no_reference or d.label == "low" else []
     return d
 
 
@@ -175,7 +195,9 @@ def report_markdown(decisions: list[dict[str, Any]], title: str = "Decisions and
         if d.get("uncited_reason"):
             lines.append(f"  - no literature reference: {d['uncited_reason']}")
         if d.get("suggestion"):
-            lines.append(f"  - to raise it: {d['suggestion']}")
+            lines.append(f"  - to raise it: {d['suggestion']}"
+                         + (f" (nodes: {', '.join(d['raise_with'])})" if d.get("raise_with") else ""))
+
     used = {}
     for d in decisions:
         for r in d.get("references", []):

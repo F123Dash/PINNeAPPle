@@ -26,7 +26,7 @@ export type Status = "idle" | "queued" | "running" | "done" | "failed" | "cached
 export interface NodeBrief { status: Status; error?: string; seconds?: number; summary?: string; metrics?: Record<string, any>; warnings?: string[] }
 export interface RunStatus { run_id: string; status: string; nodes: Record<string, NodeBrief>; error?: string }
 export interface NodeResult {
-  node: string; status: Status; error?: string; seconds?: number; log: string; outputs: Record<string, any>;
+  node: string; status: Status; error?: string; seconds?: number; log: string; outputs: Record<string, any>; lab?: SealStatus[];
   report: {
     metrics: Record<string, any>; figures: { path: string; name: string; caption: string }[];
     tables: { title: string; columns: string[]; rows: any[][] }[]; views: Record<string, any>;
@@ -50,6 +50,13 @@ export interface Reference { key?: string; title?: string; authors?: string[]; y
 export interface Decision {
   id: string; topic: string; what: string; decided_by: { kind: string; id: string }; rationale: string; value: any;
   references: Reference[]; evidence: { kind: string; ref: string; detail: string }[]; node: string; notes: string;
-  uncited_reason: string; confidence: number; label: string; no_reference: boolean; suggestion: string;
+  uncited_reason: string; confidence: number; label: string; no_reference: boolean; suggestion: string; raise_with?: string[];
 }
 export interface DecisionsResult { decisions: Decision[]; by_node: Record<string, Decision[]>; summary: { decisions: number; no_reference: number; by_label: Record<string, number>; references: string[] } }
+
+export interface SealStatus {
+  item: string; letter: string | null; name: string; scale: string; reason: string; failing_check: string; hint: string;
+  sealed: boolean; source: string; curated?: string;
+}
+export interface Gap { gap: string; action: string; command: string; params: Record<string, any>; unlocks?: any; nodes: { type: string; params: Record<string, any> }[] }
+export interface NextSteps { available: boolean; message: string; gaps: Gap[] }

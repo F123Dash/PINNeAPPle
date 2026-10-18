@@ -24,7 +24,7 @@
    "type": "surrogate.train",
    "params": {
     "kind": "deeponet",
-    "epochs": 400,
+    "epochs": 2000,
     "lr": 0.001,
     "architecture": {
      "hidden": 128,

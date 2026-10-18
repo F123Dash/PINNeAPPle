@@ -24,6 +24,8 @@ def test_every_allowlisted_call_resolves_and_has_a_form():
     ("lib.solver.beam", {}, "max_abs_deflection_m"),
     ("lib.solve.preset", {"preset": "burgers_1d", "method": "analytic"}, "method"),
     ("lib.model.architecture", {"name": "fno"}, "parameters"),
+    ("lib.doe.design", {"parameters": {"a": [0, 1], "b": [1, 10]}, "n": 8}, "n_cases"),
+    ("lib.export.geometry", {"name": "caarc_building", "fmt": "stl"}, "bytes"),
 ])
 def test_library_nodes_run(tmp_path, type_, params, key):
     r = pf.run(pf.Flow("lib", nodes=[{"id": "n", "type": type_, "params": params}]), workdir=tmp_path)
@@ -87,3 +89,24 @@ def test_coverage_table_names_every_package():
     assert all(r["nodes"] or r["reason"] for r in pkg_rows), [r["module"] for r in pkg_rows
                                                               if not (r["nodes"] or r["reason"])]
     assert "| package / module |" in markdown()
+
+
+def test_file_writing_calls_write_in_the_run_folder_only(tmp_path):
+    from pinneapple_flow.libcalls import introspect as intro
+    assert "out_dir" not in {p.name for p in intro(CALLS["export.geometry"])[0]}   # never a flow parameter
+    r = pf.run(pf.Flow("g", nodes=[{"id": "g", "type": "lib.export.geometry", "params": {"fmt": "usda"}}]),
+               workdir=tmp_path)
+    path = r.nodes["g"]["report"]["metrics"]["file"]
+    path = path["value"] if isinstance(path, dict) else path
+    assert str(tmp_path) in path and path.endswith(".usda")
+    with pytest.raises(pf.FlowError):
+        pf.check_flow(pf.Flow("g", nodes=[{"id": "g", "type": "lib.export.geometry", "params": {"out_dir": "/"}}]))
+
+
+def test_committed_coverage_table_is_current():
+    from pathlib import Path
+
+    from pinneapple_flow.coverage import ROOT, markdown
+    assert (ROOT / "docs/flow_studio/COVERAGE.md").read_text() == markdown(), \
+        "regenerate: python -m pinneapple_flow coverage -o docs/flow_studio/COVERAGE.md"
+    assert Path(ROOT / "docs/flow_studio/COVERAGE.md").is_file()

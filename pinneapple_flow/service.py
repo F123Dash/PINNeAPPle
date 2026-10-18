@@ -124,6 +124,28 @@ class FlowService:
         from .references import check
         return check(reference)
 
+    # -- Lab seal and how to raise it --------------------------------------------------------------------------
+    def lab_root(self) -> str:
+        return str(home() / "lab")
+
+    def seal(self, item: str) -> dict[str, Any]:
+        from .lab_status import seal_status
+        return seal_status(item, self.lab_root())
+
+    def next_steps(self, item: str) -> dict[str, Any]:
+        from .lab_status import next_steps
+        return next_steps(item, self.lab_root())
+
+    def insert_nodes(self, flow: dict[str, Any], anchor: str | None, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """Add registered node types to a flow, wired by port type from ``anchor`` (the GUI's "add node" buttons
+        of a seal gap or a low-confidence decision)."""
+        from .lab_status import insert_nodes
+        for it in items:
+            if not isinstance(it, dict) or it.get("type") not in REGISTRY:
+                raise ValueError(f"not a registered node type: {it!r}")
+        doc, missing = insert_nodes(flow, anchor, items)
+        return {"flow": doc, "unwired": missing, **self.validate(doc)}
+
     # -- library calls and user-defined node types -------------------------------------------------------------
     def library_calls(self) -> list[dict[str, Any]]:
         from .libcalls import CALLS, introspect
@@ -250,7 +272,12 @@ class FlowService:
         if wd and (Path(wd) / "log.txt").is_file():
             log = (Path(wd) / "log.txt").read_text(errors="replace")[-30000:]
         return {"node": node_id, "status": n["status"], "error": n["error"], "seconds": n["seconds"],
-                "report": n["report"], "outputs": n["outputs"], "log": log}
+                "report": n["report"], "outputs": n["outputs"], "log": log, "lab": self._run_lab(r)}
+
+    def _run_lab(self, run: dict[str, Any]) -> list[dict[str, Any]]:
+        """The current seal of every Lab item the run's validate.lab nodes recorded (shown on each result panel)."""
+        from .lab_status import lab_items
+        return [self.seal(i) for i in lab_items({k: v.get("report") or {} for k, v in run["nodes"].items()})]
 
     def artifact_path(self, path: str) -> Path:
         """A file of a run (figure, scene, report): only inside the run folders or the Lab folder."""

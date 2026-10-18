@@ -163,7 +163,7 @@ def introspect(call: LibCall) -> tuple[list[Param], list[str]]:
         hints = {}
     params, skipped = [], []
     taken = {a.strip() for v in call.inputs.values() for a in v[1].split(",")} | set(call.exclude) | {
-        "self", "cls"}
+        "self", "cls", "out_dir"}
     for name, p in sig.parameters.items():
         if name in taken or p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
@@ -242,6 +242,8 @@ def _runner(call: LibCall, fixed: dict[str, Any] | None = None):
         fn = resolve(call.target)
         kw = {k: v for k, v in params.items() if v is not None}
         kw.update(fixed or {})
+        if "out_dir" in inspect.signature(fn).parameters:         # files go to this node's run folder, never a path
+            kw["out_dir"] = str(ctx.workdir)                     # taken from the flow document
         for port, (_t, arg, adapter, *_req) in call.inputs.items():
             if inputs.get(port) is None:
                 continue
@@ -309,7 +311,26 @@ def spec_for(call: LibCall, *, type_: str | None = None, title: str | None = Non
     desc = call.description + (f" (not exposed: {', '.join(skipped)})" if skipped else "")
     return NodeSpec(type=type_ or f"lib.{call.key}", title=title or call.title, category=call.category,
                     fn=_runner(call, fixed), inputs=ins, outputs=outs, params=out, description=desc,
-                    calls=call.target, available_fn=_available(call))
+                    calls=" ".join([call.target, *wrapped(call)]), available_fn=_available(call))
+
+
+_LIB = re.compile(r"\b(?:from|import) (pinneapple[a-z_]*(?:\.[a-z_]+)*)")
+
+
+def wrapped(call: LibCall) -> list[str]:
+    """For a JSON-argument wrapper (``pinneapple_flow.wrappers``): the library modules it imports, read from its
+    source, so the node's ``calls`` (and the coverage table) name the capability rather than the wrapper."""
+    mod, _, name = call.target.partition(":")
+    if not mod.startswith("pinneapple_flow."):
+        return []
+    try:
+        src = inspect.getsource(resolve(call.target))
+    except (OSError, TypeError, ImportError, AttributeError):
+        return []
+    out = [m for m in _LIB.findall(src) if not m.startswith(("pinneapple_flow", "pinneapple_core.workflows"))]
+    if "_solver(" in src:
+        out.append("pinneapple_simulation.numerical_solvers.registry")
+    return sorted(set(out))
 
 
 # -------------------------------------------------------------------------------------------- user-defined nodes

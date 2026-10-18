@@ -59,19 +59,41 @@ docker compose -f apps/flow_studio/docker-compose.yml --profile llm --profile po
   same text valid in 1-D, 2-D and 3-D, so switching the domain node between 2-D and 3-D keeps the problem.
 * **Architecture**: surrogate and HPO nodes suggest an architecture and show it as a layer graph with parameter
   counts; add or edit blocks (dense, residual, dropout, layer norm, activations) and the preview updates.
+* **Generic problem**: `problem.generic` takes a description, units, a dimension and optionally data. It proposes
+  candidate governing equations (family, PDEs, boundary and initial conditions, coefficients, conservation law,
+  constitutive relation), each with a confidence and the reasoning behind it. You accept one, or edit, add and
+  remove equations. With gridded data it also runs sparse regression (SINDy / PDE-FIND) to discover the equation
+  from the data.
+* **Decisions and references**: every choice a flow makes carries a decision record. Each record says who decided
+  (a planner rule, an LLM, or you), why, the references (from a curated registry, or flagged `unverified`), the
+  evidence in the repository and a confidence. A choice without a reference is marked `no reference` and has
+  lower confidence; it offers buttons that insert, already wired, a node that would back it (a comparison against a
+  reference, discovery from data, HPO, ...). The "Decisions" button lists them for the whole flow, and
+  `export.report` prints them.
+* **Lab seal**: after a run, each node's results show the seal letter of the items the flow validated. The letter
+  comes from the PINNeAPPle Lab curation and is never set here; you also see the reason and, for the lowest letters,
+  the failing check. "What the next letter needs" lists the gaps from `pinneapple_lab.curation.next_steps` once the
+  Lab provides it, with buttons that insert the suggested nodes. Until then it says the API is not available yet
+  and shows the curation's plain gaps.
+* **More nodes**: `lib.*` nodes wrap a curated allowlist of library calls (solvers, ROMs, sensitivity, design of
+  experiments, design from a goal, geometry export, model registry). Their forms come from the function
+  signatures. "+ new node type" saves a preset of one of them as your own node type; it is stored as data and
+  never as code. [docs/flow_studio/COVERAGE.md](../../docs/flow_studio/COVERAGE.md) lists which library modules
+  have nodes and why the others do not.
 
 ## Nodes
 
 | Category | Node types (each wraps the library call shown in the GUI) |
 |---|---|
-| Problem | `geometry.domain` (1-D / 2-D / 3-D switch, box, time interval), `geometry.mesh`, `equations.system` |
+| Problem | `geometry.domain` (1-D / 2-D / 3-D switch, box, time interval), `geometry.mesh`, `equations.system`, `problem.generic` (candidate equations from text, data and units; discovery from data) |
 | Solvers | `solver.classical` (finite differences / method of lines for any parsed system on a box, P1 finite elements for steady Poisson / Laplace), `solver.openfoam` (needs OpenFOAM on PATH) |
 | Learning | `train.pinn` (physics, or physics + data), `surrogate.train` (DeepONet, FNO, MLP, POD + MLP), `surrogate.hpo`, `train.finetune` |
 | Inverse | `inverse.discover` (inverse PINN), `inverse.calibrate` (least squares with the FD solver, identifiability) |
 | Data | `data.observe` (sensors from a solution), `data.ingest` (CSV), `data.parametric` (solver sweeps), `data.grf_burgers` (operator benchmark) |
 | Validation | `validate.compare` (relative L2 / max / RMSE against an exact solution or a reference, `pp.trust_card`), `validate.lab` (PINNeAPPle Lab tier A-D, seal on A/B) |
 | Analysis | `uq.sensitivity` (Sobol indices) |
-| Digital twin | `twin.connect` (simulated plant, recorded stream or MQTT into the twin runtime's ensemble Kalman filter) |
+| Digital twin | `data.stream` (simulated sensors, file, MQTT, OPC UA), `twin.auto` (a twin built from any identified PDE: a coarse grid model, its coefficients estimated online by the ensemble Kalman filter, anomaly alarms, a dashboard), `twin.connect` (the tank twin) |
+| Library calls | `lib.*` from `pinneapple_flow/libcalls_catalog.py`: presets with `pp.solve` / `pp.compare`, LBM, beam, X-TFC, meshless, terramechanics, CalculiX, FMU, Newton, registry models, ROM study, parametric POD, classical ML / GP, Sobol, Morris, predictability, design of experiments, design from a goal, geometry export (STL / OBJ / glTF / USD / STEP) |
 | Time series | `forecast.lab` (predictability first, then the forecaster zoo on purged walk-forward folds) |
 | Systems | `flight.takeoff` (needs `pinneapple_simulation.flight`; reports itself unavailable until that library is on main) |
 | Visualization / export | `viz.plot`, `viz.field3d` (three.js viewer), `viz.render` (Blender Cycles when `bpy` is installed, else a matplotlib shaded surface, and says which), `export.report` |
@@ -84,8 +106,9 @@ The document format, port types and how another app adds node types: [docs/guide
 [examples/flow_studio/results/RESULTS.md](../../examples/flow_studio/results/RESULTS.md) with the numbers each flow
 measured (and thumbnails). Seven reproduce earlier PINNeAPPle results (heat and Burgers PINN vs finite differences vs
 exact, Poisson with FEM / FD / PINN and the trust card, DeepONet and FNO on Burgers, identifying a diffusivity, the
-El Nino forecast, the take-off); three were typed as descriptions and planned by the heuristic planner (a plate
-edited from 2-D to 3-D, a digital twin, a hybrid ROM + NN surrogate with HPO).
+El Nino forecast, the take-off); four were typed as descriptions and planned by the heuristic planner (a plate
+edited from 2-D to 3-D, a tank digital twin, a hybrid ROM + NN surrogate with HPO, and a rod whose digital twin is
+generated end to end from the text).
 
 ## Configuration
 
@@ -156,3 +179,12 @@ python -m pinneapple_flow run heat_1d              # sem interface gráfica
 * **Persistência**: SQLite por padrão; Postgres com `PINNEAPPLE_FLOW_DB_URL`. Docker: `docker compose -f
   apps/flow_studio/docker-compose.yml up --build` (perfis `llm` e `postgres` opcionais).
 * **Segurança**: escuta em localhost por padrão; fora disso exige `FLOW_USER` e `FLOW_PASSWORD_HASH`.
+* **Problema genérico**: o nó `problem.generic` recebe texto, unidades, dimensão e, se houver, dados. Ele propõe
+  equações candidatas, cada uma com confiança e justificativa, e você aceita ou edita. Com dados, também descobre a
+  equação por regressão esparsa (SINDy / PDE-FIND).
+* **Gêmeo digital automático**: o nó `twin.auto` monta o gêmeo a partir do modelo identificado e estima os
+  coeficientes com EnKF; também detecta anomalias.
+* **Decisões e referências**: cada escolha registra quem decidiu, por quê, as referências e a confiança. Sem
+  referência, a confiança cai e a escolha sugere nós que a reforçariam.
+* **Selo do Lab**: a letra vem da curadoria do PINNeAPPle Lab, junto com o motivo e o que falta para a próxima
+  letra, quando o Lab expõe essa API.

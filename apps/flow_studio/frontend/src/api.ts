@@ -1,5 +1,5 @@
 // Thin client of the Flow Studio API (apps/flow_studio/backend/app.py -> pinneapple_flow.service).
-import type { Catalog, DecisionsResult, FlowDoc, PlanResult, RunStatus, NodeResult } from "./types";
+import type { Catalog, DecisionsResult, FlowDoc, NextSteps, PlanResult, RunStatus, NodeResult, SealStatus } from "./types";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, {
@@ -44,6 +44,10 @@ export const api = {
   customNodes: () => call<any[]>("/api/custom-nodes"),
   saveCustomNode: (spec: any) => post<any>("/api/custom-nodes", spec),
   libraryCalls: () => call<any[]>("/api/library-calls"),
+  seal: (item: string) => call<SealStatus>(`/api/lab/seal?item=${encodeURIComponent(item)}`),
+  nextSteps: (item: string) => call<NextSteps>(`/api/lab/next-steps?item=${encodeURIComponent(item)}`),
+  insertNodes: (flow: FlowDoc, anchor: string | null, nodes: { type: string; params?: Record<string, any> }[]) =>
+    post<{ flow: FlowDoc; unwired: string[]; valid: boolean; issues: any[] }>("/api/flows/insert-nodes", { flow, anchor, nodes }),
   node: (runId: string, nodeId: string) => call<NodeResult>(`/api/runs/${runId}/nodes/${encodeURIComponent(nodeId)}`),
 };
 

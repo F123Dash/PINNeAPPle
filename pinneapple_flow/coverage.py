@@ -66,6 +66,8 @@ def node_targets() -> dict[str, set[str]]:
     pp = {"pp.solve": "pinneapple_physics.solving", "pp.trust_card": "pinneapple_analysis.trust",
           "pp.sobol_indices": "pinneapple_analysis.sensitivity", "pp.viz": "pinneapple_tools.visualization"}
     for s in REGISTRY.specs():
+        if s.type.startswith("custom."):          # user-defined types reuse allowlisted calls; not library coverage
+            continue
         for m in _MOD.findall(s.calls or ""):
             if m.startswith("pp."):
                 out.setdefault("pinneapple", set()).add(s.type)       # the pp namespace itself

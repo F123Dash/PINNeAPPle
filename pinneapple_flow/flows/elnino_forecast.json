@@ -2,7 +2,7 @@
  "schema": "pinneapple-flow/1",
  "id": "el-nino-forecast-near-random-series",
  "name": "El Nino forecast (near-random series)",
- "description": "Monthly Nino SST anomalies 1950-2010 (statsmodels): predictability report, then baselines and a gradient-boosting forecaster on purged walk-forward folds, untouched test period.",
+ "description": "Monthly Nino-region sea surface temperature 1950-2010 (statsmodels elnino): predictability report, then baselines and a gradient-boosting forecaster on purged walk-forward folds, untouched test period.",
  "nodes": [
   {
    "id": "forecast",
