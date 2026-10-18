@@ -109,7 +109,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e . pytest fastapi httpx python-multipart pyyaml argon2-cffi
+          pip install -e ".[security]" pytest fastapi httpx python-multipart pyyaml argon2-cffi
       - name: Security tests per layer (library, app wiring, deployment)
         # tests/test_*_security.py: the app-wiring and deployment suites (tests/test_app_security.py,
         # tests/test_deploy_security.py) and any later ones
