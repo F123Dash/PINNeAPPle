@@ -44,7 +44,7 @@ class FlowBuilder:
         return {"title": title, "rationale": rationale, "flow": f.to_dict()}
 
 
-def layout(nodes: list[dict[str, Any]], edges: list[dict[str, str]], dx: float = 280.0, dy: float = 150.0):
+def layout(nodes: list[dict[str, Any]], edges: list[dict[str, str]], dx: float = 270.0, dy: float = 150.0):
     """Columns by longest path from a source, rows in order of appearance (in place)."""
     ids = [n["id"] for n in nodes]
     depth = {i: 0 for i in ids}

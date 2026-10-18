@@ -78,8 +78,19 @@ function Studio() {
     setSelected(null);
     setRunId(null);
     setResult(null);
-    setTimeout(() => rf.fitView({ padding: 0.15 }), 50);
+    setTimeout(fitReadable, 60);
   }, [catalog, specs]);
+
+  // fit the flow, but never below a zoom where node titles and port labels stay readable; a flow wider than the
+  // canvas then starts at its first column (pan or use the minimap for the rest)
+  const fitReadable = useCallback(() => {
+    const MIN = 0.8;
+    rf.fitView({ padding: 0.08, minZoom: MIN, maxZoom: 1.1 });
+    const vp = rf.getViewport();
+    const b = rf.getNodesBounds(rf.getNodes());
+    const w = wrapper.current?.clientWidth || 0;
+    if (b.width * vp.zoom + 40 > w) rf.setViewport({ x: 24 - b.x * vp.zoom, y: vp.y, zoom: vp.zoom });
+  }, [rf]);
 
   const edgeOf = (s: string, sp: string, t: string, tp: string, type?: string): Edge => {
     return { id: `${s}.${sp}->${t}.${tp}`, source: s, sourceHandle: sp, target: t, targetHandle: tp, style: { stroke: PORT_COLORS[type || ""] || "#94a3b8", strokeWidth: 2 } };
@@ -261,7 +272,7 @@ function Studio() {
           <ReactFlow
             nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
             onConnect={onConnect} isValidConnection={isValidConnection} onNodeClick={(_, n) => { setSelected(n.id); setTab(runId ? "results" : "params"); }}
-            onPaneClick={() => setSelected(null)} fitView deleteKeyCode={["Delete", "Backspace"]} proOptions={{ hideAttribution: true }}
+            onPaneClick={() => setSelected(null)} fitView fitViewOptions={{ padding: 0.08, minZoom: 0.8, maxZoom: 1.1 }} deleteKeyCode={["Delete", "Backspace"]} proOptions={{ hideAttribution: true }}
           >
             <Background gap={18} color="#e2e8f0" />
             <Controls />

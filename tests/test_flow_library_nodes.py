@@ -103,6 +103,33 @@ def test_file_writing_calls_write_in_the_run_folder_only(tmp_path):
         pf.check_flow(pf.Flow("g", nodes=[{"id": "g", "type": "lib.export.geometry", "params": {"out_dir": "/"}}]))
 
 
+def test_no_public_module_is_left_unreached():
+    """Every package and first-level module has a node or a reason: a new public module fails here until it gets a
+    node (python -m pinneapple_flow autocalls) or a curated reason in pinneapple_flow/coverage.py."""
+    from pinneapple_flow.coverage import counts, coverage
+    rows = coverage()
+    assert counts(rows)["unreached"] == 0, [r["module"] for r in rows if not r["nodes"] and not r["reason"]]
+    assert not any(r["reason"] in (None, "None") for r in rows)
+
+
+def test_generated_nodes_are_safe_and_run(tmp_path):
+    from pinneapple_flow.autocalls import RISKY_NAME, RISKY_PARAM, load
+    data = load()
+    assert len(data["calls"]) > 100
+    for c in data["calls"]:
+        assert c["target"].startswith("pinneapple") and c["key"].startswith("auto.")
+        assert not RISKY_NAME.search(c["target"].split(":")[1]), c["target"]
+        assert not any(RISKY_PARAM.search(p["name"]) for p in c["params"]), c["target"]
+        assert c["check"].startswith(("runs with its defaults", "needs input")), c["key"]
+        assert pf.REGISTRY.get(c["key"]) is not None
+    key = "auto.analysis.data_assimilation.twin_experiment"
+    assert key in pf.REGISTRY
+    r = pf.run(pf.Flow("auto", nodes=[{"id": "n", "type": key, "params": {"n": 16, "window_steps": 4}}]),
+               workdir=tmp_path)
+    assert r.status == "done", r.nodes["n"]["error"]
+    assert r.nodes["n"]["report"]["metrics"]
+
+
 def test_committed_coverage_table_is_current():
     from pathlib import Path
 

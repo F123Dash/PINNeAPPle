@@ -182,6 +182,14 @@ def layer_graph(model) -> dict[str, Any]:
         if group in prev_in_group:
             edges.append([prev_in_group[group], name])
         prev_in_group[group] = name
+    basis = getattr(model, "basis", None)
+    if basis is not None and getattr(model, "kind", "") == "pod_mlp":          # the POD reconstruction after the MLP
+        n_out, r = (int(x) for x in basis.shape)
+        nodes.append({"id": "pod_basis", "type": "POD reconstruction", "params": 0, "group": "core",
+                      "detail": f"in_modes={r} out_features={n_out} (basis fixed from the training snapshots, "
+                                f"{n_out * r} values, not trained)"})
+        if "core" in prev_in_group:
+            edges.append([prev_in_group["core"], "pod_basis"])
     return {"nodes": nodes, "edges": edges, "total_params": count_parameters(model),
             "groups": list(dict.fromkeys(n["group"] for n in nodes))}
 

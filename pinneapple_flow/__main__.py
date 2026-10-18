@@ -6,6 +6,8 @@
     catalog [--json]
     schema
     examples                                     # the bundled example flows
+    coverage [-o FILE]                           # which library modules are nodes (markdown)
+    autocalls [--no-check]                       # regenerate the nodes generated from the public API
     studio [--host 127.0.0.1] [--port 8765] [--no-browser] [--env .env]
 """
 from __future__ import annotations
@@ -106,6 +108,19 @@ def cmd_coverage(a) -> int:
     return 0
 
 
+def cmd_autocalls(a) -> int:
+    from .autocalls import generate, prune, smoke, write
+    data = generate()
+    if not a.no_check:
+        smoke(data["calls"])
+        prune(data)
+    write(data)
+    ok = sum(c.get("check", "").startswith("runs") for c in data["calls"])
+    print(f"{len(data['calls'])} nodes from the public API ({ok} run with their defaults), "
+          f"{len(data['reasons'])} modules with a recorded reason -> pinneapple_flow/autocalls.json")
+    return 0
+
+
 def cmd_studio(a) -> int:
     from .studio import serve
     return serve(host=a.host, port=a.port, open_browser=not a.no_browser, env_file=a.env,
@@ -147,6 +162,9 @@ def main(argv=None) -> int:
     cv = sub.add_parser("coverage", help="which library capabilities are nodes (markdown table)")
     cv.add_argument("-o", "--output")
     cv.set_defaults(fn=cmd_coverage)
+    ac = sub.add_parser("autocalls", help="regenerate the nodes generated from the public API (autocalls.json)")
+    ac.add_argument("--no-check", action="store_true", help="skip calling each function with its defaults")
+    ac.set_defaults(fn=cmd_autocalls)
     st = sub.add_parser("studio", help="serve Flow Studio (backend + built frontend)")
     st.add_argument("--host")
     st.add_argument("--port", type=int)

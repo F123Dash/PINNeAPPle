@@ -207,7 +207,10 @@ def _pinn_common(ctx, problem, params, unknowns=None, data=None):
     import torch
     with torch.no_grad():
         U = net(torch.tensor(X, dtype=torch.float32)).numpy()
-    sol = save_solution(ctx, "solution", axes, U, sys_.coords, sys_.fields, "pinn", "PINN")
+    own = [{"id": c["id"], "passed": c["status"] == "pass", "status": c["status"], "value": c["value"],
+            "detail": c["summary"]} for c in rep.checks if c["status"] in ("pass", "fail")]
+    sol = save_solution(ctx, "solution", axes, U, sys_.coords, sys_.fields, "pinn", "PINN",
+                        extra={"own_checks": own})          # validate.compare passes them on to the Lab
     ctx.figure(plot_solution(load_solution(sol), "PINN solution"), "solution")
     mdl = ctx.save_torch("model", {"kind": "pinn", "state": net.state_dict(), "width": int(params["width"]),
                                    "depth": int(params["depth"]), "coords": sys_.coords, "fields": sys_.fields})

@@ -134,6 +134,21 @@ def compare(ctx, inputs, params):
                                "detail": "pp.trust_card: residual, conservation, boundary, reference"})
     ctx.table(f"errors against the {ref_name}", ["candidate", "method", "rel. L2", "max |err|", "RMSE", "verdict"],
               rows)
+    own_rows = []
+    for s in cands:                                  # a candidate's own checks (validate_pinn for a PINN) count too
+        for c in s.get("own_checks") or []:
+            checks.append({"name": f"{s['label']}_{c['id']}", "passed": bool(c["passed"]), "value": c["value"],
+                           "kind": "physics", "detail": f"{s['label']}'s own check: {c['detail']}"})
+            own_rows.append([s["label"], c["id"], "PASS" if c["passed"] else "FAIL", c["detail"]])
+        failed = [c for c in s.get("own_checks") or [] if not c["passed"]]
+        if failed and results.get(s["label"], {}).get("passed"):
+            msg = (f"{s['label']}: {', '.join(c['id'] for c in failed)} fails ({failed[0]['detail']}) although its "
+                   f"relative L2 against the {ref_name} is {results[s['label']]['rel_l2']:.2e}: a small global "
+                   "error with a check that fails locally; the failing check is passed to the Lab curation")
+            ctx.warn(msg)
+            results[s["label"]]["own_checks_failed"] = [c["id"] for c in failed]
+    if own_rows:
+        ctx.table("candidates' own checks", ["candidate", "check", "verdict", "detail"], own_rows)
     if len(cands) > 1:
         best = min(results, key=lambda k: results[k]["rel_l2"])
         ctx.metric("best", best)

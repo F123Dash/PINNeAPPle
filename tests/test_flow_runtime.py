@@ -159,3 +159,17 @@ def test_trust_card_with_a_source_and_boundary_dirichlet(home, dim):
     if dim == 2:
         cards = {k: v.get("trust_card") for k, v in r.output("val", "metrics")["candidates"].items()}
         assert cards and all(c == "APPROVED" for c in cards.values()), cards
+
+
+def test_a_candidates_own_failing_check_is_not_hidden(home):
+    """validate_pinn's checks travel with the PINN's solution into validate.compare (and from there to the Lab), so a
+    failing own check is visible next to the error against the reference."""
+    r = pf.run(heat_flow(pinn=True), workdir=home / "runs")
+    assert r.status == "done"
+    checks = r.output("val", "metrics")["checks"]
+    own = [c for c in checks if c["name"].startswith("PINN_pinn.")]
+    assert own and all(c["kind"] == "physics" for c in own)
+    pinn_report = r.report("pinn")
+    failed = {row[0] for t in pinn_report["tables"] for row in t["rows"] if row[1] == "fail"}
+    assert {c["name"].removeprefix("PINN_") for c in own if not c["passed"]} == failed
+    assert any(t["title"] == "candidates' own checks" for t in r.report("val")["tables"])

@@ -9,7 +9,7 @@ export function LayerGraph({ graph }: { graph: any }) {
   const rows = Math.max(...groups.map((g) => byGroup[g]?.length || 0), 1);
   const W = groups.length * colW + pad * 2, H = rows * rowH + 60;
   const fill = (t: string) =>
-    t === "Linear" || t.startsWith("Conv") ? "#e0ecff" : t.includes("Spectral") ? "#ede4ff" : t === "Dropout" || t === "LayerNorm" ? "#f1f5f9" : "#fff4dc";
+    t === "Linear" || t.startsWith("Conv") ? "#e0ecff" : t.includes("Spectral") ? "#ede4ff" : t.startsWith("POD") ? "#dcfce7" : t === "Dropout" || t === "LayerNorm" ? "#f1f5f9" : "#fff4dc";
   return (
     <div data-testid="layer-graph">
       <div className="text-xs text-slate-600 mb-1">

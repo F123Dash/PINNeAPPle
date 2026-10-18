@@ -370,6 +370,28 @@ def library_specs() -> list[NodeSpec]:
     return [spec_for(c) for c in CALLS.values()]
 
 
+def auto_specs() -> list[NodeSpec]:
+    """Nodes generated from the public API (:mod:`pinneapple_flow.autocalls`, committed ``autocalls.json``): the
+    forms come from the recorded signatures, so the modules are imported only when a node runs."""
+    from .autocalls import load
+    out = []
+    for e in load()["calls"]:
+        call = LibCall(e["key"], e["target"], e["title"], "Library: " + e["module"].split(".")[0].removeprefix(
+            "pinneapple_").replace("pinneapple", "pp"), e.get("description", ""))
+        params = [Param(p["name"], p["kind"], p["default"], choices=p.get("choices"),
+                        help="required" if p.get("required") else "") for p in e["params"]]
+        check = e.get("check", "")
+        missing = re.search(r"(?:No module named|requires the) '([^']+)'", check)
+
+        def avail(missing=missing):
+            return (False, f"needs {missing.group(1)}") if missing else (True, "")
+        desc = (e.get("description") or e["target"]) + (f" [checked: {check}]" if check else "")
+        out.append(NodeSpec(type=e["key"], title=e["title"], category=call.category, fn=_runner(call),
+                            inputs=[], outputs=[Port("result", "metrics")], params=params, description=desc,
+                            calls=e["target"], available_fn=avail))
+    return out
+
+
 # -------------------------------------------------------------------------------------------- the allowlist
 CALLS: dict[str, LibCall] = {}
 

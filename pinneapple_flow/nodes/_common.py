@@ -68,7 +68,8 @@ def load_solution(v: Any) -> dict[str, Any]:
     z = load_artifact(v)
     axes = {c: z[f"axis_{c}"] for c in v["coords"]}
     return {"axes": axes, "values": z["values"], "coords": v["coords"], "fields": v["fields"],
-            "method": v.get("method", ""), "label": v.get("label", v.get("method", ""))}
+            "method": v.get("method", ""), "label": v.get("label", v.get("method", "")),
+            "own_checks": list(v.get("own_checks") or [])}
 
 
 def exact_function(problem: dict[str, Any]):
