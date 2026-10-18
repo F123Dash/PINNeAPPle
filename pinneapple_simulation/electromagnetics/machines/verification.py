@@ -202,6 +202,29 @@ def _mesh(quick: bool) -> CaseResult:
                           + f"; difference ratio {d1 / max(d2, 1e-30):.2f}"))
 
 
+# ------------------------------------------------------------------------------------------------ skew
+@case("Step skew: multi-slice cogging vs skew factor")
+def _skew(quick: bool) -> CaseResult:
+    from .robustness import skewed_no_load
+
+    m = _machine(576)
+    lam, N = m.cogging_period, 12
+    th = m.positions(N, period=lam)
+    c0 = np.array([m.torque(m.solve(t)) for t in th])
+    F0 = np.fft.rfft(c0) / N
+    worst = 0.0
+    for K, steps in ((2, 6), (3, 4)):
+        s = steps * m.mm.band_step
+        Fs = np.fft.rfft(skewed_no_load(m, th, K, s)["cogging"]) / N
+        x = np.arange(len(F0)) * math.pi * s / lam
+        with np.errstate(all="ignore"):
+            fac = np.where(np.abs(np.sin(x)) < 1e-12, np.cos(K * x) / np.cos(x), np.sin(K * x) / (K * np.sin(x)))
+        worst = max(worst, float(np.abs(Fs - F0 * fac).max() / np.abs(F0[1:]).max()))
+    return CaseResult("Step skew: multi-slice cogging vs skew factor", "cogging harmonics, 2 and 3 steps",
+                      "sin(K h pi s / lam) / (K sin(h pi s / lam)) x straight rotor", worst, 1e-6,
+                      detail="offsets are multiples of the band step (identical band triangles)")
+
+
 # ------------------------------------------------------------------------------------------------ drive model
 def _linear_drive(R: float = 0.0):
     from .drive import Drive, LinearDQ, v_max_svpwm
