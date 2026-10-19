@@ -61,6 +61,7 @@
     * [Design studies: optimisers and verified candidates](guides/design_studies.md)
     * [Colab notebooks](guides/colab_notebooks.md)
     * [PINNeAPPle from coding agents (MCP server)](guides/mcp_server.md)
+    * [Agent Workbench: coding and engineering agents on a local model](guides/agent_workbench.md)
     * [Physics checks in CI](guides/physics_checks_in_ci.md)
     * [Engineering GUI agent: run FreeCAD, OpenFOAM, ParaView with evidence](guides/engineering_gui_agent.md)
     * [pp.validate: one call, one validation report](guides/pp_validate.md)
@@ -88,6 +89,7 @@
     * [Identifiability, calibration and inverse problems](guides/identifiability_calibration_inversion.md)
     * [Self-modifying brick builds](guides/interlocking_bricks.md)
     * [Design from intent: a goal in words to a verified design](guides/design_from_intent.md)
+    * [Flow Studio and the flow schema (pinneapple-flow/1)](guides/flow_schema.md)
 * Apps
     * [Inverse Model Studio (day 21)](apps/inverse_studio.md)
     * [Parameter Identifiability Lab (day 25)](apps/identifiability_lab.md)
@@ -96,6 +98,7 @@
     * [Electromagnetics and electrodynamics](guides/electromagnetics.md)
     * [Flight dynamics, turbulence and take-off](guides/flight_dynamics.md)
     * [Topology optimisation](guides/topology_optimization.md)
+    * [Predicting El Niño (ENSO): physical, PINN, data-driven and hybrid models](guides/enso_forecasting.md)
     * [Engineering Evidence Report (day 30)](apps/evidence_report.md)
     * [Physics Validation Lab (day 24)](apps/validation_lab.md)
     * [Forecasting near-random series without overfitting](guides/near_random_forecasting.md)

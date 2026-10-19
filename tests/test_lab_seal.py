@@ -1,5 +1,5 @@
 """The PINNeAPPle quality seal: tier from the curation record, PNG / SVG badges, and stamps on matplotlib figures,
-images, GIFs and videos."""
+images, GIFs and videos. The A-F rules and the six seals are in test_lab_grades.py."""
 import json
 import os
 
@@ -55,12 +55,13 @@ def test_seal_tier_always_from_the_curation(tmp_path):
     root = _fake_lab(tmp_path, {"a/x": "A", "b/y": "B", "c/z": "C"})
     s = seal_for("a/x", root)
     assert s.tier == "A" and s.colour == "#2FBF71" and s.reason == "check of a/x"
-    assert seal_for("b/y", root).colour == "#FFB020"
+    assert seal_for("b/y", root).colour == "#A6D96A"
     cur = load_curation(root)
     cur["items"]["a/x"]["headline"]["label"] = "drag vs Ahmed 1984"   # the display label wins over the raw text
     assert seal_for("a/x", cur).reason == "drag vs Ahmed 1984"
+    assert seal_for("c/z", root).tier == "C"                   # every tier is sealed ...
     with pytest.raises(SealError):
-        seal_for("c/z", root)                                  # C and D are never sealed
+        seal_for("c/z", root, tiers="A,B")                     # ... unless the selection leaves it out
     with pytest.raises(KeyError):
         seal_for("nope", root)
     cur = load_curation(root)                                  # re-curation: the same call gives the new tier
@@ -140,10 +141,11 @@ def test_stamp_gif_and_mp4(tmp_path):
     assert os.path.getsize(out) > 0
 
 
-def test_stamp_all_exports_only_sealed_items(tmp_path):
+def test_stamp_all_exports_every_tier_or_a_selection(tmp_path):
     root = _fake_lab(tmp_path, {"a/x": "A", "b/y": "B", "c/z": "C"})
-    man = stamp_all(root, str(tmp_path / "out"))
-    assert set(man["items"]) == {"a/x", "b/y"}
+    assert set(stamp_all(root, str(tmp_path / "every"))["items"]) == {"a/x", "b/y", "c/z"}
+    man = stamp_all(root, str(tmp_path / "out"), tiers="A,B")
+    assert set(man["items"]) == {"a/x", "b/y"} and man["tiers"] == ["A", "B"]
     assert os.path.exists(tmp_path / "out" / "a_x" / "field.png") and os.path.exists(tmp_path / "out" / "a_x" / "seal.svg")
     assert json.load(open(tmp_path / "out" / "manifest.json"))["items"]["b/y"]["tier"] == "B"
 

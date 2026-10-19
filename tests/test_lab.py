@@ -283,7 +283,8 @@ def test_curation_tiers_readiness_and_review(tmp_path):
     thin = run("_test_curated", {"with_checks": False}, root=root)
     out = curate(LabStore(root))
     tiers = {rid: a["tier"] for rid, a in out["runs"].items()}
-    assert tiers[good.run_id] == "A" and tiers[bad.run_id] == "D" and tiers[thin.run_id] == "C"
+    assert tiers[good.run_id] == "A" and tiers[bad.run_id] == "F" and tiers[thin.run_id] == "D"   # F: contradicts its
+    assert out["runs"][bad.run_id]["headline"]["rule"] == "contradicts"                          # reference; D: no checks
     a = out["runs"][good.run_id]
     assert a["dimensions"]["reference"]["status"] == "PASS" and a["dimensions"]["uncertainty"]["status"] == "NOT_RUN"
     assert not a["readiness"]["marketing"]["ready"]                  # no story yet

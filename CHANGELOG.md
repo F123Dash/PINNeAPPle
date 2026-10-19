@@ -13,6 +13,49 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 
 ## [Unreleased]
 
+### Added
+- Flow Studio rover nodes and the lunar rover dashboard as a flow (`lunar_rover_dashboard`, and a quick variant
+  matching `examples/studio/07_lunar_rover_dashboard.py --quick`): vehicle, soil and site presets, the multibody
+  traverse, the Wong-Reece wheel model, the model zoo's wheel-contact PINN with its physics check, and the animated
+  dashboard shown in the result panel in a sandboxed frame (`/api/artifact/html`, its own opaque origin).
+- Flow Studio palette: sections in workflow order (Problem & geometry ... Export & report), each collapsible with its
+  count; the generated library calls in a collapsed "Library calls (advanced)" section grouped by package; human
+  titles, one-line summaries, colour chips by output port type, a hover card with the description and, for an
+  unavailable node, the reason and the install hint; search ranked by the library (`pinneapple_flow.palette`) with
+  matches highlighted and the section of each hit; favourites and recent node types stored per user in the flow
+  store; a drag preview, and double-click adds at the canvas centre.
+- Flow Studio decision records: every planner, LLM and user choice records who decided, why, references from a
+  curated registry (`pinneapple_flow/references.yaml`; LLM citations are checked), evidence and a confidence.
+  Uncited choices are flagged `no reference` and suggest nodes that would back them.
+- Flow nodes for any problem and its twin: `problem.generic` (candidate equations from text, data and units, plus
+  SINDy / PDE-FIND discovery), `data.stream` and `twin.auto` (the twin is built from the identified model, with EnKF
+  coefficient estimation and anomaly alarms).
+- `lib.*` nodes: a curated allowlist of library calls with forms generated from their signatures, user-defined node
+  types stored as data, and `docs/flow_studio/COVERAGE.md`.
+- Lab seal in Flow Studio: the letter, the reason and the next steps are read from `pinneapple_lab`
+  (`pinneapple_flow.lab_status`); the "insert nodes" buttons are wired by port type.
+- PINNeAPPle Flow (`pinneapple_flow`, extra `[flow]`) and Flow Studio (`apps/flow_studio`, `python -m pinneapple_flow
+  studio`): engineering flows as typed node graphs in a versioned JSON document (`pinneapple-flow/1`, documented in
+  `docs/guides/flow_schema.md`), a catalog of nodes that each wrap a library call (domain with the 1-D / 2-D / 3-D
+  switch, editable equations, finite differences / FEM / OpenFOAM, PINN, DeepONet / FNO / MLP / POD + MLP surrogates
+  with an editable architecture and layer-graph preview, HPO, fine-tuning, inverse PINN, calibration, sensor data, CSV
+  ingest, parametric sweeps, validation with the trust card, Lab curation and seal, Sobol sensitivity, digital twin,
+  forecast lab, take-off, plots, three.js viewer, render, report), a runtime on `pinneapple_core.workflows` (skip-done
+  cache, run from a node, per-node status), a heuristic planner (offline, English and Portuguese) and an LLM planner
+  whose output is validated and repaired against the catalog, a SQLAlchemy store (SQLite by default, Postgres by URL),
+  a CLI (`run`, `plan`, `validate`, `catalog`, `schema`, `studio`) and example flows with their measured results.
+- `pinneapple_physics.symbolic_pde.text`: equations as text (`u_t = alpha*lap(u)`) parsed into SymPy through an AST
+  whitelist (never `eval` / `sympify`), with classification of the PDE family; `.pinn.pinn_problem` builds a
+  `PINNProblem` (residual by autograd, Dirichlet / initial samplers, Neumann / Robin constraints, trainable unknown
+  coefficients) from the same system.
+- `pinneapple_simulation.numerical_solvers.symbolic_fd.solve_fd`: finite differences for any parsed system on a box in
+  1-D to 3-D (Newton on a coloured sparse Jacobian for steady systems, method of lines with BDF otherwise; Dirichlet,
+  Neumann, Robin and periodic conditions).
+- `pinneapple_analysis.validation.pinn.train_pinn`: `problem.constraints`, `data=(X, Y)` (inverse PINNs) and
+  `callback`; the result has the loss history.
+- `pinneapple_llm.call_llm`: provider `openai_compatible` with `base_url` (vLLM, LM Studio, llama.cpp, a hosted
+  model), `base_url` for `openai`, and `max_tokens`.
+
 ### Security
 - Web hardening for every app, in the library (`pinneapple_security.web`, `.passwords`, `.archives`) and wired
   once through `apps/_shared/appkit.py` `install()`: CSP built from each app's own pages (no script
@@ -40,6 +83,85 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ### Added
 - `MultiAdam` trainer: Adam with separate moments per loss term, `opt.step([loss_pde, loss_bc])` (Yao et al.
   2023, arXiv:2306.02816). On Poisson with the boundary term weighted 1e-3 it beats plain Adam on 3 seeds (#573).
+- Agent Workbench (`pinneapple_llm.workbench`, `pinneapple-workbench`, `[workbench]` extra): a team of agents on a
+  local model (Ollama or any OpenAI-compatible server), started with one command as a web app, in VS Code or in the
+  terminal.
+  - A lead and seven specialists: explorer, researcher, coder, tester, reviewer, physics, reporter. Their prompts are
+    editable Markdown, overridable per user or per project.
+  - Tools: files, search, shell commands (also as background jobs), internet search and fetch, GitHub, showing files
+    in the chat, a plan, delegation, questions with choices, parallel sessions and scheduled follow-ups. Paths are
+    confined to the workspace, with an `ask` / `auto` / `yolo` approval policy.
+  - Every event and every model call goes to SQLite or PostgreSQL, with 👍/👎 feedback per turn.
+  - Fine-tuning: dataset export (trajectories, rated turns, secrets masked) and LoRA training with MLX on Apple
+    Silicon or TRL/PEFT on CUDA, plus serving the adapter.
+  - A model recommendation from the machine's memory, `doctor`, and `eval` (checkable tasks reporting pass/fail,
+    time and tokens). Guide: `docs/guides/agent_workbench.md`.
+- The experiments page (`pinneapple_lab.explorer`): every Lab item and every `examples/*` manifest with its A-F
+  seal, trust card, measured metrics, failing check (E/F), next steps with commands, stamped figure gallery, movies
+  on demand, 3-D viewers and links (guide, script, pull request); filters (letter, domain, method, ready), search,
+  sort, per-letter counts, detail pages, EN/PT, mobile layout. Served at `/experiments` with `/api/experiments`,
+  `/api/experiment`, `/api/coverage`, `/stamped/...`, `/seal.png`, `/repo/...` (behind the Lab login); static export
+  `python -m pinneapple_lab site --out <dir>`; coverage list `python -m pinneapple_lab coverage`
+  (`docs/lab/coverage.md`: 119 experiments, 70 curated, 49 not curated; a Lab item that grades an `examples/*`
+  folder is shown inside that folder's entry, so each study is counted once). Shared next steps listed once. The Lab image sets `PINNEAPPLE_REPO`;
+  deploy steps in `apps/deploy/README.md`.
+- Experiment manifests (`pinneapple_lab.manifest`, format `pinneapple.experiment/1`): one `experiment.json` per
+  experiment that the curation, the experiments site and the Flow Studio read through one loader (Lab run folders
+  read as manifests too). `pinneapple_lab.experiment(...)` (context manager or decorator) records parameters, git
+  commit, environment, timing, `log_metric`, `check`, every figure saved through `savefig`, movies and viewers, then
+  writes the manifest, imports it into the Lab (`manifest` experiment) and re-curates (A-F and next steps). Lab
+  runs and `pinneapple_core.workflows` runs write their manifest; `Solution.to_experiment` /
+  `Comparison.to_experiment`; `manifest.from_flow_run` for the Flow Studio. `python -m pinneapple_lab register`,
+  `scaffold`, `manifests [--check]`. Every `examples/*` folder (67) now has a manifest generated from what it
+  holds (README or docstring, imports, figures, the docs page citing it, the pull requests whose merge changed
+  it); metrics only where a Lab run measured them. CI gate `scripts/check_experiment_manifests.py` (must pass) and
+  an AGENTS.md rule. Guide (EN/PT): `docs/guides/adding_an_experiment.md`.
+  `manifest.from_results(folder, rules)` reads the metrics and checks a folder's committed results hold, by rules in
+  `pinneapple_lab.results_rules` (a verdict the study recorded, its own check records, or a value against the
+  threshold its own test applies, cited `file:line` and verified): flight dynamics, ENSO and the brick builds are
+  now Lab items (B each), the PINNeAPPle-vs-PhysicsNeMo benchmark metrics a D (measured, no check yet); folders whose results a `repo_results` source already grades link to that item
+  (`manifest.lab_items_for`). Next steps that share the same actions are listed once (`next_steps.group`).
+- Lab quality seals for every tier, A to F (`pinneapple_lab.curation`, `pinneapple_lab.seal`). The curation now
+  grades on six letters: A flagship and B solid unchanged, C plausible (every check passes, the trust card's model,
+  physics or benchmark stage answered, B gates not met), D exploratory (consistent, not validated), E known problems
+  (a failing check: large error vs a reference, unseen inputs, a baseline) and F not usable (crashed, diverged, a
+  failing physics check, or every reference check failing with nothing else independent passing). The old C maps
+  to C/D, the old D to E/F (`TIER_HISTORY`). E and F items record the main failing check and the next step to the
+  letter above in EN and PT (`headline["hint"]`, `hint_pt`), and their seals always print both (no compact form).
+  Six colours from green to dark red, each letter and tier line at WCAG contrast >= 4.5 on the badge (tested);
+  `lang="pt"` on `render_seal`, `stamp_figure`, `stamp_file`, `stamp_all`, `sealed_savefig`; `tiers=` /
+  `--tiers A,B` to keep a selection to validated items (default: every tier); `python -m pinneapple_lab legend`.
+  Reports, `lab/CURATION.md` and the catalogue show the six tiers and, for E and F, the problem and the next step.
+  Migration: the committed lab re-curated (19 A, 50 B, 0 C, 6 D, 1 E, 5 F items; A and B items and headlines
+  identical); legend and stamped examples in `docs/assets/seals/`; guide in `docs/core_concepts/lab.md`.
+- What an item lacks for the next letter, and how to get there with PINNeAPPle (`pinneapple_lab.next_steps`,
+  `pinneapple_lab.curation.next_steps(item) -> list[Gap]`). Every curated item records its gaps (failing checks with
+  the measured value against the threshold, unanswered trust-card stages, missed flagship gates, and for A what would
+  strengthen it), each with actions from a tested registry (lab rerun / refinement sweep, `pinneapple check`,
+  `ctx.check`, `pp.compare`, `pp.trust_card`, `pp.validate`, `validate_pinn`, `TrustGate`, `gci_check`,
+  `coverage_check`, `pp.benchmark.run`, ...) with the item's parameters filled in, EN and PT. The seal's full form
+  carries a "↑ next" line; `python -m pinneapple_lab seal --explain <item>`, reports and the catalogue show the full
+  list; `python -m pinneapple_lab improve <item> [--run]` (dry run by default) runs only the registered lab commands
+  and re-curates.
+- ENSO prediction (`pinneapple_systems.time_series.enso`): openly licensed, checksummed data (`data`: NOAA OISST
+  v2.1 monthly tropical-Pacific SST and Nino indices, World Ocean Database moored-buoy / XBT / Argo 20 C isotherm
+  depth, ERA5 stress and a Tahiti - Darwin index from WeatherBench 2, NCEI heat content and the statsmodels Nino 1+2
+  as cross-checks; a SHA-256 manifest per source), the study data set (`dataset`: anomalies on a development-period
+  base, EOF gap filling of the thermocline bins); conceptual models (`oscillators`: recharge oscillator with
+  seasonal coefficients and multiplicative noise fitted by multiple shooting, delayed oscillator with its Lambert-W
+  roots); an intermediate coupled model (`intermediate`: linear equatorial beta-plane shallow-water ocean on a
+  C-grid, Gill atmosphere solved per meridional mode, SST equation, nudging, Kelvin / Rossby / Gill / convergence
+  checks); forecasters with the forecast_lab interface (`forecasters`: recharge oscillator, LIM, map CNN with
+  optional pre-training on the intermediate model, intermediate model with SST nudging or a localised EnKF,
+  multi-model ensemble, `ColumnSubset`); physics-informed networks (`pinn`: recharge-oscillator identification
+  with an optional learned closure, per-origin PINN extrapolation, an equatorial-wave shallow-water PINN with a
+  learned thermocline-feedback closure), ENSO scores (`evaluation`: ACC, target-month skill, categorical scores,
+  blocked hindcasts), figures (`plots`), the Blender slab render (`render`) and the study steps (`study`,
+  `pipeline`). `pinneapple_analysis.state_estimation`: `enkf_analysis` (localised stochastic EnKF update for
+  batched models) and `gaspari_cohn`. `forecast_lab.study`: `run_zoo(..., keep_models=True)` and `merge_zoo`
+  (one process per model, comparisons recomputed over the whole zoo). `studio.render(..., surface_fields=...)`
+  colours one surface by its own field (jet or the new diverging `colormap.RDBU`) with a second colour bar. Tests
+  `tests/test_enso.py`.
 - Flight dynamics, `pinneapple_simulation.flight`: a 6-DOF rigid aircraft (body axes, quaternion attitude) whose
   wing and tail loads come from the vortex lattice of `pinneapple_design.aero.vlm` solved every step with the local
   velocity at each panel (rates, gusts that differ along the span), plus fin and fuselage build-up, engines

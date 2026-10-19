@@ -33,6 +33,7 @@ DATA_FILES = [
     "pinneapple_design/geometry_library/manifest.json",
     "pinneapple_analysis/validation/arena/cases/darcy_2d.json",
     "pinneapple_analysis/validation/arena/cases/burgers_1d.json",
+    "pinneapple_flow/flows/heat_1d.json",
 ]
 
 

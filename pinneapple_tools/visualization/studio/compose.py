@@ -7,8 +7,8 @@ pictures and videos (a grid of renders with labels and one common colour bar).
     compose_grid_video(["a.mp4", "b.mp4"], "grid.mp4", labels=["A", "B"], ncols=2, crf=28)
 
 Colour maps: ``"jet"`` (CFD convention, blue = low, red = high; the same stops as :mod:`.colormap` and
-studio-core.js) and the diverging ``"coolwarm"`` / ``"bwr"`` (blue = negative, neutral midpoint, red = positive),
-used with a range symmetric about zero (:func:`symmetric_range`).
+studio-core.js) and the diverging ``"coolwarm"`` / ``"bwr"`` / ``"rdbu"`` (ColorBrewer RdBu reversed; blue =
+negative, neutral midpoint, red = positive), used with a range symmetric about zero (:func:`symmetric_range`).
 """
 from __future__ import annotations
 
@@ -20,14 +20,14 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from .colormap import JET, ticks
+from .colormap import JET, RDBU, ticks
 
 # stops: (position 0..1, (r, g, b) 0..255), sRGB; studio-core.js has the same tables
 COOLWARM = [(0.0, (59, 76, 192)), (0.25, (141, 176, 254)), (0.5, (221, 221, 221)), (0.75, (244, 154, 123)),
             (1.0, (180, 4, 38))]                                        # Moreland's diverging map, as in matplotlib
 BWR = [(0.0, (0, 0, 255)), (0.5, (255, 255, 255)), (1.0, (255, 0, 0))]
-CMAPS = {"jet": JET, "coolwarm": COOLWARM, "bwr": BWR}
-DIVERGING = {"coolwarm", "bwr"}
+CMAPS = {"jet": JET, "coolwarm": COOLWARM, "bwr": BWR, "rdbu": RDBU}
+DIVERGING = {"coolwarm", "bwr", "rdbu"}
 
 
 def stops(cmap: str):
