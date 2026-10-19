@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
@@ -48,6 +48,25 @@ def create_app(service: FlowService | None = None) -> FastAPI:
     @app.get("/api/catalog")
     def catalog():
         return svc.catalog()
+
+    def who(request: Request) -> str:
+        p = getattr(request.state, "principal", "") or ""
+        return p if p.startswith(("user:", "key:")) else "local"      # one profile for the local, unauthenticated user
+
+    @app.get("/api/palette")
+    def palette(request: Request):
+        return svc.palette(who(request))
+
+    @app.get("/api/palette/search")
+    def palette_search(q: str = ""):
+        return svc.palette_search(q)
+
+    @app.put("/api/palette/prefs")
+    def palette_prefs(request: Request, body: JSONBody):
+        try:
+            return svc.set_palette_prefs(who(request), body)
+        except FlowError as e:
+            bad(e)
 
     @app.get("/api/schema")
     def schema():

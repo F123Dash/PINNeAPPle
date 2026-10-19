@@ -7,7 +7,13 @@ export interface ParamSpec {
 export interface NodeType {
   type: string; title: string; category: string; description: string; calls: string;
   inputs: Port[]; outputs: Port[]; params: ParamSpec[]; available: boolean; unavailable_reason: string;
+  tags?: string[]; palette?: PaletteEntry;
 }
+export interface PaletteEntry {
+  section: string; title: string; summary: string; tags: string[]; package: string; curated: boolean; group: string; install: string;
+}
+export interface PaletteSection { id: string; title: string; glyph: string; description: string; collapsed: boolean; count: number; types: string[] }
+export interface PaletteInfo { sections: PaletteSection[]; favourites: string[]; recent: string[] }
 export interface Catalog { nodes: NodeType[]; port_types: Record<string, string>; conversions: [string, string][] }
 
 export interface FlowNodeDoc { id: string; type: string; params: Record<string, any>; position: { x: number; y: number }; label: string }

@@ -1,5 +1,5 @@
 // Thin client of the Flow Studio API (apps/flow_studio/backend/app.py -> pinneapple_flow.service).
-import type { Catalog, DecisionsResult, FlowDoc, NextSteps, PlanResult, RunStatus, NodeResult, SealStatus } from "./types";
+import type { Catalog, PaletteInfo, DecisionsResult, FlowDoc, NextSteps, PlanResult, RunStatus, NodeResult, SealStatus } from "./types";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, {
@@ -24,6 +24,10 @@ const post = <T,>(path: string, body: unknown) => call<T>(path, { method: "POST"
 export const api = {
   info: () => call<{ version: string; settings: Record<string, string>; planners: string[] }>("/api/info"),
   catalog: () => call<Catalog>("/api/catalog"),
+  palette: () => call<PaletteInfo>("/api/palette"),
+  paletteSearch: (q: string) => call<{ type: string; section: string }[]>(`/api/palette/search?q=${encodeURIComponent(q)}`),
+  setPalettePrefs: (prefs: { favourites?: string[]; recent?: string[] }) =>
+    call<{ favourites: string[]; recent: string[] }>("/api/palette/prefs", { method: "PUT", body: JSON.stringify(prefs) }),
   plan: (text: string, backend: string) => post<PlanResult>("/api/plan", { text, backend }),
   validate: (flow: FlowDoc) => post<{ valid: boolean; issues: { level: string; message: string; node: string; edge: string }[] }>("/api/validate", flow),
   previewEquations: (geometry: unknown, equations: unknown) =>

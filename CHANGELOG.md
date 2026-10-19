@@ -14,6 +14,12 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Flow Studio palette: sections in workflow order (Problem & geometry ... Export & report), each collapsible with its
+  count; the generated library calls in a collapsed "Library calls (advanced)" section grouped by package; human
+  titles, one-line summaries, colour chips by output port type, a hover card with the description and, for an
+  unavailable node, the reason and the install hint; search ranked by the library (`pinneapple_flow.palette`) with
+  matches highlighted and the section of each hit; favourites and recent node types stored per user in the flow
+  store; a drag preview, and double-click adds at the canvas centre.
 - Flow Studio decision records: every planner, LLM and user choice records who decided, why, references from a
   curated registry (`pinneapple_flow/references.yaml`; LLM citations are checked), evidence and a confidence.
   Uncited choices are flagged `no reference` and suggest nodes that would back them.
