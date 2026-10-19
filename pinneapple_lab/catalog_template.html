@@ -238,9 +238,13 @@ let state = { q: "", status: "all", tag: "all", tier: "all" };
 const TIER = { A: ["A · flagship"], B: ["B · solid"], C: ["C · plausible"], D: ["D · exploratory"],
                E: ["E · known problems"], F: ["F · not usable"] };
 const UNUSABLE = (t) => t === "E" || t === "F";
-const nextSteps = (it) => (it.next_steps || []).length ? `<div class="next"><h5>Next letter: what is missing and how</h5><ol>${it.next_steps.map((g) =>
-  `<li><b>${esc(g.to)}: ${esc(g.short)}</b> <span class="unl">${esc(g.why)}</span><ul>${g.actions.length ? g.actions.map((a) =>
-    `<li>${esc(a.text)}<br><code>${esc(a.command)}</code></li>`).join("") : "<li>no PINNeAPPle action yet</li>"}</ul></li>`).join("")}</ol></div>` : "";
+const groupSteps = (gaps) => { const out = [], idx = {};            // gaps sharing the same commands: actions once
+  for (const g of gaps) { const k = JSON.stringify(g.actions.map((a) => a.command));
+    if (k in idx) out[idx[k]].gaps.push(g); else { idx[k] = out.length; out.push({ gaps: [g], actions: g.actions }); } }
+  return out; };
+const nextSteps = (it) => (it.next_steps || []).length ? `<div class="next"><h5>Next letter: what is missing and how</h5>${groupSteps(it.next_steps).map((grp) =>
+  `<ol>${grp.gaps.map((g) => `<li><b>${esc(g.to)}: ${esc(g.short)}</b> <span class="unl">${esc(g.why)}</span></li>`).join("")}</ol><ul>${grp.actions.length ? grp.actions.map((a) =>
+    `<li>${esc(a.text)}<br><code>${esc(a.command)}</code></li>`).join("") : "<li>no PINNeAPPle action yet</li>"}</ul>`).join("")}</div>` : "";
 const problem = (it) => UNUSABLE(it.tier) && it.headline && it.headline.kind === "failing"
   ? `<p class="problem"><b>Main problem:</b> ✗ ${esc(it.headline.text)}<br><b>To raise it:</b> ↑ ${esc(it.headline.hint || "")}</p>` : "";
 const tierBadge = (q) => q ? `<span class="tier t${q.tier}" title="Quality tier (pinneapple_lab.curation)">${TIER[q.tier][0]}</span>` : "";
