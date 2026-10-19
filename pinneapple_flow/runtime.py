@@ -16,6 +16,7 @@ Values on edges are JSON; arrays, weights and figures are files in the node's fo
 from __future__ import annotations
 
 import json
+import math
 import os
 import threading
 import time
@@ -456,14 +457,66 @@ def on_run_finished(result: FlowRunResult, flow: Flow) -> None:
 
 def lab_export_status() -> str:
     try:
-        import pinneapple_lab
+        from pinneapple_lab import manifest
     except ImportError:
-        return "pinneapple_lab not importable"
-    return "available" if callable(getattr(pinneapple_lab, "experiment", None)) else \
-        "pinneapple_lab.experiment is not available yet"
+        return "pinneapple_lab.manifest is not available"
+    return "available" if callable(getattr(manifest, "from_flow_run", None)) else \
+        "pinneapple_lab.manifest.from_flow_run is not available"
+
+
+def _flow_manifest_run(result: FlowRunResult, flow: Flow) -> dict[str, Any]:
+    """The run as the dict :func:`pinneapple_lab.manifest.from_flow_run` takes: nodes, the library modules they
+    call, parameters, measured metrics (numbers only, each with how it was measured), checks, figures / videos
+    (relative to the run folder) and the decision records with their references (``decisions.json``)."""
+    import re as _re
+
+    from .decisions import collect
+    out = Path(result.workdir)
+    rel = lambda p: os.path.relpath(p, out) if Path(p).resolve().is_relative_to(out.resolve()) else None  # noqa: E731
+    metrics, checks, figures, videos, modules = [], [], [], [], set()
+    for nid, st in result.nodes.items():
+        n = flow.node(nid)
+        spec = REGISTRY.get(n.type)
+        if spec is not None:
+            modules |= set(_re.findall(r"\bpinneapple[a-z_]*(?:\.[a-z_]+)*", spec.calls or ""))
+        rep = st.get("report") or {}
+        for k, v in (rep.get("metrics") or {}).items():
+            val, how = (v.get("value"), v.get("how", "")) if isinstance(v, dict) else (v, "")
+            if isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(float(val)):
+                metrics.append({"name": f"{nid}.{k}", "value": val, "unit": "",
+                                "how": how or f"measured by the {n.type} node"})
+        for port in (st.get("outputs") or {}).values():
+            if isinstance(port, dict) and isinstance(port.get("checks"), list):
+                checks += [{"name": f"{nid}.{c.get('name')}", "passed": bool(c.get("passed")),
+                            **{k: c[k] for k in ("value", "detail", "kind") if k in c}} for c in port["checks"]
+                           if isinstance(c, dict) and "name" in c]
+        figures += [r for f in rep.get("figures") or [] if (r := rel(f.get("path", "")))]
+        vid = (rep.get("views") or {}).get("video")
+        if vid and (r := rel(vid.get("path", ""))):
+            videos.append(r)
+    decisions = collect(flow, {k: v.get("report") or {} for k, v in result.nodes.items()})
+    (out / "decisions.json").write_text(json.dumps(decisions, indent=1, default=str))
+    refs = sorted({r.get("key") or r.get("link") for d in decisions for r in d.get("references", [])
+                   if r.get("key") or r.get("link")})
+    return {"id": f"flow-{flow.id}-{result.run_id}", "title": flow.name or flow.id, "description": flow.description,
+            "nodes": [{"type": n.type} for n in flow.nodes], "modules": sorted(modules),
+            "params": {n.id: n.params for n in flow.nodes}, "metrics": metrics, "checks": checks,
+            "files": {"figures": figures, "videos": videos, "data": ["decisions.json"]},
+            "links": {"flow_id": flow.id, "run_id": result.run_id}, "references": refs}
 
 
 def export_to_lab(result: FlowRunResult, flow: Flow) -> str:
-    """Export the run through ``pinneapple_lab.experiment`` (the Lab's own manifest format, not one of ours). The
-    call is wired when that API lands; today it only reports that it is not available."""
-    return f"skipped: {lab_export_status()}"
+    """Write the run's experiment manifest (``experiment.json`` in the run folder) with the Lab's own
+    ``pinneapple_lab.manifest.from_flow_run``, so flow runs appear on the experiments site."""
+    status = lab_export_status()
+    if status != "available":
+        return f"skipped: {status}"
+    if result.status != "done":
+        return f"skipped: the run is {result.status}"
+    from pinneapple_lab import manifest as M
+    run = _flow_manifest_run(result, flow)
+    m = M.from_flow_run(run)
+    m.references = run["references"]
+    path = M.save(m, result.workdir)
+    problems = M.validate(m, base=result.workdir)
+    return f"manifest {path}" + (f" ({len(problems)} issues: {problems[:3]})" if problems else "")

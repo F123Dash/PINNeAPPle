@@ -124,9 +124,11 @@ the library (add a new one in `pinneapple_flow.types` with a pull request) so do
     `ctx.not_run(reason)`, or when a required input comes from a node that did not run. An optional input from such
     a node is just absent.
   * `degraded`: the node ran on a declared fallback (`ctx.degrade(reason)`); `report["degraded"]` lists the reasons.
-* Every finished run passes through `pinneapple_flow.runtime.on_run_finished(result, flow)`. Headless, service and
-  GUI runs all go through it, and it is where the run will be exported as a PINNeAPPle Lab experiment through
-  `pinneapple_lab.experiment` once that API is on main; until then the export reports `skipped`. Other packages
+* Every finished run passes through `pinneapple_flow.runtime.on_run_finished(result, flow)`, for headless, service
+  and GUI runs alike. A run that finished `done` is written as a PINNeAPPle Lab experiment manifest
+  (`experiment.json` in the run folder) by `pinneapple_lab.manifest.from_flow_run`. The manifest holds the nodes,
+  the library modules they call, the parameters, every measured metric with how it was measured, the checks, the
+  figures and videos, and `decisions.json` with the decision records and their references. Other packages
   append to `RUN_FINISHED_HOOKS`. What each hook did is in `result.hooks`; a failing hook never fails the run.
 * `pinneapple_flow.store.FlowStore(url)` keeps flows with versions, runs and per-node outputs (metrics, report,
   artifact paths) in SQLite (default) or any SQLAlchemy URL (`postgresql+psycopg://...`). Tables: `flows`,

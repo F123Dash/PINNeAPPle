@@ -117,3 +117,24 @@ def test_one_after_run_hook_point(tmp_path, monkeypatch):
     assert r.status == "done" and seen == [(r.run_id, "hooked")]
     assert r.hooks["broken"].startswith("failed: RuntimeError")
     assert r.hooks["export_to_lab"].startswith("skipped") or runtime.lab_export_status() == "available"
+
+
+def test_finished_run_writes_a_valid_lab_manifest(tmp_path):
+    from pinneapple_lab import manifest as M
+    f = pf.Flow("heat manifest", nodes=[
+        {"id": "geo", "type": "geometry.domain", "params": {"dimension": 1, "t_range": [0, 0.3]}},
+        {"id": "eq", "type": "equations.system", "params": {"template": "heat"}},
+        {"id": "fd", "type": "solver.classical", "params": {"method": "fd", "n": 21, "n_t": 6}},
+        {"id": "val", "type": "validate.compare", "params": {"reference": "exact"}}], edges=[
+        {"source": "geo", "source_port": "geometry", "target": "eq", "target_port": "geometry"},
+        {"source": "eq", "source_port": "problem", "target": "fd", "target_port": "problem"},
+        {"source": "fd", "source_port": "solution", "target": "val", "target_port": "candidates"},
+        {"source": "eq", "source_port": "problem", "target": "val", "target_port": "problem"}])
+    r = pf.run(f, workdir=tmp_path)
+    assert r.hooks["export_to_lab"].startswith("manifest "), r.hooks
+    assert "issues" not in r.hooks["export_to_lab"], r.hooks
+    m = M.load(r.workdir)
+    assert not M.validate(m, base=r.workdir)
+    assert "validate.compare" in m.methods and any(x["name"] == "val.FD_rel_l2" for x in m.metrics)
+    assert any(c["name"].startswith("val.") for c in m.checks) and m.files["data"] == ["decisions.json"]
+    assert m.references and "pinneapple_simulation.numerical_solvers.symbolic_fd.solve_fd" in m.modules
