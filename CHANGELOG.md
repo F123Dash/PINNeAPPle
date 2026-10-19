@@ -81,6 +81,8 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
 
 ### Added
+- `MultiAdam` trainer: Adam with separate moments per loss term, `opt.step([loss_pde, loss_bc])` (Yao et al.
+  2023, arXiv:2306.02816). On Poisson with the boundary term weighted 1e-3 it beats plain Adam on 3 seeds (#573).
 - Agent Workbench (`pinneapple_llm.workbench`, `pinneapple-workbench`, `[workbench]` extra): a team of agents on a
   local model (Ollama or any OpenAI-compatible server), started with one command as a web app, in VS Code or in the
   terminal.
