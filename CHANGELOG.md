@@ -81,6 +81,19 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   the Observatory cache is bounded. Lab catalogue: `LAB_PASSWORD_HASH` and lockout.
 
 ### Added
+- Agent Workbench (`pinneapple_llm.workbench`, `pinneapple-workbench`, `[workbench]` extra): a team of agents on a
+  local model (Ollama or any OpenAI-compatible server), started with one command as a web app, in VS Code or in the
+  terminal.
+  - A lead and seven specialists: explorer, researcher, coder, tester, reviewer, physics, reporter. Their prompts are
+    editable Markdown, overridable per user or per project.
+  - Tools: files, search, shell commands (also as background jobs), internet search and fetch, GitHub, showing files
+    in the chat, a plan, delegation, questions with choices, parallel sessions and scheduled follow-ups. Paths are
+    confined to the workspace, with an `ask` / `auto` / `yolo` approval policy.
+  - Every event and every model call goes to SQLite or PostgreSQL, with 👍/👎 feedback per turn.
+  - Fine-tuning: dataset export (trajectories, rated turns, secrets masked) and LoRA training with MLX on Apple
+    Silicon or TRL/PEFT on CUDA, plus serving the adapter.
+  - A model recommendation from the machine's memory, `doctor`, and `eval` (checkable tasks reporting pass/fail,
+    time and tokens). Guide: `docs/guides/agent_workbench.md`.
 - The experiments page (`pinneapple_lab.explorer`): every Lab item and every `examples/*` manifest with its A-F
   seal, trust card, measured metrics, failing check (E/F), next steps with commands, stamped figure gallery, movies
   on demand, 3-D viewers and links (guide, script, pull request); filters (letter, domain, method, ready), search,
