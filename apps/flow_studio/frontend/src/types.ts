@@ -44,6 +44,7 @@ export const PORT_COLORS: Record<string, string> = {
   geometry: "#0ea5e9", mesh: "#06b6d4", equations: "#8b5cf6", problem: "#7c3aed", solution: "#16a34a",
   model: "#ea580c", dataset: "#ca8a04", series: "#d97706", metrics: "#475569", params: "#db2777",
   architecture: "#9333ea", figure: "#2563eb", scene: "#0891b2", twin: "#059669", report: "#64748b", any: "#94a3b8",
+  vehicle: "#b45309", soil: "#a16207", site: "#78716c", vehicle_run: "#0d9488",
 };
 
 export const STATUS_STYLE: Record<string, string> = {

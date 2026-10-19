@@ -14,6 +14,10 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 ## [Unreleased]
 
 ### Added
+- Flow Studio rover nodes and the lunar rover dashboard as a flow (`lunar_rover_dashboard`, and a quick variant
+  matching `examples/studio/07_lunar_rover_dashboard.py --quick`): vehicle, soil and site presets, the multibody
+  traverse, the Wong-Reece wheel model, the model zoo's wheel-contact PINN with its physics check, and the animated
+  dashboard shown in the result panel in a sandboxed frame (`/api/artifact/html`, its own opaque origin).
 - Flow Studio palette: sections in workflow order (Problem & geometry ... Export & report), each collapsible with its
   count; the generated library calls in a collapsed "Library calls (advanced)" section grouped by package; human
   titles, one-line summaries, colour chips by output port type, a hover card with the description and, for an

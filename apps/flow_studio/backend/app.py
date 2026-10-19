@@ -214,6 +214,21 @@ def create_app(service: FlowService | None = None) -> FastAPI:
         except KeyError as exc:
             raise HTTPException(404, str(exc)) from None
 
+    # an HTML report (the rover dashboard) in a frame of the app: its own opaque origin (CSP sandbox, no
+    # allow-same-origin), so its inline scripts run without reaching the app's API or cookies
+    HTML_CSP = ("sandbox allow-scripts allow-downloads; default-src 'none'; script-src 'unsafe-inline' blob:; "
+                "style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:; "
+                "connect-src 'none'; worker-src blob:; frame-ancestors 'self'")
+
+    @app.get("/api/artifact/html")
+    def artifact_html(path: str):
+        try:
+            return FileResponse(svc.html_artifact(path), media_type="text/html",
+                                headers={"content-security-policy": HTML_CSP, "x-frame-options": "SAMEORIGIN",
+                                         "cross-origin-opener-policy": "unsafe-none"})
+        except PermissionError:
+            return JSONResponse({"detail": "not a run artifact"}, status_code=403)
+
     @app.get("/api/artifact")
     def artifact(path: str):
         try:

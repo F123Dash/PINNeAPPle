@@ -13,6 +13,7 @@ Two kinds:
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pinneapple_flow as pf
@@ -177,6 +178,39 @@ def takeoff():
     return fb.flow({"kind": "reproduction"})
 
 
+def lunar_rover(quick: bool = False):
+    """examples/studio/07_lunar_rover_dashboard.py as a flow (``quick``: its --quick settings, 12 s and 24 frames)."""
+    fb = FlowBuilder("Lunar rover dashboard" + (" (quick)" if quick else ""),
+                     "NASA VIPER crossing a lunar crater on GRC-1: multibody dynamics with Wong-Reece wheels, the model "
+                     "zoo's wheel-contact PINN checked against the run's physics, and the animated dashboard (planetary "
+                     "render with the ruts coloured by normal stress, charts synced to the animation) with a horizon "
+                     "check on the frames. The flow form of examples/studio/07_lunar_rover_dashboard.py"
+                     + (" --quick (12 s traverse, 24 frames)." if quick else " (45 s traverse, 150 frames)."))
+    veh = fb.add("vehicle", "vehicle.spec", {"preset": "viper", "total_mass": 450.0}, label="VIPER")
+    soil = fb.add("soil", "terramechanics.soil", {"preset": "GRC-1"}, label="GRC-1 soil")
+    site = fb.add("site", "scenario.site", {"scenario": "crater_site"}, label="Crater site")
+    sim = fb.add("simulate", "vehicle.simulate", {"duration": 12.0 if quick else 45.0, "speed": 0.2},
+                 label="Traverse")
+    wr = fb.add("wheel", "terramechanics.wheel_model", {}, label="Wong-Reece wheel")
+    zoo = fb.add("pinn", "terramechanics.zoo_surrogate", {"zoo_name": "rover_contact_grc1_viper"}, label="Zoo PINN")
+    db = fb.add("dashboard", "vehicle.dashboard", {"frames": 24 if quick else 150, "gif_every": 1 if quick else 2},
+                label="Dashboard")
+    lab = fb.add("lab", "validate.lab", {"title": "Lunar rover dashboard"}, label="Lab")
+    fb.connect(veh, "vehicle", sim, "vehicle")
+    fb.connect(soil, "soil", sim, "soil")
+    fb.connect(site, "site", sim, "site")
+    fb.connect(veh, "vehicle", wr, "vehicle")
+    fb.connect(soil, "soil", wr, "soil")
+    fb.connect(wr, "model", zoo, "model")
+    fb.connect(sim, "run", db, "run")
+    fb.connect(wr, "model", db, "model")
+    fb.connect(zoo, "surrogate", db, "surrogate")
+    fb.connect(zoo, "metrics", lab, "validation")
+    fb.connect(db, "metrics", lab, "validation")
+    return fb.flow({"kind": "reproduction", "reproduces": "examples/studio/07_lunar_rover_dashboard.py"
+                    + (" --quick" if quick else "")})
+
+
 def planned(name: str) -> pf.Flow:
     res = pf.plan(PROMPTS[name], backend="heuristic")
     p = res["proposals"][0]
@@ -204,14 +238,18 @@ def to_3d(f: pf.Flow) -> pf.Flow:
     return d
 
 
-def main():
+def main(names=()):
+    """Write the example flows (``names``: only these; the planned ones are re-planned only when asked, since a new
+    plan has new decision ids)."""
     OUT.mkdir(parents=True, exist_ok=True)
-    flows = {"heat_1d": heat_1d(), "burgers_1d": burgers_1d(), "poisson_2d": poisson_2d(),
-             "operator_burgers": operator_burgers(), "inverse_heat": inverse_heat(), "elnino_forecast": elnino(),
-             "aircraft_takeoff": takeoff()}
+    flows = {"heat_1d": heat_1d, "burgers_1d": burgers_1d, "poisson_2d": poisson_2d,
+             "operator_burgers": operator_burgers, "inverse_heat": inverse_heat, "elnino_forecast": elnino,
+             "aircraft_takeoff": takeoff, "lunar_rover_dashboard": lunar_rover,
+             "lunar_rover_dashboard_quick": lambda: lunar_rover(quick=True)}
     for name in PROMPTS:
-        flows[name] = planned(name)
-    flows["planned_plate_2d_to_3d_edited"] = to_3d(flows["planned_plate_2d_to_3d"])
+        flows[name] = lambda name=name: planned(name)
+    flows["planned_plate_2d_to_3d_edited"] = lambda: to_3d(planned("planned_plate_2d_to_3d"))
+    flows = {k: fn() for k, fn in flows.items() if not names or k in names}
     for name, f in flows.items():
         issues = [i for i in pf.validate_flow(f) if i.level == "error"]
         assert not issues, (name, issues)
@@ -220,4 +258,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

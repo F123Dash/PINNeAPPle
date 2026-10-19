@@ -316,6 +316,13 @@ class FlowService:
             raise PermissionError("not a run artifact")
         return p
 
+    def html_artifact(self, path: str) -> Path:
+        """An HTML report of a run, to be shown in a sandboxed frame (same rules as :meth:`artifact_path`)."""
+        p = self.artifact_path(path)
+        if p.suffix.lower() not in (".html", ".htm"):
+            raise PermissionError("not an HTML artifact")
+        return p
+
     def shutdown(self):
         for ev in self._stop.values():
             ev.set()
