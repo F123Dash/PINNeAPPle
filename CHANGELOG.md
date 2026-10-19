@@ -1351,6 +1351,9 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
   `aero.render_blender` the studio `jet`.
 
 ### Fixed
+- Form Compiler (`pinneapple_data.formfill`): a `Label | Unit | Value` row and a unit named in the column header
+  (`Value (MPa g)`) now give the value its unit; "Design press." and "Shell MOC" / "MOC - Nozzles" are recognised; a
+  quantity found without any unit is kept but flagged "No unit was found with this value" (#732).
 - `eddy_current_fdm`: `annular_current_source` injected a current that depended on how the coil band fell on the
   grid (it normalised by the nominal band area; 0.75 N I in one case); `axial_flux_density` returned half the field
   on the axis; `eddy_current_density` had the wrong sign for the solver's `exp(+j omega t)` convention. Together they
