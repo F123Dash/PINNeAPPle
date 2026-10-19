@@ -165,3 +165,19 @@ def raymer_takeoff(ac: Aircraft, V_LOF: float | None = None, mu: float = 0.02, t
             "total_35ft_m": SG + SR + STR + SC, "V_LOF": VL, "V_stall": Vs, "T_07VLOF_N": T07, "K_T": KT_, "K_A": KA,
             "CL_ground": CL_g, "CD0": CD0, "K_induced_ground": K, "climb_gradient_pct": 100 * math.tan(gam),
             "mu": mu, "t_rotation_s": t_rotation}
+
+
+def raymer_variants(ac: Aircraft, metrics: dict[str, float], kind: str = "light") -> dict[str, dict[str, float]]:
+    """The two closed-form references the take-off results quote (Raymer, Aircraft Design, sec. 17.8):
+
+    * ``raymer_1p1Vs``: V_LOF = 1.1 V_stall and Raymer's rotation time, 1 s for light aircraft, 3 s for transports;
+    * ``raymer_sim_VLOF``: the simulated lift-off speed and rotation time (``metrics`` from :func:`takeoff_metrics`),
+      so only the closed-form ground roll, transition and climb differ from the simulation.
+
+    Each carries ``sim_over_raymer``: the simulated distance to the 35 ft screen over the closed form."""
+    t_rot = 3.0 if kind == "transport" else 1.0
+    out = {"raymer_1p1Vs": raymer_takeoff(ac, t_rotation=t_rot),
+           "raymer_sim_VLOF": raymer_takeoff(ac, V_LOF=metrics["V_LOF"], t_rotation=metrics["rotation_time_s"])}
+    for v in out.values():
+        v["sim_over_raymer"] = metrics["distance_35ft_m"] / v["total_35ft_m"]
+    return out

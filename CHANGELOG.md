@@ -13,6 +13,49 @@ How this file is maintained is described in [CONTRIBUTING.md](CONTRIBUTING.md#ch
 
 ## [Unreleased]
 
+### Added
+- Flow Studio rover nodes and the lunar rover dashboard as a flow (`lunar_rover_dashboard`, and a quick variant
+  matching `examples/studio/07_lunar_rover_dashboard.py --quick`): vehicle, soil and site presets, the multibody
+  traverse, the Wong-Reece wheel model, the model zoo's wheel-contact PINN with its physics check, and the animated
+  dashboard shown in the result panel in a sandboxed frame (`/api/artifact/html`, its own opaque origin).
+- Flow Studio palette: sections in workflow order (Problem & geometry ... Export & report), each collapsible with its
+  count; the generated library calls in a collapsed "Library calls (advanced)" section grouped by package; human
+  titles, one-line summaries, colour chips by output port type, a hover card with the description and, for an
+  unavailable node, the reason and the install hint; search ranked by the library (`pinneapple_flow.palette`) with
+  matches highlighted and the section of each hit; favourites and recent node types stored per user in the flow
+  store; a drag preview, and double-click adds at the canvas centre.
+- Flow Studio decision records: every planner, LLM and user choice records who decided, why, references from a
+  curated registry (`pinneapple_flow/references.yaml`; LLM citations are checked), evidence and a confidence.
+  Uncited choices are flagged `no reference` and suggest nodes that would back them.
+- Flow nodes for any problem and its twin: `problem.generic` (candidate equations from text, data and units, plus
+  SINDy / PDE-FIND discovery), `data.stream` and `twin.auto` (the twin is built from the identified model, with EnKF
+  coefficient estimation and anomaly alarms).
+- `lib.*` nodes: a curated allowlist of library calls with forms generated from their signatures, user-defined node
+  types stored as data, and `docs/flow_studio/COVERAGE.md`.
+- Lab seal in Flow Studio: the letter, the reason and the next steps are read from `pinneapple_lab`
+  (`pinneapple_flow.lab_status`); the "insert nodes" buttons are wired by port type.
+- PINNeAPPle Flow (`pinneapple_flow`, extra `[flow]`) and Flow Studio (`apps/flow_studio`, `python -m pinneapple_flow
+  studio`): engineering flows as typed node graphs in a versioned JSON document (`pinneapple-flow/1`, documented in
+  `docs/guides/flow_schema.md`), a catalog of nodes that each wrap a library call (domain with the 1-D / 2-D / 3-D
+  switch, editable equations, finite differences / FEM / OpenFOAM, PINN, DeepONet / FNO / MLP / POD + MLP surrogates
+  with an editable architecture and layer-graph preview, HPO, fine-tuning, inverse PINN, calibration, sensor data, CSV
+  ingest, parametric sweeps, validation with the trust card, Lab curation and seal, Sobol sensitivity, digital twin,
+  forecast lab, take-off, plots, three.js viewer, render, report), a runtime on `pinneapple_core.workflows` (skip-done
+  cache, run from a node, per-node status), a heuristic planner (offline, English and Portuguese) and an LLM planner
+  whose output is validated and repaired against the catalog, a SQLAlchemy store (SQLite by default, Postgres by URL),
+  a CLI (`run`, `plan`, `validate`, `catalog`, `schema`, `studio`) and example flows with their measured results.
+- `pinneapple_physics.symbolic_pde.text`: equations as text (`u_t = alpha*lap(u)`) parsed into SymPy through an AST
+  whitelist (never `eval` / `sympify`), with classification of the PDE family; `.pinn.pinn_problem` builds a
+  `PINNProblem` (residual by autograd, Dirichlet / initial samplers, Neumann / Robin constraints, trainable unknown
+  coefficients) from the same system.
+- `pinneapple_simulation.numerical_solvers.symbolic_fd.solve_fd`: finite differences for any parsed system on a box in
+  1-D to 3-D (Newton on a coloured sparse Jacobian for steady systems, method of lines with BDF otherwise; Dirichlet,
+  Neumann, Robin and periodic conditions).
+- `pinneapple_analysis.validation.pinn.train_pinn`: `problem.constraints`, `data=(X, Y)` (inverse PINNs) and
+  `callback`; the result has the loss history.
+- `pinneapple_llm.call_llm`: provider `openai_compatible` with `base_url` (vLLM, LM Studio, llama.cpp, a hosted
+  model), `base_url` for `openai`, and `max_tokens`.
+
 ### Security
 - Web hardening for every app, in the library (`pinneapple_security.web`, `.passwords`, `.archives`) and wired
   once through `apps/_shared/appkit.py` `install()`: CSP built from each app's own pages (no script

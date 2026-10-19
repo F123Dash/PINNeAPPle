@@ -17,7 +17,7 @@ import pinneapple as pp
 from pinneapple_simulation.flight import catalog
 from pinneapple_simulation.flight.figures import lateral_figure, takeoff_figure
 from pinneapple_simulation.flight.takeoff import (
-    raymer_takeoff,
+    raymer_variants,
     simulate_takeoff,
     takeoff_metrics,
 )
@@ -53,9 +53,8 @@ for name in catalog.names():
     m["schedule"] = h.events["schedule"]
     res["nominal"][name] = m
     runs[name] = h
-    tr = 3.0 if KIND[name] == "transport" else 1.0
-    cf = raymer_takeoff(ac, t_rotation=tr)
-    cf_sim = raymer_takeoff(ac, V_LOF=m["V_LOF"], t_rotation=m["rotation_time_s"])
+    rv = raymer_variants(ac, m, KIND[name])
+    cf, cf_sim = rv["raymer_1p1Vs"], rv["raymer_sim_VLOF"]
     res["closed_form"][name] = {"raymer_1p1Vs": cf, "raymer_with_sim_VLOF_and_rotation_time": cf_sim,
                                 "sim_over_raymer": m["distance_35ft_m"] / cf["total_35ft_m"],
                                 "sim_over_raymer_same_VLOF": m["distance_35ft_m"] / cf_sim["total_35ft_m"]}

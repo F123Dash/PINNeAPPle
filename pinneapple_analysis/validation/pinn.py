@@ -92,6 +92,9 @@ class PINNProblem:
     grid: Sequence[int] = (64, 64)
     outputs: Sequence[str] = ("u",)
     gauge: Sequence[int] = ()           # outputs defined up to a constant (pressure): compared after removing means
+    # residual conditions (Neumann, Robin): (name, sampler(n, rng) -> X, fn(u, X) -> residual); train_pinn adds
+    # weights["constraint"] x their mean square
+    constraints: Sequence[tuple[str, Callable, Callable]] = ()
 
     @property
     def dim(self) -> int:
@@ -391,19 +394,25 @@ def mlp(n_in: int, n_out: int, width: int = 32, depth: int = 4):
 
 def train_pinn(problem: PINNProblem | str, model=None, *, n_collocation: int = 2000, n_condition: int = 400,
                adam_steps: int = 1500, lbfgs_steps: int = 1000, lr: float = 2e-3, weights: dict[str, float] | None
-               = None, monitor: PINNMonitor | None = None, seed: int = 0):
+               = None, monitor: PINNMonitor | None = None, seed: int = 0, data: tuple | None = None,
+               callback: Callable[[int, float], None] | None = None):
     """Train a PINN on ``problem`` with soft constraints: Adam, then L-BFGS; loss = mean squared residual (relative to
     the residual scale) + ``weights["boundary"]`` x boundary + ``weights["initial"]`` x initial misfit (default 10
     each; 0 drops the term). ``monitor`` is called every Adam step and ends training when it sets ``stop``.
 
-    Returns ``(model, info)`` with ``info = {"train_points", "steps", "stopped", "loss"}``. A plain reference trainer
-    for testing the checks, not a tuned one."""
+    ``problem.constraints`` (residual conditions such as Neumann) add ``weights["constraint"]`` (default 10) x their
+    mean square; ``data=(X, Y)`` adds ``weights["data"]`` (default 10) x the misfit to observations (NaN in ``Y``:
+    unobserved), which with trainable coefficients inside ``problem.residual`` makes an inverse PINN. ``callback(step,
+    loss)`` is called every Adam step.
+
+    Returns ``(model, info)`` with ``info = {"train_points", "steps", "stopped", "loss", "history"}``. A plain
+    reference trainer for testing the checks, not a tuned one."""
     import torch
     P = PROBLEMS[problem]() if isinstance(problem, str) else problem
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     net = model if model is not None else mlp(P.dim, len(P.outputs))
-    w = {"boundary": 10.0, "initial": 10.0, **(weights or {})}
+    w = {"boundary": 10.0, "initial": 10.0, "constraint": 10.0, "data": 10.0, **(weights or {})}
     Xc = P.uniform(n_collocation, rng)
     X = torch.tensor(Xc, dtype=torch.float32, requires_grad=True)
     terms = []
@@ -412,20 +421,35 @@ def train_pinn(problem: PINNProblem | str, model=None, *, n_collocation: int = 2
             Xb, T = sampler(n_condition, rng)
             T = torch.tensor(np.asarray(T, float).reshape(len(Xb), -1), dtype=torch.float32)
             terms.append((torch.tensor(Xb, dtype=torch.float32), T, torch.isfinite(T), w[key]))
+    if data is not None and w["data"] > 0:
+        Xd, Yd = (np.asarray(a, float) for a in data)
+        Yd = torch.tensor(Yd.reshape(len(Xd), -1), dtype=torch.float32)
+        terms.append((torch.tensor(Xd, dtype=torch.float32), Yd, torch.isfinite(Yd), w["data"]))
+    cons = []
+    for _name, sampler, fn in (getattr(P, "constraints", ()) or ()):
+        if w["constraint"] > 0:
+            cons.append((torch.tensor(np.asarray(sampler(n_condition, rng), float), dtype=torch.float32,
+                                      requires_grad=True), fn))
 
     def loss():
         total = (P.residual(_forward(net, X), X) ** 2).mean() / P.residual_scale ** 2
         for Xb, T, m, wk in terms:
             total = total + wk * ((_forward(net, Xb)[:, :T.shape[1]] - torch.nan_to_num(T)) ** 2)[m].mean()
+        for Xk, fn in cons:
+            total = total + w["constraint"] * (fn(_forward(net, Xk), Xk) ** 2).mean()
         return total
 
     opt = torch.optim.Adam(net.parameters(), lr)
     step, stopped = 0, False
+    history: list[float] = []
     for step in range(1, adam_steps + 1):
         opt.zero_grad()
         lv = loss()
         lv.backward()
         opt.step()
+        history.append(float(lv.detach()))
+        if callback is not None:
+            callback(step, history[-1])
         if monitor is not None:
             monitor(net, step)
             if monitor.stop:
@@ -441,7 +465,8 @@ def train_pinn(problem: PINNProblem | str, model=None, *, n_collocation: int = 2
             lv.backward()
             return lv
         lb.step(closure)
-    return net, {"train_points": Xc, "steps": step, "stopped": stopped, "loss": float(loss())}
+    return net, {"train_points": Xc, "steps": step, "stopped": stopped, "loss": float(loss().detach()),
+                 "history": history}
 
 
 # ----------------------------------------------------------------------------------------------- built-in problems
