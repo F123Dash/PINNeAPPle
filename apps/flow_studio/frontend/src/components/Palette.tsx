@@ -10,7 +10,9 @@ export function Palette({ nodes, onAdd, onNewType }: { nodes: NodeType[]; onAdd:
       if (q && !hay.includes(q.toLowerCase())) continue;
       (out[n.category] ||= []).push(n);
     }
-    return out;
+    // curated categories first; the nodes generated from the public API ("Library: ...") after them
+    return Object.fromEntries(Object.entries(out).sort(([a], [b]) =>
+      Number(a.startsWith("Library:")) - Number(b.startsWith("Library:")) || a.localeCompare(b)));
   }, [nodes, q]);
   return (
     <aside className="w-60 shrink-0 border-r border-slate-200 bg-white flex flex-col" data-testid="palette">
