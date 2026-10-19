@@ -8,6 +8,7 @@ The logic behind it lives in the library, with tests:
 | Job queue, API keys, usage metering, uploads | `pinneapple_core.service` | `tests/pinneapple_core/test_service.py` |
 | Data contracts (`ParameterSpace`, `DatasetSpec`, `ModelRef`, `StudyResult`) | `pinneapple_data.contracts` | `tests/pinneapple_data/test_contracts.py` |
 | The HTTP routes below | `apps/_shared/appkit.py` | `tests/test_appkit_runtime.py` |
+| 3-D field view (`/shared/fieldview3d.js`: fields, errors, deformed shape, markers) | `pp.viz.field_view`, `pinneapple_analysis.validation.error_map` | `tests/test_field_view.py`, `tests/js/studio_core.test.mjs` |
 
 No new dependencies: SQLite and threads/processes from the standard library, plus FastAPI and
 `python-multipart`, which every app already lists. Parquet needs `pyarrow` and HDF5 needs `h5py`.
@@ -58,7 +59,7 @@ The UI polls `GET /api/jobs/{id}` (status, progress, message, result) and `GET /
 | `POST /api/uploads` (multipart `file`), `GET /api/uploads`, `DELETE /api/uploads/{id}` | caller | uploads |
 
 **Who is the caller** (the "principal" use is counted against and jobs belong to): `key:<id>` for a valid
-`X-API-Key`, `user:<login>` for the app login, otherwise `ip:<address>` (behind Caddy, the address Caddy saw).
+`X-API-Key`, `user:<login>` for the app login, otherwise `ip:<address>` (behind Caddy, the address Caddy saw; `X-Forwarded-For` is believed only from a trusted proxy).
 A job or upload of another principal answers 404. **Admin** is the app login (`<PREFIX>_USER`) or the
 `X-Admin-Token` header matching `<PREFIX>_ADMIN_TOKEN`; with neither configured, nobody can manage keys.
 
@@ -68,7 +69,7 @@ All optional; `<PREFIX>` is the app's prefix (`CAMPAIGN`, `RUNNER`, ...).
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `<PREFIX>_USER`, `<PREFIX>_PASSWORD` | unset | HTTP Basic login on everything but `/health`; a valid `X-API-Key` also passes |
+| `<PREFIX>_USER`, `<PREFIX>_PASSWORD` | unset | HTTP Basic login on everything but `/health`; a valid `X-API-Key` also passes (prefer `<PREFIX>_PASSWORD_HASH`, below) |
 | `<PREFIX>_ADMIN_TOKEN` | unset | `X-Admin-Token` for key management when there is no login |
 | `<PREFIX>_REQUIRE_API_KEY` | `0` | `1`: every `/api/*` call needs a key (or the login) |
 | `<PREFIX>_DATA_DIR` | `/data/<app>` if `/data` is writable, else `~/.pinneapple/apps/<app>` | SQLite, job directories, uploads. `PINNEAPPLE_APP_DATA` sets the parent for all apps |
@@ -77,6 +78,34 @@ All optional; `<PREFIX>` is the app's prefix (`CAMPAIGN`, `RUNNER`, ...).
 | `<PREFIX>_JOB_MAX_SECONDS` | unset | time limit per job (thread jobs stop at their next `ctx.progress`) |
 | `<PREFIX>_FREE_<UNIT>` | the `units` default | free use per principal and calendar month (UTC); `unlimited` or `-1` lifts it |
 | `<PREFIX>_UPLOAD_MAX_MB` | `upload_max_mb` argument (50) | upload size limit (413 above it) |
+| `<PREFIX>_JOB_MAX_MEMORY_MB`, `<PREFIX>_JOB_MAX_CPU_S` | unset | process executor: address-space and CPU-time limit per job (`setrlimit`); a job and every process it starts are killed together |
+| `<PREFIX>_JOB_TRACEBACKS` | `0` | `1`: tracebacks of failed jobs go into the job log the caller reads (otherwise only into the server log) |
+
+## Security settings
+
+`install()` wires `pinneapple_security.web` into every app; the code and its tests are in the library
+(`tests/pinneapple_security/test_web_hardening.py`, `tests/test_app_security.py`). All optional:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `<PREFIX>_PASSWORD_HASH` | unset | hash of the login password (`python -m pinneapple_security hash-password`: scrypt, or argon2id with `argon2-cffi`; bcrypt `$2b$` hashes from `caddy hash-password` are verified when `bcrypt` is installed). Takes precedence over the plain `<PREFIX>_PASSWORD`, which still works and logs a warning |
+| `<PREFIX>_USERS_FILE` | unset | more logins: `user:hash` lines |
+| `<PREFIX>_ADMIN_USERS` | every login (only `<PREFIX>_USER` once a users file is set) | comma-separated logins that may manage API keys and publish models |
+| `<PREFIX>_LOGIN_MAX_FAILURES`, `<PREFIX>_LOGIN_WINDOW_S`, `<PREFIX>_LOGIN_LOCK_S` | 10, 900, 900 | after this many failed logins in the window, the client IP and the user name get 429 for the lock time (also with the right password) |
+| `<PREFIX>_RATE_LIMIT` | `120/min` | POST/PUT/PATCH/DELETE under `/api` and `/v1` (solver runs, inference, uploads) per caller (`key:`, `user:` or `ip:`); `off` disables |
+| `<PREFIX>_RATE_LIMIT_READ` | `1200/min` | every request per caller |
+| `<PREFIX>_MAX_BODY_MB` | `max_body_mb` argument, else 600 | request body limit, counted while streaming (413) |
+| `<PREFIX>_CORS_ORIGINS` | unset (no CORS headers: same origin only) | comma-separated allow-list of origins; `<PREFIX>_CORS_CREDENTIALS=1` allows credentials and then refuses `*` |
+| `<PREFIX>_ALLOWED_ORIGINS` | unset | other origins whose pages may POST to this app (all other cross-site POST/PUT/DELETE from browsers get 403) |
+| `<PREFIX>_TRUSTED_PROXIES` / `PINNEAPPLE_TRUSTED_PROXIES` | loopback and private ranges | peers whose `X-Forwarded-For` is believed (the Docker network Caddy is on) |
+| `<PREFIX>_CSP`, `<PREFIX>_HSTS` | built from the app's pages / one year | override the Content-Security-Policy or Strict-Transport-Security value (`""` drops HSTS) |
+| `<PREFIX>_AUDIT_LOG`, `<PREFIX>_AUDIT_KEY` | `audit.jsonl` in the data directory | hash-chained trail of logins, lockouts, refused requests, API key and admin events; with a key the chain is an HMAC chain. `off`: log lines only |
+
+Every response carries a Content-Security-Policy (scripts only from the app itself plus its own inline scripts by
+hash, no `'unsafe-inline'` for scripts, `frame-ancestors 'none'`), HSTS, `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy` and `Permissions-Policy`. An unhandled error answers
+`{"detail": "internal error", "reference": "<id>"}`; the traceback goes to the server log under that id. Auth
+events are one JSON line each on stderr (`docker logs`), which `apps/deploy/fail2ban` reads.
 
 ## Deploying
 

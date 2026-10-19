@@ -7,9 +7,14 @@ propagation of uncertain inputs around an operating point. Every number comes fr
 
 Run:  uvicorn uncertainty_lab.api:app --port 8098   (from apps/uncertainty_lab)
 
-Environment (all optional):
+Studies run in the shared job queue (apps/_shared, pinneapple_core.service): POST /api/study returns a job; poll
+GET /api/jobs/{id} (or pass ?wait=<seconds>). Inputs and outputs use the shared contracts: a ModelRef for the model,
+a ParameterSpace for the uncertain inputs, a StudyResult in every result.
+
+Environment (all optional; the runtime variables are in apps/_shared/README.md):
   UQL_USER / UQL_PASSWORD   HTTP Basic login on everything except /health
-  UQL_MAX_HEAVY             concurrent studies per worker (default 2)
+  UQL_MAX_JOBS              studies running at once (default 2); UQL_MAX_HEAVY caps the synchronous examples
+  UQL_FREE_STUDIES / UQL_FREE_SCENARIOS / UQL_FREE_PROPAGATION_SAMPLES / UQL_FREE_HF_RUNS   free use per month
   UQL_MAX_MB                largest upload in MB (default 50)
   UQL_MAX_CASES             cases screened per study (default 2000)
   UQL_MAX_PROPAGATION       Monte-Carlo samples per study (default 20000)
@@ -22,21 +27,31 @@ import json
 import os
 import sys
 import time
+import uuid
 
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from pinneapple_analysis.study_contracts import (
+    is_parameter_space,
+    model_from_ref,
+    model_to_ref,
+    space_from_contract,
+    uncertainty_result,
+)
 from pinneapple_analysis.study_models import StudyModel, columns
 from pinneapple_analysis.uncertainty.conformal_study import split_indices
 from pinneapple_analysis.uncertainty.study import SCALES, uncertainty_study
 from pinneapple_core.jsonable import to_jsonable
+from pinneapple_core.service import UploadRejected, UploadTooLarge
 from pinneapple_data.data_health import load_table
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "_shared"))
-from appkit import BusyLimiter, install  # noqa: E402
+from appkit import BusyLimiter, install, install_runtime, principal  # noqa: E402
 
 VERSION = "1.0.0"
 HERE = os.path.dirname(__file__)
@@ -59,10 +74,15 @@ app = FastAPI(title="Engineering Uncertainty Lab", version=VERSION,
               description="Prediction intervals with coverage measured on held-out data, applicability alerts, "
                           "uncertainty propagation and the rule that routes cases to the high-fidelity solver. "
                           "POST a study to /api/study (multipart: config JSON + optional reference data, cases and "
-                          "ONNX model) or run /api/example/{name}.")
+                          "ONNX model); it runs as a job (GET /api/jobs/{id}). Or run /api/example/{name}.")
 app.add_middleware(GZipMiddleware, minimum_size=2000)
 install(app, prefix="UQL")
-_HEAVY = BusyLimiter("UQL_MAX_HEAVY")
+TABLES = {".csv", ".tsv", ".txt", ".parquet", ".pq", ".json", ".jsonl"}
+# metered per caller and calendar month (free defaults; UQL_FREE_<UNIT> overrides, "unlimited" lifts)
+rt = install_runtime(app, prefix="UQL", name="uncertainty",
+                     units={"studies": 200, "scenarios": 20000, "propagation_samples": 2_000_000, "hf_runs": 500},
+                     upload_suffixes=TABLES | {".onnx"}, upload_max_mb=MAX_MB)
+_HEAVY = BusyLimiter("UQL_MAX_HEAVY")       # the synchronous examples
 
 _NOMINAL_HS = dict(base_width_mm=100.0, base_depth_mm=100.0, base_thickness_mm=6.0, n_fins=18.0, fin_thickness_mm=1.2,
                    fin_height_mm=35.0, k_w_mk=200.0, source_width_mm=40.0, source_depth_mm=40.0, t_ambient_c=35.0,
@@ -169,6 +189,11 @@ def scope() -> dict:
 
 # ---------------------------------------------------------------------------------------------- model + data
 def _load_model(spec: dict, files: dict) -> StudyModel:
+    if spec.get("kind") == "ModelRef":
+        try:
+            return model_from_ref(spec, onnx=files["model"][1] if "model" in files else None)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
     src = spec.get("source", "zoo")
     if src == "zoo":
         name = spec.get("name", "")
@@ -205,8 +230,9 @@ def _reference(model: StudyModel, cfg: dict, files: dict):
                 f"uploaded table: {int(cal.sum())} cal / {int(test.sum())} test rows (split column)"
         c, t = split_indices(len(y), (0.5, 0.5), seed=int(cfg.get("seed", 0)))
         return X[c], y[c], X[t], y[t], X, f"uploaded table split at random: {len(c)} cal / {len(t)} test rows"
-    if model.kind != "zoo":
-        raise HTTPException(422, "Upload reference data (inputs and the true output) for an ONNX model.")
+    if model.kind != "zoo" or model.name not in ZOO:
+        raise HTTPException(422, "Upload reference data (inputs and the true output) for this model: only "
+                                 f"{', '.join(ZOO)} come with held-out reference splits here.")
     z = ZOO[model.name]
     j = model.output_index(out)
     Xc, Yc = model.reference(z["cal"])
@@ -260,36 +286,65 @@ class _Counter:
         model.predict_fn = counted
 
 
-def run_study(cfg: dict, files: dict) -> dict:
-    t0 = time.time()
-    if sum(len(b) for _, b in files.values()) > MAX_MB * 1024 * 1024:
-        raise HTTPException(413, f"Uploads larger than {MAX_MB:g} MB.")
+def _normalize(cfg: dict) -> dict:
+    """Read the shared contracts: ``model_ref`` (ModelRef) -> model, ``uncertain`` or ``parameter_space`` given as a
+    ParameterSpace -> uncertain inputs (its constants join the nominal point). Checks the cheap limits."""
+    cfg = dict(cfg)
+    if cfg.get("model_ref"):
+        cfg["model"] = {**cfg.pop("model_ref"), "kind": "ModelRef"}
+    ps = cfg.pop("parameter_space", None)
+    if ps is None and is_parameter_space(cfg.get("uncertain")):
+        ps = cfg["uncertain"]
+    if ps is not None:
+        try:
+            params, fixed = space_from_contract(ps)
+        except (ValueError, TypeError) as e:
+            raise HTTPException(422, f"parameter space: {e}") from e
+        cfg["uncertain"] = params
+        cfg["nominal"] = {**fixed, **(cfg.get("nominal") or {})}
     if cfg.get("scale", "absolute") not in SCALES:
         raise HTTPException(422, f"scale must be one of {', '.join(SCALES)}")
     n_prop = int(cfg.get("n_propagation") or 4096)
     if n_prop > MAX_PROP:
         raise HTTPException(413, f"{n_prop} propagation samples; the limit is {MAX_PROP}.")
+    if len(cfg.get("cases") or []) > MAX_CASES:
+        raise HTTPException(413, f"{len(cfg['cases'])} cases; the limit is {MAX_CASES} per study.")
+    return cfg
+
+
+def run_study(cfg: dict, files: dict, ctx=None) -> dict:
+    t0 = time.time()
+
+    def progress(fraction, message):
+        if ctx is not None:
+            ctx.progress(fraction, message)
+
+    cfg = _normalize(cfg)
+    n_prop = int(cfg.get("n_propagation") or 4096)
     try:
-        with _HEAVY:
-            model = _load_model(cfg.get("model") or {}, files)
-            out_name = cfg.get("output") or model.output_names[0]
-            cfg["output"] = out_name
-            Xc, yc, Xt, yt, Xr, note = _reference(model, cfg, files)
-            cases, names = _cases(model, cfg, files)
-            hf = _hf(model, out_name) if cfg.get("high_fidelity", "none") != "none" else None
-            counter = _Counter(model)
-            limits = cfg.get("limits")
-            limits = None if not limits or all(v is None or v == "" for v in limits) else \
-                tuple(None if v in (None, "") else float(v) for v in limits)
-            res = uncertainty_study(
-                model, out_name, Xc, yc, Xt, yt, alpha=float(cfg.get("alpha", 0.1)), scale=cfg.get("scale", "absolute"),
-                X_ref=Xr, bounds=model.bounds or None, cases=cases, case_names=names,
-                tolerance=None if cfg.get("tolerance") in (None, "") else float(cfg["tolerance"]),
-                tolerance_pct=None if cfg.get("tolerance_pct") in (None, "") else float(cfg["tolerance_pct"]),
-                limits=limits, high_fidelity=hf, hf_scope="all" if cfg.get("high_fidelity") == "all" else "routed",
-                max_hf=MAX_HF, nominal=cfg.get("nominal") or None, uncertain=cfg.get("uncertain") or None,
-                n_propagation=n_prop, propagation_method=cfg.get("propagation_method", "lhs"),
-                seed=int(cfg.get("seed", 0)))
+        progress(0.05, "loading the model and its reference data")
+        model = _load_model(cfg.get("model") or {}, files)
+        out_name = cfg.get("output") or model.output_names[0]
+        cfg["output"] = out_name
+        Xc, yc, Xt, yt, Xr, note = _reference(model, cfg, files)
+        cases, names = _cases(model, cfg, files)
+        hf = _hf(model, out_name) if cfg.get("high_fidelity", "none") != "none" else None
+        counter = _Counter(model)
+        progress(0.2, "conformal calibration, applicability gate"
+                 + (", high-fidelity runs" if hf is not None and cases is not None else "")
+                 + (", propagation" if cfg.get("uncertain") else ""))
+        limits = cfg.get("limits")
+        limits = None if not limits or all(v is None or v == "" for v in limits) else \
+            tuple(None if v in (None, "") else float(v) for v in limits)
+        res = uncertainty_study(
+            model, out_name, Xc, yc, Xt, yt, alpha=float(cfg.get("alpha", 0.1)), scale=cfg.get("scale", "absolute"),
+            X_ref=Xr, bounds=model.bounds or None, cases=cases, case_names=names,
+            tolerance=None if cfg.get("tolerance") in (None, "") else float(cfg["tolerance"]),
+            tolerance_pct=None if cfg.get("tolerance_pct") in (None, "") else float(cfg["tolerance_pct"]),
+            limits=limits, high_fidelity=hf, hf_scope="all" if cfg.get("high_fidelity") == "all" else "routed",
+            max_hf=MAX_HF, nominal=cfg.get("nominal") or None, uncertain=cfg.get("uncertain") or None,
+            n_propagation=n_prop, propagation_method=cfg.get("propagation_method", "lhs"),
+            seed=int(cfg.get("seed", 0)))
     except HTTPException:
         raise
     except (ValueError, KeyError, ImportError) as e:
@@ -303,12 +358,8 @@ def run_study(cfg: dict, files: dict) -> dict:
                     "seconds": round(time.time() - t0, 2)}
     res["config"] = cfg
     res["scope"] = scope()
-    res["study_result"] = {"kind": "uncertainty_study", "app": "uncertainty", "app_version": VERSION,
-                           "model": {"source": model.kind, "name": model.name}, "output": out_name,
-                           "metrics": {"coverage": res["conformal"]["coverage"],
-                                       "coverage_ci": res["conformal"]["coverage_ci"],
-                                       "target_coverage": res["conformal"]["target_coverage"],
-                                       "interval_q": res["conformal"]["q"], "n_test": res["conformal"]["n_test"]}}
+    progress(0.95, "writing the StudyResult")
+    res["study_result"] = uncertainty_result(res, model, f"uncertainty-{uuid.uuid4().hex[:12]}").to_dict()
     return to_jsonable(res)
 
 
@@ -320,7 +371,7 @@ def health():
 
 @app.get("/api/meta")
 def meta():
-    return {"version": VERSION, "scales": list(SCALES),
+    return {"version": VERSION, "scales": list(SCALES), "runtime": rt.describe(),
             "examples": [{"name": k, "title": v["title"], "description": v["description"]} for k, v in EXAMPLES.items()],
             "zoo": [{"name": k, "outputs": v["outputs"], "high_fidelity": v["hf"]} for k, v in ZOO.items()],
             "limits": {"max_mb": MAX_MB, "max_cases": MAX_CASES, "max_propagation": MAX_PROP, "max_hf": MAX_HF},
@@ -337,9 +388,56 @@ def model_info(name: str):
     info = m.info()
     info["nominal"] = dict(zip(m.input_names, np.median(X, axis=0).round(6).tolist(), strict=True))
     info["high_fidelity"] = ZOO[name]["hf"]
+    info["model_ref"] = model_to_ref(m).to_dict()
     info["metadata"] = {k: v for k, v in m.metadata.items() if k in ("version", "known_limitations",
                                                                      "validation_metrics")}
     return to_jsonable(info)
+
+
+# ---------------------------------------------------------------------------------------------- jobs
+FILE_KEYS = ("model", "reference", "cases")
+
+
+def _files_from_uploads(ids: dict) -> dict:
+    out = {}
+    for key, upload_id in (ids or {}).items():
+        if upload_id:
+            meta = rt.uploads.get(upload_id)
+            out[key] = (meta.get("name") or upload_id, rt.uploads.path(upload_id).read_bytes())
+    return out
+
+
+def job_study(params: dict, ctx) -> dict:
+    return run_study(params["config"], _files_from_uploads(params.get("uploads")), ctx)
+
+
+rt.jobs.register("study", job_study)
+
+
+async def _save(request: Request, f: UploadFile | None, given: str | None) -> str | None:
+    """An upload id: the file of this request (stored in the shared upload store) or one uploaded before."""
+    if f is not None and f.filename:
+        try:
+            return rt.uploads.save(f.filename, f.file, owner=principal(request))["id"]
+        except UploadTooLarge as e:
+            raise HTTPException(413, str(e)) from None
+        except UploadRejected as e:
+            raise HTTPException(415, str(e)) from None
+    if given:
+        rt.upload_path(request, given)            # 404 unless the caller owns it
+        return given
+    return None
+
+
+def _n_rows(upload_id: str | None) -> int:
+    if not upload_id:
+        return 0
+    meta = rt.uploads.get(upload_id)
+    try:
+        df, _ = load_table(rt.uploads.path(upload_id).read_bytes(), meta.get("name") or "cases.csv")
+    except ValueError as e:
+        raise HTTPException(422, f"cases table: {e}") from e
+    return len(df)
 
 
 _CONFIG = Form(..., description="study configuration (JSON, see /api/example/heatsink/config)")
@@ -347,29 +445,54 @@ _MODEL_FILE, _REFERENCE_FILE, _CASES_FILE = File(None), File(None), File(None)  
 
 
 @app.post("/api/study")
-async def api_study(config: str = _CONFIG, model: UploadFile | None = _MODEL_FILE,
-                    reference: UploadFile | None = _REFERENCE_FILE, cases: UploadFile | None = _CASES_FILE):
-    """Run a study. ``config``: {model: {source: zoo|onnx, name, input_names, output_names}, output, alpha, scale
-    (absolute|relative|ensemble), limits [lo, hi], tolerance or tolerance_pct, high_fidelity (none|routed|all),
-    cases [{name, input: value}], nominal {input: value}, uncertain [{name, dist, ...}], n_propagation,
-    propagation_method (mc|lhs|sobol)}. Files: model (.onnx), reference (CSV/Parquet/JSON: inputs + output, optional
-    'split' column with cal/test/train), cases (CSV/Parquet/JSON of inputs, optional 'name')."""
+async def api_study(request: Request, config: str = _CONFIG, model: UploadFile | None = _MODEL_FILE,
+                    reference: UploadFile | None = _REFERENCE_FILE, cases: UploadFile | None = _CASES_FILE,
+                    wait: float = 0):
+    """Run a study as a job. ``config``: {model: {source: zoo|onnx, name, input_names, output_names} or model_ref
+    (ModelRef), output, alpha, scale (absolute|relative|ensemble), limits [lo, hi], tolerance or tolerance_pct,
+    high_fidelity (none|routed|all), cases [{name, input: value}], nominal {input: value}, uncertain [{name, dist, ...}]
+    or a ParameterSpace (``parameter_space``), n_propagation, propagation_method (mc|lhs|sobol), and optional
+    model_upload / reference_upload / cases_upload (ids from /api/uploads)}. Files: model (.onnx), reference
+    (CSV/Parquet/JSON: inputs + output, optional 'split' column with cal/test/train), cases (inputs, optional 'name').
+    Returns the job (GET /api/jobs/{id}); ``?wait=<s>`` waits for it."""
     try:
-        cfg = json.loads(config)
+        cfg = _normalize(json.loads(config))
     except ValueError as e:
         raise HTTPException(422, f"config is not valid JSON: {e}") from e
-    files = {}
-    for key, f in (("model", model), ("reference", reference), ("cases", cases)):
-        if f is not None and f.filename:
-            files[key] = (f.filename, await f.read())
-    return run_study(cfg, files)
+    uploads = {}
+    for key, f in zip(FILE_KEYS, (model, reference, cases), strict=True):
+        uploads[key] = await _save(request, f, cfg.pop(f"{key}_upload", None))
+    spec = cfg.get("model") or {}
+    if spec.get("kind") != "ModelRef" and spec.get("source", "zoo") == "zoo":
+        m = _load_model(spec, {})                          # 422 for an unknown model, before queueing
+        if cfg.get("scale") == "ensemble" and m.std_fn is None:
+            raise HTTPException(422, f"{m.name} has no ensemble spread: use the 'absolute' or 'relative' scale")
+    if (spec.get("source") == "onnx" or str(spec.get("framework", "")).lower() == "onnx") and not uploads["model"]:
+        raise HTTPException(422, "Upload the ONNX file (field 'model', or model_upload from /api/uploads).")
+    for i, r in enumerate(cfg.get("cases") or []):          # a clear 422 now, not a failed job later
+        bad = [k for k, v in r.items() if k != "name" and not isinstance(v, (int, float))]
+        if bad:
+            raise HTTPException(422, f"case {i + 1} ({r.get('name', '')}): no number for {', '.join(bad)}")
+    n_cases = len(cfg.get("cases") or []) + _n_rows(uploads["cases"])
+    if n_cases > MAX_CASES:
+        raise HTTPException(413, f"{n_cases} cases; the limit is {MAX_CASES} per study.")
+    hf = cfg.get("high_fidelity", "none")
+    units = {"studies": 1, "scenarios": n_cases,
+             "propagation_samples": int(cfg.get("n_propagation") or 4096) if cfg.get("uncertain") else 0,
+             "hf_runs": min(n_cases, MAX_HF) if hf != "none" else 0}
+    job = rt.submit(request, "study", {"config": cfg, "uploads": uploads},
+                    units={k: v for k, v in units.items() if v})
+    if wait > 0:
+        job = await run_in_threadpool(rt.jobs.wait, job["id"], timeout=min(float(wait), 600.0))
+    return job
 
 
 @app.get("/api/example/{name}")
 def api_example(name: str):
     if name not in EXAMPLES:
         raise HTTPException(404, "No such example.")
-    out = run_study(json.loads(json.dumps(EXAMPLES[name]["config"])), {})
+    with _HEAVY:
+        out = run_study(json.loads(json.dumps(EXAMPLES[name]["config"])), {})
     out["example"] = {"name": name, "title": EXAMPLES[name]["title"], "description": EXAMPLES[name]["description"]}
     return out
 

@@ -45,12 +45,13 @@ __all__ = ["ConfigError", "Config", "ResultTarget", "ModelTarget", "Integrity", 
 
 CONFIG_NAMES = ("pinneapple-check.toml", ".pinneapple-check.toml")
 
-PHYSICS = ("incompressible-flow", "heat", "elasticity", "conservation", "darcy", "none")
+PHYSICS = ("incompressible-flow", "heat", "elasticity", "conservation", "darcy", "maxwell", "none")
 _PHYSICS_ALIASES = {"incompressible": "incompressible-flow", "flow": "incompressible-flow", "navier-stokes":
                     "incompressible-flow", "stokes": "incompressible-flow", "heat-conduction": "heat",
                     "thermal": "heat", "diffusion": "heat", "linear-elasticity": "elasticity", "solid": "elasticity",
                     "conservation-law": "conservation", "generic": "conservation", "darcy-flow": "darcy",
-                    "porous-media": "darcy"}
+                    "porous-media": "darcy", "electromagnetics": "maxwell", "electrodynamics": "maxwell",
+                    "em": "maxwell", "maxwell-equations": "maxwell"}
 
 #: Default tolerances (all relative, dimensionless). Override per target under ``tolerances``.
 DEFAULT_TOLERANCES: dict[str, float] = {
@@ -74,6 +75,11 @@ DEFAULT_TOLERANCES: dict[str, float] = {
     "darcy-flux": 2e-2,        # PC101 darcy: |net boundary flux - source integral| / source integral
     "darcy-bc": 2e-2,          # PC201 darcy: RMS of u extrapolated to the boundary / max |u|
     "darcy-positivity": 1e-2,  # PC402 darcy: most negative u / max |u| (maximum principle, f >= 0)
+    "maxwell-gauss": 5e-2,     # PC102 maxwell: relative residual of div D = rho and div B = 0 (central differences)
+    "maxwell-faraday": 5e-2,   # PC301 maxwell: relative residual of curl E + dB/dt = 0
+    "maxwell-ampere": 5e-2,    # PC301 maxwell: relative residual of curl H - J - dD/dt = 0
+    "maxwell-continuity": 5e-2,  # PC301 maxwell: relative residual of d rho/dt + div J = 0
+    "maxwell-energy": 5e-2,    # PC103 maxwell: Poynting balance over the grid box / largest term
 }
 
 

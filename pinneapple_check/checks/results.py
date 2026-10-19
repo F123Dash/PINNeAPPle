@@ -16,14 +16,16 @@ __all__ = ["check_result", "evaluate_expr", "check_balance", "report_equations"]
 
 _SAFE = {k: getattr(np, k) for k in ("sin", "cos", "tan", "exp", "log", "sqrt", "tanh", "sinh", "cosh", "abs",
                                        "arctan", "arctan2", "where", "minimum", "maximum")}
-_SAFE.update(pi=np.pi, e=np.e)
 
 
 def evaluate_expr(value: Any, coords: dict[str, np.ndarray], n: int) -> np.ndarray:
     """A declared value: a number, a vector (list) or an expression of the coordinates (``"sin(pi*x)"``)."""
     if isinstance(value, str):
+        from pinneapple_data.expressions import (
+            evaluate,  # interpreted, never eval(): configs are uploaded
+        )
         try:
-            out = eval(compile(value, "<bc>", "eval"), {"__builtins__": {}}, {**_SAFE, **coords})   # noqa: S307
+            out = evaluate(value, {"pi": np.pi, "e": np.e, **coords}, _SAFE)
         except Exception as e:
             raise ValueError(f"cannot evaluate {value!r}: {e}") from e
         return np.broadcast_to(np.asarray(out, float), (n,)).copy()
@@ -94,6 +96,8 @@ def _used_fields(physics, fd) -> set[str]:
         return {n for n in fd.fields if n in ("D", "disp", "displacement", "ux", "uy", "uz")}
     if physics == "darcy":
         return {n for n in fd.fields if n in DARCY_COEF + DARCY_SOL}
+    if physics == "maxwell":
+        return {n for n in fd.fields if _maxwell_name(n) is not None}
     return set()
 
 
@@ -235,6 +239,9 @@ def _physics_grid(ctx: Ctx, t: ResultTarget, fd: FieldData, physics: str, params
     if physics == "darcy":
         _darcy(ctx, t, fd, params)
         return
+    if physics == "maxwell":
+        _maxwell(ctx, t, fd, params)
+        return
     nd_all = len(fd.axes)
     comps = components(fd.fields, vector_ndim=nd_all + 1)
     D = GridD(fd.axes, comps)
@@ -360,6 +367,62 @@ def _darcy(ctx: Ctx, t: ResultTarget, fd: FieldData, params: dict[str, Any]) -> 
             ctx.emit("PC401", f"{coef}-envelope:{k.replace('_', '-')}", ok,
                      f"{coef}: {k.replace('_', ' ')} {fmt(v)} {'inside' if ok else 'outside'} the training envelope "
                      f"{rng}", loc, value=v, threshold=lim)
+
+
+# ---------------------------------------------------------------------------------------------- maxwell
+MAXWELL_COMPONENTS = tuple(f"{v}{c}" for v in "EBHDJ" for c in "xyz") + ("rho",)
+
+
+def _maxwell_name(n: str) -> str | None:
+    base = n[:-3] if n.endswith(("_re", "_im")) else n
+    return base if base in MAXWELL_COMPONENTS else None
+
+
+def _maxwell(ctx: Ctx, t: ResultTarget, fd: FieldData, params: dict[str, Any]) -> None:
+    """Maxwell's equations on stored grid fields (``pinneapple_physics.maxwell_checks``): Gauss's laws (PC102),
+    Faraday, Ampere-Maxwell and charge continuity (PC301) and Poynting's theorem over the grid box (PC103)."""
+    loc = ctx.default_location() if t.declared else ctx.file_location(fd.source)
+    fields: dict[str, np.ndarray] = {}
+    for n, v in fd.fields.items():
+        base = _maxwell_name(n)
+        if base is None:
+            continue
+        v = np.asarray(v)
+        if n.endswith("_re"):
+            fields[base] = fields.get(base, 0j) + v
+        elif n.endswith("_im"):
+            fields[base] = fields.get(base, 0j) + 1j * v
+        else:
+            fields[base] = v
+    omega = params.get("omega")
+    if not fields:
+        ctx.note("maxwell: no field components found (Ex, Ey, Ez, Bx/Hx.., Dx.., Jx.., rho)")
+        return
+    if any(np.iscomplexobj(v) for v in fields.values()) and omega is None:
+        ctx.note("maxwell: complex (phasor) fields need the parameter omega (rad/s)")
+        return
+    mc = _reuse.maxwell_checks()
+    eps = mc.EPS0 * float(params.get("eps_r") or 1.0)
+    mu = mc.MU0 * float(params.get("mu_r") or 1.0)
+    sigma = float(params.get("sigma") or 0.0)
+    tol = {"gauss_electric": t.tol("maxwell-gauss"), "gauss_magnetic": t.tol("maxwell-gauss"),
+           "faraday": t.tol("maxwell-faraday"), "ampere_maxwell": t.tol("maxwell-ampere"),
+           "continuity": t.tol("maxwell-continuity"), "poynting_balance": t.tol("maxwell-energy")}
+    try:
+        checks = mc.sample_checks(fd.axes, fields, eps=eps, mu=mu, sigma=sigma, omega=omega, tolerances=tol)
+    except ValueError as e:
+        ctx.note(f"maxwell: {e}")
+        return
+    rule = {"gauss_electric": "PC102", "gauss_magnetic": "PC102", "faraday": "PC301", "ampere_maxwell": "PC301",
+            "continuity": "PC301", "poynting_balance": "PC103", "finite": "PC403"}
+    for c in checks:
+        if c["passed"] is None:
+            ctx.note(f"maxwell: {c['name']}: {c['detail']}")
+            continue
+        ok, v, lim = c["passed"], c["value"], c["limit"]
+        ctx.emit(rule.get(c["key"], "PC301"), f"maxwell-{c['key'].replace('_', '-')}", ok,
+                 f"{c['name']}: {fmt(v)} {'<=' if ok else '>'} {fmt(lim)}; {c['detail']}", loc, value=v,
+                 threshold=lim)
 
 
 # ---------------------------------------------------------------------------------------------- points

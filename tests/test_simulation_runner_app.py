@@ -25,7 +25,8 @@ def client(tmp_path, monkeypatch):
     sys.modules.pop("simulation_runner.api", None)
     api = importlib.import_module("simulation_runner.api")
     api.rt.jobs.poll_interval = 0.02
-    yield TestClient(api.app), api
+    # requests arrive from a private address, as from the deploy Caddy, so X-Forwarded-For names the client
+    yield TestClient(api.app, client=("172.18.0.2", 50000)), api
     api.rt.jobs.stop()
     sys.path.remove(str(ROOT / "apps" / "simulation_runner"))
 
@@ -58,6 +59,8 @@ def test_example_run_rerun_dataset(client):
     assert c.get(f"/api/runs/{start['run_id']}/steps/c01.solve/files/profile.csv").text.startswith("x_m,T_K")
     assert c.get(f"/api/runs/{start['run_id']}/steps/c01.solve/files/..%2F..%2Frunner.sqlite").status_code == 404
 
+    assert step["kind"] == "python" and step["viewable"] is False                      # no 3-D result to show
+    assert c.get(f"/api/runs/{start['run_id']}/steps/c01.solve/view3d").status_code == 409
     again = _wait(c, c.post(f"/api/runs/{start['run_id']}/rerun").json()["run_id"])
     assert again["counts"]["skipped"] == 7 and again["counts"]["done"] == 0            # skip-done
 
@@ -108,3 +111,37 @@ def test_runs_are_private_to_their_owner(client):
     other = {"X-Forwarded-For": "203.0.113.9"}
     assert c.get(f"/api/runs/{run_id}", headers=other).status_code == 404
     assert c.get("/api/runs", headers=other).json() == []
+
+
+@pytest.mark.parametrize("template", ["beam_calculix", "cavity_openfoam"])
+def test_view_result_of_a_solver_step(client, template):
+    """The 3-D result of a CalculiX or OpenFOAM step, also when the step was reused (skip-done); runs only where
+    the solver is installed."""
+    c, api = client
+    t = api.TEMPLATES[template]
+    if not t.availability()[0]:
+        pytest.skip(t.availability()[1])
+    cases = [t.example_cases(6).to_dict("records")[0]]
+    start = c.post("/api/runs", json={"template": template, "cases": cases}).json()
+    run = _wait(c, start["run_id"], timeout=300)
+    assert run["status"] == "done", run
+    step = next(s for s in run["steps"] if s["step_id"].endswith(".solve"))
+    assert step["viewable"] and step["kind"] in ("calculix", "openfoam")
+    v = c.get(f"/api/runs/{start['run_id']}/steps/{step['step_id']}/view3d").json()
+    kinds = {x["kind"] for x in v["info"]["conditions"]}
+    assert kinds == ({"bc", "load"} if template == "beam_calculix" else {"bc"})   # flow: all boundary conditions
+    if template == "beam_calculix":
+        assert v["view"]["deform"]["displacement"]["max"] == pytest.approx(step["outputs"]["max_displacement"], rel=1e-6)
+        load = next(x for x in v["info"]["conditions"] if x["kind"] == "load")
+        assert f"Fz = {-cases[0]['F']:.4g}" in load["name"]                # the deck's load, as the case defines it
+    else:
+        assert set(v["info"]["fields"]) >= {"U", "p"} and v["info"]["time"] == pytest.approx(step["outputs"]["latest_time"])
+        assert [x["name"] for x in v["info"]["conditions"] if x["role"] == "driving wall"] == ["movingWall"]
+        assert f"|U| = {cases[0]['U_lid']:.4g}" in " ".join(v["info"]["notes"])     # the wall value, beside the cells
+    glb = c.get(v["glb"])
+    assert glb.status_code == 200 and glb.content[:4] == b"glTF"
+    again = _wait(c, c.post(f"/api/runs/{start['run_id']}/rerun").json()["run_id"], timeout=300)
+    reused = next(s for s in again["steps"] if s["step_id"] == step["step_id"])
+    assert reused["status"] == "skipped" and reused["viewable"]
+    v2 = c.get(f"/api/runs/{again['id']}/steps/{step['step_id']}/view3d").json()
+    assert v2["info"]["conditions"] == v["info"]["conditions"]

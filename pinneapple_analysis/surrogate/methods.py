@@ -46,7 +46,7 @@ from pinneapple_analysis.cost.equal_budget import (
 
 from .pde import PDEDeclaration
 
-__all__ = ["Candidate", "Fitted", "TrainContext", "CANDIDATES", "candidate_ids", "applicable", "fit_candidate",
+__all__ = ["Candidate", "Fitted", "NonNegative", "TrainContext", "CANDIDATES", "candidate_ids", "applicable", "fit_candidate",
            "GP_MAX_N"]
 
 GP_MAX_N = 2000
@@ -90,6 +90,27 @@ class Fitted:
         buf = io.BytesIO()
         pickle.dump(self, buf)
         return buf.tell()
+
+
+class NonNegative(Fitted):
+    """A candidate trained on the square root of the outputs in ``mask`` (a boolean over the flattened outputs, e.g.
+    a von Mises stress channel): it predicts their square, so they are never negative."""
+
+    def __init__(self, inner: Fitted, mask: np.ndarray):
+        self.inner, self.mask = inner, np.asarray(mask, bool)
+        self.method, self.n_params, self.info = inner.method, inner.n_params, inner.info
+
+    @staticmethod
+    def forward_target(Y: np.ndarray, mask: np.ndarray) -> np.ndarray:
+        """What the inner model is trained on: ``sqrt`` of the masked outputs."""
+        Y = np.array(Y, float, copy=True)
+        Y[:, mask] = np.sqrt(np.maximum(Y[:, mask], 0.0))
+        return Y
+
+    def predict(self, X):
+        Y = np.array(self.inner.predict(X), float, copy=True)
+        Y[:, self.mask] = Y[:, self.mask] ** 2
+        return Y
 
 
 # ---------------------------------------------------------------------------------------------- one-shot fits

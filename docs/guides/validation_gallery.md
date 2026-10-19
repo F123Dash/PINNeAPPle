@@ -58,8 +58,9 @@ GitHub Action uploads to code scanning.
 - **Two solvers were not used, because they failed a sanity check:**
   - `generate_magnetic_flux_leakage_synthetic`: the peak leakage signal is not monotonic in defect depth and changes
     with the grid (36 × 14, 72 × 28, 144 × 56).
-  - `eddy_current_fdm` at ω = 0: the on-axis field of a coil is about 0.20× the closed-form current-loop field, the
-    same factor for two radii and four axial distances. This looks like a normalisation issue in the solver or its
-    source helper. Examples 11 and 08 use the Darcy operator and the heat plate instead.
+  - `eddy_current_fdm` at ω = 0: the on-axis field of a coil was a fraction of the closed-form current-loop field.
+    The solver was right; `annular_current_source` normalised the density by the nominal band area, so the current
+    it injected depended on how the band fell on the grid. It now injects exactly N·I, and the on-axis field matches
+    the loop formula (`tests/test_em_core.py`). Examples 11 and 08 still use the Darcy operator and the heat plate.
 - Smoke sizes are small. The FNO and DeepONet numbers (horizons, spectra) change with training length; the tests
   assert that each failure is caught and that the good model does not fail the same check, not the exact values.
