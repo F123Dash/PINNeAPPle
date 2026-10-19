@@ -2,7 +2,7 @@
  "schema": "pinneapple-flow/1",
  "id": "el-nino-forecast-enso-models",
  "name": "El Nino forecast (ENSO models)",
- "description": "Nino 3.4 from OISST with the WOD thermocline (warm-water volume) and ERA5 wind stress: the ENSO library's baselines, recharge and delayed oscillators, linear inverse model, intermediate coupled model and a gradient-boosting forecaster, tuned on 1982-2011 and scored on the untouched test period from 2012 against climatology and persistence.",
+ "description": "Nino 3.4 from OISST with the WOD thermocline (warm-water volume) and ERA5 wind stress: the ENSO library's baselines, recharge and delayed oscillators, linear inverse model and a gradient-boosting forecaster (quick settings), tuned on 1982-2011 and scored on the untouched test period from 2012 against climatology and persistence. The intermediate coupled model (im_nudged) is left out of this example: it ran for more than 55 minutes without finishing on a 4-core CPU.",
  "nodes": [
   {
    "id": "forecast",
@@ -15,7 +15,6 @@
      "ro",
      "delayed_oscillator",
      "lim",
-     "im_nudged",
      "gbm"
     ],
     "quick": true

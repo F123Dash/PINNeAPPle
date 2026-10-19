@@ -127,7 +127,7 @@ def twin(ctx, inputs, params):
     return {"twin": snap, "series": s, "metrics": ctx.report["metrics"]}
 
 
-ENSO_DEFAULT = ["persistence", "climatology", "ar", "ro", "delayed_oscillator", "lim", "im_nudged", "gbm"]
+ENSO_DEFAULT = ["persistence", "climatology", "ar", "ro", "delayed_oscillator", "lim", "gbm"]   # im_nudged: slow
 
 
 @node("forecast.enso", "El Nino forecast (ENSO models)", category="Time series",

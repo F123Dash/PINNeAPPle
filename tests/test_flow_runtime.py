@@ -173,3 +173,19 @@ def test_a_candidates_own_failing_check_is_not_hidden(home):
     failed = {row[0] for t in pinn_report["tables"] for row in t["rows"] if row[1] == "fail"}
     assert {c["name"].removeprefix("PINN_") for c in own if not c["passed"]} == failed
     assert any(t["title"] == "candidates' own checks" for t in r.report("val")["tables"])
+
+
+def test_lab_node_reports_the_letter_the_curation_gives_this_run(home):
+    f = heat_flow()
+    f.nodes.append(pf.Node(id="lab", type="validate.lab", params={}))
+    f.edges.append(pf.Edge(source="val", source_port="metrics", target="lab", target_port="validation"))
+    r = pf.run(f, workdir=home / "runs")
+    assert r.status == "done", r.nodes["lab"]["error"]
+    m = r.report("lab")["metrics"]
+    tier = m["tier"]["value"] if isinstance(m["tier"], dict) else m["tier"]
+    import json
+    from pathlib import Path
+    cur = json.loads((Path(home) / "home" / "lab" / "curation.json").read_text())
+    run_id = m["lab_run_id"]["value"] if isinstance(m["lab_run_id"], dict) else m["lab_run_id"]
+    assert tier == cur["runs"][run_id]["tier"] and tier in "ABCDEF"
+    assert r.report("lab")["summary"].startswith(f"tier {tier}")

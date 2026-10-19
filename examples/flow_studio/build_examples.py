@@ -153,11 +153,12 @@ def inverse_heat():
 def elnino():
     fb = FlowBuilder("El Nino forecast (ENSO models)",
                      "Nino 3.4 from OISST with the WOD thermocline (warm-water volume) and ERA5 wind stress: the ENSO "
-                     "library's baselines, recharge and delayed oscillators, linear inverse model, intermediate "
-                     "coupled model and a gradient-boosting forecaster, tuned on 1982-2011 and scored on the untouched "
-                     "test period from 2012 against climatology and persistence.")
+                     "library's baselines, recharge and delayed oscillators, linear inverse model and a "
+                     "gradient-boosting forecaster (quick settings), tuned on 1982-2011 and scored on the untouched test "
+                     "period from 2012 against climatology and persistence. The intermediate coupled model (im_nudged) "
+                     "is left out of this example: it ran for more than 55 minutes without finishing on a 4-core CPU.")
     f = fb.add("forecast", "forecast.enso", {"models": ["persistence", "climatology", "ar", "ro", "delayed_oscillator",
-                                                         "lim", "im_nudged", "gbm"], "quick": True},
+                                                         "lim", "gbm"], "quick": True},
                label="ENSO forecast")
     r = fb.add("report", "export.report", {"title": "El Nino forecast"}, label="Report")
     fb.connect(f, "metrics", r, "items")

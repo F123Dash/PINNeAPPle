@@ -340,8 +340,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "cdfb7d99ab",
-    "created": 1792362724.7033408
+    "id": "ed9c41162f",
+    "created": 1792368157.3688123
    },
    {
     "topic": "equations",
@@ -393,8 +393,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "bdca6c967e",
-    "created": 1792362724.703459
+    "id": "47bc6ad019",
+    "created": 1792368157.3689113
    },
    {
     "topic": "dimension",
@@ -421,8 +421,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "13ff1d7834",
-    "created": 1792362724.703504
+    "id": "c363de5bb8",
+    "created": 1792368157.3689477
    },
    {
     "topic": "dimension",
@@ -445,8 +445,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "7c37416113",
-    "created": 1792362724.7035298
+    "id": "829ccc2252",
+    "created": 1792368157.3689704
    },
    {
     "topic": "bcs",
@@ -496,8 +496,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "3f33f04c69",
-    "created": 1792362724.7035582
+    "id": "c2a2e7de89",
+    "created": 1792368157.3689969
    },
    {
     "topic": "validation",
@@ -565,8 +565,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "dd7e5c3605",
-    "created": 1792362724.7035928
+    "id": "135fe599d2",
+    "created": 1792368157.3690274
    },
    {
     "topic": "method",
@@ -640,8 +640,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "4d63e2c8e7",
-    "created": 1792362724.7036498
+    "id": "6a04b2fb41",
+    "created": 1792368157.3690789
    },
    {
     "topic": "method",
@@ -687,8 +687,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "4cf7055a81",
-    "created": 1792362724.7036872
+    "id": "692e53a373",
+    "created": 1792368157.3691092
    },
    {
     "topic": "method",
@@ -741,8 +741,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "bdbd1b7706",
-    "created": 1792362724.703711
+    "id": "8432930d8d",
+    "created": 1792368157.3691342
    },
    {
     "topic": "hyperparameters",
@@ -828,8 +828,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "6747d5b1a3",
-    "created": 1792362724.7037375
+    "id": "27a4b11476",
+    "created": 1792368157.369161
    },
    {
     "topic": "architecture",
@@ -859,8 +859,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "db60907176",
-    "created": 1792362724.7037683
+    "id": "a0eb57bd3c",
+    "created": 1792368157.36919
    },
    {
     "topic": "validation",
@@ -912,8 +912,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "619cbcec8b",
-    "created": 1792362724.703791
+    "id": "43e34e8f5d",
+    "created": 1792368157.3692107
    },
    {
     "topic": "validation",
@@ -940,8 +940,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "bedba5757e",
-    "created": 1792362724.7038136
+    "id": "ec708517b1",
+    "created": 1792368157.369233
    },
    {
     "topic": "validation",
@@ -950,7 +950,7 @@
      "kind": "rule",
      "id": "validation.lab_tiers"
     },
-    "rationale": "PINNeAPPle Lab tiers A-D and the seal on A/B",
+    "rationale": "PINNeAPPle Lab seal letters A-F from the curation",
     "value": null,
     "references": [],
     "evidence": [
@@ -968,8 +968,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "6e6a395ebf",
-    "created": 1792362724.7038312
+    "id": "1eb28b6dca",
+    "created": 1792368157.369255
    },
    {
     "topic": "route",
@@ -992,8 +992,8 @@
     "raise_with": [
      "validate.compare"
     ],
-    "id": "46d1c6960b",
-    "created": 1792362724.7038484
+    "id": "68e907e225",
+    "created": 1792368157.3692718
    },
    {
     "topic": "dimension",
@@ -1046,8 +1046,8 @@
     "no_reference": false,
     "suggestion": "",
     "raise_with": [],
-    "id": "5a981519ac",
-    "created": 1792362724.7038705
+    "id": "80e5aaacde",
+    "created": 1792368157.3692925
    }
   ],
   "planner": "heuristic",

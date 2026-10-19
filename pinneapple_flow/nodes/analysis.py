@@ -260,20 +260,20 @@ def lab(ctx, inputs, params):
     res = lab_run(FlowValidation, root=root)
     cur = curate(LabStore(root))
     item = cur["items"].get(name, {})
-    tier = item.get("tier", "?")
+    item_tier = item.get("tier", "?")
+    run_rec = (cur.get("runs") or {}).get(res.run_id) or {}
+    hl = run_rec.get("headline") or {}
+    tier = run_rec.get("tier") or item_tier             # the letter the curation gives THIS run
     ctx.metric("lab_status", res.status)
     from pinneapple_lab.curation import TIERS
-    ctx.metric("tier", tier, "pinneapple_lab.curation: " + ", ".join(f"{k} {v}" for k, v in TIERS.items()))
+    ctx.metric("tier", tier, "this run, graded by pinneapple_lab.curation: " +
+               ", ".join(f"{k} {v}" for k, v in TIERS.items()) + (f"; {hl['text']}" if hl.get("text") else ""))
+    ctx.metric("item_tier", item_tier, "the Lab item's letter: the best of its runs")
     ctx.metric("lab_run_id", res.run_id)
-    run_rec = (cur.get("runs") or {}).get(res.run_id) or {}
-    run_tier = run_rec.get("tier")
-    if run_tier:                                     # this run's own grade: the item's letter is its best run's
-        hl = run_rec.get("headline") or {}
-        ctx.metric("run_tier", run_tier, "this run's grade by the Lab curation; " + (hl.get("text") or ""))
-        if run_tier != tier:
-            ctx.warn(f"this run is graded {run_tier} ({run_rec.get('tier_name', '')}: {hl.get('text', '')}"
-                     f"{'; ' + hl['hint'] if hl.get('hint') else ''}); the item's letter {tier} comes from its best "
-                     f"run ({item.get('best_run', '')}), recorded earlier")
+    if tier != item_tier:
+        ctx.warn(f"this run is graded {tier} ({run_rec.get('tier_name', '')}: {hl.get('text', '')}"
+                 f"{'; ' + hl['hint'] if hl.get('hint') else ''}); the item keeps {item_tier} from its best run "
+                 f"({item.get('best_run', '')})")
     from ..lab_status import next_steps, seal_status
     st = seal_status(name, root)                                 # the Lab's letter (A-F once it has that scale)
     steps = next_steps(name, root)
@@ -292,15 +292,14 @@ def lab(ctx, inputs, params):
         seal = seal_for(name, root)
     except (SealError, KeyError) as exc:
         ctx.warn(f"no seal: {exc}")
-        ctx.summary(f"tier {tier}: not sealed ({exc})" + (f"; this run {run_tier}" if run_tier and run_tier != tier
-                                                          else ""))
+        ctx.summary(f"tier {tier}: not sealed ({exc})")
         return out
-    if figure:
+    if figure and seal.tier == tier:                 # stamp only a seal that is this run's letter
         sealed = stamp_file(figure, seal, out=str(ctx.path("validation_sealed.png")))
         from ..runtime import artifact
         out["figure"] = artifact(sealed, "png")
         ctx.report["figures"].append({"path": str(sealed), "name": "validation_sealed",
                                       "caption": f"tier {tier} seal"})
-    ctx.summary(f"tier {tier}, sealed" + (f"; this run {run_tier} ({(run_rec.get('headline') or {}).get('text', '')})"
-                                          if run_tier and run_tier != tier else ""))
+    ctx.summary(f"tier {tier}" + (f" ({hl['text']})" if hl.get("text") and tier in ("D", "E", "F") else "") +
+                (", sealed" if seal.tier == tier else f"; the item's seal is {seal.tier} from an earlier run"))
     return out
