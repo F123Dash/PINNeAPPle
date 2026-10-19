@@ -16,9 +16,11 @@ from playwright.sync_api import sync_playwright
 OUT = Path(__file__).resolve().parents[2] / "docs" / "flow_studio"
 
 
-def wait_done(page, timeout_ms=900_000):
+def wait_done(page, timeout_ms=2_400_000):
+    """Every node in an end state (done, cached, degraded, not_run, failed, cancelled)."""
     page.wait_for_function("""() => [...document.querySelectorAll('[data-testid=node-status]')]
-                              .every(e => ['done','cached','failed'].includes(e.textContent))""", timeout=timeout_ms)
+                              .every(e => ['done','cached','degraded','not_run','failed','cancelled']
+                                          .includes(e.textContent))""", timeout=timeout_ms)
 
 
 def main():
